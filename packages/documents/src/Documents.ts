@@ -41,10 +41,15 @@ export interface DocumentSnapshot {
 export class Documents extends Context.Service<
   Documents,
   {
+    /**
+     * Creates an empty document, with `id` if given. Creating it again with
+     * the same id does nothing, so a client can safely retry.
+     */
     readonly create: (
       type: ContentTypeName,
       team: TeamId,
       author: Identity,
+      id?: DocumentId,
     ) => Effect.Effect<DocumentId, TeamNotFound>;
     /** A team's documents of a type, most recently edited first. */
     readonly list: (
@@ -99,13 +104,16 @@ export class Documents extends Context.Service<
         type: ContentTypeName,
         team: TeamId,
         author: Identity,
+        id?: DocumentId,
       ) {
         // The initial state gets an actor id of its own, which no editor
         // will ever use.
         const draft = A.save(A.from({ ...contentTypes[type].initial }));
         const [row] = yield* sql<{ id: DocumentId }>`
-          INSERT INTO documents (type, team_id, draft, created_by_issuer, created_by_subject)
-          VALUES (${type}, ${team}, ${draft}::bytea, ${author.issuer}, ${author.subject})
+          INSERT INTO documents (id, type, team_id, draft, created_by_issuer, created_by_subject)
+          VALUES (coalesce(${id ?? null}::uuid, uuidv7()), ${type}, ${team},
+            ${draft}::bytea, ${author.issuer}, ${author.subject})
+          ON CONFLICT (id) DO NOTHING
           RETURNING id
         `.pipe(
           Effect.catchIf(SqlError.isSqlError, (error) =>
@@ -114,10 +122,10 @@ export class Documents extends Context.Service<
               : Effect.die(error),
           ),
         );
-        if (row === undefined) {
-          return yield* Effect.die("INSERT returned no row");
-        }
-        return row.id;
+        if (row !== undefined) return row.id;
+        // Created before, by an earlier try.
+        if (id !== undefined) return id;
+        return yield* Effect.die("INSERT returned no row");
       });
 
       const get = Effect.fn("Documents.get")(function* (id: DocumentId) {

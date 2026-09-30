@@ -1,89 +1,111 @@
-import type { EventRow } from "@skjera/documents/api";
-import { useEffect, useState } from "react";
-import { Form, useActionData } from "react-router";
+import type { AttendeeRow, EventRow } from "@skjera/documents/api";
+import { type FormEvent, useState } from "react";
 import { Button } from "../../components/Button.tsx";
 import { Input } from "../../components/Input.tsx";
 import { loginUrl } from "../../site/client.ts";
+import { guestSignup, rememberGuestSignup } from "../../site/guestSignups.ts";
+import { attendees, type Signup } from "../../sync/tables.ts";
 import styles from "./Attend.module.css";
-import type { eventAction } from "./EventPage.tsx";
 
-// A guest's cancel token stays in their browser; only they can cancel.
-const tokenKey = (id: string) => `skjera-signup-${id}`;
-const readToken = (id: string) => {
-  try {
-    return localStorage.getItem(tokenKey(id));
-  } catch {
-    return null;
-  }
-};
-const writeToken = (id: string, token: string | null) => {
-  try {
-    if (token === null) localStorage.removeItem(tokenKey(id));
-    else localStorage.setItem(tokenKey(id), token);
-  } catch {
-    // Private browsing: the signup stands, cancelling needs the organizers.
-  }
-};
-
-/** Signing up to attend an event, and changing one's mind. */
+/**
+ * Signing up to attend an event, and changing one's mind. Changes show at
+ * once; a refused one is undone, and says why.
+ */
 export function Attend(props: {
   readonly event: EventRow;
-  readonly attendance: {
-    readonly count: number;
-    /** The signed-in user is. Guests keep track in their browser. */
-    readonly attending: boolean;
-  };
+  /** Everyone signed up for the event. */
+  readonly signups: ReadonlyArray<AttendeeRow>;
   readonly signedIn: boolean;
 }) {
-  const { event, attendance } = props;
-  const action = useActionData<typeof eventAction>();
-  const [guestToken, setGuestToken] = useState(() => readToken(event.id));
+  const { event, signups } = props;
+  const [error, setError] = useState<string | null>(null);
+  // This browser's guest signup, if it made one.
+  const [guest, setGuest] = useState(() => guestSignup(event.id));
+  const mine = signups.find((signup) => signup.mine);
 
-  // Remember a new guest signup, or forget a cancelled one.
-  useEffect(() => {
-    if (action === undefined || !("guestToken" in action)) return;
-    writeToken(event.id, action.guestToken);
-    setGuestToken(action.guestToken);
-  }, [action, event.id]);
+  const settle = (change: {
+    readonly isPersisted: { promise: Promise<unknown> };
+  }) => {
+    setError(null);
+    change.isPersisted.promise.then(
+      () => setGuest(guestSignup(event.id)),
+      (failure: Error) => setError(failure.message),
+    );
+  };
+
+  const signUp = (submitted: FormEvent<HTMLFormElement>, asGuest: boolean) => {
+    submitted.preventDefault();
+    const form = new FormData(submitted.currentTarget);
+    const dietary = form.get("dietary");
+    const signup: Signup = {
+      ...(dietary === null ? {} : { dietary: String(dietary) }),
+      ...(asGuest
+        ? {
+            guest: {
+              name: String(form.get("name") ?? ""),
+              email: String(form.get("email") ?? ""),
+            },
+          }
+        : {}),
+    };
+    settle(
+      attendees.collection.insert(
+        {
+          id: crypto.randomUUID(),
+          eventId: event.id,
+          signedUpAt: new Date(),
+          mine: !asGuest,
+          details: null,
+        },
+        { metadata: signup },
+      ),
+    );
+  };
+
+  const cancel = (id: string) => {
+    if (attendees.collection.has(id)) {
+      settle(attendees.collection.delete(id));
+    } else {
+      // Gone already, e.g. removed by the organizers.
+      rememberGuestSignup(event.id, null);
+      setGuest(null);
+    }
+  };
 
   const count =
-    attendance.count === 0
+    signups.length === 0
       ? "Nobody has signed up yet."
-      : `${attendance.count} attending`;
-  const error =
-    action !== undefined && "error" in action ? (
+      : `${signups.length} attending`;
+  const failure =
+    error === null ? null : (
       <p role="alert" className={styles.error}>
-        {action.error}
+        {error}
       </p>
-    ) : null;
+    );
 
   if (props.signedIn) {
     return (
       <section className={styles.box} aria-label="Attendance">
         <p className={styles.count}>{count}</p>
-        {attendance.attending ? (
-          <Form method="post" className={styles.row}>
+        {mine !== undefined ? (
+          <div className={styles.row}>
             <p className={styles.status}>You're attending.</p>
-            <Button type="submit" name="intent" value="leave">
-              Cancel attendance
-            </Button>
-          </Form>
+            <Button onClick={() => cancel(mine.id)}>Cancel attendance</Button>
+          </div>
         ) : (
-          <Form method="post" className={styles.form}>
+          <form
+            className={styles.form}
+            onSubmit={(submitted) => signUp(submitted, false)}
+          >
             {event.askDietary ? <DietaryInput /> : null}
             <div className={styles.row}>
-              <Button
-                type="submit"
-                name="intent"
-                value="attend"
-                variant="primary"
-              >
+              <Button type="submit" variant="primary">
                 Attend
               </Button>
             </div>
-          </Form>
+          </form>
         )}
-        {error}
+        {failure}
       </section>
     );
   }
@@ -102,9 +124,11 @@ export function Attend(props: {
   return (
     <section className={styles.box} aria-label="Attendance">
       <p className={styles.count}>{count}</p>
-      {guestToken === null ? (
-        <Form method="post" className={styles.form}>
-          <input type="hidden" name="intent" value="guest-attend" />
+      {guest === null ? (
+        <form
+          className={styles.form}
+          onSubmit={(submitted) => signUp(submitted, true)}
+        >
           <div className={styles.fields}>
             <Input
               name="name"
@@ -129,16 +153,14 @@ export function Attend(props: {
               or <a href={loginUrl(`/events/${event.id}`)}>log in</a>
             </span>
           </div>
-        </Form>
+        </form>
       ) : (
-        <Form method="post" className={styles.row}>
-          <input type="hidden" name="intent" value="guest-leave" />
-          <input type="hidden" name="token" value={guestToken} />
+        <div className={styles.row}>
           <p className={styles.status}>You're signed up.</p>
-          <Button type="submit">Cancel my signup</Button>
-        </Form>
+          <Button onClick={() => cancel(guest.id)}>Cancel my signup</Button>
+        </div>
       )}
-      {error}
+      {failure}
     </section>
   );
 }

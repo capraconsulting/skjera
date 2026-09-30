@@ -58,16 +58,16 @@ export const DocumentsRpcHandlers = DocumentsRpc.toLayer(
           yield* presence.publish(update, yield* CurrentUser);
         }),
       WatchPresence: () => Stream.unwrap(presence.subscribe),
-      CreateTeam: ({ name }) =>
+      CreateTeam: ({ id, name }) =>
         Effect.gen(function* () {
-          return yield* teams.create(name, yield* CurrentUser);
+          return yield* teams.create(name, yield* CurrentUser, id);
         }),
       RenameTeam: ({ id, name }) => teams.rename(id, name),
       DeleteTeam: ({ id }) => teams.delete(id),
       ListDocuments: ({ type, teamId }) => documents.list(type, teamId),
-      CreateDocument: ({ type, teamId }) =>
+      CreateDocument: ({ id, type, teamId }) =>
         Effect.gen(function* () {
-          return yield* documents.create(type, teamId, yield* CurrentUser);
+          return yield* documents.create(type, teamId, yield* CurrentUser, id);
         }),
       OpenDocument: ({ id }) =>
         Effect.gen(function* () {

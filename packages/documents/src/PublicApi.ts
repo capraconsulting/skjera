@@ -21,6 +21,8 @@ export class EventsApi extends HttpApiGroup.make("events").add(
   HttpApiEndpoint.post("attend", "/api/events/:id/attendance", {
     params: { id: DocumentId },
     payload: Schema.Struct({
+      /** The signup's id, picked by the client. */
+      id: Schema.String.check(Schema.isUUID()),
       guest: Schema.optionalKey(GuestDetails),
       dietary: Schema.optionalKey(Schema.String),
     }),

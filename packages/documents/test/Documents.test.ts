@@ -112,6 +112,25 @@ const openEditor = Effect.fn(function* (
 
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
+  it.effect("creates a document with the id a client picked, once", () =>
+    Effect.gen(function* () {
+      const documents = yield* Documents;
+      const team = yield* newTeam;
+      const id = crypto.randomUUID() as DocumentId;
+      assert.strictEqual(yield* documents.create("event", team, alice, id), id);
+      // A retry is fine, and doesn't reset the draft.
+      const editor = yield* openEditor(id);
+      yield* documents.applyChanges(
+        id,
+        [editor.edit((event) => A.updateText(event, ["title"], "Kept"))],
+        alice,
+      );
+      assert.strictEqual(yield* documents.create("event", team, alice, id), id);
+      const draft = A.load<EventContent>((yield* documents.get(id)).draft);
+      assert.strictEqual(draft.title, "Kept");
+    }),
+  );
+
   it.effect("creates an empty draft", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
@@ -529,6 +548,21 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         ),
       );
       assert.strictEqual(error._tag, "TeamNotFound");
+    }),
+  );
+
+  it.effect("creates a team with the id a client picked, once", () =>
+    Effect.gen(function* () {
+      const teams = yield* Teams;
+      const id = crypto.randomUUID() as TeamId;
+      const created = yield* teams.create("Picked", alice, id);
+      assert.strictEqual(created.id, id);
+      // A retry gets the same team rather than an error.
+      const again = yield* teams.create("Picked", alice, id);
+      assert.deepStrictEqual(
+        [again.id, again.name],
+        [created.id, created.name],
+      );
     }),
   );
 

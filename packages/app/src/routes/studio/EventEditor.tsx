@@ -1,12 +1,7 @@
 import type { DocHandle } from "@automerge/automerge-repo/slim";
 import type { DocumentId, EventContent } from "@skjera/documents/api";
 import { useEffect, useRef } from "react";
-import {
-  useNavigate,
-  useParams,
-  useRevalidator,
-  useSubmit,
-} from "react-router";
+import { useNavigate, useParams, useRevalidator } from "react-router";
 import { Avatars } from "../../components/Avatars.tsx";
 import { Field } from "../../components/Field.tsx";
 import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
@@ -18,6 +13,7 @@ import { CheckboxField, useBooleanField } from "../../editor/CheckboxField.tsx";
 import { DateField } from "../../editor/DateField.tsx";
 import { TextEditor } from "../../editor/TextEditor.tsx";
 import { usePresence } from "../../presence/presence.ts";
+import { documents } from "../../sync/tables.ts";
 import { Attendees } from "./Attendees.tsx";
 import { EditorFooter } from "./EditorFooter.tsx";
 import styles from "./EventEditor.module.css";
@@ -52,7 +48,6 @@ function EventSession({ id }: { readonly id: DocumentId }) {
   const session = useDocumentSession(id);
   const { teamId } = useParams();
   const navigate = useNavigate();
-  const submit = useSubmit();
   const { handle, team } = session;
   useRefreshEventsList(session);
   const here = usePresence().filter(
@@ -82,11 +77,8 @@ function EventSession({ id }: { readonly id: DocumentId }) {
     if (!window.confirm("Delete this event? It is also taken off the site.")) {
       return;
     }
-    // Through the team's route, so the events column updates too.
-    submit(
-      { intent: "delete-event", id },
-      { method: "post", action: `/studio/teams/${teamId}` },
-    );
+    documents.collection.delete(id);
+    navigate(`/studio/teams/${teamId}`);
   };
 
   return (

@@ -123,13 +123,12 @@ export class Sync extends Context.Service<
             SELECT id, name, created_at FROM teams WHERE ${unseen(since)}
           `.pipe(
             Effect.map((rows) => ({
-              rows: rows.map(
-                (row) =>
-                  new TeamRow({
-                    id: row.id,
-                    name: row.name,
-                    createdAt: row.created_at,
-                  }),
+              rows: rows.map((row) =>
+                TeamRow.make({
+                  id: row.id,
+                  name: row.name,
+                  createdAt: row.created_at,
+                }),
               ),
               hidden: [],
             })),
@@ -154,15 +153,14 @@ export class Sync extends Context.Service<
             FROM documents WHERE ${unseen(since)}
           `.pipe(
             Effect.map((rows) => ({
-              rows: rows.map(
-                (row) =>
-                  new DocumentRow({
-                    id: row.id,
-                    type: row.type,
-                    teamId: row.team_id,
-                    createdAt: row.created_at,
-                    updatedAt: row.updated_at,
-                  }),
+              rows: rows.map((row) =>
+                DocumentRow.make({
+                  id: row.id,
+                  type: row.type,
+                  teamId: row.team_id,
+                  createdAt: row.created_at,
+                  updatedAt: row.updated_at,
+                }),
               ),
               hidden: [],
             })),
@@ -198,20 +196,19 @@ export class Sync extends Context.Service<
             Effect.map((rows) => ({
               rows: rows
                 .filter((row) => row.visible)
-                .map(
-                  (row) =>
-                    new EventRow({
-                      id: row.id,
-                      title: row.title,
-                      date: row.date,
-                      body: row.body,
-                      isPublic: row.is_public,
-                      allowGuests: row.allow_guests,
-                      askDietary: row.ask_dietary,
-                      publishedHeads: row.published_heads,
-                      publishedAt: row.published_at,
-                      firstPublishedAt: row.first_published_at,
-                    }),
+                .map((row) =>
+                  EventRow.make({
+                    id: row.id,
+                    title: row.title,
+                    date: row.date,
+                    body: row.body,
+                    isPublic: row.is_public,
+                    allowGuests: row.allow_guests,
+                    askDietary: row.ask_dietary,
+                    publishedHeads: row.published_heads,
+                    publishedAt: row.published_at,
+                    firstPublishedAt: row.first_published_at,
+                  }),
                 ),
               hidden: rows.filter((row) => !row.visible).map((row) => row.id),
             })),
@@ -259,22 +256,21 @@ export class Sync extends Context.Service<
             Effect.map((rows) => ({
               rows: rows
                 .filter((row) => row.visible)
-                .map(
-                  (row) =>
-                    new AttendeeRow({
-                      id: row.id,
-                      eventId: row.event_id,
-                      signedUpAt: row.created_at,
-                      mine: row.mine,
-                      details: member
-                        ? new AttendeeDetails({
-                            name: row.name,
-                            email: row.email,
-                            dietary: row.dietary,
-                            guest: row.guest,
-                          })
-                        : null,
-                    }),
+                .map((row) =>
+                  AttendeeRow.make({
+                    id: row.id,
+                    eventId: row.event_id,
+                    signedUpAt: row.created_at,
+                    mine: row.mine,
+                    details: member
+                      ? AttendeeDetails.make({
+                          name: row.name,
+                          email: row.email,
+                          dietary: row.dietary,
+                          guest: row.guest,
+                        })
+                      : null,
+                  }),
                 ),
               hidden: rows.filter((row) => !row.visible).map((row) => row.id),
             })),

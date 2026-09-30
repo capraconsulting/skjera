@@ -8,9 +8,11 @@ const makeClient = HttpApiClient.make(PublicApi, {
   baseUrl: window.location.origin,
 });
 
+export type PublicClient = Effect.Success<typeof makeClient>;
+
 /** Runs a request against the public API: published content, no login. */
 export const runPublic = <A, E>(
-  f: (client: Effect.Success<typeof makeClient>) => Effect.Effect<A, E>,
+  f: (client: PublicClient) => Effect.Effect<A, E>,
 ) =>
   Effect.runPromise(
     makeClient.pipe(Effect.flatMap(f), Effect.provide(FetchHttpClient.layer)),

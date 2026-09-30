@@ -30,29 +30,25 @@ export const Pulled = <Row extends Schema.Top>(row: Row) =>
     snapshot: Snapshot,
   });
 
-export class TeamRow extends Schema.Class<TeamRow>("@skjera/documents/TeamRow")(
-  {
-    id: TeamId,
-    name: Schema.String,
-    createdAt: Schema.Date,
-  },
-) {}
+export const TeamRow = Schema.Struct({
+  id: TeamId,
+  name: Schema.String,
+  createdAt: Schema.Date,
+});
+export type TeamRow = typeof TeamRow.Type;
 
 /** A document without its content, which is synced separately. */
-export class DocumentRow extends Schema.Class<DocumentRow>(
-  "@skjera/documents/DocumentRow",
-)({
+export const DocumentRow = Schema.Struct({
   id: DocumentId,
   type: ContentTypeName,
   teamId: TeamId,
   createdAt: Schema.Date,
   updatedAt: Schema.Date,
-}) {}
+});
+export type DocumentRow = typeof DocumentRow.Type;
 
 /** The published version of an event: what the site shows. */
-export class EventRow extends Schema.Class<EventRow>(
-  "@skjera/documents/EventRow",
-)({
+export const EventRow = Schema.Struct({
   id: DocumentId,
   title: Schema.String,
   date: IsoDate,
@@ -67,24 +63,22 @@ export class EventRow extends Schema.Class<EventRow>(
   publishedHeads: Heads,
   publishedAt: Schema.Date,
   firstPublishedAt: Schema.Date,
-}) {}
+});
+export type EventRow = typeof EventRow.Type;
 
 /** Who is coming to an event, for its organizers. */
-export class AttendeeDetails extends Schema.Class<AttendeeDetails>(
-  "@skjera/documents/AttendeeDetails",
-)({
+export const AttendeeDetails = Schema.Struct({
   name: Schema.String,
   email: Schema.NullOr(Schema.String),
   /** What they can't eat, when the event asked. */
   dietary: Schema.NullOr(Schema.String),
   /** Signed up without an account. */
   guest: Schema.Boolean,
-}) {}
+});
+export type AttendeeDetails = typeof AttendeeDetails.Type;
 
 /** A signup for a published event. */
-export class AttendeeRow extends Schema.Class<AttendeeRow>(
-  "@skjera/documents/AttendeeRow",
-)({
+export const AttendeeRow = Schema.Struct({
   id: Schema.String,
   eventId: DocumentId,
   signedUpAt: Schema.Date,
@@ -92,7 +86,8 @@ export class AttendeeRow extends Schema.Class<AttendeeRow>(
   mine: Schema.Boolean,
   /** Who it is: for signed-in users only; anyone else can only count. */
   details: Schema.NullOr(AttendeeDetails),
-}) {}
+});
+export type AttendeeRow = typeof AttendeeRow.Type;
 
 const since = { since: Schema.optionalKey(Snapshot) };
 

@@ -26,6 +26,7 @@ export class Attendance extends Context.Service<
       event: DocumentId,
       user: Identity,
       dietary?: string,
+      id?: string,
     ) => Effect.Effect<void, EventNotFound | SignupRejected>;
     readonly leave: (
       event: DocumentId,
@@ -36,6 +37,7 @@ export class Attendance extends Context.Service<
       event: DocumentId,
       guest: GuestDetails,
       dietary?: string,
+      id?: string,
     ) => Effect.Effect<string, EventNotFound | SignupRejected>;
     readonly leaveAsGuest: (
       event: DocumentId,
@@ -86,15 +88,17 @@ export class Attendance extends Context.Service<
         event: DocumentId,
         user: Identity,
         dietaryValue?: string,
+        id?: string,
       ) {
         const { askDietary } = yield* rules(event, "members");
         const dietary = yield* dietaryFor(askDietary, dietaryValue);
+        // Already signed up, or a retry: nothing to do.
         yield* sql`
-          INSERT INTO attendees (event_id, user_issuer, user_subject, name, email, dietary)
-          VALUES (${event}, ${user.issuer}, ${user.subject},
-            ${user.name ?? user.email ?? user.subject}, ${user.email ?? null}, ${dietary})
-          ON CONFLICT (event_id, user_issuer, user_subject)
-            WHERE user_issuer IS NOT NULL DO NOTHING
+          INSERT INTO attendees (id, event_id, user_issuer, user_subject, name, email, dietary)
+          VALUES (coalesce(${id ?? null}::uuid, uuidv7()), ${event}, ${user.issuer},
+            ${user.subject}, ${user.name ?? user.email ?? user.subject},
+            ${user.email ?? null}, ${dietary})
+          ON CONFLICT DO NOTHING
         `.pipe(Effect.orDie);
       });
 
@@ -114,6 +118,7 @@ export class Attendance extends Context.Service<
         event: DocumentId,
         guest: GuestDetails,
         dietaryValue?: string,
+        id?: string,
       ) {
         const { allowGuests, askDietary } = yield* rules(event, "anyone");
         if (!allowGuests) {
@@ -124,9 +129,9 @@ export class Attendance extends Context.Service<
         const dietary = yield* dietaryFor(askDietary, dietaryValue);
         const token = randomBytes(32).toString("base64url");
         yield* sql`
-          INSERT INTO attendees (event_id, name, email, dietary, cancel_token_hash)
-          VALUES (${event}, ${guest.name.trim()}, ${guest.email.trim()}, ${dietary},
-            ${hash(token)})
+          INSERT INTO attendees (id, event_id, name, email, dietary, cancel_token_hash)
+          VALUES (coalesce(${id ?? null}::uuid, uuidv7()), ${event}, ${guest.name.trim()},
+            ${guest.email.trim()}, ${dietary}, ${hash(token)})
         `.pipe(
           Effect.catchIf(SqlError.isSqlError, (error) =>
             pgCode(error) === "23505"

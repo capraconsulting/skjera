@@ -2,6 +2,7 @@ import {
   type AttendeeRow,
   type DocumentRow,
   type EventRow,
+  type GuestDetails,
   PublicSyncApi,
   type Snapshot,
   SyncApi,
@@ -11,6 +12,9 @@ import { BasicIndex, createCollection } from "@tanstack/react-db";
 import { Effect } from "effect";
 import { FetchHttpClient } from "effect/http";
 import { HttpApi, HttpApiClient } from "effect/http-api";
+import { call, type DocumentsClient } from "../documents/client.ts";
+import { type PublicClient, runPublic } from "../site/client.ts";
+import { guestSignup, rememberGuestSignup } from "../site/guestSignups.ts";
 
 class Api extends HttpApi.make("sync").add(SyncApi).add(PublicSyncApi) {}
 
@@ -36,22 +40,60 @@ interface Pulled<Row> {
 const pollEveryMs = 5_000;
 
 /**
+ * Sends a change to a row to the server; rejects if it's refused.
+ * `metadata` is what the change was made with, for what isn't in the row.
+ */
+type Write<Row> = (row: Row, metadata: unknown) => Promise<void>;
+
+/**
  * A collection holding a copy of a server table. It pulls every row once,
  * then what changed since the previous pull (see Sync.ts on the server):
  * every few seconds while the page is visible, as soon as it's visible or
  * online again, and on `refresh`. Pulls run one at a time, each from where
  * the last ended.
+ *
+ * Changes made to the collection show at once. `write` sends them to the
+ * server, then a pull brings them back, so the rows pulled already have the
+ * change when it stops being shown on its own. A refused change is undone.
  */
 const serverTable = <Row extends object>(options: {
   readonly id: string;
   readonly getKey: (row: Row) => string;
   readonly pull: (since: Snapshot | undefined) => Promise<Pulled<Row>>;
+  readonly write?: {
+    readonly insert?: Write<Row>;
+    readonly update?: Write<Row>;
+    readonly delete?: Write<Row>;
+  };
 }) => {
   let refresh = () => Promise.resolve();
+
+  /** Writes each change in a transaction, in order, then pulls. */
+  const persist =
+    (send: Write<Row>) =>
+    async ({
+      transaction,
+    }: {
+      readonly transaction: {
+        readonly mutations: ReadonlyArray<{
+          readonly modified: Row;
+          readonly metadata: unknown;
+        }>;
+      };
+    }) => {
+      for (const mutation of transaction.mutations) {
+        await send(mutation.modified, mutation.metadata);
+      }
+      await refresh();
+    };
+  const { insert, update, delete: remove } = options.write ?? {};
 
   const collection = createCollection<Row, string>({
     id: options.id,
     getKey: options.getKey,
+    ...(insert === undefined ? {} : { onInsert: persist(insert) }),
+    ...(update === undefined ? {} : { onUpdate: persist(update) }),
+    ...(remove === undefined ? {} : { onDelete: persist(remove) }),
     // Joins and filters look rows up by their fields.
     autoIndex: "eager",
     defaultIndexType: BasicIndex,
@@ -122,6 +164,35 @@ const serverTable = <Row extends object>(options: {
   };
 };
 
+/** Runs a write over the documents API, failing with a message for people. */
+const send = <E extends { readonly _tag: string }>(
+  f: (client: DocumentsClient["Service"]) => Effect.Effect<unknown, E>,
+) =>
+  call((client) =>
+    f(client).pipe(
+      Effect.asVoid,
+      Effect.mapError((error) => new Error(failureMessage(error))),
+    ),
+  );
+
+/** Runs a write over the site's API, failing with a message for people. */
+const sendPublic = <E extends { readonly _tag: string }>(
+  f: (client: PublicClient) => Effect.Effect<unknown, E>,
+) =>
+  runPublic((client) =>
+    f(client).pipe(
+      Effect.asVoid,
+      Effect.mapError((error) => new Error(failureMessage(error))),
+    ),
+  );
+
+const failureMessage = (failure: { readonly _tag: string }) =>
+  failure._tag === "TeamNotEmpty"
+    ? "Only teams without events can be deleted."
+    : "message" in failure && typeof failure.message === "string"
+      ? failure.message
+      : "Something went wrong";
+
 export const teams = serverTable({
   id: "teams",
   getKey: (team: TeamRow) => team.id,
@@ -129,6 +200,13 @@ export const teams = serverTable({
     request((client) =>
       client.sync.teams({ query: since === undefined ? {} : { since } }),
     ),
+  write: {
+    insert: (team) =>
+      send((client) => client.CreateTeam({ id: team.id, name: team.name })),
+    update: (team) =>
+      send((client) => client.RenameTeam({ id: team.id, name: team.name })),
+    delete: (team) => send((client) => client.DeleteTeam({ id: team.id })),
+  },
 });
 
 export const documents = serverTable({
@@ -138,6 +216,23 @@ export const documents = serverTable({
     request((client) =>
       client.sync.documents({ query: since === undefined ? {} : { since } }),
     ),
+  write: {
+    insert: (document) =>
+      send((client) =>
+        client.CreateDocument({
+          id: document.id,
+          type: document.type,
+          teamId: document.teamId,
+        }),
+      ),
+    // Gone already is as good as deleted.
+    delete: (document) =>
+      send((client) =>
+        client
+          .DeleteDocument({ id: document.id })
+          .pipe(Effect.catchTag("DocumentNotFound", () => Effect.void)),
+      ),
+  },
 });
 
 /** Published events: every one for members, the public ones for anyone. */
@@ -163,4 +258,61 @@ export const attendees = serverTable({
         query: since === undefined ? {} : { since },
       }),
     ),
+  write: {
+    // Signing up, as the signed-in user or as a guest (see `Signup`).
+    insert: (attendee, metadata) => {
+      const { guest, dietary } = metadata as Signup;
+      return sendPublic((client) =>
+        client.events
+          .attend({
+            params: { id: attendee.eventId },
+            payload: {
+              id: attendee.id,
+              ...(guest === undefined ? {} : { guest }),
+              ...(dietary === undefined ? {} : { dietary }),
+            },
+          })
+          .pipe(
+            Effect.tap((signup) =>
+              Effect.sync(() => {
+                if (signup === null) return;
+                rememberGuestSignup(attendee.eventId, {
+                  id: attendee.id,
+                  cancelToken: signup.cancelToken,
+                });
+              }),
+            ),
+          ),
+      );
+    },
+    // Cancelling one's own signup; a guest's with the token they were given.
+    delete: (attendee) => {
+      const guest = guestSignup(attendee.eventId);
+      if (guest?.id === attendee.id) {
+        return sendPublic((client) =>
+          client.events
+            .leaveAsGuest({
+              params: { id: attendee.eventId, token: guest.cancelToken },
+            })
+            // Gone either way: cancelled now, or already before.
+            .pipe(
+              Effect.ignore,
+              Effect.tap(() =>
+                Effect.sync(() => rememberGuestSignup(attendee.eventId, null)),
+              ),
+            ),
+        );
+      }
+      return sendPublic((client) =>
+        client.events.leave({ params: { id: attendee.eventId } }),
+      );
+    },
+  },
 });
+
+/** What signing up sends besides the row: pass it as the insert's metadata. */
+export type Signup = {
+  /** Signing up as a guest, without an account. */
+  readonly guest?: GuestDetails;
+  readonly dietary?: string;
+};

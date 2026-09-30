@@ -65,3 +65,12 @@
 .menu:has(:popover-open) {
   opacity: 1;
 }
+
+.failure {
+  margin: 0.5rem 0.5rem 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  font-size: 0.875rem;
+}

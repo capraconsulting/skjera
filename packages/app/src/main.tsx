@@ -9,7 +9,6 @@ import { Playground } from "./routes/Playground.tsx";
 import {
   EventError,
   EventPage,
-  eventAction,
   eventLoader,
 } from "./routes/site/EventPage.tsx";
 import { Home, homeLoader } from "./routes/site/Home.tsx";
@@ -20,15 +19,9 @@ import {
   NoEventSelected,
   Team,
   TeamError,
-  teamAction,
   teamLoader,
 } from "./routes/studio/Team.tsx";
-import {
-  NoTeamSelected,
-  Teams,
-  teamsAction,
-  teamsLoader,
-} from "./routes/studio/Teams.tsx";
+import { NoTeamSelected, Teams, teamsLoader } from "./routes/studio/Teams.tsx";
 import "./global.css";
 
 // The slim build loads Automerge's WebAssembly explicitly, so Vite needs no
@@ -49,7 +42,6 @@ const router = createBrowserRouter([
         path: "events/:id",
         Component: EventPage,
         loader: eventLoader,
-        action: eventAction,
         ErrorBoundary: EventError,
       },
     ],
@@ -70,14 +62,12 @@ const router = createBrowserRouter([
         // Only waits for the synced tables; the list itself is live.
         loader: teamsLoader,
         shouldRevalidate: () => false,
-        action: teamsAction,
         children: [
           { index: true, Component: NoTeamSelected },
           {
             path: ":teamId",
             Component: Team,
             loader: teamLoader,
-            action: teamAction,
             ErrorBoundary: TeamError,
             children: [
               { index: true, Component: NoEventSelected },

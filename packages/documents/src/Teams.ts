@@ -27,9 +27,14 @@ export class Teams extends Context.Service<
   Teams,
   {
     readonly get: (id: TeamId) => Effect.Effect<Team, TeamNotFound>;
+    /**
+     * Creates a team, with `id` if given. Creating it again with the same
+     * id returns it, so a client can safely retry.
+     */
     readonly create: (
       name: string,
       creator: Identity,
+      id?: TeamId,
     ) => Effect.Effect<Team, InvalidTeamName>;
     readonly rename: (
       id: TeamId,
@@ -81,18 +86,21 @@ export class Teams extends Context.Service<
       const create = Effect.fn("Teams.create")(function* (
         name: string,
         creator: Identity,
+        id?: TeamId,
       ) {
         const trimmed = yield* validName(name);
         const [row] = yield* sql<Row>`
-          INSERT INTO teams (name, created_by_issuer, created_by_subject)
-          VALUES (${trimmed}, ${creator.issuer}, ${creator.subject})
+          INSERT INTO teams (id, name, created_by_issuer, created_by_subject)
+          VALUES (coalesce(${id ?? null}::uuid, uuidv7()), ${trimmed},
+            ${creator.issuer}, ${creator.subject})
+          ON CONFLICT (id) DO NOTHING
           RETURNING id, name, created_at,
           (SELECT count(*)::int FROM documents WHERE team_id = teams.id) AS document_count
         `.pipe(Effect.catchIf(SqlError.isSqlError, nameTaken(trimmed)));
-        if (row === undefined) {
-          return yield* Effect.die("INSERT returned no row");
-        }
-        return toTeam(row);
+        if (row !== undefined) return toTeam(row);
+        // Created before, by an earlier try.
+        if (id !== undefined) return yield* Effect.orDie(get(id));
+        return yield* Effect.die("INSERT returned no row");
       });
 
       const rename = Effect.fn("Teams.rename")(function* (

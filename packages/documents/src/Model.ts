@@ -2,7 +2,10 @@ import { Schema } from "effect";
 
 // Document identity and publish state, shared by the server and the editor.
 
-export const DocumentId = Schema.String.pipe(Schema.brand("DocumentId"));
+/** A UUID; clients may pick it when creating a document. */
+export const DocumentId = Schema.String.check(Schema.isUUID()).pipe(
+  Schema.brand("DocumentId"),
+);
 export type DocumentId = typeof DocumentId.Type;
 
 /** A calendar date, without time or time zone: "2026-10-15". */
@@ -24,7 +27,10 @@ export const IsoDate = Schema.String.check(
 );
 export type IsoDate = typeof IsoDate.Type;
 
-export const TeamId = Schema.String.pipe(Schema.brand("TeamId"));
+/** A UUID; clients may pick it when creating a team. */
+export const TeamId = Schema.String.check(Schema.isUUID()).pipe(
+  Schema.brand("TeamId"),
+);
 export type TeamId = typeof TeamId.Type;
 
 export class Team extends Schema.Class<Team>("@skjera/documents/Team")({

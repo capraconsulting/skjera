@@ -1,8 +1,6 @@
 import type { DocumentId } from "@skjera/documents/api";
 import { eq, useLiveQuery } from "@tanstack/react-db";
-import { Effect } from "effect";
 import {
-  type ActionFunctionArgs,
   data,
   isRouteErrorResponse,
   type LoaderFunctionArgs,
@@ -11,7 +9,6 @@ import {
   useRouteLoaderData,
 } from "react-router";
 import { Badge } from "../../components/Badge.tsx";
-import { runPublic } from "../../site/client.ts";
 import { attendees, events } from "../../sync/tables.ts";
 import { formatLongDate } from "../../time.ts";
 import { Attend } from "./Attend.tsx";
@@ -32,97 +29,21 @@ export const eventLoader = async ({ params }: LoaderFunctionArgs) => {
   return { id };
 };
 
-/** How many are coming, and whether the signed-in user is. */
-const useAttendance = (id: DocumentId) => {
-  const signups = useLiveQuery(
+/** Everyone signed up for the event. */
+const useSignups = (id: DocumentId) =>
+  useLiveQuery(
     (q) =>
       q
         .from({ attendee: attendees.collection })
         .where(({ attendee }) => eq(attendee.eventId, id)),
     [id],
   ).data;
-  return {
-    count: signups.length,
-    attending: signups.some((signup) => signup.mine),
-  };
-};
 
 const missing = "This event doesn't exist, or isn't published.";
 
-type AttendResult =
-  | { readonly guestToken: string | null }
-  | { readonly error: string }
-  | { readonly ok: true };
-
-const message = (error: { readonly _tag: string }) =>
-  "message" in error && typeof error.message === "string"
-    ? error.message
-    : "Something went wrong";
-
-/** Signing up and cancelling, as a member or as a guest. */
-export const eventAction = async (
-  args: ActionFunctionArgs,
-): Promise<AttendResult> => {
-  const result = await signUpOrCancel(args);
-  await attendees.refresh();
-  return result;
-};
-
-const signUpOrCancel = async ({
-  request,
-  params,
-}: ActionFunctionArgs): Promise<AttendResult> => {
-  const id = params.id as DocumentId;
-  const form = await request.formData();
-  const dietaryValue = form.get("dietary");
-  const dietary =
-    dietaryValue === null ? {} : { dietary: String(dietaryValue) };
-  switch (form.get("intent")) {
-    case "attend":
-      return runPublic((client) =>
-        client.events.attend({ params: { id }, payload: dietary }).pipe(
-          Effect.as({ ok: true } as const),
-          Effect.catch((error) => Effect.succeed({ error: message(error) })),
-        ),
-      );
-    case "leave":
-      return runPublic((client) =>
-        client.events.leave({ params: { id } }).pipe(
-          Effect.as({ ok: true } as const),
-          Effect.catch((error) => Effect.succeed({ error: message(error) })),
-        ),
-      );
-    case "guest-leave": {
-      const token = String(form.get("token") ?? "");
-      // Gone either way: cancelled now, or already before.
-      return runPublic((client) =>
-        client.events
-          .leaveAsGuest({ params: { id, token } })
-          .pipe(Effect.ignore, Effect.as({ guestToken: null })),
-      );
-    }
-    default: {
-      const guest = {
-        name: String(form.get("name") ?? ""),
-        email: String(form.get("email") ?? ""),
-      };
-      return runPublic((client) =>
-        client.events
-          .attend({ params: { id }, payload: { guest, ...dietary } })
-          .pipe(
-            Effect.map((signup) => ({
-              guestToken: signup?.cancelToken ?? null,
-            })),
-            Effect.catch((error) => Effect.succeed({ error: message(error) })),
-          ),
-      );
-    }
-  }
-};
-
 export function EventPage() {
   const { id } = useLoaderData<typeof eventLoader>();
-  const attendance = useAttendance(id);
+  const signups = useSignups(id);
   const me = useRouteLoaderData<typeof siteLoader>("site");
   const event = useLiveQuery(
     (q) =>
@@ -151,7 +72,7 @@ export function EventPage() {
       </div>
       <Attend
         event={event}
-        attendance={attendance}
+        signups={signups}
         signedIn={me !== null && me !== undefined}
       />
     </article>

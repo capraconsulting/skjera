@@ -1,17 +1,18 @@
-import type { DocumentId, TeamId } from "@skjera/documents/api";
+import type {
+  DocumentId,
+  DocumentSummary,
+  TeamId,
+} from "@skjera/documents/api";
 import { eq, useLiveQuery } from "@tanstack/react-db";
-import { Effect } from "effect";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  type ActionFunctionArgs,
   data,
-  Form,
   isRouteErrorResponse,
   type LoaderFunctionArgs,
   NavLink,
   Outlet,
-  redirect,
   useLoaderData,
+  useNavigate,
   useRevalidator,
   useRouteError,
 } from "react-router";
@@ -20,7 +21,7 @@ import { Badge } from "../../components/Badge.tsx";
 import { Button } from "../../components/Button.tsx";
 import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
 import { call } from "../../documents/client.ts";
-import { usePresence } from "../../presence/presence.ts";
+import { type PresenceEntry, usePresence } from "../../presence/presence.ts";
 import { documents, events, teams } from "../../sync/tables.ts";
 import { formatDate, fromIsoDate } from "../../time.ts";
 import styles from "./Team.module.css";
@@ -39,37 +40,13 @@ export const teamLoader = async ({ params }: LoaderFunctionArgs) => {
   return { teamId, events };
 };
 
-/** Creating and deleting events. */
-export const teamAction = async ({ request, params }: ActionFunctionArgs) => {
-  const teamId = params.teamId as TeamId;
-  const form = await request.formData();
-  switch (form.get("intent")) {
-    case "delete-event": {
-      const id = String(form.get("id")) as DocumentId;
-      await call((client) =>
-        client
-          .DeleteDocument({ id })
-          .pipe(Effect.catchTag("DocumentNotFound", () => Effect.void)),
-      );
-      await documents.refresh();
-      return redirect(`/studio/teams/${teamId}`);
-    }
-    default: {
-      const event = await call((client) =>
-        client.CreateDocument({ type: "event", teamId }),
-      );
-      await documents.refresh();
-      return redirect(`/studio/teams/${teamId}/events/${event}`);
-    }
-  }
-};
-
 /**
- * The events' titles and dates live in their drafts, which aren't synced as
- * rows, so the list is loaded. This reloads it whenever the team's synced
- * rows change: an event added, deleted, edited or published.
+ * The team's events, most recently edited first. Which events there are
+ * comes from the synced rows; their titles and dates live in their drafts,
+ * which aren't synced as rows, so those are loaded, and reloaded whenever
+ * the rows change: an event added, deleted, edited or published.
  */
-function useReloadOnChanges(teamId: TeamId) {
+function useTeamEvents(teamId: TeamId) {
   const { data } = useLiveQuery(
     (q) =>
       q
@@ -78,6 +55,7 @@ function useReloadOnChanges(teamId: TeamId) {
           eq(document.id, event.id),
         )
         .where(({ document }) => eq(document.teamId, teamId))
+        .orderBy(({ document }) => document.updatedAt, "desc")
         .select(({ document, event }) => ({
           id: document.id,
           updatedAt: document.updatedAt,
@@ -104,71 +82,58 @@ function useReloadOnChanges(teamId: TeamId) {
     seen.current = { teamId, version };
     if (changed) void revalidate.current();
   }, [teamId, version]);
+
+  return data;
 }
 
 /** The second column: the selected team's events. */
 export function Team() {
   const { teamId, events } = useLoaderData<typeof teamLoader>();
   const others = usePresence();
-  useReloadOnChanges(teamId);
+  const navigate = useNavigate();
+  const [creating, setCreating] = useState(false);
+
+  // Opens the new event once the server has it.
+  const newEvent = () => {
+    const id = crypto.randomUUID() as DocumentId;
+    const now = new Date();
+    setCreating(true);
+    documents.collection
+      .insert({ id, type: "event", teamId, createdAt: now, updatedAt: now })
+      .isPersisted.promise.then(
+        () => navigate(`/studio/teams/${teamId}/events/${id}`),
+        () => {},
+      )
+      .finally(() => setCreating(false));
+  };
+  const rows = useTeamEvents(teamId);
+  const summaries = new Map(events.map((event) => [event.id, event]));
   return (
     <>
       <Pane
         title="Events"
         label="Events"
         actions={
-          <Form method="post">
-            <Button
-              type="submit"
-              name="intent"
-              value="create-event"
-              variant="primary"
-            >
-              New event
-            </Button>
-          </Form>
+          <Button variant="primary" disabled={creating} onClick={newEvent}>
+            New event
+          </Button>
         }
       >
-        {events.length === 0 ? (
+        {rows.length === 0 ? (
           <p className={styles.empty}>No events yet.</p>
         ) : (
           <ul className={styles.list}>
-            {events.map((event) => (
-              <li key={event.id}>
-                <NavLink
-                  to={`/studio/teams/${teamId}/events/${event.id}`}
-                  className={({ isActive }) =>
-                    isActive ? `${styles.item} ${styles.active}` : styles.item
-                  }
-                >
-                  <span className={styles.heading}>
-                    {event.title.trim() === "" ? (
-                      <span className={`${styles.title} ${styles.untitled}`}>
-                        Untitled
-                      </span>
-                    ) : (
-                      <span className={styles.title}>{event.title}</span>
-                    )}
-                    <Avatars
-                      small
-                      entries={others.filter(
-                        (entry) => entry.location?.documentId === event.id,
-                      )}
-                    />
-                  </span>
-                  <span className={styles.meta}>
-                    {event.date === null
-                      ? "No date"
-                      : formatDate(fromIsoDate(event.date))}
-                    {event.publishedAt === null ? (
-                      <Badge tone="neutral">Draft</Badge>
-                    ) : event.hasUnpublishedChanges ? (
-                      <Badge tone="warning">Changed</Badge>
-                    ) : (
-                      <Badge tone="success">Published</Badge>
-                    )}
-                  </span>
-                </NavLink>
+            {rows.map(({ id }) => (
+              <li key={id}>
+                <EventItem
+                  teamId={teamId}
+                  id={id}
+                  // Not loaded yet: it's new, so untitled and a draft.
+                  summary={summaries.get(id) ?? null}
+                  here={others.filter(
+                    (entry) => entry.location?.documentId === id,
+                  )}
+                />
               </li>
             ))}
           </ul>
@@ -176,6 +141,45 @@ export function Team() {
       </Pane>
       <Outlet />
     </>
+  );
+}
+
+function EventItem(props: {
+  readonly teamId: TeamId;
+  readonly id: DocumentId;
+  readonly summary: DocumentSummary | null;
+  readonly here: ReadonlyArray<PresenceEntry>;
+}) {
+  const { teamId, id, summary } = props;
+  const title = summary?.title.trim() ?? "";
+  return (
+    <NavLink
+      to={`/studio/teams/${teamId}/events/${id}`}
+      className={({ isActive }) =>
+        isActive ? `${styles.item} ${styles.active}` : styles.item
+      }
+    >
+      <span className={styles.heading}>
+        {title === "" ? (
+          <span className={`${styles.title} ${styles.untitled}`}>Untitled</span>
+        ) : (
+          <span className={styles.title}>{title}</span>
+        )}
+        <Avatars small entries={props.here} />
+      </span>
+      <span className={styles.meta}>
+        {summary === null || summary.date === null
+          ? "No date"
+          : formatDate(fromIsoDate(summary.date))}
+        {summary === null || summary.publishedAt === null ? (
+          <Badge tone="neutral">Draft</Badge>
+        ) : summary.hasUnpublishedChanges ? (
+          <Badge tone="warning">Changed</Badge>
+        ) : (
+          <Badge tone="success">Published</Badge>
+        )}
+      </span>
+    </NavLink>
   );
 }
 

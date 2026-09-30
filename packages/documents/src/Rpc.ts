@@ -78,8 +78,9 @@ export class DocumentsRpc extends RpcGroup.make(
     success: Schema.Union([PresenceMessage, PresenceResync]),
     stream: true,
   }),
+  /** Creates a team with the id the client picked for it. */
   Rpc.make("CreateTeam", {
-    payload: { name: Schema.String },
+    payload: { id: TeamId, name: Schema.String },
     success: Team,
     error: InvalidTeamName,
   }),
@@ -98,8 +99,9 @@ export class DocumentsRpc extends RpcGroup.make(
     payload: { type: ContentTypeName, teamId: TeamId },
     success: Schema.Array(DocumentSummary),
   }),
+  /** Creates an empty document with the id the client picked for it. */
   Rpc.make("CreateDocument", {
-    payload: { type: ContentTypeName, teamId: TeamId },
+    payload: { id: DocumentId, type: ContentTypeName, teamId: TeamId },
     success: DocumentId,
     error: TeamNotFound,
   }),

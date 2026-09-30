@@ -82,6 +82,9 @@ test("team names must be unique", async ({ browser }) => {
   await dialog.getByRole("button", { name: "Create team" }).click();
   // The dialog stays open with the error and the name, for fixing.
   await expect(dialog.getByRole("alert")).toContainText("already a team");
+  // The team shown while it was being created is gone again. (Link names
+  // match regardless of case.)
+  await expect(teamLink(alice, name)).toHaveCount(1);
   await expect(dialog.getByRole("textbox", { name: "Team name" })).toHaveValue(
     name.toUpperCase(),
   );
@@ -95,7 +98,8 @@ test("teams can be renamed", async ({ browser }) => {
   const alice = await signedIn(browser, "alice@example.com");
   const taken = await newTeam(alice, uniqueTeamName("Taken"));
   const takenName = (await teamLink(alice, "Taken").textContent()) ?? "";
-  const team = await newTeam(alice, uniqueTeamName("Before"));
+  const before = uniqueTeamName("Before");
+  const team = await newTeam(alice, before);
   const renamed = uniqueTeamName("After");
 
   const dialog = alice.getByRole("dialog", { name: "Rename team" });
@@ -108,6 +112,9 @@ test("teams can be renamed", async ({ browser }) => {
 
   await rename(takenName);
   await expect(dialog.getByRole("alert")).toContainText("already a team");
+  // Refused: the team keeps its name.
+  await expect(teamLink(alice, before)).toBeVisible();
+  await expect(teamLink(alice, takenName)).toHaveCount(1);
   await alice.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
 

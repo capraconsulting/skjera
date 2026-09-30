@@ -1,17 +1,7 @@
 import type { TeamId } from "@skjera/documents/api";
 import { count, eq, lower, useLiveQuery } from "@tanstack/react-db";
-import { Effect, Result } from "effect";
-import { useEffect, useState } from "react";
-import {
-  type ActionFunctionArgs,
-  type FetcherWithComponents,
-  NavLink,
-  Outlet,
-  redirect,
-  useFetcher,
-  useNavigate,
-  useParams,
-} from "react-router";
+import { type FormEvent, useState } from "react";
+import { NavLink, Outlet, useNavigate, useParams } from "react-router";
 import { Avatars } from "../../components/Avatars.tsx";
 import { Button } from "../../components/Button.tsx";
 import { Dialog, dialogStyles } from "../../components/Dialog.tsx";
@@ -22,7 +12,6 @@ import {
 } from "../../components/Dropdown.tsx";
 import { Input } from "../../components/Input.tsx";
 import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
-import { call } from "../../documents/client.ts";
 import { usePresence } from "../../presence/presence.ts";
 import { documents, teams } from "../../sync/tables.ts";
 import styles from "./Teams.module.css";
@@ -55,61 +44,6 @@ const useTeams = () =>
 
 type Team = ReturnType<typeof useTeams>[number];
 
-type TeamsActionResult =
-  | { readonly ok: true; readonly teamId: TeamId }
-  | { readonly ok: false; readonly error: string };
-
-/** What to tell the user about a failed team action. */
-const failureMessage = (failure: { readonly _tag: string }) =>
-  failure._tag === "TeamNotEmpty"
-    ? "Only teams without events can be deleted."
-    : "message" in failure && typeof failure.message === "string"
-      ? failure.message
-      : "Something went wrong";
-
-/** Creating, renaming and deleting teams. */
-export const teamsAction = async ({
-  request,
-}: ActionFunctionArgs): Promise<TeamsActionResult | Response> => {
-  const form = await request.formData();
-  const id = String(form.get("id") ?? "") as TeamId;
-  const name = String(form.get("name") ?? "");
-  const result = await call(
-    (client): Effect.Effect<Result.Result<TeamId, string>> => {
-      switch (form.get("intent")) {
-        case "rename":
-          return client.RenameTeam({ id, name }).pipe(
-            Effect.map((team) => team.id),
-            Effect.mapError(failureMessage),
-            Effect.result,
-          );
-        case "delete":
-          return client
-            .DeleteTeam({ id })
-            .pipe(
-              Effect.as(id),
-              Effect.mapError(failureMessage),
-              Effect.result,
-            );
-        default:
-          return client.CreateTeam({ name }).pipe(
-            Effect.map((team) => team.id),
-            Effect.mapError(failureMessage),
-            Effect.result,
-          );
-      }
-    },
-  );
-  if (Result.isFailure(result)) return { ok: false, error: result.failure };
-  await teams.refresh();
-  // Deleting the team being viewed: leave its page before anything reloads
-  // it, which would fail now that it's gone.
-  if (form.get("intent") === "delete" && form.get("viewing") === id) {
-    return redirect("/studio/teams");
-  }
-  return { ok: true, teamId: result.success };
-};
-
 type DialogState =
   | { readonly kind: "create" }
   | { readonly kind: "rename"; readonly team: Team }
@@ -122,7 +56,7 @@ type DialogState =
 export function Teams() {
   const all = useTeams();
   const [dialog, setDialog] = useState<DialogState>(null);
-  const deleter = useFetcher<TeamsActionResult>();
+  const [failure, setFailure] = useState<string | null>(null);
   return (
     <div className={styles.columns}>
       <Pane
@@ -143,16 +77,21 @@ export function Teams() {
           </Dropdown>
         }
       >
+        {failure === null ? null : (
+          <p role="alert" className={styles.failure}>
+            {failure}
+          </p>
+        )}
         {all.length === 0 ? (
           <p className={styles.empty}>No teams yet. Create the first one.</p>
         ) : (
           <ul className={styles.list}>
             {all.map((team) => (
               <TeamRow
-                deleter={deleter}
                 key={team.id}
                 team={team}
                 onRename={() => setDialog({ kind: "rename", team })}
+                onFailure={setFailure}
               />
             ))}
           </ul>
@@ -165,15 +104,23 @@ export function Teams() {
 }
 
 function TeamRow(props: {
-  /** Outlives the row, which goes as soon as the team is deleted. */
-  readonly deleter: FetcherWithComponents<TeamsActionResult>;
   readonly team: Team;
   readonly onRename: () => void;
+  /** Deleting was refused, and the team is back. */
+  readonly onFailure: (message: string) => void;
 }) {
-  const { team } = props;
+  const { team, onFailure } = props;
   const { teamId } = useParams();
+  const navigate = useNavigate();
   const others = usePresence();
-  const { deleter } = props;
+
+  const deleteTeam = () => {
+    const deleted = teams.collection.delete(team.id);
+    if (teamId === team.id) navigate("/studio/teams");
+    deleted.isPersisted.promise.catch((error: Error) =>
+      onFailure(error.message),
+    );
+  };
 
   return (
     <li className={styles.row}>
@@ -201,19 +148,16 @@ function TeamRow(props: {
               >
                 Rename team…
               </DropdownItem>
-              <deleter.Form method="post" action="/studio/teams">
-                <input type="hidden" name="id" value={team.id} />
-                <input type="hidden" name="viewing" value={teamId ?? ""} />
-                <DropdownItem
-                  type="submit"
-                  name="intent"
-                  value="delete"
-                  danger
-                  disabled={team.documentCount > 0}
-                >
-                  Delete team
-                </DropdownItem>
-              </deleter.Form>
+              <DropdownItem
+                danger
+                disabled={team.documentCount > 0}
+                onClick={() => {
+                  close();
+                  deleteTeam();
+                }}
+              >
+                Delete team
+              </DropdownItem>
               {team.documentCount > 0 ? (
                 <DropdownNote>
                   Only teams without events can be deleted.
@@ -232,38 +176,53 @@ function TeamDialog(props: {
   readonly state: DialogState;
   readonly onClose: () => void;
 }) {
-  const fetcher = useFetcher<TeamsActionResult>();
   const navigate = useNavigate();
   const { state, onClose } = props;
   const renaming = state?.kind === "rename" ? state.team : null;
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // On success: close, and open a newly created team.
-  useEffect(() => {
-    if (fetcher.state !== "idle" || fetcher.data?.ok !== true) return;
-    const created = fetcher.data.teamId;
-    fetcher.reset();
+  const close = () => {
+    setError(null);
     onClose();
-    if (renaming === null) navigate(`/studio/teams/${created}`);
-  }, [fetcher, onClose, navigate, renaming]);
+  };
+
+  // The team shows right away; the dialog closes once the server has it,
+  // or says why not once the change is undone.
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const name = String(
+      new FormData(event.currentTarget).get("name") ?? "",
+    ).trim();
+    const id = renaming?.id ?? (crypto.randomUUID() as TeamId);
+    const change =
+      renaming === null
+        ? teams.collection.insert({ id, name, createdAt: new Date() })
+        : teams.collection.update(id, (team) => {
+            team.name = name;
+          });
+    setSaving(true);
+    setError(null);
+    change.isPersisted.promise.then(
+      () => {
+        setSaving(false);
+        close();
+        if (renaming === null) navigate(`/studio/teams/${id}`);
+      },
+      (failure: Error) => {
+        setSaving(false);
+        setError(failure.message);
+      },
+    );
+  };
 
   return (
     <Dialog
       open={state !== null}
       title={renaming === null ? "New team" : "Rename team"}
-      onClose={() => {
-        fetcher.reset();
-        onClose();
-      }}
+      onClose={close}
     >
-      <fetcher.Form method="post" action="/studio/teams">
-        <input
-          type="hidden"
-          name="intent"
-          value={renaming === null ? "create" : "rename"}
-        />
-        {renaming === null ? null : (
-          <input type="hidden" name="id" value={renaming.id} />
-        )}
+      <form onSubmit={submit}>
         <Input
           name="name"
           aria-label="Team name"
@@ -274,22 +233,18 @@ function TeamDialog(props: {
           maxLength={100}
           autoFocus
         />
-        {fetcher.data?.ok === false ? (
+        {error === null ? null : (
           <p role="alert" className={dialogStyles.error}>
-            {fetcher.data.error}
+            {error}
           </p>
-        ) : null}
+        )}
         <div className={dialogStyles.actions}>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={fetcher.state !== "idle"}
-          >
+          <Button onClick={close}>Cancel</Button>
+          <Button type="submit" variant="primary" disabled={saving}>
             {renaming === null ? "Create team" : "Rename team"}
           </Button>
         </div>
-      </fetcher.Form>
+      </form>
     </Dialog>
   );
 }
