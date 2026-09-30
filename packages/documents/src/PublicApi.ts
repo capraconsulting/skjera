@@ -6,31 +6,13 @@ import {
   SignupNotFound,
   SignupRejected,
 } from "./errors.ts";
-import {
-  DocumentId,
-  EventAttendance,
-  GuestDetails,
-  GuestSignup,
-  PublishedEvent,
-} from "./Model.ts";
+import { DocumentId, GuestDetails, GuestSignup } from "./Model.ts";
 
-// The site's API: published events, and signing up for them. Public events
-// are there for anyone; with a session, members-only events too.
+// The site's API for signing up to published events. Public events are
+// there for anyone; with a session, members-only events too. The events
+// themselves are synced (see SyncApi.ts).
 
 export class EventsApi extends HttpApiGroup.make("events").add(
-  HttpApiEndpoint.get("list", "/api/events", {
-    success: Schema.Array(PublishedEvent),
-  }),
-  HttpApiEndpoint.get("get", "/api/events/:id", {
-    params: { id: DocumentId },
-    success: PublishedEvent,
-    error: EventNotFound,
-  }),
-  HttpApiEndpoint.get("attendance", "/api/events/:id/attendance", {
-    params: { id: DocumentId },
-    success: EventAttendance,
-    error: EventNotFound,
-  }),
   /**
    * Signs up the signed-in user, or, without a session, a guest with the
    * details given. A guest gets the token that cancels their signup.

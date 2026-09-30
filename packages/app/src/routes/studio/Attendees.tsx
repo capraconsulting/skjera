@@ -1,31 +1,21 @@
-import type { Attendee, DocumentId } from "@skjera/documents/api";
-import { useEffect, useState } from "react";
+import type { DocumentId } from "@skjera/documents/api";
+import { eq, useLiveQuery } from "@tanstack/react-db";
 import { Badge } from "../../components/Badge.tsx";
-import { call } from "../../documents/client.ts";
+import { attendees as attendeesTable } from "../../sync/tables.ts";
 import styles from "./Attendees.module.css";
-
-const refreshEvery = 15_000;
 
 /** Who has signed up to attend, for the event's organizers. */
 export function Attendees(props: { readonly id: DocumentId }) {
-  const [attendees, setAttendees] = useState<ReadonlyArray<Attendee> | null>(
-    null,
+  const { id } = props;
+  const { data, isReady } = useLiveQuery(
+    (q) =>
+      q
+        .from({ attendee: attendeesTable.collection })
+        .where(({ attendee }) => eq(attendee.eventId, id))
+        .orderBy(({ attendee }) => attendee.signedUpAt),
+    [id],
   );
-
-  useEffect(() => {
-    let active = true;
-    const load = () =>
-      call((client) => client.ListAttendees({ id: props.id })).then(
-        (list) => active && setAttendees(list),
-        () => {},
-      );
-    void load();
-    const timer = setInterval(load, refreshEvery);
-    return () => {
-      active = false;
-      clearInterval(timer);
-    };
-  }, [props.id]);
+  const attendees = isReady ? data : null;
 
   return (
     <section className={styles.attendees} aria-label="Attendees">
@@ -36,21 +26,21 @@ export function Attendees(props: { readonly id: DocumentId }) {
         <p className={styles.empty}>Nobody has signed up yet.</p>
       ) : (
         <ul className={styles.list}>
-          {attendees.map((attendee) => (
-            <li
-              key={`${attendee.email}-${attendee.signedUpAt.getTime()}`}
-              className={styles.item}
-            >
-              {attendee.name}
-              {attendee.email === null ? null : (
-                <span className={styles.email}>{attendee.email}</span>
-              )}
-              {attendee.guest ? <Badge tone="neutral">Guest</Badge> : null}
-              {attendee.dietary === null ? null : (
-                <span className={styles.dietary}>Diet: {attendee.dietary}</span>
-              )}
-            </li>
-          ))}
+          {attendees.map(({ id, details: who }) =>
+            // Signed-in users always see who signed up.
+            who === null ? null : (
+              <li key={id} className={styles.item}>
+                {who.name}
+                {who.email === null ? null : (
+                  <span className={styles.email}>{who.email}</span>
+                )}
+                {who.guest ? <Badge tone="neutral">Guest</Badge> : null}
+                {who.dietary === null ? null : (
+                  <span className={styles.dietary}>Diet: {who.dietary}</span>
+                )}
+              </li>
+            ),
+          )}
         </ul>
       )}
     </section>

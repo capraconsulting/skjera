@@ -28,7 +28,6 @@ import {
   Teams,
   teamsAction,
   teamsLoader,
-  teamsShouldRevalidate,
 } from "./routes/studio/Teams.tsx";
 import "./global.css";
 
@@ -68,8 +67,9 @@ const router = createBrowserRouter([
       {
         path: "teams",
         Component: Teams,
+        // Only waits for the synced tables; the list itself is live.
         loader: teamsLoader,
-        shouldRevalidate: teamsShouldRevalidate,
+        shouldRevalidate: () => false,
         action: teamsAction,
         children: [
           { index: true, Component: NoTeamSelected },

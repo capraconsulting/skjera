@@ -4,7 +4,7 @@ import * as Database from "./Database.ts";
 import { DocumentEvents } from "./DocumentEvents.ts";
 import { Documents } from "./Documents.ts";
 import { Presence } from "./Presence.ts";
-import { PublishedEvents } from "./PublishedEvents.ts";
+import { Sync } from "./Sync.ts";
 import { Teams } from "./Teams.ts";
 
 export * from "./Attendance.ts";
@@ -16,7 +16,6 @@ export * from "./errors.ts";
 export * from "./Model.ts";
 export * from "./Presence.ts";
 export * from "./PublicApi.ts";
-export * from "./PublishedEvents.ts";
 export {
   CatchUp,
   DocumentDeleted,
@@ -26,17 +25,19 @@ export {
   OpenedDocument,
 } from "./Rpc.ts";
 export * as RpcServer from "./RpcServer.ts";
+export * from "./Sync.ts";
+export * from "./SyncApi.ts";
 export * from "./Teams.ts";
 
 /**
- * Teams, documents, their change events and the published events, on the
+ * Teams, documents, their change events, attendance and syncing them, on the
  * database at `DATABASE_URL`.
  */
 export const layer = Layer.mergeAll(
   Documents.layer,
   DocumentEvents.layer,
-  PublishedEvents.layer,
   Teams.layer,
   Attendance.layer,
   Presence.layer,
+  Sync.layer,
 ).pipe(Layer.provideMerge(Database.layer));

@@ -1,11 +1,6 @@
 import * as A from "@automerge/automerge/slim";
 import type { DocHandle } from "@automerge/automerge-repo/slim";
-import type {
-  DocumentId,
-  EventContent,
-  Publication,
-  Team,
-} from "@skjera/documents/api";
+import type { DocumentId, EventContent, Team } from "@skjera/documents/api";
 import {
   Deferred,
   Effect,
@@ -16,6 +11,7 @@ import {
   Stream,
 } from "effect";
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { events } from "../sync/tables.ts";
 import { DocumentsClient, runtime } from "./client.ts";
 import { forgetLocal, openLocal } from "./repo.ts";
 
@@ -26,7 +22,6 @@ export interface SessionState {
   readonly team: Team | null;
   /** Local changes the server doesn't have yet. */
   readonly saving: boolean;
-  readonly publication: Publication | null;
   readonly publishing: boolean;
   readonly error: string | null;
   /** Someone deleted the document; the session has stopped. */
@@ -41,7 +36,6 @@ class SessionStore {
     handle: null,
     team: null,
     saving: false,
-    publication: null,
     publishing: false,
     error: null,
     deleted: false,
@@ -220,8 +214,11 @@ const session = (id: DocumentId, store: SessionStore) =>
         Effect.andThen(() => client.Publish({ id, heads: [...synced] })),
       ),
     ).pipe(
-      Effect.tap((publication) =>
-        Effect.sync(() => store.set({ publication, error: null })),
+      // The published version reaches the page as a row of `events`.
+      Effect.tap(() =>
+        Effect.promise(() => events.refresh()).pipe(
+          Effect.andThen(Effect.sync(() => store.set({ error: null }))),
+        ),
       ),
       Effect.catch((error) =>
         Effect.sync(() =>
@@ -239,7 +236,6 @@ const session = (id: DocumentId, store: SessionStore) =>
     store.set({
       handle,
       team: opened.team,
-      publication: opened.publication,
       publishing: false,
       publish: () => {
         store.set({ publishing: true });

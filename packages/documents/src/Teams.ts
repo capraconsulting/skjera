@@ -26,8 +26,6 @@ const pgCode = (error: SqlError.SqlError) =>
 export class Teams extends Context.Service<
   Teams,
   {
-    /** Alphabetical. */
-    readonly list: Effect.Effect<ReadonlyArray<Team>>;
     readonly get: (id: TeamId) => Effect.Effect<Team, TeamNotFound>;
     readonly create: (
       name: string,
@@ -47,16 +45,6 @@ export class Teams extends Context.Service<
     Teams,
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
-
-      const list = sql<Row>`
-        SELECT id, name, created_at,
-          (SELECT count(*)::int FROM documents WHERE team_id = teams.id) AS document_count
-        FROM teams ORDER BY lower(name)
-      `.pipe(
-        Effect.map((rows) => rows.map(toTeam)),
-        Effect.orDie,
-        Effect.withSpan("Teams.list"),
-      );
 
       const get = Effect.fn("Teams.get")(function* (id: TeamId) {
         const [row] = yield* sql<Row>`
@@ -140,7 +128,7 @@ export class Teams extends Context.Service<
         }
       });
 
-      return Teams.of({ list, get, create, rename, delete: deleteTeam });
+      return Teams.of({ get, create, rename, delete: deleteTeam });
     }),
   );
 }

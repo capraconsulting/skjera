@@ -1,4 +1,5 @@
 import type { DocumentId } from "@skjera/documents/api";
+import { eq, useLiveQuery } from "@tanstack/react-db";
 import { Effect } from "effect";
 import {
   type ActionFunctionArgs,
@@ -11,25 +12,42 @@ import {
 } from "react-router";
 import { Badge } from "../../components/Badge.tsx";
 import { runPublic } from "../../site/client.ts";
+import { attendees, events } from "../../sync/tables.ts";
 import { formatLongDate } from "../../time.ts";
 import { Attend } from "./Attend.tsx";
 import styles from "./EventPage.module.css";
 import type { siteLoader } from "./SiteLayout.tsx";
 
-export const eventLoader = ({ params }: LoaderFunctionArgs) =>
-  runPublic((client) => {
-    const id = params.id as DocumentId;
-    return Effect.all({
-      event: client.events.get({ params: { id } }),
-      attendance: client.events.attendance({ params: { id } }),
-    }).pipe(
-      Effect.catchTag("EventNotFound", () =>
-        Effect.sync(() => {
-          throw data("Event not found", { status: 404 });
-        }),
-      ),
-    );
-  });
+export const eventLoader = async ({ params }: LoaderFunctionArgs) => {
+  const id = params.id as DocumentId;
+  await Promise.all([
+    events.collection.preload(),
+    attendees.collection.preload(),
+  ]);
+  // It may be new: published since the last pull.
+  if (!events.collection.has(id)) await events.refresh();
+  if (!events.collection.has(id)) {
+    throw data("Event not found", { status: 404 });
+  }
+  return { id };
+};
+
+/** How many are coming, and whether the signed-in user is. */
+const useAttendance = (id: DocumentId) => {
+  const signups = useLiveQuery(
+    (q) =>
+      q
+        .from({ attendee: attendees.collection })
+        .where(({ attendee }) => eq(attendee.eventId, id)),
+    [id],
+  ).data;
+  return {
+    count: signups.length,
+    attending: signups.some((signup) => signup.mine),
+  };
+};
+
+const missing = "This event doesn't exist, or isn't published.";
 
 type AttendResult =
   | { readonly guestToken: string | null }
@@ -42,7 +60,15 @@ const message = (error: { readonly _tag: string }) =>
     : "Something went wrong";
 
 /** Signing up and cancelling, as a member or as a guest. */
-export const eventAction = async ({
+export const eventAction = async (
+  args: ActionFunctionArgs,
+): Promise<AttendResult> => {
+  const result = await signUpOrCancel(args);
+  await attendees.refresh();
+  return result;
+};
+
+const signUpOrCancel = async ({
   request,
   params,
 }: ActionFunctionArgs): Promise<AttendResult> => {
@@ -95,8 +121,19 @@ export const eventAction = async ({
 };
 
 export function EventPage() {
-  const { event, attendance } = useLoaderData<typeof eventLoader>();
+  const { id } = useLoaderData<typeof eventLoader>();
+  const attendance = useAttendance(id);
   const me = useRouteLoaderData<typeof siteLoader>("site");
+  const event = useLiveQuery(
+    (q) =>
+      q
+        .from({ event: events.collection })
+        .where(({ event }) => eq(event.id, id))
+        .findOne(),
+    [id],
+  ).data;
+  // Unpublished, deleted or hidden since the page opened.
+  if (event === undefined) return <p className={styles.missing}>{missing}</p>;
   return (
     <article className={styles.event}>
       <h1 className={styles.title}>{event.title}</h1>
@@ -126,7 +163,7 @@ export function EventError() {
   return (
     <p className={styles.missing}>
       {isRouteErrorResponse(error) && error.status === 404
-        ? "This event doesn't exist, or isn't published."
+        ? missing
         : "Something went wrong."}
     </p>
   );

@@ -54,10 +54,6 @@ export class Documents extends Context.Service<
     readonly get: (
       id: DocumentId,
     ) => Effect.Effect<DocumentSnapshot, DocumentNotFound>;
-    /** The current published version, if any. */
-    readonly publication: (
-      id: DocumentId,
-    ) => Effect.Effect<Publication | null, DocumentNotFound>;
     /**
      * What a replica at `heads` is missing, as change chunks for
      * `Automerge.loadIncremental`, and the draft's heads they lead up to.
@@ -206,22 +202,6 @@ export class Documents extends Context.Service<
           publishedAt: row.published_at,
           firstPublishedAt: row.first_published_at,
         });
-
-      const publications = {
-        event: (id: DocumentId) =>
-          sql<PublicationRow>`
-            SELECT published_heads, published_at, first_published_at
-            FROM events WHERE id = ${id}
-          `,
-      } satisfies Record<ContentTypeName, unknown>;
-
-      const publication = Effect.fn("Documents.publication")(function* (
-        id: DocumentId,
-      ) {
-        const type = yield* typeOf(id);
-        const [row] = yield* publications[type](id).pipe(Effect.orDie);
-        return row === undefined ? null : toPublication(row);
-      });
 
       const changesSince = Effect.fn("Documents.changesSince")(function* (
         id: DocumentId,
@@ -386,7 +366,6 @@ export class Documents extends Context.Service<
         create,
         list,
         get,
-        publication,
         changesSince,
         applyChanges,
         publish,

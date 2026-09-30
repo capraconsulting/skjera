@@ -1,5 +1,7 @@
 import type { DocumentId, TeamId } from "@skjera/documents/api";
+import { eq, useLiveQuery } from "@tanstack/react-db";
 import { Effect } from "effect";
+import { useEffect, useRef } from "react";
 import {
   type ActionFunctionArgs,
   data,
@@ -10,6 +12,7 @@ import {
   Outlet,
   redirect,
   useLoaderData,
+  useRevalidator,
   useRouteError,
 } from "react-router";
 import { Avatars } from "../../components/Avatars.tsx";
@@ -18,25 +21,23 @@ import { Button } from "../../components/Button.tsx";
 import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
 import { call } from "../../documents/client.ts";
 import { usePresence } from "../../presence/presence.ts";
+import { documents, events, teams } from "../../sync/tables.ts";
 import { formatDate, fromIsoDate } from "../../time.ts";
 import styles from "./Team.module.css";
 
-export const teamLoader = ({ params }: LoaderFunctionArgs) =>
-  call((client) =>
-    Effect.all({
-      team: client.GetTeam({ id: params.teamId as TeamId }),
-      events: client.ListDocuments({
-        type: "event",
-        teamId: params.teamId as TeamId,
-      }),
-    }).pipe(
-      Effect.catchTag("TeamNotFound", () =>
-        Effect.sync(() => {
-          throw data("Team not found", { status: 404 });
-        }),
-      ),
-    ),
+export const teamLoader = async ({ params }: LoaderFunctionArgs) => {
+  const teamId = params.teamId as TeamId;
+  await teams.collection.preload();
+  // It may be new: made by someone else since the last pull.
+  if (!teams.collection.has(teamId)) await teams.refresh();
+  if (!teams.collection.has(teamId)) {
+    throw data("Team not found", { status: 404 });
+  }
+  const events = await call((client) =>
+    client.ListDocuments({ type: "event", teamId }),
   );
+  return { teamId, events };
+};
 
 /** Creating and deleting events. */
 export const teamAction = async ({ request, params }: ActionFunctionArgs) => {
@@ -50,21 +51,66 @@ export const teamAction = async ({ request, params }: ActionFunctionArgs) => {
           .DeleteDocument({ id })
           .pipe(Effect.catchTag("DocumentNotFound", () => Effect.void)),
       );
+      await documents.refresh();
       return redirect(`/studio/teams/${teamId}`);
     }
     default: {
       const event = await call((client) =>
         client.CreateDocument({ type: "event", teamId }),
       );
+      await documents.refresh();
       return redirect(`/studio/teams/${teamId}/events/${event}`);
     }
   }
 };
 
+/**
+ * The events' titles and dates live in their drafts, which aren't synced as
+ * rows, so the list is loaded. This reloads it whenever the team's synced
+ * rows change: an event added, deleted, edited or published.
+ */
+function useReloadOnChanges(teamId: TeamId) {
+  const { data } = useLiveQuery(
+    (q) =>
+      q
+        .from({ document: documents.collection })
+        .leftJoin({ event: events.collection }, ({ document, event }) =>
+          eq(document.id, event.id),
+        )
+        .where(({ document }) => eq(document.teamId, teamId))
+        .select(({ document, event }) => ({
+          id: document.id,
+          updatedAt: document.updatedAt,
+          publishedAt: event?.publishedAt,
+        })),
+    [teamId],
+  );
+  const version = data
+    .map(
+      (row) =>
+        `${row.id}@${row.updatedAt.getTime()}/${row.publishedAt?.getTime()}`,
+    )
+    .sort()
+    .join(",");
+
+  const revalidator = useRevalidator();
+  const revalidate = useRef(revalidator.revalidate);
+  revalidate.current = revalidator.revalidate;
+  // The loader has just run for a newly opened team.
+  const seen = useRef({ teamId, version });
+  useEffect(() => {
+    const changed =
+      seen.current.teamId === teamId && seen.current.version !== version;
+    seen.current = { teamId, version };
+    if (changed) void revalidate.current();
+  }, [teamId, version]);
+}
+
 /** The second column: the selected team's events. */
 export function Team() {
-  const { team, events } = useLoaderData<typeof teamLoader>();
+  const { teamId, events } = useLoaderData<typeof teamLoader>();
   const others = usePresence();
+  useReloadOnChanges(teamId);
   return (
     <>
       <Pane
@@ -90,7 +136,7 @@ export function Team() {
             {events.map((event) => (
               <li key={event.id}>
                 <NavLink
-                  to={`/studio/teams/${team.id}/events/${event.id}`}
+                  to={`/studio/teams/${teamId}/events/${event.id}`}
                   className={({ isActive }) =>
                     isActive ? `${styles.item} ${styles.active}` : styles.item
                   }

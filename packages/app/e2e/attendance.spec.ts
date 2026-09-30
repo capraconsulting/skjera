@@ -173,3 +173,36 @@ test("everyone gives dietary preferences when the event asks", async ({
   await deleteEvent(alice, event.id);
   await deleteTeam(alice, team);
 });
+
+test("signups show up for visitors and organizers without reloading", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await newTeam(alice, uniqueTeamName("Live signups"));
+  const event = await publishedEvent(alice, { public: true });
+  await expect(attendees(alice)).toContainText("Nobody has signed up yet.");
+
+  const reader = await visitor(browser);
+  await reader.goto(`/events/${event.id}`);
+  await expect(attendance(reader)).toContainText("Nobody has signed up yet.");
+
+  // Bob signs up: the visitor's count and Alice's list follow.
+  const bob = await signedIn(browser, "bob@example.com");
+  await bob.goto(`/events/${event.id}`);
+  await attendance(bob).getByRole("button", { name: "Attend" }).click();
+  await expect(attendance(bob)).toContainText("You're attending.");
+  await expect(attendance(reader)).toContainText("1 attending");
+  await expect(attendees(alice)).toContainText("bob@example.com");
+  // The visitor can count, not see who.
+  await expect(reader.getByText("bob@example.com")).toHaveCount(0);
+
+  // And he changes his mind.
+  await attendance(bob)
+    .getByRole("button", { name: "Cancel attendance" })
+    .click();
+  await expect(attendance(reader)).toContainText("Nobody has signed up yet.");
+  await expect(attendees(alice)).toContainText("Nobody has signed up yet.");
+
+  await deleteEvent(alice, event.id);
+  await deleteTeam(alice, team);
+});

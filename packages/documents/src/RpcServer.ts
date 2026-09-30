@@ -2,7 +2,6 @@ import { Authenticator } from "@skjera/oauth";
 import { CurrentUser, Unauthorized } from "@skjera/oauth/api";
 import { Effect, Layer, Option, Stream } from "effect";
 import { RpcSerialization, RpcServer } from "effect/rpc";
-import { Attendance } from "./Attendance.ts";
 import { DocumentEvents } from "./DocumentEvents.ts";
 import { Documents } from "./Documents.ts";
 import { Presence } from "./Presence.ts";
@@ -51,7 +50,6 @@ export const DocumentsRpcHandlers = DocumentsRpc.toLayer(
     const documents = yield* Documents;
     const events = yield* DocumentEvents;
     const teams = yield* Teams;
-    const attendance = yield* Attendance;
     const presence = yield* Presence;
 
     return DocumentsRpc.of({
@@ -60,15 +58,12 @@ export const DocumentsRpcHandlers = DocumentsRpc.toLayer(
           yield* presence.publish(update, yield* CurrentUser);
         }),
       WatchPresence: () => Stream.unwrap(presence.subscribe),
-      ListTeams: () => teams.list,
-      GetTeam: ({ id }) => teams.get(id),
       CreateTeam: ({ name }) =>
         Effect.gen(function* () {
           return yield* teams.create(name, yield* CurrentUser);
         }),
       RenameTeam: ({ id, name }) => teams.rename(id, name),
       DeleteTeam: ({ id }) => teams.delete(id),
-      ListAttendees: ({ id }) => attendance.list(id),
       ListDocuments: ({ type, teamId }) => documents.list(type, teamId),
       CreateDocument: ({ type, teamId }) =>
         Effect.gen(function* () {
@@ -83,7 +78,6 @@ export const DocumentsRpcHandlers = DocumentsRpc.toLayer(
             team: yield* Effect.orDie(teams.get(snapshot.teamId)),
             draft: snapshot.draft,
             heads: snapshot.heads,
-            publication: yield* documents.publication(id),
           });
         }),
       SendChanges: ({ id, changes }) =>

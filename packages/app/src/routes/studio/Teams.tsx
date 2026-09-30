@@ -1,13 +1,14 @@
-import type { Team, TeamId } from "@skjera/documents/api";
+import type { TeamId } from "@skjera/documents/api";
+import { count, eq, lower, useLiveQuery } from "@tanstack/react-db";
 import { Effect, Result } from "effect";
 import { useEffect, useState } from "react";
 import {
   type ActionFunctionArgs,
+  type FetcherWithComponents,
   NavLink,
   Outlet,
   redirect,
   useFetcher,
-  useLoaderData,
   useNavigate,
   useParams,
 } from "react-router";
@@ -23,19 +24,36 @@ import { Input } from "../../components/Input.tsx";
 import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
 import { call } from "../../documents/client.ts";
 import { usePresence } from "../../presence/presence.ts";
+import { documents, teams } from "../../sync/tables.ts";
 import styles from "./Teams.module.css";
 
-export const teamsLoader = () => call((client) => client.ListTeams());
+/** Waits for the copies of the tables the studio lists. */
+export const teamsLoader = async () => {
+  await Promise.all([
+    teams.collection.preload(),
+    documents.collection.preload(),
+  ]);
+  return null;
+};
 
-/**
- * The team list changes with form submissions (teams, and the events they
- * count), not while editing.
- */
-export const teamsShouldRevalidate = ({
-  formMethod,
-}: {
-  readonly formMethod?: string | undefined;
-}) => formMethod !== undefined;
+/** Every team, alphabetically, with how many documents it has. */
+const useTeams = () =>
+  useLiveQuery((q) =>
+    q
+      .from({ team: teams.collection })
+      .leftJoin({ document: documents.collection }, ({ team, document }) =>
+        eq(team.id, document.teamId),
+      )
+      .groupBy(({ team }) => [team.id, team.name])
+      .select(({ team, document }) => ({
+        id: team.id,
+        name: team.name,
+        documentCount: count(document.id),
+      }))
+      .orderBy(({ $selected }) => lower($selected.name)),
+  ).data;
+
+type Team = ReturnType<typeof useTeams>[number];
 
 type TeamsActionResult =
   | { readonly ok: true; readonly teamId: TeamId }
@@ -83,6 +101,7 @@ export const teamsAction = async ({
     },
   );
   if (Result.isFailure(result)) return { ok: false, error: result.failure };
+  await teams.refresh();
   // Deleting the team being viewed: leave its page before anything reloads
   // it, which would fail now that it's gone.
   if (form.get("intent") === "delete" && form.get("viewing") === id) {
@@ -101,8 +120,9 @@ type DialogState =
  * by side. This is the first column; the others come through the outlet.
  */
 export function Teams() {
-  const teams = useLoaderData<typeof teamsLoader>();
+  const all = useTeams();
   const [dialog, setDialog] = useState<DialogState>(null);
+  const deleter = useFetcher<TeamsActionResult>();
   return (
     <div className={styles.columns}>
       <Pane
@@ -123,12 +143,13 @@ export function Teams() {
           </Dropdown>
         }
       >
-        {teams.length === 0 ? (
+        {all.length === 0 ? (
           <p className={styles.empty}>No teams yet. Create the first one.</p>
         ) : (
           <ul className={styles.list}>
-            {teams.map((team) => (
+            {all.map((team) => (
               <TeamRow
+                deleter={deleter}
                 key={team.id}
                 team={team}
                 onRename={() => setDialog({ kind: "rename", team })}
@@ -144,13 +165,15 @@ export function Teams() {
 }
 
 function TeamRow(props: {
+  /** Outlives the row, which goes as soon as the team is deleted. */
+  readonly deleter: FetcherWithComponents<TeamsActionResult>;
   readonly team: Team;
   readonly onRename: () => void;
 }) {
   const { team } = props;
   const { teamId } = useParams();
   const others = usePresence();
-  const deleter = useFetcher<TeamsActionResult>();
+  const { deleter } = props;
 
   return (
     <li className={styles.row}>

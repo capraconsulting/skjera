@@ -27,7 +27,9 @@ class Api extends HttpApi.make("skjera")
       .middleware(OAuth.Authentication),
   )
   // Public: no middleware, published content only.
-  .add(Documents.EventsApi) {}
+  .add(Documents.EventsApi)
+  .add(Documents.SyncApi)
+  .add(Documents.PublicSyncApi) {}
 
 const ApiHandlers = HttpApiBuilder.group(Api, "session", (handlers) =>
   handlers.handle("me", () =>
@@ -39,7 +41,6 @@ const ApiHandlers = HttpApiBuilder.group(Api, "session", (handlers) =>
 
 const EventsHandlers = HttpApiBuilder.group(Api, "events", (handlers) =>
   Effect.gen(function* () {
-    const events = yield* Documents.PublishedEvents;
     const attendance = yield* Documents.Attendance;
     const authenticator = yield* OAuth.Authenticator;
 
@@ -49,9 +50,6 @@ const EventsHandlers = HttpApiBuilder.group(Api, "events", (handlers) =>
       const request = yield* HttpServerRequest.HttpServerRequest;
       return yield* authenticator.fromCookies(request.cookies);
     });
-    const audience = Effect.map(currentUser, (user) =>
-      Option.isSome(user) ? ("members" as const) : ("anyone" as const),
-    );
     const signedIn = Effect.flatMap(currentUser, (user) =>
       Option.match(user, {
         onNone: () =>
@@ -63,15 +61,6 @@ const EventsHandlers = HttpApiBuilder.group(Api, "events", (handlers) =>
     );
 
     return handlers
-      .handle("list", () => Effect.flatMap(audience, events.list))
-      .handle("get", ({ params }) =>
-        Effect.flatMap(audience, (who) => events.get(params.id, who)),
-      )
-      .handle("attendance", ({ params }) =>
-        Effect.flatMap(currentUser, (user) =>
-          attendance.summary(params.id, user),
-        ),
-      )
       .handle("attend", ({ params, payload }) =>
         Effect.gen(function* () {
           const user = yield* currentUser;
@@ -101,8 +90,47 @@ const EventsHandlers = HttpApiBuilder.group(Api, "events", (handlers) =>
   }),
 );
 
+const SyncHandlers = HttpApiBuilder.group(Api, "sync", (handlers) =>
+  Effect.gen(function* () {
+    const sync = yield* Documents.Sync;
+    return handlers
+      .handle("teams", ({ query }) => sync.teams(query.since))
+      .handle("documents", ({ query }) => sync.documents(query.since));
+  }),
+);
+
+/** Who is looking at the site: a signed-in member, if anyone. */
+const viewer = Effect.gen(function* () {
+  const authenticator = yield* OAuth.Authenticator;
+  const request = yield* HttpServerRequest.HttpServerRequest;
+  return yield* authenticator.fromCookies(request.cookies);
+});
+const audience = Effect.map(viewer, (user) =>
+  Option.isSome(user) ? ("members" as const) : ("anyone" as const),
+);
+
+const PublicSyncHandlers = HttpApiBuilder.group(Api, "publicSync", (handlers) =>
+  Effect.gen(function* () {
+    const sync = yield* Documents.Sync;
+    return handlers
+      .handle("events", ({ query }) =>
+        Effect.flatMap(audience, (who) => sync.events(query.since, who)),
+      )
+      .handle("attendees", ({ query }) =>
+        Effect.flatMap(viewer, (who) => sync.attendees(query.since, who)),
+      );
+  }),
+);
+
 const Routes = Layer.mergeAll(
-  HttpApiBuilder.layer(Api).pipe(Layer.provide([ApiHandlers, EventsHandlers])),
+  HttpApiBuilder.layer(Api).pipe(
+    Layer.provide([
+      ApiHandlers,
+      EventsHandlers,
+      SyncHandlers,
+      PublicSyncHandlers,
+    ]),
+  ),
   Documents.RpcServer.layerHttp({ path: "/rpc" }),
   HttpRouter.add("GET", "/health", HttpServerResponse.text("ok")),
 ).pipe(Layer.provideMerge(OAuth.routes));

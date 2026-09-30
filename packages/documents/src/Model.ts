@@ -60,23 +60,11 @@ export class DocumentSummary extends Schema.Class<DocumentSummary>(
   hasUnpublishedChanges: Schema.Boolean,
 }) {}
 
-/** An event as the public site shows it: only ever the published version. */
-export class PublishedEvent extends Schema.Class<PublishedEvent>(
-  "@skjera/documents/PublishedEvent",
-)({
-  id: DocumentId,
-  title: Schema.String,
-  date: IsoDate,
-  body: Schema.String,
-  /** Visible without logging in. */
-  isPublic: Schema.Boolean,
-  /** People without an account can sign up to attend. */
-  allowGuests: Schema.Boolean,
-  /** Everyone signing up must give their dietary preferences. */
-  askDietary: Schema.Boolean,
-  publishedAt: Schema.Date,
-  firstPublishedAt: Schema.Date,
-}) {}
+/**
+ * Who is looking: anyone sees public events, signed-in users see all
+ * published events.
+ */
+export type Audience = "anyone" | "members";
 
 /** Signing up for an event without an account. */
 export const GuestDetails = Schema.Struct({
@@ -98,33 +86,11 @@ export const GuestDetails = Schema.Struct({
 });
 export type GuestDetails = typeof GuestDetails.Type;
 
-/** Attendance as the person looking at an event sees it. */
-export class EventAttendance extends Schema.Class<EventAttendance>(
-  "@skjera/documents/EventAttendance",
-)({
-  count: Schema.Int,
-  /** The signed-in user is attending. Guests keep track in their browser. */
-  attending: Schema.Boolean,
-}) {}
-
 export class GuestSignup extends Schema.Class<GuestSignup>(
   "@skjera/documents/GuestSignup",
 )({
   /** Cancels this signup. Shown once; only a hash is stored. */
   cancelToken: Schema.String,
-}) {}
-
-/** Someone attending an event, as organizers see them. */
-export class Attendee extends Schema.Class<Attendee>(
-  "@skjera/documents/Attendee",
-)({
-  name: Schema.String,
-  email: Schema.NullOr(Schema.String),
-  /** What they can't eat, when the event asked. */
-  dietary: Schema.NullOr(Schema.String),
-  /** Signed up without an account. */
-  guest: Schema.Boolean,
-  signedUpAt: Schema.Date,
 }) {}
 
 // Presence: who is where in the studio, and their selection. Short-lived,

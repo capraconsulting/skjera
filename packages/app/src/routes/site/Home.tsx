@@ -1,16 +1,27 @@
-import { Link, useLoaderData } from "react-router";
+import { useLiveQuery } from "@tanstack/react-db";
+import { Link } from "react-router";
 import { Badge } from "../../components/Badge.tsx";
-import { runPublic } from "../../site/client.ts";
+import { events as eventsTable } from "../../sync/tables.ts";
 import { formatLongDate } from "../../time.ts";
 import styles from "./Home.module.css";
 
-export const homeLoader = () => runPublic((client) => client.events.list());
+/** Waits for the copy of the published events. */
+export const homeLoader = async () => {
+  await eventsTable.collection.preload();
+  return null;
+};
 
 const excerpt = (body: string) =>
   body.length > 200 ? `${body.slice(0, 200).trimEnd()}…` : body;
 
 export function Home() {
-  const events = useLoaderData<typeof homeLoader>();
+  // By date, earliest first.
+  const events = useLiveQuery((q) =>
+    q
+      .from({ event: eventsTable.collection })
+      .orderBy(({ event }) => event.date)
+      .orderBy(({ event }) => event.firstPublishedAt),
+  ).data;
   return (
     <div className={styles.home}>
       <h1 className={styles.heading}>Events</h1>

@@ -7,9 +7,9 @@ import { Attendance } from "../src/Attendance.ts";
 import type { EventContent } from "../src/ContentTypes.ts";
 import { DocumentEvents } from "../src/DocumentEvents.ts";
 import { Documents } from "../src/Documents.ts";
-import type { TeamId } from "../src/Model.ts";
+import type { Audience, DocumentId, TeamId } from "../src/Model.ts";
 import { Presence } from "../src/Presence.ts";
-import { PublishedEvents } from "../src/PublishedEvents.ts";
+import { Sync } from "../src/Sync.ts";
 import { Teams } from "../src/Teams.ts";
 import { TestDatabase } from "./TestDatabase.ts";
 
@@ -19,11 +19,35 @@ const bob = new Identity({ issuer: "https://idp.example", subject: "bob" });
 const TestLayer = Layer.mergeAll(
   Documents.layer,
   DocumentEvents.layer,
-  PublishedEvents.layer,
+  Sync.layer,
   Teams.layer,
   Attendance.layer,
   Presence.layer,
 ).pipe(Layer.provideMerge(TestDatabase));
+
+/** The published version of an event, as `audience` would pull it. */
+const publishedAs = (id: DocumentId, audience: Audience) =>
+  Effect.gen(function* () {
+    const sync = yield* Sync;
+    const pulled = yield* sync.events(undefined, audience);
+    return pulled.rows.find((event) => event.id === id);
+  });
+
+/** An event's signups as `viewer` would pull them, earliest first. */
+const signups = (id: DocumentId, viewer: Option.Option<Identity>) =>
+  Effect.gen(function* () {
+    const sync = yield* Sync;
+    const pulled = yield* sync.attendees(undefined, viewer);
+    return pulled.rows
+      .filter((row) => row.eventId === id)
+      .sort((a, b) => a.signedUpAt.getTime() - b.signedUpAt.getTime());
+  });
+
+/** The details of an event's signups, as organizers see them. */
+const organizerView = (id: DocumentId) =>
+  Effect.map(signups(id, Option.some(alice)), (rows) =>
+    rows.map((row) => row.details),
+  );
 
 let teamCount = 0;
 /** A team of its own for each test. */
@@ -376,7 +400,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       const draft = yield* find;
       assert.strictEqual(draft?.publishedAt, null);
       assert.isTrue(draft?.hasUnpublishedChanges);
-      assert.isNull(yield* documents.publication(id));
+      assert.isUndefined(yield* publishedAs(id, "members"));
 
       const heads = yield* documents.applyChanges(
         id,
@@ -393,7 +417,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       assert.strictEqual(published?.title, "Listed");
       assert.isFalse(published?.hasUnpublishedChanges);
       assert.deepStrictEqual(
-        (yield* documents.publication(id))?.heads,
+        (yield* publishedAs(id, "members"))?.publishedHeads,
         publication.heads,
       );
 
@@ -413,7 +437,6 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
   it.effect("shows the public only what was published", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
-      const published = yield* PublishedEvents;
       const id = yield* documents.create("event", yield* newTeam, alice);
       const editor = yield* openEditor(id);
       const heads = yield* documents.applyChanges(
@@ -428,8 +451,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       );
 
       // A draft is invisible until it is published.
-      const hidden = yield* Effect.flip(published.get(id, "members"));
-      assert.strictEqual(hidden._tag, "EventNotFound");
+      assert.isUndefined(yield* publishedAs(id, "members"));
 
       yield* documents.publish(id, heads, alice);
       yield* documents.applyChanges(
@@ -443,18 +465,13 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       );
 
       // Edits after publishing stay private until republished.
-      assert.strictEqual((yield* published.get(id, "members")).title, "Public");
-      const listed = (yield* published.list("members")).find(
-        (event) => event.id === id,
-      );
-      assert.strictEqual(listed?.title, "Public");
+      assert.strictEqual((yield* publishedAs(id, "members"))?.title, "Public");
     }),
   );
 
   it.effect("deletes a document and its published version", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
-      const published = yield* PublishedEvents;
       const id = yield* documents.create("event", yield* newTeam, alice);
       const editor = yield* openEditor(id);
       const heads = yield* documents.applyChanges(
@@ -474,10 +491,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         (yield* Effect.flip(documents.get(id)))._tag,
         "DocumentNotFound",
       );
-      assert.strictEqual(
-        (yield* Effect.flip(published.get(id, "members")))._tag,
-        "EventNotFound",
-      );
+      assert.isUndefined(yield* publishedAs(id, "members"));
       assert.strictEqual(
         (yield* Effect.flip(documents.delete(id)))._tag,
         "DocumentNotFound",
@@ -518,13 +532,12 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
     }),
   );
 
-  it.effect("creates, lists and deletes teams", () =>
+  it.effect("creates and deletes teams", () =>
     Effect.gen(function* () {
       const teams = yield* Teams;
       const documents = yield* Documents;
       const team = yield* teams.create("  Zebra crew  ", alice);
       assert.strictEqual(team.name, "Zebra crew");
-      assert.isTrue((yield* teams.list).some((each) => each.id === team.id));
       assert.strictEqual((yield* teams.get(team.id)).name, "Zebra crew");
 
       // Names are unique regardless of case, and can't be blank.
@@ -555,26 +568,18 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
 
   it.effect("shows members-only events to signed-in users only", () =>
     Effect.gen(function* () {
-      const published = yield* PublishedEvents;
       const membersOnly = yield* publishedEvent({
         public: false,
         guests: true,
       });
       const open = yield* publishedEvent({ public: true, guests: true });
 
-      const hidden = yield* Effect.flip(published.get(membersOnly, "anyone"));
-      assert.strictEqual(hidden._tag, "EventNotFound");
-      const seen = yield* published.get(membersOnly, "members");
+      assert.isUndefined(yield* publishedAs(membersOnly, "anyone"));
+      const seen = yield* publishedAs(membersOnly, "members");
       // Guests only ever apply to public events.
-      assert.isFalse(seen.isPublic);
-      assert.isFalse(seen.allowGuests);
-
-      const ids = (events: ReadonlyArray<{ readonly id: string }>) =>
-        events.map((event) => event.id);
-      assert.notInclude(ids(yield* published.list("anyone")), membersOnly);
-      assert.include(ids(yield* published.list("anyone")), open);
-      assert.include(ids(yield* published.list("members")), membersOnly);
-      assert.isTrue((yield* published.get(open, "anyone")).allowGuests);
+      assert.isFalse(seen?.isPublic);
+      assert.isFalse(seen?.allowGuests);
+      assert.isTrue((yield* publishedAs(open, "anyone"))?.allowGuests);
     }),
   );
 
@@ -586,18 +591,20 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       yield* attendance.attend(id, alice);
       yield* attendance.attend(id, alice);
       yield* attendance.attend(id, bob);
-      const forAlice = yield* attendance.summary(id, Option.some(alice));
-      assert.deepStrictEqual({ ...forAlice }, { count: 2, attending: true });
+      const forAlice = yield* signups(id, Option.some(alice));
+      assert.strictEqual(forAlice.length, 2);
+      assert.deepStrictEqual(
+        forAlice.map((row) => row.mine),
+        [true, false],
+      );
 
       yield* attendance.leave(id, alice);
-      const after = yield* attendance.summary(id, Option.some(alice));
-      assert.deepStrictEqual({ ...after }, { count: 1, attending: false });
+      const after = yield* signups(id, Option.some(alice));
+      assert.strictEqual(after.length, 1);
+      assert.isFalse(after[0]?.mine);
 
       // Members-only events don't exist for anyone signed out.
-      const anonymous = yield* Effect.flip(
-        attendance.summary(id, Option.none()),
-      );
-      assert.strictEqual(anonymous._tag, "EventNotFound");
+      assert.deepStrictEqual(yield* signups(id, Option.none()), []);
     }),
   );
 
@@ -627,13 +634,17 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       assert.strictEqual(again._tag, "SignupRejected");
       yield* attendance.attend(id, bob);
 
-      const attendees = yield* attendance.list(id);
       assert.deepStrictEqual(
-        attendees.map((each) => [each.name, each.guest]),
+        (yield* organizerView(id)).map((each) => [each?.name, each?.guest]),
         [
           ["Gina", true],
           ["bob", false],
         ],
+      );
+      // Anyone else can count them, but not see who they are.
+      assert.deepStrictEqual(
+        (yield* signups(id, Option.none())).map((row) => row.details),
+        [null, null],
       );
 
       // Only the token given to the guest cancels their signup.
@@ -644,23 +655,19 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       );
       assert.strictEqual(elsewhere._tag, "SignupNotFound");
       yield* attendance.leaveAsGuest(id, token);
-      assert.strictEqual(
-        (yield* attendance.summary(id, Option.none())).count,
-        1,
-      );
+      assert.strictEqual((yield* signups(id, Option.none())).length, 1);
     }),
   );
 
   it.effect("asks everyone for dietary preferences when the event does", () =>
     Effect.gen(function* () {
       const attendance = yield* Attendance;
-      const published = yield* PublishedEvents;
       const id = yield* publishedEvent({
         public: true,
         guests: true,
         dietary: true,
       });
-      assert.isTrue((yield* published.get(id, "anyone")).askDietary);
+      assert.isTrue((yield* publishedAs(id, "anyone"))?.askDietary);
 
       // Members and guests alike have to answer.
       const member = yield* Effect.flip(attendance.attend(id, alice));
@@ -677,7 +684,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         " Vegetarian ",
       );
       assert.deepStrictEqual(
-        (yield* attendance.list(id)).map((each) => each.dietary),
+        (yield* organizerView(id)).map((each) => each?.dietary),
         ["None", "Vegetarian"],
       );
 
@@ -687,7 +694,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         guests: false,
         dietary: true,
       });
-      assert.isTrue((yield* published.get(membersOnly, "members")).askDietary);
+      assert.isTrue((yield* publishedAs(membersOnly, "members"))?.askDietary);
       yield* attendance.attend(membersOnly, bob, "Vegan");
 
       // Events that don't ask ignore it.
@@ -699,7 +706,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         "Vegan",
       );
       assert.deepStrictEqual(
-        (yield* attendance.list(plain)).map((each) => each.dietary),
+        (yield* organizerView(plain)).map((each) => each?.dietary),
         [null, null],
       );
     }),

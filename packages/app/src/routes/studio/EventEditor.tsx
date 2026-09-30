@@ -32,8 +32,8 @@ export function EventEditor() {
 }
 
 /**
- * Refreshes the events column once saving settles and after publishing, so
- * titles and badges there follow the editor.
+ * Refreshes the events column once saving settles, so its titles follow the
+ * editor without waiting for the next pull.
  */
 function useRefreshEventsList(session: SessionState) {
   const revalidator = useRevalidator();
@@ -46,10 +46,6 @@ function useRefreshEventsList(session: SessionState) {
     const timer = setTimeout(() => void revalidate.current(), 1000);
     return () => clearTimeout(timer);
   }, [saved]);
-
-  useEffect(() => {
-    if (session.publication !== null) void revalidate.current();
-  }, [session.publication]);
 }
 
 function EventSession({ id }: { readonly id: DocumentId }) {
@@ -103,7 +99,6 @@ function EventSession({ id }: { readonly id: DocumentId }) {
           id={id}
           handle={handle}
           saving={session.saving}
-          publication={session.publication}
           publishing={session.publishing}
           onPublish={session.publish}
           onDelete={remove}

@@ -1,15 +1,9 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { Identity } from "@skjera/oauth/api";
-import { Context, Effect, Layer, Option } from "effect";
+import { Context, Effect, Layer } from "effect";
 import { SqlClient, SqlError } from "effect/sql";
 import { EventNotFound, SignupNotFound, SignupRejected } from "./errors.ts";
-import {
-  Attendee,
-  type DocumentId,
-  EventAttendance,
-  type GuestDetails,
-} from "./Model.ts";
-import type { Audience } from "./PublishedEvents.ts";
+import type { Audience, DocumentId, GuestDetails } from "./Model.ts";
 
 const hash = (token: string) =>
   createHash("sha256").update(token).digest("base64url");
@@ -24,12 +18,6 @@ const pgCode = (error: SqlError.SqlError) =>
 export class Attendance extends Context.Service<
   Attendance,
   {
-    /** How many are coming, and whether `user` is. */
-    readonly summary: (
-      event: DocumentId,
-      user: Option.Option<Identity>,
-    ) => Effect.Effect<EventAttendance, EventNotFound>;
-    /** Signs a member up. Signing up twice is fine. */
     /**
      * Signs a member up. Signing up twice is fine. `dietary` is required
      * when the event asks for it, and ignored otherwise.
@@ -53,10 +41,6 @@ export class Attendance extends Context.Service<
       event: DocumentId,
       cancelToken: string,
     ) => Effect.Effect<void, SignupNotFound>;
-    /** Everyone coming, earliest signup first; for organizers. */
-    readonly list: (
-      event: DocumentId,
-    ) => Effect.Effect<ReadonlyArray<Attendee>>;
   }
 >()("@skjera/documents/Attendance") {
   static readonly layer = Layer.effect(
@@ -83,31 +67,6 @@ export class Attendance extends Context.Service<
           allowGuests: row.allow_guests,
           askDietary: row.ask_dietary,
         };
-      });
-
-      const summary = Effect.fn("Attendance.summary")(function* (
-        event: DocumentId,
-        user: Option.Option<Identity>,
-      ) {
-        yield* rules(event, Option.isSome(user) ? "members" : "anyone");
-        const issuer = Option.match(user, {
-          onNone: () => null,
-          onSome: (identity) => identity.issuer,
-        });
-        const subject = Option.match(user, {
-          onNone: () => null,
-          onSome: (identity) => identity.subject,
-        });
-        const [row] = yield* sql<{ count: number; attending: boolean }>`
-          SELECT count(*)::int AS count,
-            coalesce(bool_or(user_issuer = ${issuer} AND user_subject = ${subject}), false)
-              AS attending
-          FROM attendees WHERE event_id = ${event}
-        `.pipe(Effect.orDie);
-        return new EventAttendance({
-          count: row?.count ?? 0,
-          attending: row?.attending ?? false,
-        });
       });
 
       /** What to store for dietary preferences, given the event's rules. */
@@ -196,37 +155,11 @@ export class Attendance extends Context.Service<
         }
       });
 
-      const list = Effect.fn("Attendance.list")(function* (event: DocumentId) {
-        const rows = yield* sql<{
-          name: string;
-          email: string | null;
-          dietary: string | null;
-          guest: boolean;
-          created_at: Date;
-        }>`
-          SELECT name, email, dietary, user_issuer IS NULL AS guest, created_at
-          FROM attendees WHERE event_id = ${event}
-          ORDER BY created_at
-        `.pipe(Effect.orDie);
-        return rows.map(
-          (row) =>
-            new Attendee({
-              name: row.name,
-              email: row.email,
-              dietary: row.dietary,
-              guest: row.guest,
-              signedUpAt: row.created_at,
-            }),
-        );
-      });
-
       return Attendance.of({
-        summary,
         attend,
         leave,
         attendAsGuest,
         leaveAsGuest,
-        list,
       });
     }),
   );

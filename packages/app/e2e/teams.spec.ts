@@ -7,6 +7,7 @@ import {
   newTeam,
   openNewTeamDialog,
   openTeamMenu,
+  pickDate,
   signedIn,
   teamLink,
   title,
@@ -119,4 +120,72 @@ test("teams can be renamed", async ({ browser }) => {
 
   await deleteTeam(alice, team);
   await deleteTeam(alice, taken);
+});
+
+test("the team list follows others' changes without reloading", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const bob = await signedIn(browser, "bob@example.com");
+  await expect(alice.getByRole("region", { name: "Teams" })).toBeVisible();
+
+  // Bob adds a team; it shows up for Alice on her open page.
+  const name = uniqueTeamName("Polled");
+  const team = await newTeam(bob, name);
+  await expect(teamLink(alice, name)).toBeVisible();
+
+  // And disappears once Bob deletes it.
+  await deleteTeam(bob, team);
+  await expect(teamLink(alice, name)).toHaveCount(0);
+});
+
+test("the events column follows others' changes without reloading", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await newTeam(alice, uniqueTeamName("Watched"));
+  const events = alice.getByRole("region", { name: "Events" });
+  await expect(events.getByText("No events yet.")).toBeVisible();
+
+  // Bob adds and names an event in Alice's team, and she sees it.
+  const bob = await signedIn(browser, "bob@example.com");
+  await bob.goto(`/studio/teams/${team}`);
+  const event = await newEvent(bob);
+  await title(bob).pressSequentially("Added by Bob");
+  await expect(
+    events.getByRole("link", { name: /Added by Bob/ }),
+  ).toBeVisible();
+
+  // And it's gone for her once he deletes it.
+  await deleteEvent(bob, event);
+  await expect(events.getByText("No events yet.")).toBeVisible();
+  await deleteTeam(alice, team);
+});
+
+test("publishing shows for others without reloading", async ({ browser }) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await newTeam(alice, uniqueTeamName("Launches"));
+  const bob = await signedIn(browser, "bob@example.com");
+  await bob.goto(`/studio/teams/${team}`);
+  const event = await newEvent(bob);
+  await title(bob).pressSequentially("Launch party");
+  await pickDate(bob);
+  await expect(bob.getByTestId("status")).toContainText("Saved");
+
+  // Alice has it open, unpublished.
+  await alice.goto(eventPath(team, event));
+  const listed = alice
+    .getByRole("region", { name: "Events" })
+    .getByRole("link", { name: /Launch party/ });
+  await expect(listed).toContainText("Draft");
+  await expect(alice.getByTestId("status")).toContainText("Not published");
+
+  // Bob publishes: her footer and the list follow.
+  await bob.getByRole("button", { name: "Publish" }).click();
+  await expect(bob.getByTestId("status")).toContainText("Published");
+  await expect(alice.getByTestId("status")).toContainText("Published");
+  await expect(listed).toContainText("Published");
+
+  await deleteEvent(bob, event);
+  await deleteTeam(alice, team);
 });

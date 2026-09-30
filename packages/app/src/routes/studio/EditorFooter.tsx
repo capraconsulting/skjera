@@ -1,13 +1,11 @@
 import * as A from "@automerge/automerge/slim";
 import type { DocHandle } from "@automerge/automerge-repo/slim";
-import type {
-  DocumentId,
-  EventContent,
-  Publication,
-} from "@skjera/documents/api";
+import type { DocumentId, EventContent } from "@skjera/documents/api";
+import { eq, useLiveQuery } from "@tanstack/react-db";
 import { useSyncExternalStore } from "react";
 import { Link } from "react-router";
 import { Button } from "../../components/Button.tsx";
+import { events } from "../../sync/tables.ts";
 import { timeAgo } from "../../time.ts";
 import styles from "./EditorFooter.module.css";
 
@@ -29,17 +27,25 @@ export function EditorFooter(props: {
   readonly id: DocumentId;
   readonly handle: DocHandle<EventContent>;
   readonly saving: boolean;
-  readonly publication: Publication | null;
   readonly publishing: boolean;
   readonly onPublish: () => void;
   readonly onDelete: () => void;
 }) {
   const version = useVersion(props.handle);
-  const { publication } = props;
+  const { id } = props;
+  // The published version, if any.
+  const publication = useLiveQuery(
+    (q) =>
+      q
+        .from({ event: events.collection })
+        .where(({ event }) => eq(event.id, id))
+        .findOne(),
+    [id],
+  ).data;
   const upToDate =
-    publication !== null &&
+    publication !== undefined &&
     !props.saving &&
-    [...publication.heads].sort().join(",") === version;
+    [...publication.publishedHeads].sort().join(",") === version;
 
   return (
     <footer className={styles.footer}>
@@ -55,7 +61,7 @@ export function EditorFooter(props: {
           <span className={styles.separator} aria-hidden="true">
             ·
           </span>
-          {publication === null ? (
+          {publication === undefined ? (
             <span>Not published</span>
           ) : (
             <>

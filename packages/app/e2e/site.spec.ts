@@ -6,6 +6,8 @@ import {
   newEvent,
   newTeam,
   pickDate,
+  publishedEvent,
+  signedIn,
   signInAtDex,
   title,
   typeAt,
@@ -115,5 +117,26 @@ test("the site shows what was published, and only that", async ({
   await deleteEvent(alice, id);
   await reader.goto("/");
   await expect(reader.getByRole("link", { name: headline })).toHaveCount(0);
+  await deleteTeam(alice, team);
+});
+
+test("the site follows publishing without reloading", async ({ browser }) => {
+  const reader = await visitor(browser);
+  await reader.goto("/");
+
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await newTeam(alice, uniqueTeamName("Live site"));
+  const event = await publishedEvent(alice, { public: true });
+  const link = reader.getByRole("link", { name: event.title });
+  await expect(link).toBeVisible();
+
+  // Republished for members only: it leaves the visitor's page.
+  await alice.getByRole("checkbox", { name: /Public event/ }).uncheck();
+  await expect(alice.getByTestId("status")).toContainText("Saved");
+  await alice.getByRole("button", { name: "Publish" }).click();
+  await expect(alice.getByTestId("status")).toContainText("Published");
+  await expect(link).toHaveCount(0);
+
+  await deleteEvent(alice, event.id);
   await deleteTeam(alice, team);
 });

@@ -11,6 +11,16 @@ const statements = (...queries: ReadonlyArray<string>) =>
     }
   });
 
+/** Makes a table syncable: see the 0004_sync migration. */
+const syncTable = (table: string) => [
+  `ALTER TABLE ${table} ADD COLUMN xid xid8 NOT NULL DEFAULT pg_current_xact_id()`,
+  `CREATE INDEX ${table}_xid_idx ON ${table} (xid)`,
+  `CREATE TRIGGER ${table}_sync_touch BEFORE UPDATE ON ${table}
+    FOR EACH ROW EXECUTE FUNCTION sync_touch()`,
+  `CREATE TRIGGER ${table}_sync_tombstone AFTER DELETE ON ${table}
+    FOR EACH ROW EXECUTE FUNCTION sync_tombstone()`,
+];
+
 export const migrations = Migrator.fromRecord({
   "0001_documents": statements(
     `CREATE EXTENSION IF NOT EXISTS pg_automerge`,
@@ -138,4 +148,33 @@ export const migrations = Migrator.fromRecord({
     `CREATE UNIQUE INDEX attendees_guest_email_key ON attendees (event_id, lower(email))
       WHERE user_issuer IS NULL`,
   ),
+  "0004_sync": statements(
+    // Clients keep copies of tables and pull what changed since a snapshot
+    // (see Sync.ts). Each synced row carries the id of the transaction that
+    // last wrote it; a snapshot tells which transactions a pull has seen.
+    `CREATE FUNCTION sync_touch() RETURNS trigger LANGUAGE plpgsql AS $$
+    BEGIN
+      NEW.xid := pg_current_xact_id();
+      RETURN NEW;
+    END
+    $$`,
+    // Deleted rows leave a tombstone, so pulls can tell clients about them.
+    `CREATE TABLE sync_deletes (
+      table_name text NOT NULL,
+      id uuid NOT NULL,
+      xid xid8 NOT NULL DEFAULT pg_current_xact_id(),
+      deleted_at timestamptz NOT NULL DEFAULT now()
+    )`,
+    `CREATE INDEX sync_deletes_xid_idx ON sync_deletes (table_name, xid)`,
+    `CREATE FUNCTION sync_tombstone() RETURNS trigger LANGUAGE plpgsql AS $$
+    BEGIN
+      INSERT INTO sync_deletes (table_name, id) VALUES (TG_TABLE_NAME, OLD.id);
+      RETURN OLD;
+    END
+    $$`,
+    ...syncTable("teams"),
+    ...syncTable("documents"),
+  ),
+  "0005_sync_events": statements(...syncTable("events")),
+  "0006_sync_attendees": statements(...syncTable("attendees")),
 });

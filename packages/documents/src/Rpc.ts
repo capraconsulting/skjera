@@ -13,7 +13,6 @@ import {
   TeamNotFound,
 } from "./errors.ts";
 import {
-  Attendee,
   DocumentId,
   DocumentSummary,
   Heads,
@@ -45,7 +44,6 @@ export class OpenedDocument extends Schema.Class<OpenedDocument>(
   draft: Schema.Uint8Array,
   /** The draft's heads: the server has everything up to these. */
   heads: Heads,
-  publication: Schema.NullOr(Publication),
 }) {}
 
 /** What a replica is missing, and the draft's heads with those changes. */
@@ -80,12 +78,6 @@ export class DocumentsRpc extends RpcGroup.make(
     success: Schema.Union([PresenceMessage, PresenceResync]),
     stream: true,
   }),
-  Rpc.make("ListTeams", { success: Schema.Array(Team) }),
-  Rpc.make("GetTeam", {
-    payload: { id: TeamId },
-    success: Team,
-    error: TeamNotFound,
-  }),
   Rpc.make("CreateTeam", {
     payload: { name: Schema.String },
     success: Team,
@@ -102,10 +94,6 @@ export class DocumentsRpc extends RpcGroup.make(
     error: Schema.Union([TeamNotFound, TeamNotEmpty]),
   }),
   /** Who is signed up for an event, for its organizers. */
-  Rpc.make("ListAttendees", {
-    payload: { id: DocumentId },
-    success: Schema.Array(Attendee),
-  }),
   Rpc.make("ListDocuments", {
     payload: { type: ContentTypeName, teamId: TeamId },
     success: Schema.Array(DocumentSummary),

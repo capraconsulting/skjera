@@ -1,4 +1,4 @@
-import type { EventAttendance, PublishedEvent } from "@skjera/documents/api";
+import type { EventRow } from "@skjera/documents/api";
 import { useEffect, useState } from "react";
 import { Form, useActionData } from "react-router";
 import { Button } from "../../components/Button.tsx";
@@ -27,8 +27,12 @@ const writeToken = (id: string, token: string | null) => {
 
 /** Signing up to attend an event, and changing one's mind. */
 export function Attend(props: {
-  readonly event: PublishedEvent;
-  readonly attendance: EventAttendance;
+  readonly event: EventRow;
+  readonly attendance: {
+    readonly count: number;
+    /** The signed-in user is. Guests keep track in their browser. */
+    readonly attending: boolean;
+  };
   readonly signedIn: boolean;
 }) {
   const { event, attendance } = props;
