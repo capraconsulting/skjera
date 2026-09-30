@@ -57,25 +57,28 @@ export function Attend(props: {
     return (
       <section className={styles.box} aria-label="Attendance">
         <p className={styles.count}>{count}</p>
-        <Form method="post" className={styles.row}>
-          {attendance.attending ? (
-            <>
-              <p className={styles.status}>You're attending.</p>
-              <Button type="submit" name="intent" value="leave">
-                Cancel attendance
-              </Button>
-            </>
-          ) : (
-            <Button
-              type="submit"
-              name="intent"
-              value="attend"
-              variant="primary"
-            >
-              Attend
+        {attendance.attending ? (
+          <Form method="post" className={styles.row}>
+            <p className={styles.status}>You're attending.</p>
+            <Button type="submit" name="intent" value="leave">
+              Cancel attendance
             </Button>
-          )}
-        </Form>
+          </Form>
+        ) : (
+          <Form method="post" className={styles.form}>
+            {event.askDietary ? <DietaryInput /> : null}
+            <div className={styles.row}>
+              <Button
+                type="submit"
+                name="intent"
+                value="attend"
+                variant="primary"
+              >
+                Attend
+              </Button>
+            </div>
+          </Form>
+        )}
         {error}
       </section>
     );
@@ -113,17 +116,7 @@ export function Attend(props: {
               required
             />
           </div>
-          {event.askDietary ? (
-            <Input
-              name="dietary"
-              aria-label="Dietary preferences"
-              placeholder={
-                'Dietary preferences (write "none" if you have none)'
-              }
-              required
-              maxLength={500}
-            />
-          ) : null}
+          {event.askDietary ? <DietaryInput /> : null}
           <div className={styles.row}>
             <Button type="submit" variant="primary">
               Sign up
@@ -145,3 +138,14 @@ export function Attend(props: {
     </section>
   );
 }
+
+/** Asked of everyone signing up, when the event wants to know. */
+const DietaryInput = () => (
+  <Input
+    name="dietary"
+    aria-label="Dietary preferences"
+    placeholder={'Dietary preferences (write "none" if you have none)'}
+    required
+    maxLength={500}
+  />
+);

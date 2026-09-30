@@ -125,7 +125,12 @@ function EventSession({ id }: { readonly id: DocumentId }) {
             hint="Anyone can see it. Otherwise only signed-in users."
           />
           <GuestsCheckbox handle={handle} />
-          <DietaryCheckbox handle={handle} />
+          <CheckboxField
+            handle={handle}
+            field="dietary"
+            label="Ask for dietary preferences"
+            hint="Everyone signing up, members and guests, has to fill it in."
+          />
         </Field>
         <Field label="Body">
           <TextEditor handle={handle} path={bodyPath} label="Body" multiline />
@@ -152,28 +157,6 @@ function GuestsCheckbox(props: {
           : "Only public events can take guest signups."
       }
       disabled={!isPublic}
-    />
-  );
-}
-
-/** Only guest signups ask for dietary preferences. */
-function DietaryCheckbox(props: {
-  readonly handle: LocalDocHandle<EventContent>;
-}) {
-  const isPublic = useBooleanField(props.handle, "public");
-  const guests = useBooleanField(props.handle, "guests");
-  const available = isPublic && guests;
-  return (
-    <CheckboxField
-      handle={props.handle}
-      field="dietary"
-      label="Ask guests for dietary preferences"
-      hint={
-        available
-          ? "Guests have to fill it in when signing up."
-          : "Only events with guest signups can ask."
-      }
-      disabled={!available}
     />
   );
 }

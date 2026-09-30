@@ -632,7 +632,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
     }),
   );
 
-  it.effect("asks guests for dietary preferences when the event does", () =>
+  it.effect("asks everyone for dietary preferences when the event does", () =>
     Effect.gen(function* () {
       const attendance = yield* Attendance;
       const published = yield* PublishedEvents;
@@ -643,37 +643,46 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       });
       assert.isTrue((yield* published.get(id, "anyone")).askDietary);
 
-      const missing = yield* Effect.flip(
+      // Members and guests alike have to answer.
+      const member = yield* Effect.flip(attendance.attend(id, alice));
+      assert.strictEqual(member._tag, "SignupRejected");
+      const guest = yield* Effect.flip(
         attendance.attendAsGuest(id, { name: "Gina", email: "g@example.org" }),
       );
-      assert.strictEqual(missing._tag, "SignupRejected");
-      yield* attendance.attendAsGuest(id, {
-        name: "Gina",
-        email: "g@example.org",
-        dietary: " Vegetarian ",
-      });
+      assert.strictEqual(guest._tag, "SignupRejected");
+
+      yield* attendance.attend(id, alice, "None");
+      yield* attendance.attendAsGuest(
+        id,
+        { name: "Gina", email: "g@example.org" },
+        " Vegetarian ",
+      );
       assert.deepStrictEqual(
         (yield* attendance.list(id)).map((each) => each.dietary),
-        ["Vegetarian"],
+        ["None", "Vegetarian"],
       );
 
-      // Events that don't ask ignore it, and it needs guest signups.
-      const plain = yield* publishedEvent({ public: true, guests: true });
-      yield* attendance.attendAsGuest(plain, {
-        name: "Gus",
-        email: "gus@example.org",
-        dietary: "Vegan",
-      });
-      assert.deepStrictEqual(
-        (yield* attendance.list(plain)).map((each) => each.dietary),
-        [null],
-      );
+      // Members-only events can ask too.
       const membersOnly = yield* publishedEvent({
         public: false,
-        guests: true,
+        guests: false,
         dietary: true,
       });
-      assert.isFalse((yield* published.get(membersOnly, "members")).askDietary);
+      assert.isTrue((yield* published.get(membersOnly, "members")).askDietary);
+      yield* attendance.attend(membersOnly, bob, "Vegan");
+
+      // Events that don't ask ignore it.
+      const plain = yield* publishedEvent({ public: true, guests: true });
+      yield* attendance.attend(plain, alice, "Vegan");
+      yield* attendance.attendAsGuest(
+        plain,
+        { name: "Gus", email: "gus@example.org" },
+        "Vegan",
+      );
+      assert.deepStrictEqual(
+        (yield* attendance.list(plain)).map((each) => each.dietary),
+        [null, null],
+      );
     }),
   );
 

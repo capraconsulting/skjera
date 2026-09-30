@@ -127,7 +127,7 @@ test("guests sign up with their name and email", async ({ browser }) => {
   await deleteTeam(alice, team);
 });
 
-test("guests give dietary preferences when the event asks", async ({
+test("everyone gives dietary preferences when the event asks", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -138,6 +138,19 @@ test("guests give dietary preferences when the event asks", async ({
     dietary: true,
   });
 
+  // A member answers before attending.
+  const bob = await signedIn(browser, "bob@example.com");
+  await bob.goto(`/events/${event.id}`);
+  const member = attendance(bob);
+  const memberDietary = member.getByRole("textbox", {
+    name: "Dietary preferences",
+  });
+  await expect(memberDietary).toHaveAttribute("required");
+  await memberDietary.fill("Vegan");
+  await member.getByRole("button", { name: "Attend" }).click();
+  await expect(member).toContainText("You're attending.");
+
+  // So does a guest.
   const guest = await visitor(browser);
   await guest.goto(`/events/${event.id}`);
   const box = attendance(guest);
@@ -152,6 +165,7 @@ test("guests give dietary preferences when the event asks", async ({
   await expect(box).toContainText("You're signed up.");
 
   await alice.reload();
+  await expect(attendees(alice)).toContainText("Diet: Vegan");
   await expect(attendees(alice)).toContainText("Diet: Vegetarian, no nuts");
 
   await box.getByRole("button", { name: "Cancel my signup" }).click();

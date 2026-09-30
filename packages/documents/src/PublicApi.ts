@@ -34,10 +34,14 @@ export class EventsApi extends HttpApiGroup.make("events").add(
   /**
    * Signs up the signed-in user, or, without a session, a guest with the
    * details given. A guest gets the token that cancels their signup.
+   * `dietary` is required when the event asks for it.
    */
   HttpApiEndpoint.post("attend", "/api/events/:id/attendance", {
     params: { id: DocumentId },
-    payload: Schema.Struct({ guest: Schema.optionalKey(GuestDetails) }),
+    payload: Schema.Struct({
+      guest: Schema.optionalKey(GuestDetails),
+      dietary: Schema.optionalKey(Schema.String),
+    }),
     success: Schema.NullOr(GuestSignup),
     error: [EventNotFound, SignInRequired, SignupRejected],
   }),

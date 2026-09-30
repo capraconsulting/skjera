@@ -196,7 +196,7 @@ export const publishedEvent = async (
   }
   if (options.dietary) {
     await page
-      .getByRole("checkbox", { name: /Ask guests for dietary preferences/ })
+      .getByRole("checkbox", { name: /Ask for dietary preferences/ })
       .check();
   }
   await expect(page.getByTestId("status")).toContainText("Saved");

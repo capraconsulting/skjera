@@ -20,7 +20,7 @@ export const EventContent = Schema.Struct({
    * effect for public events.
    */
   guests: Schema.Boolean,
-  /** Guests must say what they can't eat. Only takes effect with guests. */
+  /** Everyone signing up, members and guests, must say what they can't eat. */
   dietary: Schema.Boolean,
 });
 export type EventContent = typeof EventContent.Type;

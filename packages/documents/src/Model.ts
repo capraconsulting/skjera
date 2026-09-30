@@ -72,7 +72,7 @@ export class PublishedEvent extends Schema.Class<PublishedEvent>(
   isPublic: Schema.Boolean,
   /** People without an account can sign up to attend. */
   allowGuests: Schema.Boolean,
-  /** Guests must give their dietary preferences when signing up. */
+  /** Everyone signing up must give their dietary preferences. */
   askDietary: Schema.Boolean,
   publishedAt: Schema.Date,
   firstPublishedAt: Schema.Date,
@@ -95,8 +95,6 @@ export const GuestDetails = Schema.Struct({
         "Enter a valid email address",
     ),
   ),
-  /** Required when the event asks for it; ignored otherwise. */
-  dietary: Schema.optionalKey(Schema.String),
 });
 export type GuestDetails = typeof GuestDetails.Type;
 

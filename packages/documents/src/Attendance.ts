@@ -30,10 +30,15 @@ export class Attendance extends Context.Service<
       user: Option.Option<Identity>,
     ) => Effect.Effect<EventAttendance, EventNotFound>;
     /** Signs a member up. Signing up twice is fine. */
+    /**
+     * Signs a member up. Signing up twice is fine. `dietary` is required
+     * when the event asks for it, and ignored otherwise.
+     */
     readonly attend: (
       event: DocumentId,
       user: Identity,
-    ) => Effect.Effect<void, EventNotFound>;
+      dietary?: string,
+    ) => Effect.Effect<void, EventNotFound | SignupRejected>;
     readonly leave: (
       event: DocumentId,
       user: Identity,
@@ -42,6 +47,7 @@ export class Attendance extends Context.Service<
     readonly attendAsGuest: (
       event: DocumentId,
       guest: GuestDetails,
+      dietary?: string,
     ) => Effect.Effect<string, EventNotFound | SignupRejected>;
     readonly leaveAsGuest: (
       event: DocumentId,
@@ -104,15 +110,30 @@ export class Attendance extends Context.Service<
         });
       });
 
+      /** What to store for dietary preferences, given the event's rules. */
+      const dietaryFor = (askDietary: boolean, value: string | undefined) => {
+        if (!askDietary) return Effect.succeed(null);
+        const dietary = (value ?? "").trim();
+        return dietary === "" || dietary.length > 500
+          ? Effect.fail(
+              new SignupRejected({
+                message: 'Tell us your dietary preferences, or write "none"',
+              }),
+            )
+          : Effect.succeed(dietary);
+      };
+
       const attend = Effect.fn("Attendance.attend")(function* (
         event: DocumentId,
         user: Identity,
+        dietaryValue?: string,
       ) {
-        yield* rules(event, "members");
+        const { askDietary } = yield* rules(event, "members");
+        const dietary = yield* dietaryFor(askDietary, dietaryValue);
         yield* sql`
-          INSERT INTO attendees (event_id, user_issuer, user_subject, name, email)
+          INSERT INTO attendees (event_id, user_issuer, user_subject, name, email, dietary)
           VALUES (${event}, ${user.issuer}, ${user.subject},
-            ${user.name ?? user.email ?? user.subject}, ${user.email ?? null})
+            ${user.name ?? user.email ?? user.subject}, ${user.email ?? null}, ${dietary})
           ON CONFLICT (event_id, user_issuer, user_subject)
             WHERE user_issuer IS NOT NULL DO NOTHING
         `.pipe(Effect.orDie);
@@ -133,6 +154,7 @@ export class Attendance extends Context.Service<
       const attendAsGuest = Effect.fn("Attendance.attendAsGuest")(function* (
         event: DocumentId,
         guest: GuestDetails,
+        dietaryValue?: string,
       ) {
         const { allowGuests, askDietary } = yield* rules(event, "anyone");
         if (!allowGuests) {
@@ -140,12 +162,7 @@ export class Attendance extends Context.Service<
             message: "Log in to sign up for this event",
           });
         }
-        const dietary = askDietary ? (guest.dietary ?? "").trim() : null;
-        if (dietary !== null && (dietary === "" || dietary.length > 500)) {
-          return yield* new SignupRejected({
-            message: 'Tell us your dietary preferences, or write "none"',
-          });
-        }
+        const dietary = yield* dietaryFor(askDietary, dietaryValue);
         const token = randomBytes(32).toString("base64url");
         yield* sql`
           INSERT INTO attendees (event_id, name, email, dietary, cancel_token_hash)

@@ -73,8 +73,8 @@ export const migrations = Migrator.fromRecord({
       -- up for public events.
       is_public boolean NOT NULL,
       allow_guests boolean NOT NULL CHECK (is_public OR NOT allow_guests),
-      -- Guests must give their dietary preferences when signing up.
-      ask_dietary boolean NOT NULL CHECK (allow_guests OR NOT ask_dietary),
+      -- Everyone signing up must give their dietary preferences.
+      ask_dietary boolean NOT NULL,
       published_heads text[] NOT NULL,
       published_by_issuer text NOT NULL,
       published_by_subject text NOT NULL,
@@ -94,8 +94,7 @@ export const migrations = Migrator.fromRecord({
       SELECT d.id, c.content->>'title', (c.content->>'date')::date, c.content->>'body',
         (c.content->>'public')::boolean,
         (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
-        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean
-          AND (c.content->>'dietary')::boolean,
+        (c.content->>'dietary')::boolean,
         -- Sorted like automerge_heads(), so the two can be compared.
         ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
       FROM documents d

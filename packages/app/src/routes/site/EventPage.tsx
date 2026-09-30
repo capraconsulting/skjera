@@ -48,10 +48,13 @@ export const eventAction = async ({
 }: ActionFunctionArgs): Promise<AttendResult> => {
   const id = params.id as DocumentId;
   const form = await request.formData();
+  const dietaryValue = form.get("dietary");
+  const dietary =
+    dietaryValue === null ? {} : { dietary: String(dietaryValue) };
   switch (form.get("intent")) {
     case "attend":
       return runPublic((client) =>
-        client.events.attend({ params: { id }, payload: {} }).pipe(
+        client.events.attend({ params: { id }, payload: dietary }).pipe(
           Effect.as({ ok: true } as const),
           Effect.catch((error) => Effect.succeed({ error: message(error) })),
         ),
@@ -73,19 +76,19 @@ export const eventAction = async ({
       );
     }
     default: {
-      const dietary = form.get("dietary");
       const guest = {
         name: String(form.get("name") ?? ""),
         email: String(form.get("email") ?? ""),
-        ...(dietary === null ? {} : { dietary: String(dietary) }),
       };
       return runPublic((client) =>
-        client.events.attend({ params: { id }, payload: { guest } }).pipe(
-          Effect.map((signup) => ({
-            guestToken: signup?.cancelToken ?? null,
-          })),
-          Effect.catch((error) => Effect.succeed({ error: message(error) })),
-        ),
+        client.events
+          .attend({ params: { id }, payload: { guest, ...dietary } })
+          .pipe(
+            Effect.map((signup) => ({
+              guestToken: signup?.cancelToken ?? null,
+            })),
+            Effect.catch((error) => Effect.succeed({ error: message(error) })),
+          ),
       );
     }
   }
