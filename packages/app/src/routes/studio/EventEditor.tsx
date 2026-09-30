@@ -1,4 +1,4 @@
-import type { DocumentId } from "@skjera/documents/api";
+import type { DocumentId, EventContent } from "@skjera/documents/api";
 import { useEffect, useRef } from "react";
 import {
   useNavigate,
@@ -12,8 +12,11 @@ import {
   type SessionState,
   useDocumentSession,
 } from "../../documents/session.ts";
+import { CheckboxField, useBooleanField } from "../../editor/CheckboxField.tsx";
 import { DateField } from "../../editor/DateField.tsx";
+import type { LocalDocHandle } from "../../editor/LocalDocHandle.ts";
 import { TextEditor } from "../../editor/TextEditor.tsx";
+import { Attendees } from "./Attendees.tsx";
 import { EditorFooter } from "./EditorFooter.tsx";
 import styles from "./EventEditor.module.css";
 
@@ -114,10 +117,40 @@ function EventSession({ id }: { readonly id: DocumentId }) {
         <Field label="Date">
           <DateField handle={handle} label="Date" />
         </Field>
+        <Field label="Visibility">
+          <CheckboxField
+            handle={handle}
+            field="public"
+            label="Public event"
+            hint="Anyone can see it. Otherwise only signed-in users."
+          />
+          <GuestsCheckbox handle={handle} />
+        </Field>
         <Field label="Body">
           <TextEditor handle={handle} path={bodyPath} label="Body" multiline />
         </Field>
+        <Attendees id={id} />
       </div>
     </Pane>
+  );
+}
+
+/** Guests can only sign up for public events. */
+function GuestsCheckbox(props: {
+  readonly handle: LocalDocHandle<EventContent>;
+}) {
+  const isPublic = useBooleanField(props.handle, "public");
+  return (
+    <CheckboxField
+      handle={props.handle}
+      field="guests"
+      label="Guests can sign up"
+      hint={
+        isPublic
+          ? "People without an account can attend with their name and email."
+          : "Only public events can take guest signups."
+      }
+      disabled={!isPublic}
+    />
   );
 }

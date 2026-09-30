@@ -84,6 +84,7 @@ test("the site shows what was published, and only that", async ({
   await body(alice).press("Enter");
   await body(alice).pressSequentially("Line two");
   const date = await pickDate(alice);
+  await alice.getByRole("checkbox", { name: /Public event/ }).check();
   await expect(alice.getByTestId("status")).toContainText("Saved");
   await alice.getByRole("button", { name: "Publish" }).click();
   await expect(alice.getByTestId("status")).toContainText("Published");

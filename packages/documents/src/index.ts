@@ -1,10 +1,12 @@
 import { Layer } from "effect";
+import { Attendance } from "./Attendance.ts";
 import * as Database from "./Database.ts";
 import { DocumentEvents } from "./DocumentEvents.ts";
 import { Documents } from "./Documents.ts";
 import { PublishedEvents } from "./PublishedEvents.ts";
 import { Teams } from "./Teams.ts";
 
+export * from "./Attendance.ts";
 export * from "./ContentTypes.ts";
 export * as Database from "./Database.ts";
 export * from "./DocumentEvents.ts";
@@ -33,4 +35,5 @@ export const layer = Layer.mergeAll(
   DocumentEvents.layer,
   PublishedEvents.layer,
   Teams.layer,
+  Attendance.layer,
 ).pipe(Layer.provideMerge(Database.layer));

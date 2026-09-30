@@ -1,4 +1,5 @@
 import { Link, useLoaderData } from "react-router";
+import { Badge } from "../../components/Badge.tsx";
 import { runPublic } from "../../site/client.ts";
 import { formatLongDate } from "../../time.ts";
 import styles from "./Home.module.css";
@@ -25,6 +26,9 @@ export function Home() {
               <h2>
                 <Link to={`/events/${event.id}`}>{event.title}</Link>
               </h2>
+              {event.isPublic ? null : (
+                <Badge tone="neutral">Members only</Badge>
+              )}
               <p className={styles.excerpt}>{excerpt(event.body)}</p>
             </article>
           ))}

@@ -1,8 +1,9 @@
 import * as A from "@automerge/automerge";
 import { assert, layer } from "@effect/vitest";
 import { Identity } from "@skjera/oauth/api";
-import { Effect, Fiber, Layer, Stream } from "effect";
+import { Effect, Fiber, Layer, Option, Stream } from "effect";
 import { SqlClient } from "effect/sql";
+import { Attendance } from "../src/Attendance.ts";
 import type { EventContent } from "../src/ContentTypes.ts";
 import { DocumentEvents } from "../src/DocumentEvents.ts";
 import { Documents } from "../src/Documents.ts";
@@ -19,6 +20,7 @@ const TestLayer = Layer.mergeAll(
   DocumentEvents.layer,
   PublishedEvents.layer,
   Teams.layer,
+  Attendance.layer,
 ).pipe(Layer.provideMerge(TestDatabase));
 
 let teamCount = 0;
@@ -33,6 +35,30 @@ const newTeam = Effect.gen(function* () {
 const setDate = (event: EventContent, date: string) => {
   (event as { date: unknown }).date = new A.ImmutableString(date);
 };
+
+/** Creates and publishes an event, with the given visibility settings. */
+const publishedEvent = Effect.fn(function* (settings: {
+  readonly public: boolean;
+  readonly guests: boolean;
+}) {
+  const documents = yield* Documents;
+  const id = yield* documents.create("event", yield* newTeam, alice);
+  const editor = yield* openEditor(id, alice);
+  const heads = yield* documents.applyChanges(
+    id,
+    [
+      editor.edit((event) => {
+        A.updateText(event, ["title"], "Meetup");
+        setDate(event, "2026-10-15");
+        (event as { public: boolean }).public = settings.public;
+        (event as { guests: boolean }).guests = settings.guests;
+      }),
+    ],
+    alice,
+  );
+  yield* documents.publish(id, heads, alice);
+  return id;
+});
 
 /** An editor session: a replica of the draft with its own actor id. */
 const openEditor = Effect.fn(function* (
@@ -70,6 +96,8 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         title: "",
         body: "",
         date: null,
+        public: false,
+        guests: false,
       });
       assert.deepStrictEqual(
         snapshot.heads,
@@ -108,6 +136,8 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
           title: "Hello",
           body: "World",
           date: null,
+          public: false,
+          guests: false,
         });
         assert.deepStrictEqual(
           [...A.getHeads(editor.doc())].sort(),
@@ -375,7 +405,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       );
 
       // A draft is invisible until it is published.
-      const hidden = yield* Effect.flip(published.get(id));
+      const hidden = yield* Effect.flip(published.get(id, "members"));
       assert.strictEqual(hidden._tag, "EventNotFound");
 
       yield* documents.publish(id, heads, alice);
@@ -390,8 +420,10 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       );
 
       // Edits after publishing stay private until republished.
-      assert.strictEqual((yield* published.get(id)).title, "Public");
-      const listed = (yield* published.list).find((event) => event.id === id);
+      assert.strictEqual((yield* published.get(id, "members")).title, "Public");
+      const listed = (yield* published.list("members")).find(
+        (event) => event.id === id,
+      );
       assert.strictEqual(listed?.title, "Public");
     }),
   );
@@ -420,7 +452,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         "DocumentNotFound",
       );
       assert.strictEqual(
-        (yield* Effect.flip(published.get(id)))._tag,
+        (yield* Effect.flip(published.get(id, "members")))._tag,
         "EventNotFound",
       );
       assert.strictEqual(
@@ -495,6 +527,104 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       yield* teams.delete(team.id);
       const gone = yield* Effect.flip(teams.get(team.id));
       assert.strictEqual(gone._tag, "TeamNotFound");
+    }),
+  );
+
+  it.effect("shows members-only events to signed-in users only", () =>
+    Effect.gen(function* () {
+      const published = yield* PublishedEvents;
+      const membersOnly = yield* publishedEvent({
+        public: false,
+        guests: true,
+      });
+      const open = yield* publishedEvent({ public: true, guests: true });
+
+      const hidden = yield* Effect.flip(published.get(membersOnly, "anyone"));
+      assert.strictEqual(hidden._tag, "EventNotFound");
+      const seen = yield* published.get(membersOnly, "members");
+      // Guests only ever apply to public events.
+      assert.isFalse(seen.isPublic);
+      assert.isFalse(seen.allowGuests);
+
+      const ids = (events: ReadonlyArray<{ readonly id: string }>) =>
+        events.map((event) => event.id);
+      assert.notInclude(ids(yield* published.list("anyone")), membersOnly);
+      assert.include(ids(yield* published.list("anyone")), open);
+      assert.include(ids(yield* published.list("members")), membersOnly);
+      assert.isTrue((yield* published.get(open, "anyone")).allowGuests);
+    }),
+  );
+
+  it.effect("lets members sign up and change their mind", () =>
+    Effect.gen(function* () {
+      const attendance = yield* Attendance;
+      const id = yield* publishedEvent({ public: false, guests: false });
+
+      yield* attendance.attend(id, alice);
+      yield* attendance.attend(id, alice);
+      yield* attendance.attend(id, bob);
+      const forAlice = yield* attendance.summary(id, Option.some(alice));
+      assert.deepStrictEqual({ ...forAlice }, { count: 2, attending: true });
+
+      yield* attendance.leave(id, alice);
+      const after = yield* attendance.summary(id, Option.some(alice));
+      assert.deepStrictEqual({ ...after }, { count: 1, attending: false });
+
+      // Members-only events don't exist for anyone signed out.
+      const anonymous = yield* Effect.flip(
+        attendance.summary(id, Option.none()),
+      );
+      assert.strictEqual(anonymous._tag, "EventNotFound");
+    }),
+  );
+
+  it.effect("lets guests sign up where allowed, once per email", () =>
+    Effect.gen(function* () {
+      const attendance = yield* Attendance;
+      const closed = yield* publishedEvent({ public: true, guests: false });
+      const rejected = yield* Effect.flip(
+        attendance.attendAsGuest(closed, {
+          name: "Gina",
+          email: "gina@example.org",
+        }),
+      );
+      assert.strictEqual(rejected._tag, "SignupRejected");
+
+      const id = yield* publishedEvent({ public: true, guests: true });
+      const token = yield* attendance.attendAsGuest(id, {
+        name: " Gina ",
+        email: "gina@example.org",
+      });
+      const again = yield* Effect.flip(
+        attendance.attendAsGuest(id, {
+          name: "Gina again",
+          email: "GINA@example.org",
+        }),
+      );
+      assert.strictEqual(again._tag, "SignupRejected");
+      yield* attendance.attend(id, bob);
+
+      const attendees = yield* attendance.list(id);
+      assert.deepStrictEqual(
+        attendees.map((each) => [each.name, each.guest]),
+        [
+          ["Gina", true],
+          ["bob", false],
+        ],
+      );
+
+      // Only the token given to the guest cancels their signup.
+      const wrong = yield* Effect.flip(attendance.leaveAsGuest(id, "guess"));
+      assert.strictEqual(wrong._tag, "SignupNotFound");
+      const elsewhere = yield* Effect.flip(
+        attendance.leaveAsGuest(closed, token),
+      );
+      assert.strictEqual(elsewhere._tag, "SignupNotFound");
+      yield* attendance.leaveAsGuest(id, token);
+      assert.strictEqual(
+        (yield* attendance.summary(id, Option.none())).count,
+        1,
+      );
     }),
   );
 

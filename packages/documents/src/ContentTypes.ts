@@ -13,6 +13,13 @@ export const EventContent = Schema.Struct({
    * merged character by character. Null until picked.
    */
   date: Schema.NullOr(IsoDate),
+  /** Visible without logging in. Otherwise only signed-in users see it. */
+  public: Schema.Boolean,
+  /**
+   * People without an account can sign up with a name and email. Only takes
+   * effect for public events.
+   */
+  guests: Schema.Boolean,
 });
 export type EventContent = typeof EventContent.Type;
 
@@ -25,7 +32,13 @@ export interface Requirement<Content> {
 export const contentTypes = {
   event: {
     schema: EventContent,
-    initial: { title: "", body: "", date: null } satisfies EventContent,
+    initial: {
+      title: "",
+      body: "",
+      date: null,
+      public: false,
+      guests: false,
+    } satisfies EventContent,
     toPublish: [
       { label: "a title", met: (event) => event.title.trim() !== "" },
       { label: "a date", met: (event) => event.date !== null },

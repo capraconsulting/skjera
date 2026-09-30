@@ -1,0 +1,28 @@
+.field {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  cursor: pointer;
+}
+
+.field input {
+  width: 1.125rem;
+  height: 1.125rem;
+  margin: 0.125rem 0 0;
+  accent-color: var(--color-focus);
+}
+
+.disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.label {
+  font-weight: 500;
+}
+
+.hint {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}

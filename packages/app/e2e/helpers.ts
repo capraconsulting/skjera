@@ -71,7 +71,10 @@ export const newTeam = async (page: Page, name: string) => {
 
 /** Creates an event in the open team and returns its id. */
 export const newEvent = async (page: Page) => {
+  const before = page.url();
   await page.getByRole("button", { name: "New event" }).click();
+  // Wait for the new event, also when another one was open.
+  await expect(page).not.toHaveURL(before);
   await expect(page).toHaveURL(
     /\/studio\/teams\/[0-9a-f-]+\/events\/[0-9a-f-]+$/,
   );
@@ -167,4 +170,28 @@ export const pickDate = async (page: Page) => {
   });
   await expect(field).toHaveText(shown);
   return shown;
+};
+
+/**
+ * Creates an event in the open team, fills it in and publishes it. Returns
+ * its id and title.
+ */
+export const publishedEvent = async (
+  page: Page,
+  options: { readonly public: boolean; readonly guests?: boolean },
+) => {
+  const id = await newEvent(page);
+  const eventTitle = `Meetup ${id.slice(-12)}`;
+  await title(page).pressSequentially(eventTitle);
+  await pickDate(page);
+  if (options.public) {
+    await page.getByRole("checkbox", { name: /Public event/ }).check();
+  }
+  if (options.guests) {
+    await page.getByRole("checkbox", { name: /Guests can sign up/ }).check();
+  }
+  await expect(page.getByTestId("status")).toContainText("Saved");
+  await page.getByRole("button", { name: "Publish" }).click();
+  await expect(page.getByTestId("status")).toContainText("Published");
+  return { id, title: eventTitle };
 };

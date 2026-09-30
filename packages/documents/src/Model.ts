@@ -68,6 +68,57 @@ export class PublishedEvent extends Schema.Class<PublishedEvent>(
   title: Schema.String,
   date: IsoDate,
   body: Schema.String,
+  /** Visible without logging in. */
+  isPublic: Schema.Boolean,
+  /** People without an account can sign up to attend. */
+  allowGuests: Schema.Boolean,
   publishedAt: Schema.Date,
   firstPublishedAt: Schema.Date,
+}) {}
+
+/** Signing up for an event without an account. */
+export const GuestDetails = Schema.Struct({
+  name: Schema.String.check(
+    Schema.makeFilter(
+      (name: string) =>
+        (name.trim() !== "" && name.trim().length <= 100) ||
+        "Enter your name (at most 100 characters)",
+    ),
+  ),
+  email: Schema.String.check(
+    Schema.makeFilter(
+      (email: string) =>
+        (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) &&
+          email.trim().length <= 254) ||
+        "Enter a valid email address",
+    ),
+  ),
+});
+export type GuestDetails = typeof GuestDetails.Type;
+
+/** Attendance as the person looking at an event sees it. */
+export class EventAttendance extends Schema.Class<EventAttendance>(
+  "@skjera/documents/EventAttendance",
+)({
+  count: Schema.Int,
+  /** The signed-in user is attending. Guests keep track in their browser. */
+  attending: Schema.Boolean,
+}) {}
+
+export class GuestSignup extends Schema.Class<GuestSignup>(
+  "@skjera/documents/GuestSignup",
+)({
+  /** Cancels this signup. Shown once; only a hash is stored. */
+  cancelToken: Schema.String,
+}) {}
+
+/** Someone attending an event, as organizers see them. */
+export class Attendee extends Schema.Class<Attendee>(
+  "@skjera/documents/Attendee",
+)({
+  name: Schema.String,
+  email: Schema.NullOr(Schema.String),
+  /** Signed up without an account. */
+  guest: Schema.Boolean,
+  signedUpAt: Schema.Date,
 }) {}

@@ -51,3 +51,24 @@ export class TeamNotEmpty extends Schema.TaggedError<TeamNotEmpty>()(
   "TeamNotEmpty",
   { id: Schema.String },
 ) {}
+
+/** Attending as a member needs a login. */
+export class SignInRequired extends Schema.TaggedError<SignInRequired>()(
+  "SignInRequired",
+  { message: Schema.String },
+  { httpApiStatus: 401 },
+) {}
+
+/** The event doesn't take this signup, e.g. guests on a members-only event. */
+export class SignupRejected extends Schema.TaggedError<SignupRejected>()(
+  "SignupRejected",
+  { message: Schema.String },
+  { httpApiStatus: 400 },
+) {}
+
+/** No guest signup matches that cancel token. */
+export class SignupNotFound extends Schema.TaggedError<SignupNotFound>()(
+  "SignupNotFound",
+  {},
+  { httpApiStatus: 404 },
+) {}

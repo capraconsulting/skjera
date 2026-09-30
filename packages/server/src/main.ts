@@ -5,8 +5,13 @@ import { createServer } from "node:http";
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
 import * as Documents from "@skjera/documents";
 import * as OAuth from "@skjera/oauth";
-import { Config, Effect, Layer } from "effect";
-import { FetchHttpClient, HttpRouter, HttpServerResponse } from "effect/http";
+import { Config, Effect, Layer, Option } from "effect";
+import {
+  FetchHttpClient,
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "effect/http";
 import {
   HttpApi,
   HttpApiBuilder,
@@ -35,9 +40,63 @@ const ApiHandlers = HttpApiBuilder.group(Api, "session", (handlers) =>
 const EventsHandlers = HttpApiBuilder.group(Api, "events", (handlers) =>
   Effect.gen(function* () {
     const events = yield* Documents.PublishedEvents;
+    const attendance = yield* Documents.Attendance;
+    const authenticator = yield* OAuth.Authenticator;
+
+    // These endpoints are open to anyone; a session shows members-only
+    // events and signs up as a member.
+    const currentUser = Effect.gen(function* () {
+      const request = yield* HttpServerRequest.HttpServerRequest;
+      return yield* authenticator.fromCookies(request.cookies);
+    });
+    const audience = Effect.map(currentUser, (user) =>
+      Option.isSome(user) ? ("members" as const) : ("anyone" as const),
+    );
+    const signedIn = Effect.flatMap(currentUser, (user) =>
+      Option.match(user, {
+        onNone: () =>
+          Effect.fail(
+            new Documents.SignInRequired({ message: "Log in to attend" }),
+          ),
+        onSome: Effect.succeed,
+      }),
+    );
+
     return handlers
-      .handle("list", () => events.list)
-      .handle("get", ({ params }) => events.get(params.id));
+      .handle("list", () => Effect.flatMap(audience, events.list))
+      .handle("get", ({ params }) =>
+        Effect.flatMap(audience, (who) => events.get(params.id, who)),
+      )
+      .handle("attendance", ({ params }) =>
+        Effect.flatMap(currentUser, (user) =>
+          attendance.summary(params.id, user),
+        ),
+      )
+      .handle("attend", ({ params, payload }) =>
+        Effect.gen(function* () {
+          const user = yield* currentUser;
+          if (Option.isSome(user)) {
+            yield* attendance.attend(params.id, user.value);
+            return null;
+          }
+          if (payload.guest === undefined) {
+            return yield* new Documents.SignInRequired({
+              message: "Log in, or leave your name and email",
+            });
+          }
+          const cancelToken = yield* attendance.attendAsGuest(
+            params.id,
+            payload.guest,
+          );
+          return new Documents.GuestSignup({ cancelToken });
+        }),
+      )
+      .handle("leave", ({ params }) =>
+        Effect.flatMap(signedIn, (user) => attendance.leave(params.id, user)),
+      )
+      .handle("leaveAsGuest", ({ params }) =>
+        attendance.leaveAsGuest(params.id, params.token),
+      );
   }),
 );
 

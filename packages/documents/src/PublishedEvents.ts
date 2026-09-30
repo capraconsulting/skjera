@@ -8,6 +8,8 @@ type Row = {
   title: string;
   date: IsoDate;
   body: string;
+  is_public: boolean;
+  allow_guests: boolean;
   published_at: Date;
   first_published_at: Date;
 };
@@ -18,21 +20,33 @@ const toEvent = (row: Row) =>
     title: row.title,
     date: row.date,
     body: row.body,
+    isPublic: row.is_public,
+    allowGuests: row.allow_guests,
     publishedAt: row.published_at,
     firstPublishedAt: row.first_published_at,
   });
 
 /**
- * Published events, for the public site. Reads only the `events` table, so
- * drafts and unpublished edits can't leak out through it.
+ * Who is looking: anyone sees public events, signed-in users see all
+ * published events.
+ */
+export type Audience = "anyone" | "members";
+
+/**
+ * Published events, for the site. Reads only the `events` table, so drafts
+ * and unpublished edits can't leak out through it. Members-only events are
+ * "not found" to anyone else.
  */
 export class PublishedEvents extends Context.Service<
   PublishedEvents,
   {
     /** By date, earliest first. */
-    readonly list: Effect.Effect<ReadonlyArray<PublishedEvent>>;
+    readonly list: (
+      audience: Audience,
+    ) => Effect.Effect<ReadonlyArray<PublishedEvent>>;
     readonly get: (
       id: DocumentId,
+      audience: Audience,
     ) => Effect.Effect<PublishedEvent, EventNotFound>;
   }
 >()("@skjera/documents/PublishedEvents") {
@@ -41,19 +55,28 @@ export class PublishedEvents extends Context.Service<
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
 
-      const list = sql<Row>`
-        SELECT id, title, event_date::text AS date, body, published_at, first_published_at
-        FROM events ORDER BY event_date, first_published_at
-      `.pipe(
-        Effect.map((rows) => rows.map(toEvent)),
-        Effect.orDie,
-        Effect.withSpan("PublishedEvents.list"),
-      );
+      const list = Effect.fn("PublishedEvents.list")(function* (
+        audience: Audience,
+      ) {
+        const rows = yield* sql<Row>`
+          SELECT id, title, event_date::text AS date, body, is_public, allow_guests,
+            published_at, first_published_at
+          FROM events
+          WHERE is_public OR ${audience === "members"}
+          ORDER BY event_date, first_published_at
+        `.pipe(Effect.orDie);
+        return rows.map(toEvent);
+      });
 
-      const get = Effect.fn("PublishedEvents.get")(function* (id: DocumentId) {
+      const get = Effect.fn("PublishedEvents.get")(function* (
+        id: DocumentId,
+        audience: Audience,
+      ) {
         const [row] = yield* sql<Row>`
-          SELECT id, title, event_date::text AS date, body, published_at, first_published_at
-          FROM events WHERE id = ${id}
+          SELECT id, title, event_date::text AS date, body, is_public, allow_guests,
+            published_at, first_published_at
+          FROM events
+          WHERE id = ${id} AND (is_public OR ${audience === "members"})
         `.pipe(Effect.orDie);
         if (row === undefined) {
           return yield* new EventNotFound({ id });

@@ -13,6 +13,7 @@ import {
   TeamNotFound,
 } from "./errors.ts";
 import {
+  Attendee,
   DocumentId,
   DocumentSummary,
   Heads,
@@ -78,6 +79,11 @@ export class DocumentsRpc extends RpcGroup.make(
   Rpc.make("DeleteTeam", {
     payload: { id: TeamId },
     error: Schema.Union([TeamNotFound, TeamNotEmpty]),
+  }),
+  /** Who is signed up for an event, for its organizers. */
+  Rpc.make("ListAttendees", {
+    payload: { id: DocumentId },
+    success: Schema.Array(Attendee),
   }),
   Rpc.make("ListDocuments", {
     payload: { type: ContentTypeName, teamId: TeamId },

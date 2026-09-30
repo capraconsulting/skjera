@@ -68,6 +68,11 @@ export const migrations = Migrator.fromRecord({
       title text NOT NULL CHECK (btrim(title) <> ''),
       event_date date NOT NULL,
       body text NOT NULL,
+      -- Public events are visible without logging in; the others only to
+      -- signed-in users. Guests (people without an account) can only sign
+      -- up for public events.
+      is_public boolean NOT NULL,
+      allow_guests boolean NOT NULL CHECK (is_public OR NOT allow_guests),
       published_heads text[] NOT NULL,
       published_by_issuer text NOT NULL,
       published_by_subject text NOT NULL,
@@ -82,8 +87,11 @@ export const migrations = Migrator.fromRecord({
     `CREATE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
       RETURNS SETOF events LANGUAGE sql AS $$
       INSERT INTO events AS e
-        (id, title, event_date, body, published_heads, published_by_issuer, published_by_subject)
+        (id, title, event_date, body, is_public, allow_guests,
+         published_heads, published_by_issuer, published_by_subject)
       SELECT d.id, c.content->>'title', (c.content->>'date')::date, c.content->>'body',
+        (c.content->>'public')::boolean,
+        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
         -- Sorted like automerge_heads(), so the two can be compared.
         ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
       FROM documents d
@@ -93,10 +101,36 @@ export const migrations = Migrator.fromRecord({
         title = EXCLUDED.title,
         event_date = EXCLUDED.event_date,
         body = EXCLUDED.body,
+        is_public = EXCLUDED.is_public,
+        allow_guests = EXCLUDED.allow_guests,
         published_heads = EXCLUDED.published_heads,
         published_by_issuer = EXCLUDED.published_by_issuer,
         published_by_subject = EXCLUDED.published_by_subject
       RETURNING e.*
     $$`,
+  ),
+  "0003_attendance": statements(
+    // Who is coming to a published event: members by their account, guests
+    // by name and email. Guests cancel with a token only they were given;
+    // its hash is stored.
+    `CREATE TABLE attendees (
+      id uuid PRIMARY KEY DEFAULT uuidv7(),
+      event_id uuid NOT NULL REFERENCES events (id) ON DELETE CASCADE,
+      user_issuer text,
+      user_subject text,
+      name text NOT NULL,
+      email text,
+      cancel_token_hash text UNIQUE,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      CHECK (
+        (user_issuer IS NOT NULL AND user_subject IS NOT NULL AND cancel_token_hash IS NULL)
+        OR (user_issuer IS NULL AND user_subject IS NULL
+            AND email IS NOT NULL AND cancel_token_hash IS NOT NULL)
+      )
+    )`,
+    `CREATE UNIQUE INDEX attendees_member_key ON attendees (event_id, user_issuer, user_subject)
+      WHERE user_issuer IS NOT NULL`,
+    `CREATE UNIQUE INDEX attendees_guest_email_key ON attendees (event_id, lower(email))
+      WHERE user_issuer IS NULL`,
   ),
 });

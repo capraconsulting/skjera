@@ -9,6 +9,7 @@ import { Playground } from "./routes/Playground.tsx";
 import {
   EventError,
   EventPage,
+  eventAction,
   eventLoader,
 } from "./routes/site/EventPage.tsx";
 import { Home, homeLoader } from "./routes/site/Home.tsx";
@@ -38,6 +39,7 @@ await initializeWasm(wasmUrl);
 const router = createBrowserRouter([
   // The public site: published content, no login needed.
   {
+    id: "site",
     path: "/",
     Component: SiteLayout,
     loader: siteLoader,
@@ -48,6 +50,7 @@ const router = createBrowserRouter([
         path: "events/:id",
         Component: EventPage,
         loader: eventLoader,
+        action: eventAction,
         ErrorBoundary: EventError,
       },
     ],
