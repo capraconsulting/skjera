@@ -56,6 +56,7 @@ export const DocumentsRpcHandlers = DocumentsRpc.toLayer(
         Effect.gen(function* () {
           return yield* teams.create(name, yield* CurrentUser);
         }),
+      RenameTeam: ({ id, name }) => teams.rename(id, name),
       DeleteTeam: ({ id }) => teams.delete(id),
       ListDocuments: ({ type, teamId }) => documents.list(type, teamId),
       CreateDocument: ({ type, teamId }) =>

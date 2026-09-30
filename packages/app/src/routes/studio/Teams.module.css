@@ -28,21 +28,33 @@
   font-weight: 600;
 }
 
-.create {
-  display: grid;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  border-top: 1px solid var(--color-border);
-}
-
 .empty {
   padding: 1rem;
   color: var(--color-text-muted);
   font-size: 0.875rem;
 }
 
-.error {
-  margin: 0;
-  color: var(--color-danger);
-  font-size: 0.8125rem;
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.row .item {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Each team's "⋯" shows on hover, on keyboard focus, and while it's open. */
+.menu {
+  opacity: 0;
+}
+
+.row:hover .menu,
+.menu:focus-within,
+.menu:has(:popover-open) {
+  opacity: 1;
 }

@@ -69,6 +69,11 @@ export class DocumentsRpc extends RpcGroup.make(
     success: Team,
     error: InvalidTeamName,
   }),
+  Rpc.make("RenameTeam", {
+    payload: { id: TeamId, name: Schema.String },
+    success: Team,
+    error: Schema.Union([InvalidTeamName, TeamNotFound]),
+  }),
   /** Only teams without documents can be deleted. */
   Rpc.make("DeleteTeam", {
     payload: { id: TeamId },

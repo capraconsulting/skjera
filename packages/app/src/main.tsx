@@ -18,13 +18,14 @@ import { StudioLayout, studioLoader } from "./routes/studio/StudioLayout.tsx";
 import {
   NoEventSelected,
   Team,
+  TeamError,
   teamAction,
   teamLoader,
 } from "./routes/studio/Team.tsx";
 import {
-  createTeamAction,
   NoTeamSelected,
   Teams,
+  teamsAction,
   teamsLoader,
   teamsShouldRevalidate,
 } from "./routes/studio/Teams.tsx";
@@ -66,7 +67,7 @@ const router = createBrowserRouter([
         Component: Teams,
         loader: teamsLoader,
         shouldRevalidate: teamsShouldRevalidate,
-        action: createTeamAction,
+        action: teamsAction,
         children: [
           { index: true, Component: NoTeamSelected },
           {
@@ -74,6 +75,7 @@ const router = createBrowserRouter([
             Component: Team,
             loader: teamLoader,
             action: teamAction,
+            ErrorBoundary: TeamError,
             children: [
               { index: true, Component: NoEventSelected },
               { path: "events/:id", Component: EventEditor },

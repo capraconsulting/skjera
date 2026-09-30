@@ -31,6 +31,8 @@ export class Team extends Schema.Class<Team>("@skjera/documents/Team")({
   id: TeamId,
   name: Schema.String,
   createdAt: Schema.Date,
+  /** How many documents the team has; only empty teams can be deleted. */
+  documentCount: Schema.Int,
 }) {}
 
 /** Hex change hashes identifying a version of a document. */

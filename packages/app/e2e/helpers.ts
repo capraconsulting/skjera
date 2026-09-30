@@ -35,14 +35,37 @@ const lastPathSegment = (page: Page) =>
 export const uniqueTeamName = (label: string) =>
   `${label} ${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
-/** Creates a team from the teams page, opens it and returns its id. */
+/** The teams column's link to a team, which is marked while selected. */
+export const teamLink = (page: Page, name: string) =>
+  page.getByRole("region", { name: "Teams" }).getByRole("link", { name });
+
+/** Opens the dialog for naming a new team. */
+export const openNewTeamDialog = async (page: Page) => {
+  await page.getByRole("button", { name: "Team list options" }).click();
+  await page.getByRole("button", { name: "New team" }).click();
+  const dialog = page.getByRole("dialog", { name: "New team" });
+  await expect(dialog).toBeVisible();
+  return dialog;
+};
+
+/** Opens a team's own "⋯" menu in the teams column. */
+export const openTeamMenu = async (page: Page, id: string) => {
+  const row = page
+    .getByRole("region", { name: "Teams" })
+    .getByRole("listitem")
+    .filter({ has: page.locator(`a[href="/studio/teams/${id}"]`) });
+  await row.hover();
+  await row.getByRole("button", { name: /^Options for / }).click();
+};
+
+/** Creates a team with the "New team" dialog, opens it and returns its id. */
 export const newTeam = async (page: Page, name: string) => {
   await page.goto("/studio/teams");
-  const input = page.getByRole("textbox", { name: "Team name" });
-  await input.fill(name);
-  await page.getByRole("button", { name: "Create team" }).click();
-  await expect(page.getByRole("heading", { name })).toBeVisible();
-  await expect(input).toHaveValue("");
+  const dialog = await openNewTeamDialog(page);
+  await dialog.getByRole("textbox", { name: "Team name" }).fill(name);
+  await dialog.getByRole("button", { name: "Create team" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(teamLink(page, name)).toHaveAttribute("aria-current", "page");
   return lastPathSegment(page);
 };
 
@@ -62,6 +85,7 @@ export const eventPath = (team: string, event: string) =>
 /** Deletes a team that has no events left, and checks it's gone. */
 export const deleteTeam = async (page: Page, id: string) => {
   await page.goto(`/studio/teams/${id}`);
+  await openTeamMenu(page, id);
   await page.getByRole("button", { name: "Delete team" }).click();
   await expect(page).toHaveURL(/\/studio\/teams$/);
   await expect(page.locator(`a[href="/studio/teams/${id}"]`)).toHaveCount(0);

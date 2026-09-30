@@ -4,6 +4,7 @@ import dayPicker from "@daypicker/react/style.module.css";
 import type { EventContent } from "@skjera/documents/api";
 import { useId, useRef, useSyncExternalStore } from "react";
 import { Button } from "../components/Button.tsx";
+import { placeUnder } from "../components/popover.ts";
 import { formatLongDate, fromIsoDate, toIsoDate } from "../time.ts";
 import styles from "./DateField.module.css";
 import type { LocalDocHandle } from "./LocalDocHandle.ts";
@@ -36,15 +37,6 @@ export function DateField(props: {
         value === null ? null : new A.ImmutableString(value);
     });
 
-  // The popover lives in the top layer; put it right under the button.
-  const place = (popover: HTMLElement) => {
-    const rect = trigger.current?.getBoundingClientRect();
-    if (rect === undefined) return;
-    popover.style.position = "fixed";
-    popover.style.top = `${rect.bottom + 4}px`;
-    popover.style.left = `${rect.left}px`;
-  };
-
   return (
     <div className={styles.field}>
       <button
@@ -75,7 +67,9 @@ export function DateField(props: {
         popover="auto"
         className={styles.popover}
         onToggle={(event) => {
-          if (event.newState === "open") place(event.currentTarget);
+          if (event.newState === "open") {
+            placeUnder(event.currentTarget, trigger.current);
+          }
         }}
       >
         <DayPicker

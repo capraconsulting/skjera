@@ -1,15 +1,16 @@
 import type { DocumentId, TeamId } from "@skjera/documents/api";
-import { Effect, Result } from "effect";
+import { Effect } from "effect";
 import {
   type ActionFunctionArgs,
   data,
   Form,
+  isRouteErrorResponse,
   type LoaderFunctionArgs,
   NavLink,
   Outlet,
   redirect,
-  useActionData,
   useLoaderData,
+  useRouteError,
 } from "react-router";
 import { Badge } from "../../components/Badge.tsx";
 import { Button } from "../../components/Button.tsx";
@@ -35,19 +36,11 @@ export const teamLoader = ({ params }: LoaderFunctionArgs) =>
     ),
   );
 
-/** Creating and deleting events, and deleting the team. */
+/** Creating and deleting events. */
 export const teamAction = async ({ request, params }: ActionFunctionArgs) => {
   const teamId = params.teamId as TeamId;
   const form = await request.formData();
   switch (form.get("intent")) {
-    case "delete-team": {
-      const result = await call((client) =>
-        Effect.result(client.DeleteTeam({ id: teamId })),
-      );
-      return Result.isSuccess(result)
-        ? redirect("/studio/teams")
-        : { error: "Delete the team's events first." };
-    }
     case "delete-event": {
       const id = String(form.get("id")) as DocumentId;
       await call((client) =>
@@ -69,11 +62,10 @@ export const teamAction = async ({ request, params }: ActionFunctionArgs) => {
 /** The second column: the selected team's events. */
 export function Team() {
   const { team, events } = useLoaderData<typeof teamLoader>();
-  const action = useActionData<typeof teamAction>();
   return (
     <>
       <Pane
-        title={team.name}
+        title="Events"
         label="Events"
         actions={
           <Form method="post">
@@ -89,19 +81,7 @@ export function Team() {
         }
       >
         {events.length === 0 ? (
-          <div className={styles.empty}>
-            <p>No events yet.</p>
-            <Form method="post">
-              <Button
-                type="submit"
-                name="intent"
-                value="delete-team"
-                variant="danger"
-              >
-                Delete team
-              </Button>
-            </Form>
-          </div>
+          <p className={styles.empty}>No events yet.</p>
         ) : (
           <ul className={styles.list}>
             {events.map((event) => (
@@ -136,14 +116,21 @@ export function Team() {
             ))}
           </ul>
         )}
-        {action?.error === undefined ? null : (
-          <p role="alert" className={styles.error}>
-            {action.error}
-          </p>
-        )}
       </Pane>
       <Outlet />
     </>
+  );
+}
+
+/** The team is gone, e.g. someone else deleted it. */
+export function TeamError() {
+  const error = useRouteError();
+  return (
+    <PanePlaceholder span={2}>
+      {isRouteErrorResponse(error) && error.status === 404
+        ? "This team doesn't exist anymore."
+        : "Something went wrong."}
+    </PanePlaceholder>
   );
 }
 

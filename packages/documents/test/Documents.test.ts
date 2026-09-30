@@ -478,8 +478,17 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       const blank = yield* Effect.flip(teams.create("   ", bob));
       assert.strictEqual(blank._tag, "InvalidTeamName");
 
+      // Renaming follows the same rules as creating.
+      const other = yield* teams.create("Other crew", alice);
+      const renamed = yield* teams.rename(team.id, "  Zebra squad ");
+      assert.strictEqual(renamed.name, "Zebra squad");
+      const clash = yield* Effect.flip(teams.rename(team.id, "OTHER crew"));
+      assert.strictEqual(clash._tag, "InvalidTeamName");
+      yield* teams.delete(other.id);
+
       // A team with events can't be deleted; an empty one can.
       const event = yield* documents.create("event", team.id, alice);
+      assert.strictEqual((yield* teams.get(team.id)).documentCount, 1);
       const notEmpty = yield* Effect.flip(teams.delete(team.id));
       assert.strictEqual(notEmpty._tag, "TeamNotEmpty");
       yield* documents.delete(event);
