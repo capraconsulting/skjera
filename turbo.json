@@ -1,12 +1,16 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "agentGuidance": false,
-  "globalPassThroughEnv": ["OAUTH_*", "AUTH_*", "CI"],
+  "globalPassThroughEnv": ["DATABASE_URL", "OAUTH_*", "AUTH_*", "CI"],
   "tasks": {
+    "build": {
+      "outputs": ["dist/**"]
+    },
     "typecheck": {},
     "test": {},
     "test:e2e": {
-      "cache": false
+      "cache": false,
+      "dependsOn": ["^test:e2e"]
     }
   }
 }

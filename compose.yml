@@ -1,4 +1,33 @@
 services:
+  postgres:
+    # Postgres 18 with pg_automerge. Until pg_automerge publishes an image,
+    # it is built from a checkout next to this repository.
+    image: pg-automerge:0.1.0
+    build:
+      context: ../pg-automerge
+      dockerfile: docker/Dockerfile
+      args:
+        PG_AUTOMERGE_VERSION: 0.1.0
+    environment:
+      POSTGRES_USER: skjera
+      POSTGRES_PASSWORD: skjera
+      POSTGRES_DB: skjera
+    command:
+      - postgres
+      - -c
+      - default_toast_compression=lz4
+      - -c
+      - pg_automerge.max_load_memory=1GB
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "skjera", "-d", "skjera"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
   dex:
     image: ghcr.io/dexidp/dex:v2.45.1
     command: ["dex", "serve", "/etc/dex/config.yaml"]
@@ -11,3 +40,6 @@ services:
       interval: 2s
       timeout: 2s
       retries: 30
+
+volumes:
+  postgres:

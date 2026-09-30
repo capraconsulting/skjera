@@ -49,17 +49,18 @@ const Routes = Layer.mergeAll(
   HttpApiBuilder.layer(DevApi).pipe(Layer.provide(DevApiHandlers)),
   HttpRouter.add("GET", "/", HttpServerResponse.html(home)),
   HttpRouter.add("GET", "/health", HttpServerResponse.text("ok")),
-).pipe(
-  Layer.provideMerge(OAuth.layer),
-  Layer.provide([FetchHttpClient.layer, KeyValueStore.layerMemory]),
-);
+).pipe(Layer.provideMerge(OAuth.routes));
 
+// The services (with provider discovery) are built before the HTTP server,
+// which accepts connections as soon as it exists.
 HttpRouter.serve(Routes).pipe(
   Layer.provide(
     NodeHttpServer.layer(createServer, {
       port: Number(process.env.PORT ?? 3000),
     }),
   ),
+  Layer.provide(OAuth.services),
+  Layer.provide([FetchHttpClient.layer, KeyValueStore.layerMemory]),
   Layer.launch,
   NodeRuntime.runMain,
 );

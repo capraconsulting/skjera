@@ -24,7 +24,10 @@ staticClients:
     secret: skjera-dev-secret
     name: Skjera (dev)
     redirectURIs:
-      - http://localhost:3000/auth/callback
+      # The app (Vite proxies /auth to the server).
+      - http://localhost:5173/auth/callback
+      # The @skjera/oauth demo server used by its own tests.
+      - http://localhost:3001/auth/callback
 
 enablePasswordDB: true
 

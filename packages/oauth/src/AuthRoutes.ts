@@ -1,6 +1,12 @@
-import { type Duration, Effect, Layer, Option, Result } from "effect";
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
+import { Context, type Duration, Effect, Layer, Option, Result } from "effect";
+import {
+  Cookies,
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "effect/http";
 import { Authentication, CurrentUser, Unauthorized } from "./Authentication.ts";
+import type { Identity } from "./Identity.ts";
 import { sanitizeReturnTo } from "./internal/returnTo.ts";
 import { OAuthClient } from "./OAuthClient.ts";
 import { OAuthConfig } from "./OAuthConfig.ts";
@@ -157,29 +163,74 @@ export const AuthRoutes = HttpRouter.use(
   }),
 );
 
+/**
+ * Resolves the session cookie to the signed-in user, for anything that needs
+ * to authenticate requests outside `HttpApi` (e.g. WebSocket RPC).
+ */
+export class Authenticator extends Context.Service<
+  Authenticator,
+  {
+    readonly fromCookies: (
+      cookies: Readonly<Record<string, string | undefined>>,
+    ) => Effect.Effect<Option.Option<Identity>>;
+    readonly fromCookieHeader: (
+      header: string | undefined,
+    ) => Effect.Effect<Option.Option<Identity>>;
+    /**
+     * The origin the app is served from (that of OAUTH_REDIRECT_URI). Requests
+     * carrying the session cookie from any other origin should be refused.
+     */
+    readonly origin: string;
+  }
+>()("@skjera/oauth/Authenticator") {
+  static readonly layer = Layer.effect(
+    Authenticator,
+    Effect.gen(function* () {
+      const config = yield* OAuthConfig;
+      const sessions = yield* Sessions;
+      const cookies = makeCookies(config);
+
+      const fromCookies = (
+        values: Readonly<Record<string, string | undefined>>,
+      ) => {
+        const sessionId = values[cookies.session];
+        return sessionId === undefined
+          ? Effect.succeedNone
+          : sessions
+              .get(sessionId)
+              .pipe(
+                Effect.map(Option.map((session) => session.identity)),
+                Effect.orDie,
+              );
+      };
+
+      return Authenticator.of({
+        fromCookies,
+        fromCookieHeader: (header) =>
+          fromCookies(header === undefined ? {} : Cookies.parseHeader(header)),
+        origin: config.redirectUri.origin,
+      });
+    }),
+  );
+}
+
 /** Server implementation of the `Authentication` middleware, backed by the session cookie. */
 export const AuthenticationLive = Layer.effect(
   Authentication,
   Effect.gen(function* () {
-    const config = yield* OAuthConfig;
-    const sessions = yield* Sessions;
-    const cookies = makeCookies(config);
+    const authenticator = yield* Authenticator;
 
     return Authentication.of((httpEffect) =>
       Effect.gen(function* () {
         const request = yield* HttpServerRequest.HttpServerRequest;
-        const sessionId = request.cookies[cookies.session];
-        if (sessionId === undefined) {
+        const identity = yield* authenticator.fromCookies(request.cookies);
+        if (Option.isNone(identity)) {
           return yield* new Unauthorized({ message: "Not logged in" });
-        }
-        const session = yield* sessions.get(sessionId).pipe(Effect.orDie);
-        if (Option.isNone(session)) {
-          return yield* new Unauthorized({ message: "Session expired" });
         }
         return yield* Effect.provideService(
           httpEffect,
           CurrentUser,
-          session.value.identity,
+          identity.value,
         );
       }),
     );

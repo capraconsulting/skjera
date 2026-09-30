@@ -2,7 +2,10 @@ packages:
   - "packages/*"
 
 catalog:
+  "@automerge/automerge": 3.5.0
+  "@automerge/prosemirror": 0.2.0
   "@effect/platform-node": 4.0.0-rc.118
+  "@effect/sql-pg": 4.0.0-rc.118
   "@effect/vitest": 4.0.0-rc.118
   "@playwright/test": 1.63.0
   "@types/node": ^24.19.0

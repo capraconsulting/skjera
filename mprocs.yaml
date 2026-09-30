@@ -1,6 +1,10 @@
 # Local development processes. Start with `pnpm dev`.
 procs:
+  postgres:
+    cmd: ["docker", "compose", "up", "postgres"]
   dex:
     cmd: ["docker", "compose", "up", "dex"]
-  oauth:
-    cmd: ["pnpm", "--filter", "@skjera/oauth", "dev"]
+  server:
+    cmd: ["pnpm", "--filter", "@skjera/server", "dev"]
+  app:
+    cmd: ["pnpm", "--filter", "@skjera/app", "dev"]

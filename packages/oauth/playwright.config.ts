@@ -6,7 +6,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? "github" : "list",
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: "http://localhost:3001",
     trace: "retain-on-failure",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
@@ -21,7 +21,12 @@ export default defineConfig({
     },
     {
       command: "pnpm dev",
-      url: "http://localhost:3000/health",
+      // Its own port and callback, so it can run next to the real server.
+      env: {
+        PORT: "3001",
+        OAUTH_REDIRECT_URI: "http://localhost:3001/auth/callback",
+      },
+      url: "http://localhost:3001/health",
       reuseExistingServer: !process.env.CI,
     },
   ],
