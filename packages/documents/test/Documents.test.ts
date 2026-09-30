@@ -33,6 +33,14 @@ const publishedAs = (id: DocumentId, audience: Audience) =>
     return pulled.rows.find((event) => event.id === id);
   });
 
+/** A document's synced row. */
+const syncedDocument = (id: DocumentId) =>
+  Effect.gen(function* () {
+    const sync = yield* Sync;
+    const pulled = yield* sync.documents(undefined);
+    return pulled.rows.find((document) => document.id === id);
+  });
+
 /** An event's signups as `viewer` would pull them, earliest first. */
 const signups = (id: DocumentId, viewer: Option.Option<Identity>) =>
   Effect.gen(function* () {
@@ -406,20 +414,25 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       }),
   );
 
-  it.effect("lists events with their publish state", () =>
+  it.effect("syncs what lists show, in step with the draft", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
       const team = yield* newTeam;
       const id = yield* documents.create("event", team, alice);
       const editor = yield* openEditor(id);
-      const find = Effect.map(documents.list("event", team), (rows) =>
-        rows.find((row) => row.id === id),
-      );
+      const find = syncedDocument(id);
+      // Nothing unpublished: the draft is the version published.
+      const unpublished = Effect.gen(function* () {
+        const draft = yield* find;
+        const published = yield* publishedAs(id, "members");
+        return draft?.draftHeads.join() !== published?.publishedHeads.join();
+      });
 
       const draft = yield* find;
-      assert.strictEqual(draft?.publishedAt, null);
-      assert.isTrue(draft?.hasUnpublishedChanges);
+      assert.deepStrictEqual([draft?.title, draft?.date], ["", null]);
+      assert.deepStrictEqual(draft?.draftHeads, [...A.getHeads(editor.doc())]);
       assert.isUndefined(yield* publishedAs(id, "members"));
+      assert.isTrue(yield* unpublished);
 
       const heads = yield* documents.applyChanges(
         id,
@@ -433,8 +446,11 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       );
       const publication = yield* documents.publish(id, heads, alice);
       const published = yield* find;
-      assert.strictEqual(published?.title, "Listed");
-      assert.isFalse(published?.hasUnpublishedChanges);
+      assert.deepStrictEqual(
+        [published?.title, published?.date],
+        ["Listed", "2026-10-15"],
+      );
+      assert.isFalse(yield* unpublished);
       assert.deepStrictEqual(
         (yield* publishedAs(id, "members"))?.publishedHeads,
         publication.heads,
@@ -449,7 +465,8 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         ],
         alice,
       );
-      assert.isTrue((yield* find)?.hasUnpublishedChanges);
+      assert.strictEqual((yield* find)?.title, "Listed again");
+      assert.isTrue(yield* unpublished);
     }),
   );
 
@@ -518,21 +535,15 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
     }),
   );
 
-  it.effect("lists a team's events only", () =>
+  it.effect("keeps events in their team", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
       const [red, blue] = [yield* newTeam, yield* newTeam];
       const redEvent = yield* documents.create("event", red, alice);
       const blueEvent = yield* documents.create("event", blue, alice);
 
-      const ids = (rows: ReadonlyArray<{ readonly id: string }>) =>
-        rows.map((row) => row.id);
-      assert.deepStrictEqual(ids(yield* documents.list("event", red)), [
-        redEvent,
-      ]);
-      assert.deepStrictEqual(ids(yield* documents.list("event", blue)), [
-        blueEvent,
-      ]);
+      assert.strictEqual((yield* syncedDocument(redEvent))?.teamId, red);
+      assert.strictEqual((yield* syncedDocument(blueEvent))?.teamId, blue);
       assert.strictEqual((yield* documents.get(redEvent)).teamId, red);
     }),
   );

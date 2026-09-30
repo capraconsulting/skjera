@@ -11,6 +11,7 @@ import {
   signedIn,
   teamLink,
   title,
+  typeAt,
   uniqueTeamName,
 } from "./helpers.ts";
 
@@ -192,6 +193,13 @@ test("publishing shows for others without reloading", async ({ browser }) => {
   await expect(bob.getByTestId("status")).toContainText("Published");
   await expect(alice.getByTestId("status")).toContainText("Published");
   await expect(listed).toContainText("Published");
+
+  // Bob edits it again: the list says it has unpublished changes.
+  await typeAt(title(bob), "end", "!");
+  const edited = alice
+    .getByRole("region", { name: "Events" })
+    .getByRole("link", { name: /Launch party!/ });
+  await expect(edited).toContainText("Changed");
 
   await deleteEvent(bob, event);
   await deleteTeam(alice, team);

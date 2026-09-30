@@ -1,14 +1,11 @@
 import type { DocHandle } from "@automerge/automerge-repo/slim";
 import type { DocumentId, EventContent } from "@skjera/documents/api";
-import { useEffect, useRef } from "react";
-import { useNavigate, useParams, useRevalidator } from "react-router";
+import { useEffect } from "react";
+import { useNavigate, useParams } from "react-router";
 import { Avatars } from "../../components/Avatars.tsx";
 import { Field } from "../../components/Field.tsx";
 import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
-import {
-  type SessionState,
-  useDocumentSession,
-} from "../../documents/session.ts";
+import { useDocumentSession } from "../../documents/session.ts";
 import { CheckboxField, useBooleanField } from "../../editor/CheckboxField.tsx";
 import { DateField } from "../../editor/DateField.tsx";
 import { TextEditor } from "../../editor/TextEditor.tsx";
@@ -27,29 +24,11 @@ export function EventEditor() {
   return <EventSession key={id} id={id as DocumentId} />;
 }
 
-/**
- * Refreshes the events column once saving settles, so its titles follow the
- * editor without waiting for the next pull.
- */
-function useRefreshEventsList(session: SessionState) {
-  const revalidator = useRevalidator();
-  const revalidate = useRef(revalidator.revalidate);
-  revalidate.current = revalidator.revalidate;
-  const saved = session.handle !== null && !session.saving;
-
-  useEffect(() => {
-    if (!saved) return;
-    const timer = setTimeout(() => void revalidate.current(), 1000);
-    return () => clearTimeout(timer);
-  }, [saved]);
-}
-
 function EventSession({ id }: { readonly id: DocumentId }) {
   const session = useDocumentSession(id);
   const { teamId } = useParams();
   const navigate = useNavigate();
   const { handle, team } = session;
-  useRefreshEventsList(session);
   const here = usePresence().filter(
     (entry) => entry.location?.documentId === id,
   );

@@ -177,4 +177,26 @@ export const migrations = Migrator.fromRecord({
   ),
   "0005_sync_events": statements(...syncTable("events")),
   "0006_sync_attendees": statements(...syncTable("attendees")),
+  "0007_document_summaries": statements(
+    // What lists of documents show, copied out of the draft so they sync as
+    // plain columns. Kept by the database whenever the draft is written.
+    `ALTER TABLE documents
+      ADD COLUMN title text NOT NULL DEFAULT '',
+      ADD COLUMN event_date date,
+      ADD COLUMN draft_heads text[] NOT NULL DEFAULT '{}'`,
+    `CREATE FUNCTION documents_summarize() RETURNS trigger LANGUAGE plpgsql AS $$
+    DECLARE
+      content jsonb := NEW.draft::jsonb;
+    BEGIN
+      NEW.title := coalesce(content->>'title', '');
+      NEW.event_date := (content->>'date')::date;
+      -- Sorted, like published_heads, so the two can be compared.
+      NEW.draft_heads := automerge_heads(NEW.draft);
+      RETURN NEW;
+    END
+    $$`,
+    `CREATE TRIGGER documents_summarize BEFORE INSERT OR UPDATE OF draft ON documents
+      FOR EACH ROW EXECUTE FUNCTION documents_summarize()`,
+    `UPDATE documents SET draft = draft`,
+  ),
 });

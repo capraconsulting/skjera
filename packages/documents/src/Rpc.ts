@@ -14,7 +14,6 @@ import {
 } from "./errors.ts";
 import {
   DocumentId,
-  DocumentSummary,
   Heads,
   PresenceMessage,
   PresenceResync,
@@ -95,10 +94,6 @@ export class DocumentsRpc extends RpcGroup.make(
     error: Schema.Union([TeamNotFound, TeamNotEmpty]),
   }),
   /** Who is signed up for an event, for its organizers. */
-  Rpc.make("ListDocuments", {
-    payload: { type: ContentTypeName, teamId: TeamId },
-    success: Schema.Array(DocumentSummary),
-  }),
   /** Creates an empty document with the id the client picked for it. */
   Rpc.make("CreateDocument", {
     payload: { id: DocumentId, type: ContentTypeName, teamId: TeamId },

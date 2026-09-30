@@ -1,10 +1,6 @@
-import type {
-  DocumentId,
-  DocumentSummary,
-  TeamId,
-} from "@skjera/documents/api";
+import type { DocumentId, TeamId } from "@skjera/documents/api";
 import { eq, useLiveQuery } from "@tanstack/react-db";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import {
   data,
   isRouteErrorResponse,
@@ -13,14 +9,12 @@ import {
   Outlet,
   useLoaderData,
   useNavigate,
-  useRevalidator,
   useRouteError,
 } from "react-router";
 import { Avatars } from "../../components/Avatars.tsx";
 import { Badge } from "../../components/Badge.tsx";
 import { Button } from "../../components/Button.tsx";
 import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
-import { call } from "../../documents/client.ts";
 import { type PresenceEntry, usePresence } from "../../presence/presence.ts";
 import { documents, events, teams } from "../../sync/tables.ts";
 import { formatDate, fromIsoDate } from "../../time.ts";
@@ -28,26 +22,22 @@ import styles from "./Team.module.css";
 
 export const teamLoader = async ({ params }: LoaderFunctionArgs) => {
   const teamId = params.teamId as TeamId;
-  await teams.collection.preload();
+  await Promise.all([
+    teams.collection.preload(),
+    documents.collection.preload(),
+    events.collection.preload(),
+  ]);
   // It may be new: made by someone else since the last pull.
   if (!teams.collection.has(teamId)) await teams.refresh();
   if (!teams.collection.has(teamId)) {
     throw data("Team not found", { status: 404 });
   }
-  const events = await call((client) =>
-    client.ListDocuments({ type: "event", teamId }),
-  );
-  return { teamId, events };
+  return { teamId };
 };
 
-/**
- * The team's events, most recently edited first. Which events there are
- * comes from the synced rows; their titles and dates live in their drafts,
- * which aren't synced as rows, so those are loaded, and reloaded whenever
- * the rows change: an event added, deleted, edited or published.
- */
-function useTeamEvents(teamId: TeamId) {
-  const { data } = useLiveQuery(
+/** The team's events, most recently edited first, with how published. */
+const useTeamEvents = (teamId: TeamId) =>
+  useLiveQuery(
     (q) =>
       q
         .from({ document: documents.collection })
@@ -58,37 +48,19 @@ function useTeamEvents(teamId: TeamId) {
         .orderBy(({ document }) => document.updatedAt, "desc")
         .select(({ document, event }) => ({
           id: document.id,
-          updatedAt: document.updatedAt,
-          publishedAt: event?.publishedAt,
+          title: document.title,
+          date: document.date,
+          draftHeads: document.draftHeads,
+          publishedHeads: event?.publishedHeads,
         })),
     [teamId],
-  );
-  const version = data
-    .map(
-      (row) =>
-        `${row.id}@${row.updatedAt.getTime()}/${row.publishedAt?.getTime()}`,
-    )
-    .sort()
-    .join(",");
+  ).data;
 
-  const revalidator = useRevalidator();
-  const revalidate = useRef(revalidator.revalidate);
-  revalidate.current = revalidator.revalidate;
-  // The loader has just run for a newly opened team.
-  const seen = useRef({ teamId, version });
-  useEffect(() => {
-    const changed =
-      seen.current.teamId === teamId && seen.current.version !== version;
-    seen.current = { teamId, version };
-    if (changed) void revalidate.current();
-  }, [teamId, version]);
-
-  return data;
-}
+type TeamEvent = ReturnType<typeof useTeamEvents>[number];
 
 /** The second column: the selected team's events. */
 export function Team() {
-  const { teamId, events } = useLoaderData<typeof teamLoader>();
+  const { teamId } = useLoaderData<typeof teamLoader>();
   const others = usePresence();
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
@@ -99,7 +71,16 @@ export function Team() {
     const now = new Date();
     setCreating(true);
     documents.collection
-      .insert({ id, type: "event", teamId, createdAt: now, updatedAt: now })
+      .insert({
+        id,
+        type: "event",
+        teamId,
+        title: "",
+        date: null,
+        draftHeads: [],
+        createdAt: now,
+        updatedAt: now,
+      })
       .isPersisted.promise.then(
         () => navigate(`/studio/teams/${teamId}/events/${id}`),
         () => {},
@@ -107,7 +88,6 @@ export function Team() {
       .finally(() => setCreating(false));
   };
   const rows = useTeamEvents(teamId);
-  const summaries = new Map(events.map((event) => [event.id, event]));
   return (
     <>
       <Pane
@@ -123,15 +103,13 @@ export function Team() {
           <p className={styles.empty}>No events yet.</p>
         ) : (
           <ul className={styles.list}>
-            {rows.map(({ id }) => (
-              <li key={id}>
+            {rows.map((event) => (
+              <li key={event.id}>
                 <EventItem
                   teamId={teamId}
-                  id={id}
-                  // Not loaded yet: it's new, so untitled and a draft.
-                  summary={summaries.get(id) ?? null}
+                  event={event}
                   here={others.filter(
-                    (entry) => entry.location?.documentId === id,
+                    (entry) => entry.location?.documentId === event.id,
                   )}
                 />
               </li>
@@ -146,12 +124,12 @@ export function Team() {
 
 function EventItem(props: {
   readonly teamId: TeamId;
-  readonly id: DocumentId;
-  readonly summary: DocumentSummary | null;
+  readonly event: TeamEvent;
   readonly here: ReadonlyArray<PresenceEntry>;
 }) {
-  const { teamId, id, summary } = props;
-  const title = summary?.title.trim() ?? "";
+  const { teamId, event } = props;
+  const { id } = event;
+  const title = event.title.trim();
   return (
     <NavLink
       to={`/studio/teams/${teamId}/events/${id}`}
@@ -168,12 +146,10 @@ function EventItem(props: {
         <Avatars small entries={props.here} />
       </span>
       <span className={styles.meta}>
-        {summary === null || summary.date === null
-          ? "No date"
-          : formatDate(fromIsoDate(summary.date))}
-        {summary === null || summary.publishedAt === null ? (
+        {event.date === null ? "No date" : formatDate(fromIsoDate(event.date))}
+        {event.publishedHeads === undefined ? (
           <Badge tone="neutral">Draft</Badge>
-        ) : summary.hasUnpublishedChanges ? (
+        ) : event.publishedHeads.join() !== event.draftHeads.join() ? (
           <Badge tone="warning">Changed</Badge>
         ) : (
           <Badge tone="success">Published</Badge>

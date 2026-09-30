@@ -199,7 +199,7 @@ layer(TestLayer, { excludeTestServices: true })("Sync", (it) => {
     }),
   );
 
-  it.effect("syncs documents without their content", () =>
+  it.effect("syncs documents without their draft", () =>
     Effect.gen(function* () {
       const sync = yield* Sync;
       const teams = yield* Teams;
@@ -213,7 +213,16 @@ layer(TestLayer, { excludeTestServices: true })("Sync", (it) => {
       const row = copy.rows.get(id);
       assert.deepStrictEqual(
         row === undefined ? undefined : Object.keys(row).sort(),
-        ["createdAt", "id", "teamId", "type", "updatedAt"],
+        [
+          "createdAt",
+          "date",
+          "draftHeads",
+          "id",
+          "teamId",
+          "title",
+          "type",
+          "updatedAt",
+        ],
       );
       assert.strictEqual(row?.teamId, team.id);
 

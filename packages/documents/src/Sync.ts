@@ -146,10 +146,14 @@ export class Sync extends Context.Service<
             id: DocumentId;
             type: ContentTypeName;
             team_id: TeamId;
+            title: string;
+            date: IsoDate | null;
+            draft_heads: Heads;
             created_at: Date;
             updated_at: Date;
           }>`
-            SELECT id, type, team_id, created_at, updated_at
+            SELECT id, type, team_id, title, event_date::text AS date,
+              draft_heads, created_at, updated_at
             FROM documents WHERE ${unseen(since)}
           `.pipe(
             Effect.map((rows) => ({
@@ -158,6 +162,9 @@ export class Sync extends Context.Service<
                   id: row.id,
                   type: row.type,
                   teamId: row.team_id,
+                  title: row.title,
+                  date: row.date,
+                  draftHeads: row.draft_heads,
                   createdAt: row.created_at,
                   updatedAt: row.updated_at,
                 }),

@@ -37,11 +37,18 @@ export const TeamRow = Schema.Struct({
 });
 export type TeamRow = typeof TeamRow.Type;
 
-/** A document without its content, which is synced separately. */
+/**
+ * A document without its content, which is synced separately, but with what
+ * lists of documents show from it.
+ */
 export const DocumentRow = Schema.Struct({
   id: DocumentId,
   type: ContentTypeName,
   teamId: TeamId,
+  title: Schema.String,
+  date: Schema.NullOr(IsoDate),
+  /** The draft's version, sorted like `EventRow.publishedHeads`. */
+  draftHeads: Heads,
   createdAt: Schema.Date,
   updatedAt: Schema.Date,
 });

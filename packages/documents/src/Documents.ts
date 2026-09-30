@@ -17,9 +17,7 @@ import {
 } from "./errors.ts";
 import {
   type DocumentId,
-  DocumentSummary,
   type Heads,
-  type IsoDate,
   Publication,
   type TeamId,
 } from "./Model.ts";
@@ -51,11 +49,6 @@ export class Documents extends Context.Service<
       author: Identity,
       id?: DocumentId,
     ) => Effect.Effect<DocumentId, TeamNotFound>;
-    /** A team's documents of a type, most recently edited first. */
-    readonly list: (
-      type: ContentTypeName,
-      team: TeamId,
-    ) => Effect.Effect<ReadonlyArray<DocumentSummary>>;
     readonly get: (
       id: DocumentId,
     ) => Effect.Effect<DocumentSnapshot, DocumentNotFound>;
@@ -161,44 +154,6 @@ export class Documents extends Context.Service<
       });
 
       // Per content type, as each has its own table of published versions.
-      const summaries = {
-        event: (team: TeamId) => sql<{
-          id: DocumentId;
-          title: string;
-          date: IsoDate | null;
-          updated_at: Date;
-          published_at: Date | null;
-          has_unpublished_changes: boolean;
-        }>`
-          SELECT d.id, c.content->>'title' AS title, c.content->>'date' AS date,
-            d.updated_at, e.published_at,
-            automerge_heads(d.draft) IS DISTINCT FROM e.published_heads AS has_unpublished_changes
-          FROM documents d
-          CROSS JOIN LATERAL (SELECT d.draft::jsonb AS content OFFSET 0) c
-          LEFT JOIN events e ON e.id = d.id
-          WHERE d.type = 'event' AND d.team_id = ${team}
-          ORDER BY d.updated_at DESC
-        `,
-      } satisfies Record<ContentTypeName, unknown>;
-
-      const list = Effect.fn("Documents.list")(function* (
-        type: ContentTypeName,
-        team: TeamId,
-      ) {
-        const rows = yield* summaries[type](team).pipe(Effect.orDie);
-        return rows.map(
-          (row) =>
-            new DocumentSummary({
-              id: row.id,
-              title: row.title,
-              date: row.date,
-              updatedAt: row.updated_at,
-              publishedAt: row.published_at,
-              hasUnpublishedChanges: row.has_unpublished_changes,
-            }),
-        );
-      });
-
       type PublicationRow = {
         published_heads: Heads;
         published_at: Date;
@@ -372,7 +327,6 @@ export class Documents extends Context.Service<
 
       return Documents.of({
         create,
-        list,
         get,
         changesSince,
         applyChanges,

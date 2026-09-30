@@ -54,18 +54,6 @@ export class Publication extends Schema.Class<Publication>(
   firstPublishedAt: Schema.Date,
 }) {}
 
-export class DocumentSummary extends Schema.Class<DocumentSummary>(
-  "@skjera/documents/DocumentSummary",
-)({
-  id: DocumentId,
-  title: Schema.String,
-  date: Schema.NullOr(IsoDate),
-  updatedAt: Schema.Date,
-  publishedAt: Schema.NullOr(Schema.Date),
-  /** The draft differs from the published version, or was never published. */
-  hasUnpublishedChanges: Schema.Boolean,
-}) {}
-
 /**
  * Who is looking: anyone sees public events, signed-in users see all
  * published events.

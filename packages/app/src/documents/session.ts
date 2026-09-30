@@ -11,7 +11,7 @@ import {
   Stream,
 } from "effect";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { events } from "../sync/tables.ts";
+import { documents, events } from "../sync/tables.ts";
 import { DocumentsClient, runtime } from "./client.ts";
 import { forgetLocal, openLocal } from "./repo.ts";
 
@@ -27,8 +27,6 @@ export interface SessionState {
   /** Someone deleted the document; the session has stopped. */
   readonly deleted: boolean;
   readonly publish: () => void;
-  /** Deletes the document. Resolves when it's gone. */
-  readonly remove: () => Promise<void>;
 }
 
 class SessionStore {
@@ -40,7 +38,6 @@ class SessionStore {
     error: null,
     deleted: false,
     publish: () => {},
-    remove: () => Promise.resolve(),
   };
   readonly #listeners = new Set<() => void>();
 
@@ -91,6 +88,17 @@ const session = (id: DocumentId, store: SessionStore) =>
       openLocal<EventContent>(id, opened.draft),
     );
 
+    // The title and date in lists come from the synced document row, which
+    // the server updates with each merge: pull it once typing pauses.
+    let listTimer: ReturnType<typeof setTimeout> | undefined;
+    const refreshListSoon = () => {
+      clearTimeout(listTimer);
+      listTimer = setTimeout(() => void documents.refresh(), 1000);
+    };
+    yield* Effect.addFinalizer(() =>
+      Effect.sync(() => clearTimeout(listTimer)),
+    );
+
     /** Heads the server has, all of them in the local copy too. */
     let synced: ReadonlyArray<string> = opened.heads;
     const showSaving = () =>
@@ -127,6 +135,7 @@ const session = (id: DocumentId, store: SessionStore) =>
         Effect.tap(() =>
           Effect.sync(() => {
             synced = heads;
+            refreshListSoon();
           }),
         ),
       );
@@ -241,8 +250,6 @@ const session = (id: DocumentId, store: SessionStore) =>
         store.set({ publishing: true });
         void Effect.runPromiseWith(services)(publish);
       },
-      remove: () =>
-        Effect.runPromiseWith(services)(client.DeleteDocument({ id })),
     });
     showSaving();
 
