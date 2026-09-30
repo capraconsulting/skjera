@@ -18,7 +18,7 @@ export const signInAtDex = async (page: Page, email: string) => {
 /** A browser of its own for a Dex test user, logged in to the studio. */
 export const signedIn = async (browser: Browser, email: string) => {
   const page = await visitor(browser);
-  await page.goto("/studio/posts");
+  await page.goto("/studio/teams");
   await signInAtDex(page, email);
   await expect(page.getByTestId("me")).toHaveText(email);
   return page;
@@ -28,11 +28,35 @@ export const title = (page: Page) =>
   page.getByRole("textbox", { name: "Title" });
 export const body = (page: Page) => page.getByRole("textbox", { name: "Body" });
 
-/** Creates a post from the studio's posts list and returns its id. */
+const lastPathSegment = (page: Page) =>
+  new URL(page.url()).pathname.split("/").pop() ?? "";
+
+/** A team name no other test run uses. */
+export const uniqueTeamName = (label: string) =>
+  `${label} ${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+
+/** Creates a team from the teams page, opens it and returns its id. */
+export const newTeam = async (page: Page, name: string) => {
+  await page.goto("/studio/teams");
+  await page.getByRole("textbox", { name: "Team name" }).fill(name);
+  await page.getByRole("button", { name: "Create team" }).click();
+  await expect(page.getByRole("heading", { name })).toBeVisible();
+  return lastPathSegment(page);
+};
+
+/** Creates a post from the open team's page and returns its id. */
 export const newPost = async (page: Page) => {
   await page.getByRole("button", { name: "New post" }).click();
   await expect(page).toHaveURL(/\/studio\/posts\/[0-9a-f-]+$/);
-  return new URL(page.url()).pathname.split("/").pop() ?? "";
+  return lastPathSegment(page);
+};
+
+/** Deletes a team that has no posts left, and checks it's gone. */
+export const deleteTeam = async (page: Page, id: string) => {
+  await page.goto(`/studio/teams/${id}`);
+  await page.getByRole("button", { name: "Delete team" }).click();
+  await expect(page).toHaveURL(/\/studio\/teams$/);
+  await expect(page.locator(`a[href="/studio/teams/${id}"]`)).toHaveCount(0);
 };
 
 /**
@@ -41,8 +65,9 @@ export const newPost = async (page: Page) => {
  */
 export const deletePost = async (page: Page, id: string) => {
   page.once("dialog", (dialog) => dialog.accept());
-  await page.getByRole("button", { name: "Delete" }).click();
-  await expect(page).toHaveURL(/\/studio\/posts$/);
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  // Back on the post's team, without the post.
+  await expect(page).toHaveURL(/\/studio\/teams\/[0-9a-f-]+$/);
   await expect(page.locator(`a[href="/studio/posts/${id}"]`)).toHaveCount(0);
 
   await page.goto(`/posts/${id}`);

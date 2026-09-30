@@ -6,7 +6,9 @@ import { SqlClient } from "effect/sql";
 import type { Post } from "../src/ContentTypes.ts";
 import { DocumentEvents } from "../src/DocumentEvents.ts";
 import { Documents } from "../src/Documents.ts";
+import type { TeamId } from "../src/Model.ts";
 import { PublishedPosts } from "../src/PublishedPosts.ts";
+import { Teams } from "../src/Teams.ts";
 import { TestDatabase } from "./TestDatabase.ts";
 
 const alice = new Identity({ issuer: "https://idp.example", subject: "alice" });
@@ -16,7 +18,16 @@ const TestLayer = Layer.mergeAll(
   Documents.layer,
   DocumentEvents.layer,
   PublishedPosts.layer,
+  Teams.layer,
 ).pipe(Layer.provideMerge(TestDatabase));
+
+let teamCount = 0;
+/** A team of its own for each test. */
+const newTeam = Effect.gen(function* () {
+  const teams = yield* Teams;
+  teamCount += 1;
+  return (yield* teams.create(`Team ${teamCount}`, alice)).id;
+}).pipe(Effect.orDie);
 
 /** An editor session: a replica of the draft with its own actor id. */
 const openEditor = Effect.fn(function* (
@@ -47,7 +58,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
   it.effect("creates an empty draft", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
-      const id = yield* documents.create("post", alice);
+      const id = yield* documents.create("post", yield* newTeam, alice);
       const snapshot = yield* documents.get(id);
       assert.strictEqual(snapshot.type, "post");
       assert.deepStrictEqual(A.toJS(A.load(snapshot.draft)), {
@@ -64,7 +75,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
   it.effect("merges edits from two users and syncs them", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
-      const id = yield* documents.create("post", alice);
+      const id = yield* documents.create("post", yield* newTeam, alice);
       const aliceEditor = yield* openEditor(id, alice);
       const bobEditor = yield* openEditor(id, bob);
 
@@ -102,7 +113,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
   it.effect("accepts re-sent changes as a no-op", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
-      const id = yield* documents.create("post", alice);
+      const id = yield* documents.create("post", yield* newTeam, alice);
       const editor = yield* openEditor(id, alice);
       const change = editor.edit((post) =>
         A.updateText(post, ["title"], "Once"),
@@ -116,7 +127,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
   it.effect("only accepts changes from the sender's own actor ids", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
-      const id = yield* documents.create("post", alice);
+      const id = yield* documents.create("post", yield* newTeam, alice);
       const aliceEditor = yield* openEditor(id, alice);
       const change = aliceEditor.edit((post) =>
         A.updateText(post, ["title"], "Mine"),
@@ -137,7 +148,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
   it.effect("rejects changes that don't fit the content type", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
-      const id = yield* documents.create("post", alice);
+      const id = yield* documents.create("post", yield* newTeam, alice);
       const editor = yield* openEditor(id, alice);
       const before = (yield* documents.get(id)).heads;
 
@@ -169,7 +180,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
   it.effect("rejects changes whose dependencies it hasn't seen", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
-      const id = yield* documents.create("post", alice);
+      const id = yield* documents.create("post", yield* newTeam, alice);
       const editor = yield* openEditor(id, alice);
       editor.edit((post) => A.updateText(post, ["title"], "First"));
       const second = editor.edit((post) =>
@@ -186,7 +197,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
     Effect.gen(function* () {
       const documents = yield* Documents;
       const sql = yield* SqlClient.SqlClient;
-      const id = yield* documents.create("post", alice);
+      const id = yield* documents.create("post", yield* newTeam, alice);
       const editor = yield* openEditor(id, alice);
 
       const seen = yield* documents.applyChanges(
@@ -227,7 +238,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
   it.effect("refuses to publish an untitled post or an unknown version", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
-      const id = yield* documents.create("post", alice);
+      const id = yield* documents.create("post", yield* newTeam, alice);
       const untitled = yield* Effect.flip(
         documents.publish(id, (yield* documents.get(id)).heads, alice),
       );
@@ -243,9 +254,10 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
   it.effect("lists posts with their publish state", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
-      const id = yield* documents.create("post", alice);
+      const team = yield* newTeam;
+      const id = yield* documents.create("post", team, alice);
       const editor = yield* openEditor(id, alice);
-      const find = Effect.map(documents.list("post"), (rows) =>
+      const find = Effect.map(documents.list("post", team), (rows) =>
         rows.find((row) => row.id === id),
       );
 
@@ -281,7 +293,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
     Effect.gen(function* () {
       const documents = yield* Documents;
       const published = yield* PublishedPosts;
-      const id = yield* documents.create("post", alice);
+      const id = yield* documents.create("post", yield* newTeam, alice);
       const editor = yield* openEditor(id, alice);
       const heads = yield* documents.applyChanges(
         id,
@@ -311,7 +323,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
     Effect.gen(function* () {
       const documents = yield* Documents;
       const published = yield* PublishedPosts;
-      const id = yield* documents.create("post", alice);
+      const id = yield* documents.create("post", yield* newTeam, alice);
       const editor = yield* openEditor(id, alice);
       const heads = yield* documents.applyChanges(
         id,
@@ -336,11 +348,70 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
     }),
   );
 
+  it.effect("lists a team's posts only", () =>
+    Effect.gen(function* () {
+      const documents = yield* Documents;
+      const [red, blue] = [yield* newTeam, yield* newTeam];
+      const redPost = yield* documents.create("post", red, alice);
+      const bluePost = yield* documents.create("post", blue, alice);
+
+      const ids = (rows: ReadonlyArray<{ readonly id: string }>) =>
+        rows.map((row) => row.id);
+      assert.deepStrictEqual(ids(yield* documents.list("post", red)), [
+        redPost,
+      ]);
+      assert.deepStrictEqual(ids(yield* documents.list("post", blue)), [
+        bluePost,
+      ]);
+      assert.strictEqual((yield* documents.get(redPost)).teamId, red);
+    }),
+  );
+
+  it.effect("creates posts only in existing teams", () =>
+    Effect.gen(function* () {
+      const documents = yield* Documents;
+      const error = yield* Effect.flip(
+        documents.create(
+          "post",
+          "01a0f2ff-0000-7000-8000-000000000000" as TeamId,
+          alice,
+        ),
+      );
+      assert.strictEqual(error._tag, "TeamNotFound");
+    }),
+  );
+
+  it.effect("creates, lists and deletes teams", () =>
+    Effect.gen(function* () {
+      const teams = yield* Teams;
+      const documents = yield* Documents;
+      const team = yield* teams.create("  Zebra crew  ", alice);
+      assert.strictEqual(team.name, "Zebra crew");
+      assert.isTrue((yield* teams.list).some((each) => each.id === team.id));
+      assert.strictEqual((yield* teams.get(team.id)).name, "Zebra crew");
+
+      // Names are unique regardless of case, and can't be blank.
+      const taken = yield* Effect.flip(teams.create("zebra CREW", bob));
+      assert.strictEqual(taken._tag, "InvalidTeamName");
+      const blank = yield* Effect.flip(teams.create("   ", bob));
+      assert.strictEqual(blank._tag, "InvalidTeamName");
+
+      // A team with posts can't be deleted; an empty one can.
+      const post = yield* documents.create("post", team.id, alice);
+      const notEmpty = yield* Effect.flip(teams.delete(team.id));
+      assert.strictEqual(notEmpty._tag, "TeamNotEmpty");
+      yield* documents.delete(post);
+      yield* teams.delete(team.id);
+      const gone = yield* Effect.flip(teams.get(team.id));
+      assert.strictEqual(gone._tag, "TeamNotFound");
+    }),
+  );
+
   it.effect("announces committed changes with their heads", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
       const { events } = yield* DocumentEvents;
-      const id = yield* documents.create("post", alice);
+      const id = yield* documents.create("post", yield* newTeam, alice);
       const editor = yield* openEditor(id, alice);
 
       const next = yield* events.pipe(
@@ -373,7 +444,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       const documents = yield* Documents;
       const { events } = yield* DocumentEvents;
       const sql = yield* SqlClient.SqlClient;
-      const id = yield* documents.create("post", alice);
+      const id = yield* documents.create("post", yield* newTeam, alice);
       const editor = yield* openEditor(id, alice);
 
       const received = yield* events.pipe(

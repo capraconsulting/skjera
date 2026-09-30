@@ -1,5 +1,5 @@
 import { DocumentsRpc } from "@skjera/documents/api";
-import { Context, Layer, ManagedRuntime } from "effect";
+import { Context, Effect, Layer, ManagedRuntime } from "effect";
 import { RpcClient, type RpcClientError, RpcSerialization } from "effect/rpc";
 import { Socket } from "effect/socket";
 
@@ -28,3 +28,13 @@ export class DocumentsClient extends Context.Service<
 }
 
 export const runtime = ManagedRuntime.make(DocumentsClient.layer);
+
+/** Runs one call against the documents API. */
+export const call = <A, E>(
+  f: (client: DocumentsClient["Service"]) => Effect.Effect<A, E>,
+) =>
+  runtime.runPromise(
+    Effect.gen(function* () {
+      return yield* f(yield* DocumentsClient);
+    }),
+  );

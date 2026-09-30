@@ -2,10 +2,13 @@ import { expect, test } from "@playwright/test";
 import {
   body,
   deletePost,
+  deleteTeam,
   newPost,
+  newTeam,
   signedIn,
   title,
   typeAt,
+  uniqueTeamName,
 } from "./helpers.ts";
 
 test("two users edit a post live, publish it and delete it", async ({
@@ -14,6 +17,7 @@ test("two users edit a post live, publish it and delete it", async ({
   const alice = await signedIn(browser, "alice@example.com");
   const bob = await signedIn(browser, "bob@example.com");
 
+  const team = await newTeam(alice, uniqueTeamName("Collaboration"));
   const id = await newPost(alice);
   await bob.goto(alice.url());
 
@@ -35,7 +39,7 @@ test("two users edit a post live, publish it and delete it", async ({
   await alice.getByRole("button", { name: "Publish" }).click();
   await expect(alice.getByTestId("status")).toContainText("Published");
 
-  await bob.goto("/studio/posts");
+  await bob.goto(`/studio/teams/${team}`);
   const item = bob
     .getByRole("listitem")
     .filter({ has: bob.locator(`a[href="/studio/posts/${id}"]`) });
@@ -47,10 +51,12 @@ test("two users edit a post live, publish it and delete it", async ({
   await expect(title(bob)).toHaveText("Hello from Alice");
   await deletePost(alice, id);
   await expect(bob.getByRole("alert")).toContainText("This post was deleted");
+  await deleteTeam(alice, team);
 });
 
 test("refuses to publish a post without a title", async ({ browser }) => {
   const alice = await signedIn(browser, "alice@example.com");
+  const team = await newTeam(alice, uniqueTeamName("Untitled"));
   const id = await newPost(alice);
   await body(alice).pressSequentially("No title here");
   await alice.getByRole("button", { name: "Publish" }).click();
@@ -60,4 +66,5 @@ test("refuses to publish a post without a title", async ({ browser }) => {
   await expect(alice.getByTestId("status")).toContainText("Not published");
 
   await deletePost(alice, id);
+  await deleteTeam(alice, team);
 });

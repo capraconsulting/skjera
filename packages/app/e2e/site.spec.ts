@@ -2,10 +2,13 @@ import { expect, test } from "@playwright/test";
 import {
   body,
   deletePost,
+  deleteTeam,
   newPost,
+  newTeam,
   signInAtDex,
   title,
   typeAt,
+  uniqueTeamName,
   visitor,
 } from "./helpers.ts";
 
@@ -16,7 +19,7 @@ test("visitors can read the site but not the studio", async ({ browser }) => {
   await expect(page.getByRole("link", { name: "Log in" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Studio" })).toHaveCount(0);
 
-  await page.goto("/studio/posts");
+  await page.goto("/studio/teams");
   await expect(page).toHaveURL(/localhost:5556\/dex/);
 });
 
@@ -27,7 +30,7 @@ test("logging in from the site leads to the studio and back", async ({
   await page.goto("/");
   await page.getByRole("link", { name: "Log in" }).click();
   await signInAtDex(page, "alice@example.com");
-  await expect(page).toHaveURL(/\/studio\/posts$/);
+  await expect(page).toHaveURL(/\/studio\/teams$/);
   await expect(page.getByTestId("me")).toHaveText("alice@example.com");
 
   await page.getByRole("link", { name: "View site" }).click();
@@ -40,8 +43,10 @@ test("the site shows what was published, and only that", async ({
   browser,
 }) => {
   const alice = await visitor(browser);
-  await alice.goto("/studio/posts");
+  await alice.goto("/studio/teams");
   await signInAtDex(alice, "alice@example.com");
+  const team = await newTeam(alice, uniqueTeamName("Site"));
+  await alice.goto(`/studio/teams/${team}`);
   const id = await newPost(alice);
   const headline = `Launch ${id.slice(-12)}`;
 
@@ -83,4 +88,5 @@ test("the site shows what was published, and only that", async ({
   await deletePost(alice, id);
   await reader.goto("/");
   await expect(reader.getByRole("link", { name: headline })).toHaveCount(0);
+  await deleteTeam(alice, team);
 });

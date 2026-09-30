@@ -1,5 +1,10 @@
 import * as A from "@automerge/automerge/slim";
-import type { DocumentId, Post, Publication } from "@skjera/documents/api";
+import type {
+  DocumentId,
+  Post,
+  Publication,
+  Team,
+} from "@skjera/documents/api";
 import { Deferred, Effect, Fiber, Schedule, Semaphore, Stream } from "effect";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { LocalDocHandle } from "../editor/LocalDocHandle.ts";
@@ -8,6 +13,8 @@ import { DocumentsClient, runtime } from "./client.ts";
 export interface SessionState {
   /** The replica being edited; replaced when the session has to reload. */
   readonly handle: LocalDocHandle<Post> | null;
+  /** The team the document belongs to, once it is open. */
+  readonly team: Team | null;
   /** Local changes the server doesn't have yet. */
   readonly saving: boolean;
   readonly publication: Publication | null;
@@ -23,6 +30,7 @@ export interface SessionState {
 class SessionStore {
   #state: SessionState = {
     handle: null,
+    team: null,
     saving: false,
     publication: null,
     publishing: false,
@@ -173,6 +181,7 @@ const replica = (id: DocumentId, store: SessionStore) =>
 
     store.set({
       handle,
+      team: opened.team,
       saving: false,
       publication: opened.publication,
       publishing: false,

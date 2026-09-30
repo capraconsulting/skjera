@@ -12,6 +12,7 @@ import {
   DraftChanged,
   OpenedDocument,
 } from "./Rpc.ts";
+import { Teams } from "./Teams.ts";
 
 /**
  * Authenticates each call with the session cookie from the WebSocket
@@ -46,12 +47,20 @@ export const DocumentsRpcHandlers = DocumentsRpc.toLayer(
   Effect.gen(function* () {
     const documents = yield* Documents;
     const events = yield* DocumentEvents;
+    const teams = yield* Teams;
 
     return DocumentsRpc.of({
-      ListDocuments: ({ type }) => documents.list(type),
-      CreateDocument: ({ type }) =>
+      ListTeams: () => teams.list,
+      GetTeam: ({ id }) => teams.get(id),
+      CreateTeam: ({ name }) =>
         Effect.gen(function* () {
-          return yield* documents.create(type, yield* CurrentUser);
+          return yield* teams.create(name, yield* CurrentUser);
+        }),
+      DeleteTeam: ({ id }) => teams.delete(id),
+      ListDocuments: ({ type, teamId }) => documents.list(type, teamId),
+      CreateDocument: ({ type, teamId }) =>
+        Effect.gen(function* () {
+          return yield* documents.create(type, teamId, yield* CurrentUser);
         }),
       OpenDocument: ({ id, actor }) =>
         Effect.gen(function* () {
@@ -60,6 +69,8 @@ export const DocumentsRpcHandlers = DocumentsRpc.toLayer(
           const snapshot = yield* documents.get(id);
           return new OpenedDocument({
             type: snapshot.type,
+            // A document's team can't be deleted while the document exists.
+            team: yield* Effect.orDie(teams.get(snapshot.teamId)),
             draft: snapshot.draft,
             publication: yield* documents.publication(id),
           });

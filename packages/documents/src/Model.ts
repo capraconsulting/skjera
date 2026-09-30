@@ -5,6 +5,15 @@ import { Schema } from "effect";
 export const DocumentId = Schema.String.pipe(Schema.brand("DocumentId"));
 export type DocumentId = typeof DocumentId.Type;
 
+export const TeamId = Schema.String.pipe(Schema.brand("TeamId"));
+export type TeamId = typeof TeamId.Type;
+
+export class Team extends Schema.Class<Team>("@skjera/documents/Team")({
+  id: TeamId,
+  name: Schema.String,
+  createdAt: Schema.Date,
+}) {}
+
 /** Hex change hashes identifying a version of a document. */
 export const Heads = Schema.Array(Schema.String);
 export type Heads = typeof Heads.Type;

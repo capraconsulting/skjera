@@ -83,4 +83,27 @@ export const migrations = Migrator.fromRecord({
       RETURNING p.*
     $$`,
   ),
+  "0003_teams": statements(
+    // Every document belongs to a team. Anyone signed in can see all teams
+    // and create new ones.
+    `CREATE TABLE teams (
+      id uuid PRIMARY KEY DEFAULT uuidv7(),
+      name text NOT NULL CHECK (btrim(name) <> '' AND length(name) <= 100),
+      created_by_issuer text NOT NULL,
+      created_by_subject text NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now()
+    )`,
+    `CREATE UNIQUE INDEX teams_name_key ON teams (lower(name))`,
+    `ALTER TABLE documents
+      ADD COLUMN team_id uuid REFERENCES teams (id) ON DELETE RESTRICT`,
+    // Documents from before teams existed go into a "General" team, created
+    // only when there are any.
+    `INSERT INTO teams (name, created_by_issuer, created_by_subject)
+      SELECT 'General', created_by_issuer, created_by_subject
+      FROM documents ORDER BY created_at LIMIT 1`,
+    `UPDATE documents SET team_id = (SELECT id FROM teams WHERE name = 'General')
+      WHERE team_id IS NULL`,
+    `ALTER TABLE documents ALTER COLUMN team_id SET NOT NULL`,
+    `CREATE INDEX documents_team_id_idx ON documents (team_id, updated_at DESC)`,
+  ),
 });

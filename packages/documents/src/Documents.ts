@@ -9,17 +9,20 @@ import {
   InvalidChanges,
   InvalidContent,
   PublishRejected,
+  TeamNotFound,
 } from "./errors.ts";
 import {
   type DocumentId,
   DocumentSummary,
   type Heads,
   Publication,
+  type TeamId,
 } from "./Model.ts";
 
 export interface DocumentSnapshot {
   readonly id: DocumentId;
   readonly type: ContentTypeName;
+  readonly teamId: TeamId;
   readonly heads: Heads;
   /** An Automerge save of the draft, for `Automerge.load`. */
   readonly draft: Uint8Array;
@@ -35,11 +38,13 @@ export class Documents extends Context.Service<
   {
     readonly create: (
       type: ContentTypeName,
+      team: TeamId,
       author: Identity,
-    ) => Effect.Effect<DocumentId>;
-    /** Documents of a type, most recently edited first. */
+    ) => Effect.Effect<DocumentId, TeamNotFound>;
+    /** A team's documents of a type, most recently edited first. */
     readonly list: (
       type: ContentTypeName,
+      team: TeamId,
     ) => Effect.Effect<ReadonlyArray<DocumentSummary>>;
     readonly get: (
       id: DocumentId,
@@ -89,35 +94,49 @@ export class Documents extends Context.Service<
 
       const create = Effect.fn("Documents.create")(function* (
         type: ContentTypeName,
+        team: TeamId,
         author: Identity,
       ) {
         // The initial state gets an actor id of its own, which no editor
         // will ever use.
         const draft = A.save(A.from({ ...contentTypes[type].initial }));
         const [row] = yield* sql<{ id: DocumentId }>`
-          INSERT INTO documents (type, draft, created_by_issuer, created_by_subject)
-          VALUES (${type}, ${draft}::bytea, ${author.issuer}, ${author.subject})
+          INSERT INTO documents (type, team_id, draft, created_by_issuer, created_by_subject)
+          VALUES (${type}, ${team}, ${draft}::bytea, ${author.issuer}, ${author.subject})
           RETURNING id
-        `;
+        `.pipe(
+          Effect.catchIf(SqlError.isSqlError, (error) =>
+            pgCode(error) === "23503"
+              ? Effect.fail(new TeamNotFound({ id: team }))
+              : Effect.die(error),
+          ),
+        );
         if (row === undefined) {
           return yield* Effect.die("INSERT returned no row");
         }
         return row.id;
-      }, Effect.orDie);
+      });
 
       const get = Effect.fn("Documents.get")(function* (id: DocumentId) {
         const [row] = yield* sql<{
           type: ContentTypeName;
+          team_id: TeamId;
           heads: Heads;
           draft: Uint8Array;
         }>`
-          SELECT type, automerge_heads(draft) AS heads, draft::bytea AS draft
+          SELECT type, team_id, automerge_heads(draft) AS heads, draft::bytea AS draft
           FROM documents WHERE id = ${id}
         `.pipe(Effect.orDie);
         if (row === undefined) {
           return yield* new DocumentNotFound({ id });
         }
-        return { id, ...row };
+        return {
+          id,
+          type: row.type,
+          teamId: row.team_id,
+          heads: row.heads,
+          draft: row.draft,
+        } satisfies DocumentSnapshot;
       });
 
       const typeOf = Effect.fnUntraced(function* (id: DocumentId) {
@@ -132,7 +151,7 @@ export class Documents extends Context.Service<
 
       // Per content type, as each has its own table of published versions.
       const summaries = {
-        post: sql<{
+        post: (team: TeamId) => sql<{
           id: DocumentId;
           title: string;
           updated_at: Date;
@@ -144,15 +163,16 @@ export class Documents extends Context.Service<
           FROM documents d
           CROSS JOIN LATERAL (SELECT d.draft::jsonb AS content OFFSET 0) c
           LEFT JOIN posts p ON p.id = d.id
-          WHERE d.type = 'post'
+          WHERE d.type = 'post' AND d.team_id = ${team}
           ORDER BY d.updated_at DESC
         `,
       } satisfies Record<ContentTypeName, unknown>;
 
       const list = Effect.fn("Documents.list")(function* (
         type: ContentTypeName,
+        team: TeamId,
       ) {
-        const rows = yield* summaries[type].pipe(Effect.orDie);
+        const rows = yield* summaries[type](team).pipe(Effect.orDie);
         return rows.map(
           (row) =>
             new DocumentSummary({

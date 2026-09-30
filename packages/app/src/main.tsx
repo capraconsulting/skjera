@@ -9,12 +9,13 @@ import { Home, homeLoader } from "./routes/site/Home.tsx";
 import { Post, PostError, postLoader } from "./routes/site/Post.tsx";
 import { SiteLayout, siteLoader } from "./routes/site/SiteLayout.tsx";
 import { PostEditor } from "./routes/studio/PostEditor.tsx";
-import {
-  createPostAction,
-  Posts,
-  postsLoader,
-} from "./routes/studio/Posts.tsx";
 import { StudioLayout, studioLoader } from "./routes/studio/StudioLayout.tsx";
+import { Team, teamAction, teamLoader } from "./routes/studio/Team.tsx";
+import {
+  createTeamAction,
+  Teams,
+  teamsLoader,
+} from "./routes/studio/Teams.tsx";
 import "./global.css";
 
 // The slim build loads Automerge's WebAssembly explicitly, so Vite needs no
@@ -43,12 +44,18 @@ const router = createBrowserRouter([
     Component: StudioLayout,
     loader: studioLoader,
     children: [
-      { index: true, loader: () => redirect("/studio/posts") },
+      { index: true, loader: () => redirect("/studio/teams") },
       {
-        path: "posts",
-        Component: Posts,
-        loader: postsLoader,
-        action: createPostAction,
+        path: "teams",
+        Component: Teams,
+        loader: teamsLoader,
+        action: createTeamAction,
+      },
+      {
+        path: "teams/:teamId",
+        Component: Team,
+        loader: teamLoader,
+        action: teamAction,
       },
       { path: "posts/:id", Component: PostEditor },
     ],

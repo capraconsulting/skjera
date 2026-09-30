@@ -22,7 +22,7 @@ function PostSession({ id }: { readonly id: DocumentId }) {
   if (session.deleted) {
     return (
       <p role="alert">
-        This post was deleted. <Link to="/studio/posts">Back to posts</Link>
+        This post was deleted. <Link to="/studio/teams">Back to teams</Link>
       </p>
     );
   }
@@ -32,7 +32,11 @@ function PostSession({ id }: { readonly id: DocumentId }) {
       return;
     }
     await session.remove();
-    navigate("/studio/posts");
+    navigate(
+      session.team === null
+        ? "/studio/teams"
+        : `/studio/teams/${session.team.id}`,
+    );
   };
 
   if (handle === null) {
@@ -41,6 +45,14 @@ function PostSession({ id }: { readonly id: DocumentId }) {
 
   return (
     <article>
+      {session.team === null ? null : (
+        <p>
+          <Link to="/studio/teams">Teams</Link> ›{" "}
+          <Link to={`/studio/teams/${session.team.id}`}>
+            {session.team.name}
+          </Link>
+        </p>
+      )}
       <Toolbar>
         <p data-testid="status">
           {session.saving ? "Saving…" : "Saved"}

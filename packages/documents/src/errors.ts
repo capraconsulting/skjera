@@ -34,3 +34,20 @@ export class PostNotFound extends Schema.TaggedError<PostNotFound>()(
   { id: Schema.String },
   { httpApiStatus: 404 },
 ) {}
+
+export class TeamNotFound extends Schema.TaggedError<TeamNotFound>()(
+  "TeamNotFound",
+  { id: Schema.String },
+) {}
+
+/** Empty, too long, or already used by another team (names ignore case). */
+export class InvalidTeamName extends Schema.TaggedError<InvalidTeamName>()(
+  "InvalidTeamName",
+  { message: Schema.String },
+) {}
+
+/** Only teams without posts can be deleted. */
+export class TeamNotEmpty extends Schema.TaggedError<TeamNotEmpty>()(
+  "TeamNotEmpty",
+  { id: Schema.String },
+) {}

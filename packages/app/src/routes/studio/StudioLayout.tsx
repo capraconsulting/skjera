@@ -18,7 +18,7 @@ export function StudioLayout() {
   const me = useLoaderData<typeof studioLoader>();
   return (
     <Shell
-      brand={{ to: "/studio/posts", label: "Skjera Studio" }}
+      brand={{ to: "/studio/teams", label: "Skjera Studio" }}
       links={<Link to="/">View site</Link>}
       actions={
         <>

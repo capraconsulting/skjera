@@ -7,9 +7,19 @@ import {
   DocumentNotFound,
   InvalidChanges,
   InvalidContent,
+  InvalidTeamName,
   PublishRejected,
+  TeamNotEmpty,
+  TeamNotFound,
 } from "./errors.ts";
-import { DocumentId, DocumentSummary, Heads, Publication } from "./Model.ts";
+import {
+  DocumentId,
+  DocumentSummary,
+  Heads,
+  Publication,
+  Team,
+  TeamId,
+} from "./Model.ts";
 
 // The editor's API, served over a WebSocket. Safe to import in the browser.
 
@@ -26,6 +36,7 @@ export class OpenedDocument extends Schema.Class<OpenedDocument>(
   "@skjera/documents/OpenedDocument",
 )({
   type: ContentTypeName,
+  team: Team,
   /** An Automerge save; load it with the actor id sent to OpenDocument. */
   draft: Schema.Uint8Array,
   publication: Schema.NullOr(Publication),
@@ -47,13 +58,30 @@ export class DocumentDeleted extends Schema.TaggedClass<DocumentDeleted>()(
 ) {}
 
 export class DocumentsRpc extends RpcGroup.make(
+  Rpc.make("ListTeams", { success: Schema.Array(Team) }),
+  Rpc.make("GetTeam", {
+    payload: { id: TeamId },
+    success: Team,
+    error: TeamNotFound,
+  }),
+  Rpc.make("CreateTeam", {
+    payload: { name: Schema.String },
+    success: Team,
+    error: InvalidTeamName,
+  }),
+  /** Only teams without documents can be deleted. */
+  Rpc.make("DeleteTeam", {
+    payload: { id: TeamId },
+    error: Schema.Union([TeamNotFound, TeamNotEmpty]),
+  }),
   Rpc.make("ListDocuments", {
-    payload: { type: ContentTypeName },
+    payload: { type: ContentTypeName, teamId: TeamId },
     success: Schema.Array(DocumentSummary),
   }),
   Rpc.make("CreateDocument", {
-    payload: { type: ContentTypeName },
+    payload: { type: ContentTypeName, teamId: TeamId },
     success: DocumentId,
+    error: TeamNotFound,
   }),
   /**
    * Starts an editor session: registers `actor`, the actor id the client
