@@ -4,6 +4,9 @@ packages:
 catalog:
   "@automerge/automerge": 3.5.0
   "@automerge/prosemirror": 0.2.0
+  "@automerge/automerge-repo": 2.5.6
+  "@automerge/automerge-repo-network-messagechannel": 2.5.6
+  "@automerge/automerge-repo-storage-indexeddb": 2.5.6
   "@effect/platform-node": 4.0.0-rc.118
   "@effect/sql-pg": 4.0.0-rc.118
   "@effect/vitest": 4.0.0-rc.118
@@ -16,6 +19,8 @@ catalog:
 
 allowBuilds:
   "@jdxcode/mise": true
+  # Optional native speed-up for cbor-x in Node; the browser doesn't use it.
+  cbor-extract: false
 
 minimumReleaseAgeExclude:
   - react-day-picker@10.0.2

@@ -41,9 +41,20 @@ export class OpenedDocument extends Schema.Class<OpenedDocument>(
 )({
   type: ContentTypeName,
   team: Team,
-  /** An Automerge save; load it with the actor id sent to OpenDocument. */
+  /** An Automerge save, to merge into the local copy. */
   draft: Schema.Uint8Array,
+  /** The draft's heads: the server has everything up to these. */
+  heads: Heads,
   publication: Schema.NullOr(Publication),
+}) {}
+
+/** What a replica is missing, and the draft's heads with those changes. */
+export class DraftChanges extends Schema.Class<DraftChanges>(
+  "@skjera/documents/DraftChanges",
+)({
+  /** Change chunks, for `Automerge.loadIncremental`. */
+  changes: Schema.Uint8Array,
+  heads: Heads,
 }) {}
 
 /** Something changed; fetch what's missing unless you already have `heads`. */
@@ -104,16 +115,16 @@ export class DocumentsRpc extends RpcGroup.make(
     success: DocumentId,
     error: TeamNotFound,
   }),
-  /**
-   * Starts an editor session: registers `actor`, the actor id the client
-   * will make its changes under, and returns the draft.
-   */
+  /** Starts an editor session with the draft and what to show around it. */
   Rpc.make("OpenDocument", {
-    payload: { id: DocumentId, actor: Schema.String },
+    payload: { id: DocumentId },
     success: OpenedDocument,
-    error: Schema.Union([DocumentNotFound, ActorNotAllowed]),
+    error: DocumentNotFound,
   }),
-  /** Sends local changes. After an error the replica must be reloaded. */
+  /**
+   * Merges changes the server doesn't have into the draft, all or none.
+   * Returns the draft's heads, which may include others' changes too.
+   */
   Rpc.make("SendChanges", {
     payload: { id: DocumentId, changes: Schema.Array(Schema.Uint8Array) },
     success: Heads,
@@ -124,10 +135,13 @@ export class DocumentsRpc extends RpcGroup.make(
       InvalidContent,
     ]),
   }),
-  /** The changes a replica at `heads` is missing, for `Automerge.loadIncremental`. */
+  /**
+   * The changes a replica is missing, given `heads` the server has (a
+   * replica's own heads may include changes it hasn't sent yet).
+   */
   Rpc.make("ChangesSince", {
     payload: { id: DocumentId, heads: Heads },
-    success: Schema.Uint8Array,
+    success: DraftChanges,
     error: DocumentNotFound,
   }),
   Rpc.make("WatchDocument", {

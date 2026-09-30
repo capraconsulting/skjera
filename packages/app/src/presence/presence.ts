@@ -4,7 +4,7 @@ import type {
   PresenceSelection,
   PresenceUser,
 } from "@skjera/documents/api";
-import { Effect, Fiber, Schedule, Semaphore, Stream } from "effect";
+import { Effect, Fiber, Schedule, Stream } from "effect";
 import { useSyncExternalStore } from "react";
 import { DocumentsClient, runtime } from "../documents/client.ts";
 
@@ -51,6 +51,11 @@ class PresenceStore {
   /** New for each run, so a stopped run's goodbye can't remove a newer one. */
   clientId = "";
   #entries = new Map<string, PresenceEntry>();
+  /**
+   * The newest update from each tab, kept a while after it leaves too, so
+   * updates relayed after its goodbye can't bring it back.
+   */
+  readonly #newest = new Map<string, { seq: number; at: number }>();
   #snapshot: ReadonlyArray<PresenceEntry> = [];
   readonly #listeners = new Set<() => void>();
 
@@ -92,6 +97,9 @@ class PresenceStore {
     const userKey = `${message.user.issuer}|${message.user.subject}`;
     // Keyed by the sender's identity too, so nobody can overwrite others.
     const key = `${userKey}|${message.clientId}`;
+    const newest = this.#newest.get(key);
+    if (newest !== undefined && message.seq <= newest.seq) return;
+    this.#newest.set(key, { seq: message.seq, at: Date.now() });
     if (message.kind === "leave") {
       this.#entries.delete(key);
     } else {
@@ -111,6 +119,9 @@ class PresenceStore {
   expire() {
     const cutoff = Date.now() - expireAfterMs;
     let changed = false;
+    for (const [key, newest] of this.#newest) {
+      if (newest.at < cutoff - expireAfterMs) this.#newest.delete(key);
+    }
     for (const [key, entry] of this.#entries) {
       if (entry.lastSeen < cutoff) {
         this.#entries.delete(key);
@@ -137,20 +148,22 @@ const program = Effect.gen(function* () {
   const client = yield* DocumentsClient;
   const clientId = crypto.randomUUID();
   presence.clientId = clientId;
-  // One at a time, so they arrive in order; suspended, so each sends the
-  // state as it is when its turn comes.
-  const inOrder = yield* Semaphore.make(1);
+  let seq = 0;
+  // Suspended, so each sends the state as it is then. Presence is best
+  // effort: the next heartbeat makes up for a lost update, so give up on
+  // one that takes long rather than hold up the heartbeat.
   const publish = (kind: "hello" | "update" | "leave") =>
     Effect.suspend(() =>
       client.PublishPresence({
         update: {
           clientId,
+          seq: seq++,
           kind,
           location: presence.location,
           selection: presence.selection,
         },
       }),
-    ).pipe(inOrder.withPermits(1), Effect.ignore);
+    ).pipe(Effect.timeout("5 seconds"), Effect.ignore);
   const services = yield* Effect.context<DocumentsClient>();
   const send = (kind: "hello" | "update" | "leave") => {
     void Effect.runPromiseWith(services)(publish(kind));
@@ -159,12 +172,13 @@ const program = Effect.gen(function* () {
 
   // Answer a newcomer after a short random wait, so not everyone at once.
   let replying = false;
-  const reply = Effect.gen(function* () {
-    if (replying) return;
+  const reply = Effect.suspend(() => {
+    if (replying) return Effect.void;
     replying = true;
-    yield* Effect.sleep(`${Math.round(Math.random() * 300)} millis`);
-    replying = false;
-    yield* publish("update");
+    return Effect.sleep(`${Math.round(Math.random() * 300)} millis`).pipe(
+      Effect.ensuring(Effect.sync(() => (replying = false))),
+      Effect.andThen(publish("update")),
+    );
   });
 
   const watch = client.WatchPresence().pipe(
@@ -217,9 +231,16 @@ const program = Effect.gen(function* () {
 export const startPresence = () => {
   const fiber = runtime.runFork(program);
   const leave = () => presence.send("leave");
+  // Background tabs may be throttled or frozen, and miss updates or drop
+  // out for others; coming back, ask everyone to announce themselves.
+  const back = () => {
+    if (document.visibilityState === "visible") presence.send("hello");
+  };
   window.addEventListener("pagehide", leave);
+  document.addEventListener("visibilitychange", back);
   return () => {
     window.removeEventListener("pagehide", leave);
+    document.removeEventListener("visibilitychange", back);
     runtime.runFork(Fiber.interrupt(fiber));
   };
 };

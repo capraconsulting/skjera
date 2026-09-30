@@ -46,7 +46,7 @@ const publishedEvent = Effect.fn(function* (settings: {
 }) {
   const documents = yield* Documents;
   const id = yield* documents.create("event", yield* newTeam, alice);
-  const editor = yield* openEditor(id, alice);
+  const editor = yield* openEditor(id);
   const heads = yield* documents.applyChanges(
     id,
     [
@@ -67,12 +67,10 @@ const publishedEvent = Effect.fn(function* (settings: {
 /** An editor session: a replica of the draft with its own actor id. */
 const openEditor = Effect.fn(function* (
   id: Parameters<Documents["Service"]["get"]>[0],
-  user: Identity,
 ) {
   const documents = yield* Documents;
   const snapshot = yield* documents.get(id);
   let doc = A.load<EventContent>(snapshot.draft);
-  yield* documents.registerActor(id, A.getActorId(doc), user);
   return {
     doc: () => doc,
     /** Makes a local change and returns it, as the editor would send it. */
@@ -115,8 +113,8 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
     Effect.gen(function* () {
       const documents = yield* Documents;
       const id = yield* documents.create("event", yield* newTeam, alice);
-      const aliceEditor = yield* openEditor(id, alice);
-      const bobEditor = yield* openEditor(id, bob);
+      const aliceEditor = yield* openEditor(id);
+      const bobEditor = yield* openEditor(id);
 
       yield* documents.applyChanges(
         id,
@@ -130,12 +128,16 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       );
 
       // Each editor fetches only what it is missing.
-      aliceEditor.receive(
-        yield* documents.changesSince(id, A.getHeads(aliceEditor.doc())),
+      const forAlice = yield* documents.changesSince(
+        id,
+        A.getHeads(aliceEditor.doc()),
       );
+      aliceEditor.receive(forAlice.changes);
       bobEditor.receive(
-        yield* documents.changesSince(id, A.getHeads(bobEditor.doc())),
+        (yield* documents.changesSince(id, A.getHeads(bobEditor.doc())))
+          .changes,
       );
+      assert.deepStrictEqual([...forAlice.heads].sort(), [...heads].sort());
       for (const editor of [aliceEditor, bobEditor]) {
         assert.deepStrictEqual(A.toJS(editor.doc()), {
           title: "Hello",
@@ -157,7 +159,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
     Effect.gen(function* () {
       const documents = yield* Documents;
       const id = yield* documents.create("event", yield* newTeam, alice);
-      const editor = yield* openEditor(id, alice);
+      const editor = yield* openEditor(id);
       const change = editor.edit((event) =>
         A.updateText(event, ["title"], "Once"),
       );
@@ -171,20 +173,35 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
     Effect.gen(function* () {
       const documents = yield* Documents;
       const id = yield* documents.create("event", yield* newTeam, alice);
-      const aliceEditor = yield* openEditor(id, alice);
-      const change = aliceEditor.edit((event) =>
-        A.updateText(event, ["title"], "Mine"),
+      const aliceEditor = yield* openEditor(id);
+      yield* documents.applyChanges(
+        id,
+        [aliceEditor.edit((event) => A.updateText(event, ["title"], "Mine"))],
+        alice,
       );
 
-      // Bob can't send Alice's changes, nor claim her actor id.
+      // Alice's actor id is hers now: Bob can't make changes under it.
+      let forged = A.load<EventContent>(
+        A.save(aliceEditor.doc()),
+        A.getActorId(aliceEditor.doc()),
+      );
+      forged = A.change(forged, (event) =>
+        A.updateText(event, ["title"], "Not yours"),
+      );
+      const change = A.getLastLocalChange(forged);
+      if (change === undefined) throw new Error("no change");
       const sent = yield* Effect.flip(
         documents.applyChanges(id, [change], bob),
       );
       assert.strictEqual(sent._tag, "ActorNotAllowed");
-      const claimed = yield* Effect.flip(
-        documents.registerActor(id, A.getActorId(aliceEditor.doc()), bob),
+
+      // Alice's next session has a new actor id, and can send too.
+      const nextSession = yield* openEditor(id);
+      yield* documents.applyChanges(
+        id,
+        [nextSession.edit((event) => A.updateText(event, ["title"], "Still"))],
+        alice,
       );
-      assert.strictEqual(claimed._tag, "ActorNotAllowed");
     }),
   );
 
@@ -192,7 +209,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
     Effect.gen(function* () {
       const documents = yield* Documents;
       const id = yield* documents.create("event", yield* newTeam, alice);
-      const editor = yield* openEditor(id, alice);
+      const editor = yield* openEditor(id);
       const before = (yield* documents.get(id)).heads;
 
       const extraField = yield* Effect.flip(
@@ -206,7 +223,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
 
       // The rejected change stays in that replica, so later changes build on
       // it; a rejected editor has to reload. Use a fresh one.
-      const fresh = yield* openEditor(id, alice);
+      const fresh = yield* openEditor(id);
       const wrongType = yield* Effect.flip(
         documents.applyChanges(
           id,
@@ -225,7 +242,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       const documents = yield* Documents;
       const id = yield* documents.create("event", yield* newTeam, alice);
       for (const date of ["2026-02-30", "15.10.2026", "2026-10-15T12:00"]) {
-        const editor = yield* openEditor(id, alice);
+        const editor = yield* openEditor(id);
         const error = yield* Effect.flip(
           documents.applyChanges(
             id,
@@ -242,7 +259,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
     Effect.gen(function* () {
       const documents = yield* Documents;
       const id = yield* documents.create("event", yield* newTeam, alice);
-      const editor = yield* openEditor(id, alice);
+      const editor = yield* openEditor(id);
       editor.edit((event) => A.updateText(event, ["title"], "First"));
       const second = editor.edit((event) =>
         A.updateText(event, ["title"], "Second"),
@@ -259,7 +276,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       const documents = yield* Documents;
       const sql = yield* SqlClient.SqlClient;
       const id = yield* documents.create("event", yield* newTeam, alice);
-      const editor = yield* openEditor(id, alice);
+      const editor = yield* openEditor(id);
 
       const seen = yield* documents.applyChanges(
         id,
@@ -307,7 +324,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       Effect.gen(function* () {
         const documents = yield* Documents;
         const id = yield* documents.create("event", yield* newTeam, alice);
-        const editor = yield* openEditor(id, alice);
+        const editor = yield* openEditor(id);
         const blank = (yield* documents.get(id)).heads;
         const dated = yield* documents.applyChanges(
           id,
@@ -351,7 +368,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       const documents = yield* Documents;
       const team = yield* newTeam;
       const id = yield* documents.create("event", team, alice);
-      const editor = yield* openEditor(id, alice);
+      const editor = yield* openEditor(id);
       const find = Effect.map(documents.list("event", team), (rows) =>
         rows.find((row) => row.id === id),
       );
@@ -398,7 +415,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       const documents = yield* Documents;
       const published = yield* PublishedEvents;
       const id = yield* documents.create("event", yield* newTeam, alice);
-      const editor = yield* openEditor(id, alice);
+      const editor = yield* openEditor(id);
       const heads = yield* documents.applyChanges(
         id,
         [
@@ -439,7 +456,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       const documents = yield* Documents;
       const published = yield* PublishedEvents;
       const id = yield* documents.create("event", yield* newTeam, alice);
-      const editor = yield* openEditor(id, alice);
+      const editor = yield* openEditor(id);
       const heads = yield* documents.applyChanges(
         id,
         [
@@ -702,6 +719,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       yield* presence.publish(
         {
           clientId: "tab-1",
+          seq: 0,
           kind: "update",
           location: { teamId: team, documentId: null },
           selection: null,
@@ -748,7 +766,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       const documents = yield* Documents;
       const events = yield* DocumentEvents;
       const id = yield* documents.create("event", yield* newTeam, alice);
-      const editor = yield* openEditor(id, alice);
+      const editor = yield* openEditor(id);
 
       const next = yield* (yield* events.subscribe).pipe(
         Stream.filter(
@@ -779,7 +797,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       const events = yield* DocumentEvents;
       const sql = yield* SqlClient.SqlClient;
       const id = yield* documents.create("event", yield* newTeam, alice);
-      const editor = yield* openEditor(id, alice);
+      const editor = yield* openEditor(id);
 
       const received = yield* (yield* events.subscribe).pipe(
         Stream.filter(

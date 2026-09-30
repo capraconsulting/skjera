@@ -7,7 +7,11 @@ const initials = (name: string) => {
   return `${first?.[0] ?? "?"}${second?.[0] ?? ""}`;
 };
 
-/** Who is here: one avatar per person, however many tabs they have open. */
+/**
+ * Who is here: one avatar per person, however many tabs they have open.
+ * Hovering one shows the name: below it, or to its left when `small`, since
+ * small ones sit at the end of list rows.
+ */
 export function Avatars(props: {
   readonly entries: ReadonlyArray<PresenceEntry>;
   readonly max?: number;
@@ -19,12 +23,12 @@ export function Avatars(props: {
   if (people.length === 0) return null;
   const max = props.max ?? 3;
   const shown = people.slice(0, max);
-  const hidden = people.length - shown.length;
+  const hidden = people.slice(max);
   return (
     <ul
-      className={
-        props.small ? `${styles.avatars} ${styles.small}` : styles.avatars
-      }
+      className={[styles.avatars, props.small ? styles.small : styles.large]
+        .filter(Boolean)
+        .join(" ")}
       aria-label={`Here: ${people.map((entry) => entry.user.name).join(", ")}`}
     >
       {shown.map((entry) => (
@@ -32,14 +36,22 @@ export function Avatars(props: {
           key={entry.userKey}
           className={styles.avatar}
           style={{ background: entry.color }}
-          title={entry.user.name}
+          aria-label={entry.user.name}
           data-testid="avatar"
         >
-          {initials(entry.user.name)}
+          <span aria-hidden="true">{initials(entry.user.name)}</span>
+          <span className={styles.tooltip} aria-hidden="true">
+            {entry.user.name}
+          </span>
         </li>
       ))}
-      {hidden > 0 ? (
-        <li className={`${styles.avatar} ${styles.more}`}>+{hidden}</li>
+      {hidden.length > 0 ? (
+        <li className={`${styles.avatar} ${styles.more}`}>
+          +{hidden.length}
+          <span className={styles.tooltip} aria-hidden="true">
+            {hidden.map((entry) => entry.user.name).join(", ")}
+          </span>
+        </li>
       ) : null}
     </ul>
   );

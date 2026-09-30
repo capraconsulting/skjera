@@ -94,8 +94,17 @@ export const presencePlugin = (options: {
           share(view);
           return false;
         },
+        // Moving on to something else on the page removes the caret, but
+        // switching to another window or app keeps it: people keep their
+        // place while they look something up. Focus has settled by the next
+        // tick; `document.hasFocus()` is false while the window is inactive.
         blur: () => {
-          if (presence.selection?.field === field) presence.setSelection(null);
+          setTimeout(() => {
+            if (!document.hasFocus()) return;
+            if (presence.selection?.field === field) {
+              presence.setSelection(null);
+            }
+          });
           return false;
         },
       },

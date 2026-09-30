@@ -58,21 +58,23 @@ export class Documents extends Context.Service<
     readonly publication: (
       id: DocumentId,
     ) => Effect.Effect<Publication | null, DocumentNotFound>;
-    /** What a replica at `heads` is missing, as change chunks for `Automerge.loadIncremental`. */
+    /**
+     * What a replica at `heads` is missing, as change chunks for
+     * `Automerge.loadIncremental`, and the draft's heads they lead up to.
+     */
     readonly changesSince: (
       id: DocumentId,
       heads: Heads,
-    ) => Effect.Effect<Uint8Array, DocumentNotFound>;
-    /** Lets `user` send changes under `actor`, the actor id of their editor session. */
-    readonly registerActor: (
-      id: DocumentId,
-      actor: string,
-      user: Identity,
-    ) => Effect.Effect<void, DocumentNotFound | ActorNotAllowed>;
+    ) => Effect.Effect<
+      { readonly changes: Uint8Array; readonly heads: Heads },
+      DocumentNotFound
+    >;
     /**
      * Merges changes into the draft, after checking they come from the
      * sender's own actor ids and leave the draft valid for its content type.
-     * Returns the new heads.
+     * An actor id belongs to the first user to send changes with it: every
+     * editor session makes changes under a fresh, random one. Returns the new
+     * heads.
      */
     readonly applyChanges: (
       id: DocumentId,
@@ -225,43 +227,15 @@ export class Documents extends Context.Service<
         id: DocumentId,
         heads: Heads,
       ) {
-        const [row] = yield* sql<{ changes: Uint8Array }>`
-          SELECT automerge_changes_bytes(draft, ${heads}::text[]) AS changes
+        const [row] = yield* sql<{ changes: Uint8Array; heads: Heads }>`
+          SELECT automerge_changes_bytes(draft, ${heads}::text[]) AS changes,
+            automerge_heads(draft) AS heads
           FROM documents WHERE id = ${id}
         `.pipe(Effect.orDie);
         if (row === undefined) {
           return yield* new DocumentNotFound({ id });
         }
-        return row.changes;
-      });
-
-      const registerActor = Effect.fn("Documents.registerActor")(function* (
-        id: DocumentId,
-        actor: string,
-        user: Identity,
-      ) {
-        yield* sql`
-          INSERT INTO document_actors (document_id, actor, user_issuer, user_subject)
-          VALUES (${id}, ${actor}, ${user.issuer}, ${user.subject})
-          ON CONFLICT (document_id, actor) DO NOTHING
-        `.pipe(
-          Effect.catchIf(SqlError.isSqlError, (error) =>
-            pgCode(error) === "23503"
-              ? Effect.fail(new DocumentNotFound({ id }))
-              : Effect.die(error),
-          ),
-        );
-        const [owner] = yield* sql<{ issuer: string; subject: string }>`
-          SELECT user_issuer AS issuer, user_subject AS subject
-          FROM document_actors WHERE document_id = ${id} AND actor = ${actor}
-        `.pipe(Effect.orDie);
-        if (
-          owner === undefined ||
-          owner.issuer !== user.issuer ||
-          owner.subject !== user.subject
-        ) {
-          return yield* new ActorNotAllowed({ actor });
-        }
+        return { changes: row.changes, heads: row.heads };
       });
 
       const applyChanges = Effect.fn("Documents.applyChanges")(function* (
@@ -298,6 +272,13 @@ export class Documents extends Context.Service<
             return current.heads;
           }
 
+          // Claim new actor ids for the sender; those taken stay taken.
+          yield* sql`
+            INSERT INTO document_actors (document_id, actor, user_issuer, user_subject)
+            SELECT ${id}, actor, ${user.issuer}, ${user.subject}
+            FROM unnest(${[...actors]}::text[]) AS actor
+            ON CONFLICT (document_id, actor) DO NOTHING
+          `;
           const allowed = yield* sql<{ actor: string }>`
             SELECT actor FROM document_actors
             WHERE document_id = ${id}
@@ -407,7 +388,6 @@ export class Documents extends Context.Service<
         get,
         publication,
         changesSince,
-        registerActor,
         applyChanges,
         publish,
         delete: deleteDocument,

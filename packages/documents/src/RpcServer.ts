@@ -12,6 +12,7 @@ import {
   DocumentsAuth,
   DocumentsRpc,
   DraftChanged,
+  DraftChanges,
   OpenedDocument,
 } from "./Rpc.ts";
 import { Teams } from "./Teams.ts";
@@ -73,16 +74,15 @@ export const DocumentsRpcHandlers = DocumentsRpc.toLayer(
         Effect.gen(function* () {
           return yield* documents.create(type, teamId, yield* CurrentUser);
         }),
-      OpenDocument: ({ id, actor }) =>
+      OpenDocument: ({ id }) =>
         Effect.gen(function* () {
-          const user = yield* CurrentUser;
-          yield* documents.registerActor(id, actor, user);
           const snapshot = yield* documents.get(id);
           return new OpenedDocument({
             type: snapshot.type,
             // A document's team can't be deleted while the document exists.
             team: yield* Effect.orDie(teams.get(snapshot.teamId)),
             draft: snapshot.draft,
+            heads: snapshot.heads,
             publication: yield* documents.publication(id),
           });
         }),
@@ -90,7 +90,11 @@ export const DocumentsRpcHandlers = DocumentsRpc.toLayer(
         Effect.gen(function* () {
           return yield* documents.applyChanges(id, changes, yield* CurrentUser);
         }),
-      ChangesSince: ({ id, heads }) => documents.changesSince(id, heads),
+      ChangesSince: ({ id, heads }) =>
+        Effect.map(
+          documents.changesSince(id, heads),
+          (since) => new DraftChanges(since),
+        ),
       // Subscribe before telling the client to catch up, so no change falls
       // between its catch-up and the first notification.
       WatchDocument: ({ id }) =>

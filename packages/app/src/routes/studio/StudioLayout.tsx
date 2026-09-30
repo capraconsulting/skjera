@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { NavLink, Outlet, useLoaderData, useParams } from "react-router";
 import { Shell } from "../../components/Shell.tsx";
 import { SignedIn } from "../../components/SignedIn.tsx";
+import { setLocalUser } from "../../documents/repo.ts";
 import { presence, startPresence } from "../../presence/presence.ts";
 import { fetchMe, loginUrl } from "../../site/client.ts";
 
@@ -14,6 +15,7 @@ export async function studioLoader({ request }: { request: Request }) {
     window.location.assign(loginUrl(url.pathname + url.search));
     return new Promise<never>(() => {});
   }
+  setLocalUser(me);
   return me;
 }
 

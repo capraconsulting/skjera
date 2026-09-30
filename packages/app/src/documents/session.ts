@@ -1,18 +1,27 @@
 import * as A from "@automerge/automerge/slim";
+import type { DocHandle } from "@automerge/automerge-repo/slim";
 import type {
   DocumentId,
   EventContent,
   Publication,
   Team,
 } from "@skjera/documents/api";
-import { Deferred, Effect, Fiber, Schedule, Semaphore, Stream } from "effect";
+import {
+  Deferred,
+  Effect,
+  Fiber,
+  Queue,
+  Schedule,
+  Semaphore,
+  Stream,
+} from "effect";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { LocalDocHandle } from "../editor/LocalDocHandle.ts";
 import { DocumentsClient, runtime } from "./client.ts";
+import { forgetLocal, openLocal } from "./repo.ts";
 
 export interface SessionState {
-  /** The replica being edited; replaced when the session has to reload. */
-  readonly handle: LocalDocHandle<EventContent> | null;
+  /** The local copy being edited, once it's open. */
+  readonly handle: DocHandle<EventContent> | null;
   /** The team the document belongs to, once it is open. */
   readonly team: Team | null;
   /** Local changes the server doesn't have yet. */
@@ -56,12 +65,13 @@ class SessionStore {
   };
 }
 
-const randomActorId = () =>
-  Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
-    byte.toString(16).padStart(2, "0"),
-  ).join("");
+/** Syncs at least this often, in case a notification was missed. */
+const syncEvery = "5 seconds";
+/** Waits this long after an edit, so a burst of keystrokes syncs at once. */
+const settle = "100 millis";
 
-const sendEvery = "250 millis";
+const sameHeads = (a: ReadonlyArray<string>, b: ReadonlyArray<string>) =>
+  a.length === b.length && a.every((head) => b.includes(head));
 
 const toLogin = () =>
   Effect.sync(() => {
@@ -72,65 +82,100 @@ const toLogin = () =>
   }).pipe(Effect.andThen(Effect.never));
 
 /**
- * One replica of a document, with a fresh actor id, kept in sync with the
- * server until it has to be thrown away: after the server rejects one of its
- * changes, every later change builds on it and would be rejected too.
- * Completes with "reload" in that case, or "deleted" when the document is.
+ * Edits happen on the local copy of the document (see repo.ts); this keeps
+ * it in sync with the server until the document is deleted. Each sync round
+ * pulls what the server has that the local copy doesn't and merges it in,
+ * then pushes what the server doesn't have. Nothing is ever replaced: if the
+ * server refuses changes, they stay in the local copy.
  */
-const replica = (id: DocumentId, store: SessionStore) =>
+const session = (id: DocumentId, store: SessionStore) =>
   Effect.gen(function* () {
     const client = yield* DocumentsClient;
     const services = yield* Effect.context<DocumentsClient>();
-    const actor = randomActorId();
-    const opened = yield* client.OpenDocument({ id, actor });
-
-    const pending: Array<A.Change> = [];
-    const handle = new LocalDocHandle<EventContent>(
-      A.load<EventContent>(opened.draft, actor),
-      {
-        onLocalChange: (change) => {
-          pending.push(change);
-          store.set({ saving: true });
-        },
-      },
+    const opened = yield* client.OpenDocument({ id });
+    const handle = yield* Effect.promise(() =>
+      openLocal<EventContent>(id, opened.draft),
     );
-    const done = yield* Deferred.make<"reload" | "deleted">();
-    const sending = yield* Semaphore.make(1);
 
-    // Sends everything pending, including changes made while sending. Run
-    // with the `sending` permit, so batches go out one at a time.
-    const sendPending = Effect.gen(function* () {
-      while (pending.length > 0) {
-        const batch = pending.slice();
-        yield* client.SendChanges({ id, changes: batch });
-        pending.splice(0, batch.length);
-      }
-      store.set({ saving: false });
-    });
-    const flush = Semaphore.withPermits(sending, 1)(sendPending);
+    /** Heads the server has, all of them in the local copy too. */
+    let synced: ReadonlyArray<string> = opened.heads;
+    const showSaving = () =>
+      store.set({ saving: !sameHeads(A.getHeads(handle.doc()), synced) });
 
-    const rejected = (message: string) =>
-      Effect.sync(() => store.set({ error: message })).pipe(
-        Effect.andThen(Deferred.succeed(done, "reload")),
+    // Wakes the sync loop up early: after edits and news from the server.
+    const wake = yield* Queue.sliding<void>(1);
+    const nudge = () => void Queue.offerUnsafe(wake, undefined);
+    const onChange = () => {
+      showSaving();
+      nudge();
+    };
+    yield* Effect.acquireRelease(
+      Effect.sync(() => handle.on("change", onChange)),
+      () => Effect.sync(() => handle.off("change", onChange)),
+    );
+
+    const pull = client.ChangesSince({ id, heads: [...synced] }).pipe(
+      Effect.tap(({ changes, heads }) =>
+        Effect.sync(() => {
+          if (changes.length > 0) {
+            handle.update((doc) => A.loadIncremental(doc, changes));
+          }
+          if (A.hasHeads(handle.doc(), [...heads])) synced = heads;
+        }),
+      ),
+    );
+    const push = Effect.suspend(() => {
+      const doc = handle.doc();
+      const changes = A.getChangesSince(doc, [...synced]);
+      if (changes.length === 0) return Effect.void;
+      const heads = A.getHeads(doc);
+      return client.SendChanges({ id, changes }).pipe(
+        Effect.tap(() =>
+          Effect.sync(() => {
+            synced = heads;
+          }),
+        ),
       );
+    });
 
-    const sendLoop = flush.pipe(
+    const done = yield* Deferred.make<void>();
+    // Rounds and publishing take turns, so each sees what the other did.
+    const syncing = yield* Semaphore.make(1);
+    let refused = false;
+    const round = Semaphore.withPermits(
+      syncing,
+      1,
+    )(pull.pipe(Effect.andThen(push))).pipe(
+      Effect.tap(() =>
+        Effect.sync(() => {
+          if (refused) store.set({ error: null });
+          refused = false;
+        }),
+      ),
       Effect.catchTags({
         Unauthorized: toLogin,
-        InvalidContent: (error) => rejected(error.message),
-        InvalidChanges: (error) => rejected(error.message),
-        ActorNotAllowed: () => rejected("Changes were refused"),
-        DocumentNotFound: () => rejected("The document was deleted"),
-        // Offline: keep the changes and try again.
+        InvalidContent: (error) => refuse(error.message),
+        InvalidChanges: (error) => refuse(error.message),
+        ActorNotAllowed: () => refuse("Changes were refused"),
+        DocumentNotFound: () => Deferred.succeed(done, undefined),
+        // Offline: the changes are kept; the next round tries again.
         RpcClientError: () => Effect.void,
       }),
-      Effect.andThen(Effect.sleep(sendEvery)),
+      Effect.andThen(Effect.sync(showSaving)),
+    );
+    const refuse = (message: string) =>
+      Effect.sync(() => {
+        refused = true;
+        store.set({ error: `Couldn't save your changes: ${message}` });
+      });
+
+    const syncLoop = round.pipe(
+      Effect.andThen(
+        Queue.take(wake).pipe(Effect.timeout(syncEvery), Effect.ignore),
+      ),
+      Effect.andThen(Effect.sleep(settle)),
       Effect.forever,
     );
-
-    const catchUp = client
-      .ChangesSince({ id, heads: A.getHeads(handle.doc()) })
-      .pipe(Effect.map((changes) => handle.applyIncremental(changes)));
 
     const watchLoop = client.WatchDocument({ id }).pipe(
       // Handling an event can wait on another call over the same socket,
@@ -138,19 +183,26 @@ const replica = (id: DocumentId, store: SessionStore) =>
       // socket into a small buffer per stream, and stops reading, replies
       // included, while one is full. So always read the stream right away.
       Stream.buffer({ capacity: "unbounded" }),
-      Stream.runForEach((event) => {
-        switch (event._tag) {
-          case "DocumentDeleted":
-            return Deferred.succeed(done, "deleted");
-          case "DraftChanged":
-            return event.heads !== undefined &&
-              A.hasHeads(handle.doc(), [...event.heads])
-              ? Effect.void
-              : catchUp;
-          case "CatchUp":
-            return catchUp;
-        }
-      }),
+      Stream.runForEach((event) =>
+        Effect.sync(() => {
+          switch (event._tag) {
+            case "DocumentDeleted":
+              Deferred.doneUnsafe(done, Effect.void);
+              return;
+            case "DraftChanged":
+              if (
+                event.heads === undefined ||
+                !A.hasHeads(handle.doc(), [...event.heads])
+              ) {
+                nudge();
+              }
+              return;
+            case "CatchUp":
+              nudge();
+              return;
+          }
+        }),
+      ),
       Effect.catchTag("Unauthorized", toLogin),
       // The stream ends or fails when the connection drops; watching again
       // starts with a catch-up.
@@ -159,16 +211,13 @@ const replica = (id: DocumentId, store: SessionStore) =>
       Effect.forever,
     );
 
-    // Publishes exactly what this replica shows, after the server has it all.
+    // Publishes what this copy shows, once the server has all of it.
     const publish = Semaphore.withPermits(
-      sending,
+      syncing,
       1,
     )(
-      sendPending.pipe(
-        // Read synchronously after the last send: the server has every head.
-        Effect.andThen(() =>
-          client.Publish({ id, heads: A.getHeads(handle.doc()) }),
-        ),
+      push.pipe(
+        Effect.andThen(() => client.Publish({ id, heads: [...synced] })),
       ),
     ).pipe(
       Effect.tap((publication) =>
@@ -190,7 +239,6 @@ const replica = (id: DocumentId, store: SessionStore) =>
     store.set({
       handle,
       team: opened.team,
-      saving: false,
       publication: opened.publication,
       publishing: false,
       publish: () => {
@@ -200,19 +248,20 @@ const replica = (id: DocumentId, store: SessionStore) =>
       remove: () =>
         Effect.runPromiseWith(services)(client.DeleteDocument({ id })),
     });
+    showSaving();
 
-    return yield* Effect.raceFirst(
+    yield* Effect.raceFirst(
       Deferred.await(done),
-      Effect.all([sendLoop, watchLoop], {
+      Effect.all([syncLoop, watchLoop], {
         concurrency: "unbounded",
         discard: true,
       }),
     );
-  });
+    forgetLocal(id);
+  }).pipe(Effect.scoped);
 
 const runSession = (id: DocumentId, store: SessionStore) =>
-  replica(id, store).pipe(
-    Effect.repeat({ while: (outcome) => outcome === "reload" }),
+  session(id, store).pipe(
     Effect.tap(() =>
       Effect.sync(() =>
         store.set({ deleted: true, error: "This event was deleted" }),
@@ -222,8 +271,6 @@ const runSession = (id: DocumentId, store: SessionStore) =>
       Unauthorized: toLogin,
       DocumentNotFound: () =>
         Effect.sync(() => store.set({ error: "Document not found" })),
-      ActorNotAllowed: () =>
-        Effect.sync(() => store.set({ error: "Could not open the document" })),
     }),
     // Couldn't reach the server to open the document: try again.
     Effect.retry(Schedule.spaced("1 second")),

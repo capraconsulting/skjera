@@ -159,6 +159,11 @@ export type PresenceSelection = typeof PresenceSelection.Type;
  */
 export const PresenceUpdate = Schema.Struct({
   clientId: Bounded(64),
+  /**
+   * Counts up with each update from a tab. The server may relay a tab's
+   * updates out of order; receivers keep the newest.
+   */
+  seq: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
   kind: Schema.Literals(["hello", "update", "leave"]),
   location: Schema.NullOr(PresenceLocation),
   selection: Schema.NullOr(PresenceSelection),

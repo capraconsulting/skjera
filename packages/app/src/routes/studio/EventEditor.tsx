@@ -1,3 +1,4 @@
+import type { DocHandle } from "@automerge/automerge-repo/slim";
 import type { DocumentId, EventContent } from "@skjera/documents/api";
 import { useEffect, useRef } from "react";
 import {
@@ -15,7 +16,6 @@ import {
 } from "../../documents/session.ts";
 import { CheckboxField, useBooleanField } from "../../editor/CheckboxField.tsx";
 import { DateField } from "../../editor/DateField.tsx";
-import type { LocalDocHandle } from "../../editor/LocalDocHandle.ts";
 import { TextEditor } from "../../editor/TextEditor.tsx";
 import { usePresence } from "../../presence/presence.ts";
 import { Attendees } from "./Attendees.tsx";
@@ -116,7 +116,6 @@ function EventSession({ id }: { readonly id: DocumentId }) {
             {session.error}
           </p>
         )}
-        {/* The editors start over when the session reloads with a new handle. */}
         <Field label="Title">
           <TextEditor
             handle={handle}
@@ -160,9 +159,7 @@ function EventSession({ id }: { readonly id: DocumentId }) {
 }
 
 /** Guests can only sign up for public events. */
-function GuestsCheckbox(props: {
-  readonly handle: LocalDocHandle<EventContent>;
-}) {
+function GuestsCheckbox(props: { readonly handle: DocHandle<EventContent> }) {
   const isPublic = useBooleanField(props.handle, "public");
   return (
     <CheckboxField

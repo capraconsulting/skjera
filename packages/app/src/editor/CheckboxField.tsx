@@ -1,13 +1,13 @@
+import type { DocHandle } from "@automerge/automerge-repo/slim";
 import type { EventContent } from "@skjera/documents/api";
 import { useSyncExternalStore } from "react";
 import styles from "./CheckboxField.module.css";
-import type { LocalDocHandle } from "./LocalDocHandle.ts";
 
 type BooleanField = "public" | "guests" | "dietary";
 
 /** The current value of a true/false field, following changes from anyone. */
 export const useBooleanField = (
-  handle: LocalDocHandle<EventContent>,
+  handle: DocHandle<EventContent>,
   field: BooleanField,
 ) =>
   useSyncExternalStore(
@@ -23,7 +23,7 @@ export const useBooleanField = (
  * people change it at once, one of the values wins.
  */
 export function CheckboxField(props: {
-  readonly handle: LocalDocHandle<EventContent>;
+  readonly handle: DocHandle<EventContent>;
   readonly field: BooleanField;
   readonly label: string;
   readonly hint?: string;

@@ -29,28 +29,50 @@ test("the studio shows who is where, with their cursors", async ({
   await expect(title(bob)).toHaveText("Hello there");
 
   // Alice sees Bob in the event, on it in the list, and in the team.
-  await expect(avatarsIn(alice, "Editor")).toHaveAttribute("title", "bob");
-  await expect(avatarsIn(alice, "Events")).toHaveAttribute("title", "bob");
-  await expect(teamLink(alice, teamName).getByTestId("avatar")).toHaveAttribute(
-    "title",
-    "bob",
-  );
+  await expect(avatarsIn(alice, "Editor")).toHaveAccessibleName("bob");
+  await expect(avatarsIn(alice, "Events")).toHaveAccessibleName("bob");
+  await expect(
+    teamLink(alice, teamName).getByTestId("avatar"),
+  ).toHaveAccessibleName("bob");
   // And Bob sees Alice.
-  await expect(avatarsIn(bob, "Editor")).toHaveAttribute("title", "alice");
+  await expect(avatarsIn(bob, "Editor")).toHaveAccessibleName("alice");
+
+  // Hovering an avatar shows the name.
+  const name = avatarsIn(alice, "Editor").getByText("bob");
+  await expect(name).toBeHidden();
+  await avatarsIn(alice, "Editor").hover();
+  await expect(name).toBeVisible();
 
   // Bob's caret shows up in Alice's title, with his name.
   await typeAt(title(bob), "end", "!");
   await expect(title(alice)).toHaveText(/Hello there!/);
-  await expect(title(alice).locator('[data-name="bob"]')).toBeVisible();
+  const bobsCaret = title(alice).locator('[data-name="bob"]');
+  await expect(bobsCaret).toBeVisible();
+
+  // It stays while Bob is in another window, as if he alt-tabbed away...
+  await title(bob).evaluate((editor) => {
+    document.hasFocus = () => false;
+    (editor as HTMLElement).blur();
+  });
+  await bob.waitForTimeout(500);
+  await expect(bobsCaret).toBeVisible();
+
+  // ...and goes when he focuses something else on the page.
+  await bob.evaluate(() => {
+    document.hasFocus = () => true;
+  });
+  await typeAt(title(bob), "end", "?");
+  await expect(bobsCaret).toBeVisible();
+  await bob.getByRole("checkbox", { name: /Public event/ }).focus();
+  await expect(bobsCaret).toHaveCount(0);
 
   // When Bob moves on, he leaves the event but stays in the team.
   await teamLink(bob, teamName).click();
   await expect(avatarsIn(alice, "Editor")).toHaveCount(0);
   await expect(title(alice).locator('[data-name="bob"]')).toHaveCount(0);
-  await expect(teamLink(alice, teamName).getByTestId("avatar")).toHaveAttribute(
-    "title",
-    "bob",
-  );
+  await expect(
+    teamLink(alice, teamName).getByTestId("avatar"),
+  ).toHaveAccessibleName("bob");
 
   await deleteEvent(alice, id);
   await deleteTeam(alice, team);

@@ -1,4 +1,5 @@
 import * as A from "@automerge/automerge/slim";
+import type { DocHandle } from "@automerge/automerge-repo/slim";
 import { DayPicker } from "@daypicker/react";
 import dayPicker from "@daypicker/react/style.module.css";
 import type { EventContent } from "@skjera/documents/api";
@@ -7,14 +8,13 @@ import { Button } from "../components/Button.tsx";
 import { placeUnder } from "../components/popover.ts";
 import { formatLongDate, fromIsoDate, toIsoDate } from "../time.ts";
 import styles from "./DateField.module.css";
-import type { LocalDocHandle } from "./LocalDocHandle.ts";
 
 /**
  * A collaborative date field. The date is an Automerge ImmutableString, set
  * as a whole, so concurrent picks resolve to one of them rather than a mix.
  */
 export function DateField(props: {
-  readonly handle: LocalDocHandle<EventContent>;
+  readonly handle: DocHandle<EventContent>;
   readonly label: string;
 }) {
   const { handle } = props;

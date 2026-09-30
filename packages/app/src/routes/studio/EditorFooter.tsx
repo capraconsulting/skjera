@@ -1,4 +1,5 @@
 import * as A from "@automerge/automerge/slim";
+import type { DocHandle } from "@automerge/automerge-repo/slim";
 import type {
   DocumentId,
   EventContent,
@@ -7,12 +8,11 @@ import type {
 import { useSyncExternalStore } from "react";
 import { Link } from "react-router";
 import { Button } from "../../components/Button.tsx";
-import type { LocalDocHandle } from "../../editor/LocalDocHandle.ts";
 import { timeAgo } from "../../time.ts";
 import styles from "./EditorFooter.module.css";
 
 /** The draft's version, as a string that changes whenever the draft does. */
-const useVersion = (handle: LocalDocHandle<EventContent>) =>
+const useVersion = (handle: DocHandle<EventContent>) =>
   useSyncExternalStore(
     (onChange) => {
       handle.on("change", onChange);
@@ -27,7 +27,7 @@ const useVersion = (handle: LocalDocHandle<EventContent>) =>
  */
 export function EditorFooter(props: {
   readonly id: DocumentId;
-  readonly handle: LocalDocHandle<EventContent>;
+  readonly handle: DocHandle<EventContent>;
   readonly saving: boolean;
   readonly publication: Publication | null;
   readonly publishing: boolean;

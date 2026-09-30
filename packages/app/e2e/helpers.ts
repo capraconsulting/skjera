@@ -3,6 +3,7 @@ import {
   expect,
   type Locator,
   type Page,
+  type WebSocketRoute,
 } from "@playwright/test";
 
 /** A browser of its own, with no session. */
@@ -22,6 +23,33 @@ export const signedIn = async (browser: Browser, email: string) => {
   await signInAtDex(page, email);
   await expect(page.getByTestId("me")).toHaveText(email);
   return page;
+};
+
+/**
+ * Controls a page's connection to the API, which goes over one WebSocket.
+ * Set it up before the page opens the socket, e.g. before navigating.
+ */
+export const connection = async (page: Page) => {
+  let online = true;
+  const open = new Set<WebSocketRoute>();
+  await page.routeWebSocket(/\/rpc$/, (ws) => {
+    if (!online) {
+      ws.close();
+      return;
+    }
+    ws.connectToServer();
+    open.add(ws);
+  });
+  return {
+    offline: async () => {
+      online = false;
+      for (const ws of open) await ws.close();
+      open.clear();
+    },
+    online: () => {
+      online = true;
+    },
+  };
 };
 
 export const title = (page: Page) =>

@@ -1,8 +1,9 @@
 import * as A from "@automerge/automerge/slim";
+import { type DocHandle, Repo } from "@automerge/automerge-repo/slim";
+import { MessageChannelNetworkAdapter } from "@automerge/automerge-repo-network-messagechannel";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Field } from "../components/Field.tsx";
 import { Shell } from "../components/Shell.tsx";
-import { LocalDocHandle } from "../editor/LocalDocHandle.ts";
 import { TextEditor } from "../editor/TextEditor.tsx";
 import styles from "./Playground.module.css";
 
@@ -15,43 +16,43 @@ const titlePath = ["title"] as const;
 const bodyPath = ["body"] as const;
 
 /**
- * Two replicas of one event, each with its own actor id, kept in sync by a
- * simulated network link that can be paused to produce concurrent edits.
+ * Two replicas of one document, in two in-memory repos. The link between
+ * them can be cut to produce concurrent edits.
  */
 function makeReplicas() {
-  const original = A.from<Draft>({ title: "", body: "" });
-  // Loading a save gives the second replica its own random actor id.
-  const other = A.load<Draft>(A.save(original));
-  return [
-    { name: "Replica 1", handle: new LocalDocHandle(original), sent: original },
-    { name: "Replica 2", handle: new LocalDocHandle(other), sent: other },
-  ];
+  const repos = [new Repo(), new Repo()] as const;
+  const first = repos[0].create<Draft>({ title: "", body: "" });
+  // The same document, with its history, under the same id.
+  const second = repos[1].import<Draft>(A.save(first.doc()), {
+    docId: first.documentId,
+  });
+  return {
+    repos,
+    replicas: [
+      { name: "Replica 1", handle: first },
+      { name: "Replica 2", handle: second },
+    ],
+  };
 }
 
-const syncIntervalMs = 250;
-
 export function Playground() {
-  const [replicas] = useState(makeReplicas);
+  const [{ repos, replicas }] = useState(makeReplicas);
   const [connected, setConnected] = useState(true);
 
+  // Connects the repos, which then sync on their own.
   useEffect(() => {
     if (!connected) return;
-    // Send each replica's changes since its last sync to the other one.
-    // Changes the receiver already has are ignored by Automerge.
-    const sync = () => {
-      for (const [index, from] of replicas.entries()) {
-        const to = replicas[1 - index];
-        if (to === undefined) continue;
-        const current = from.handle.doc();
-        const changes = A.getChanges(from.sent, current);
-        from.sent = current;
-        to.handle.applyChanges(changes);
-      }
+    const { port1, port2 } = new MessageChannel();
+    const adapters = [
+      new MessageChannelNetworkAdapter(port1),
+      new MessageChannelNetworkAdapter(port2),
+    ] as const;
+    repos[0].networkSubsystem.addNetworkAdapter(adapters[0]);
+    repos[1].networkSubsystem.addNetworkAdapter(adapters[1]);
+    return () => {
+      for (const adapter of adapters) adapter.disconnect();
     };
-    sync();
-    const timer = setInterval(sync, syncIntervalMs);
-    return () => clearInterval(timer);
-  }, [replicas, connected]);
+  }, [repos, connected]);
 
   return (
     <Shell>
@@ -78,7 +79,7 @@ function Replica({
   handle,
 }: {
   readonly name: string;
-  readonly handle: LocalDocHandle<Draft>;
+  readonly handle: DocHandle<Draft>;
 }) {
   const doc = useSyncExternalStore(
     (onChange) => {
