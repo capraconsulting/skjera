@@ -1,25 +1,30 @@
 import * as A from "@automerge/automerge/slim";
-import type { DocHandle } from "@automerge/automerge-repo/slim";
-import type { DocumentId, EventContent, Team } from "@skjera/documents/api";
 import {
-  Deferred,
-  Effect,
-  Fiber,
-  Queue,
-  Schedule,
-  Semaphore,
-  Stream,
-} from "effect";
+  type DocHandle,
+  decodeHeads,
+  type StorageId,
+} from "@automerge/automerge-repo/slim";
+import {
+  type DocumentId,
+  type EventContent,
+  isSyncRefused,
+  serverStorageId,
+  type TeamId,
+} from "@skjera/documents/api";
+import { eq } from "@tanstack/react-db";
+import { Effect, Fiber, Schedule } from "effect";
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { DraftPresence } from "../presence/presence.ts";
 import { documents, events, publishDraft } from "../sync/tables.ts";
-import { DocumentsClient, runtime } from "./client.ts";
-import { forgetLocal, openLocal } from "./repo.ts";
+import { forgetLocal, openDraft } from "./repo.ts";
 
 export interface SessionState {
   /** The local copy being edited, once it's open. */
   readonly handle: DocHandle<EventContent> | null;
+  /** Who else has it open. */
+  readonly presence: DraftPresence | null;
   /** The team the document belongs to, once it is open. */
-  readonly team: Team | null;
+  readonly teamId: TeamId | null;
   /** Local changes the server doesn't have yet. */
   readonly saving: boolean;
   readonly publishing: boolean;
@@ -32,7 +37,8 @@ export interface SessionState {
 class SessionStore {
   #state: SessionState = {
     handle: null,
-    team: null,
+    presence: null,
+    teamId: null,
     saving: false,
     publishing: false,
     error: null,
@@ -56,169 +62,94 @@ class SessionStore {
   };
 }
 
-/** Syncs at least this often, in case a notification was missed. */
-const syncEvery = "5 seconds";
-/** Waits this long after an edit, so a burst of keystrokes syncs at once. */
-const settle = "100 millis";
+/** How long publishing waits for the server to have every edit. */
+const saveTimeout = "10 seconds";
 
-const sameHeads = (a: ReadonlyArray<string>, b: ReadonlyArray<string>) =>
-  a.length === b.length && a.every((head) => b.includes(head));
+class DocumentNotFound {
+  readonly _tag = "DocumentNotFound";
+}
 
-const toLogin = () =>
-  Effect.sync(() => {
-    const returnTo = window.location.pathname + window.location.search;
-    window.location.assign(
-      `/auth/login?returnTo=${encodeURIComponent(returnTo)}`,
-    );
-  }).pipe(Effect.andThen(Effect.never));
+class NotSavedYet {
+  readonly _tag = "NotSavedYet";
+}
 
 /**
- * Edits happen on the local copy of the document (see repo.ts); this keeps
- * it in sync with the server until the document is deleted. Each sync round
- * pulls what the server has that the local copy doesn't and merges it in,
- * then pushes what the server doesn't have. Nothing is ever replaced: if the
- * server refuses changes, they stay in the local copy.
+ * Edits happen on the local copy of the document, which automerge-repo
+ * keeps in sync with the server (see repo.ts); this follows along for the
+ * editor: whether the server has every edit, whether it refused some, and
+ * publishing. It ends when the document is deleted.
  */
 const session = (id: DocumentId, store: SessionStore) =>
   Effect.gen(function* () {
-    const client = yield* DocumentsClient;
-    const services = yield* Effect.context<DocumentsClient>();
-    const opened = yield* client.OpenDocument({ id });
-    const handle = yield* Effect.promise(() =>
-      openLocal<EventContent>(id, opened.draft),
-    );
-
-    // The title and date in lists come from the synced document row, which
-    // the server updates with each merge: pull it once typing pauses.
-    let listTimer: ReturnType<typeof setTimeout> | undefined;
-    const refreshListSoon = () => {
-      clearTimeout(listTimer);
-      listTimer = setTimeout(() => void documents.refresh(), 1000);
-    };
-    yield* Effect.addFinalizer(() =>
-      Effect.sync(() => clearTimeout(listTimer)),
-    );
-
-    /** Heads the server has, all of them in the local copy too. */
-    let synced: ReadonlyArray<string> = opened.heads;
-    const showSaving = () =>
-      store.set({ saving: !sameHeads(A.getHeads(handle.doc()), synced) });
-
-    // Wakes the sync loop up early: after edits and news from the server.
-    const wake = yield* Queue.sliding<void>(1);
-    const nudge = () => void Queue.offerUnsafe(wake, undefined);
-    const onChange = () => {
-      showSaving();
-      nudge();
-    };
-    yield* Effect.acquireRelease(
-      Effect.sync(() => handle.on("change", onChange)),
-      () => Effect.sync(() => handle.off("change", onChange)),
-    );
-
-    const pull = client.ChangesSince({ id, heads: [...synced] }).pipe(
-      Effect.tap(({ changes, heads }) =>
-        Effect.sync(() => {
-          if (changes.length > 0) {
-            handle.update((doc) => A.loadIncremental(doc, changes));
-          }
-          if (A.hasHeads(handle.doc(), [...heads])) synced = heads;
-        }),
-      ),
-    );
-    const push = Effect.suspend(() => {
-      const doc = handle.doc();
-      const changes = A.getChangesSince(doc, [...synced]);
-      if (changes.length === 0) return Effect.void;
-      const heads = A.getHeads(doc);
-      return client.SendChanges({ id, changes }).pipe(
-        Effect.tap(() =>
-          Effect.sync(() => {
-            synced = heads;
-            refreshListSoon();
-          }),
-        ),
-      );
+    yield* Effect.promise(() => documents.collection.preload());
+    const row = documents.collection.get(id);
+    if (row === undefined) return yield* Effect.fail(new DocumentNotFound());
+    const handle = yield* Effect.tryPromise({
+      try: () => openDraft<EventContent>(id),
+      catch: () => new DocumentNotFound(),
     });
 
-    const done = yield* Deferred.make<void>();
-    // Rounds and publishing take turns, so each sees what the other did.
-    const syncing = yield* Semaphore.make(1);
-    let refused = false;
-    const round = Semaphore.withPermits(
-      syncing,
-      1,
-    )(pull.pipe(Effect.andThen(push))).pipe(
-      Effect.tap(() =>
-        Effect.sync(() => {
-          if (refused) store.set({ error: null });
-          refused = false;
-        }),
-      ),
-      Effect.catchTags({
-        Unauthorized: toLogin,
-        InvalidContent: (error) => refuse(error.message),
-        InvalidChanges: (error) => refuse(error.message),
-        ActorNotAllowed: () => refuse("Changes were refused"),
-        DocumentNotFound: () => Deferred.succeed(done, undefined),
-        // Offline: the changes are kept; the next round tries again.
-        RpcClientError: () => Effect.void,
-      }),
-      Effect.andThen(Effect.sync(showSaving)),
-    );
-    const refuse = (message: string) =>
+    /** Whether the server has every edit in the local copy. */
+    const saved = () => {
+      const known = handle.getSyncInfo(serverStorageId as StorageId);
+      if (known === undefined) return false;
+      const heads = decodeHeads(known.lastHeads);
+      const doc = handle.doc();
+      return (
+        A.hasHeads(doc, heads) && A.getChangesSince(doc, heads).length === 0
+      );
+    };
+
+    // The title and date in lists come from the synced document row, which
+    // the server updates as it saves: pull it once typing pauses.
+    let listTimer: ReturnType<typeof setTimeout> | undefined;
+    const showSaving = () => {
+      const isSaved = saved();
+      store.set({ saving: !isSaved });
+      if (isSaved) {
+        clearTimeout(listTimer);
+        listTimer = setTimeout(() => void documents.refresh(), 1000);
+      }
+    };
+    const onRefused = ({ message }: { readonly message: unknown }) => {
+      if (isSyncRefused(message)) {
+        store.set({ error: `Couldn't save your changes: ${message.message}` });
+      }
+    };
+    yield* Effect.acquireRelease(
       Effect.sync(() => {
-        refused = true;
-        store.set({ error: `Couldn't save your changes: ${message}` });
-      });
-
-    const syncLoop = round.pipe(
-      Effect.andThen(
-        Queue.take(wake).pipe(Effect.timeout(syncEvery), Effect.ignore),
-      ),
-      Effect.andThen(Effect.sleep(settle)),
-      Effect.forever,
+        handle.on("change", showSaving);
+        handle.on("remote-heads", showSaving);
+        handle.on("ephemeral-message", onRefused);
+      }),
+      () =>
+        Effect.sync(() => {
+          handle.off("change", showSaving);
+          handle.off("remote-heads", showSaving);
+          handle.off("ephemeral-message", onRefused);
+          clearTimeout(listTimer);
+        }),
     );
 
-    const watchLoop = client.WatchDocument({ id }).pipe(
-      // Handling an event can wait on another call over the same socket,
-      // which must not wait for this stream in turn: the client reads the
-      // socket into a small buffer per stream, and stops reading, replies
-      // included, while one is full. So always read the stream right away.
-      Stream.buffer({ capacity: "unbounded" }),
-      Stream.runForEach((event) =>
-        Effect.sync(() => {
-          switch (event._tag) {
-            case "DocumentDeleted":
-              Deferred.doneUnsafe(done, Effect.void);
-              return;
-            case "DraftChanged":
-              if (
-                event.heads === undefined ||
-                !A.hasHeads(handle.doc(), [...event.heads])
-              ) {
-                nudge();
-              }
-              return;
-            case "CatchUp":
-              nudge();
-              return;
-          }
-        }),
-      ),
-      Effect.catchTag("Unauthorized", toLogin),
-      // The stream ends or fails when the connection drops; watching again
-      // starts with a catch-up.
-      Effect.ignore,
-      Effect.andThen(Effect.sleep("1 second")),
-      Effect.forever,
+    /** The copy's version, once the server has all of it. */
+    const savedVersion = Effect.suspend(() =>
+      saved()
+        ? Effect.succeed(A.getHeads(handle.doc()))
+        : Effect.fail(new NotSavedYet()),
+    ).pipe(
+      Effect.retry({ schedule: Schedule.spaced("100 millis") }),
+      Effect.timeoutOrElse({
+        duration: saveTimeout,
+        orElse: () =>
+          Effect.fail(
+            new Error("Couldn't publish: your edits haven't been saved yet"),
+          ),
+      }),
     );
 
     // Publishes what this copy shows, once the server has all of it.
-    const publish = Semaphore.withPermits(
-      syncing,
-      1,
-    )(push.pipe(Effect.andThen(() => publishDraft(id, synced)))).pipe(
+    const publish = savedVersion.pipe(
+      Effect.flatMap((heads) => publishDraft(id, heads)),
       // The published version reaches the page as a row of `events`.
       Effect.tap(() =>
         Effect.promise(() => events.refresh()).pipe(
@@ -238,24 +169,39 @@ const session = (id: DocumentId, store: SessionStore) =>
       Effect.ensuring(Effect.sync(() => store.set({ publishing: false }))),
     );
 
+    const presence = yield* Effect.acquireRelease(
+      Effect.sync(() => new DraftPresence(handle as DocHandle<unknown>)),
+      (presence) => Effect.sync(() => presence.stop()),
+    );
+
     store.set({
       handle,
-      team: opened.team,
+      presence,
+      teamId: row.teamId,
       publishing: false,
       publish: () => {
         store.set({ publishing: true });
-        void Effect.runPromiseWith(services)(publish);
+        void Effect.runPromise(publish);
       },
     });
     showSaving();
 
-    yield* Effect.raceFirst(
-      Deferred.await(done),
-      Effect.all([syncLoop, watchLoop], {
-        concurrency: "unbounded",
-        discard: true,
-      }),
-    );
+    // Until its row goes: someone deleted it.
+    yield* Effect.callback<void>((resume) => {
+      // It only reports deleting rows it has reported, so start with it.
+      const subscription = documents.collection.subscribeChanges(
+        (changes) => {
+          if (changes.some((change) => change.type === "delete")) {
+            resume(Effect.void);
+          }
+        },
+        {
+          includeInitialState: true,
+          where: (document) => eq(document.id, id),
+        },
+      );
+      return Effect.sync(() => subscription.unsubscribe());
+    });
     forgetLocal(id);
   }).pipe(Effect.scoped);
 
@@ -266,13 +212,9 @@ const runSession = (id: DocumentId, store: SessionStore) =>
         store.set({ deleted: true, error: "This event was deleted" }),
       ),
     ),
-    Effect.catchTags({
-      Unauthorized: toLogin,
-      DocumentNotFound: () =>
-        Effect.sync(() => store.set({ error: "Document not found" })),
-    }),
-    // Couldn't reach the server to open the document: try again.
-    Effect.retry(Schedule.spaced("1 second")),
+    Effect.catchTag("DocumentNotFound", () =>
+      Effect.sync(() => store.set({ error: "Document not found" })),
+    ),
   );
 
 /**
@@ -282,9 +224,9 @@ const runSession = (id: DocumentId, store: SessionStore) =>
 export function useDocumentSession(id: DocumentId): SessionState {
   const [store] = useState(() => new SessionStore());
   useEffect(() => {
-    const fiber = runtime.runFork(runSession(id, store));
+    const fiber = Effect.runFork(runSession(id, store));
     return () => {
-      runtime.runFork(Fiber.interrupt(fiber));
+      Effect.runFork(Fiber.interrupt(fiber));
     };
   }, [id, store]);
   return useSyncExternalStore(store.subscribe, store.get);

@@ -26,13 +26,13 @@ export const signedIn = async (browser: Browser, email: string) => {
 };
 
 /**
- * Controls a page's connection to the API, which goes over one WebSocket.
+ * Controls a page's live connections to the server: its WebSockets.
  * Set it up before the page opens the socket, e.g. before navigating.
  */
 export const connection = async (page: Page) => {
   let online = true;
   const open = new Set<WebSocketRoute>();
-  await page.routeWebSocket(/\/rpc$/, (ws) => {
+  await page.routeWebSocket(/\/automerge$/, (ws) => {
     if (!online) {
       ws.close();
       return;

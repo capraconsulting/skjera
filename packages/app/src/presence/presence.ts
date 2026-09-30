@@ -1,28 +1,22 @@
+import { type DocHandle, Presence } from "@automerge/automerge-repo/slim";
 import type {
-  PresenceLocation,
-  PresenceMessage,
+  DraftPresenceState,
   PresenceSelection,
   PresenceUser,
 } from "@skjera/documents/api";
-import { Effect, Fiber, Schedule, Stream } from "effect";
 import { useSyncExternalStore } from "react";
-import { DocumentsClient, runtime } from "../documents/client.ts";
 
-/** Someone else's studio tab, as last heard from. */
+/** Someone else's editor on the same draft, as last heard from. */
 export interface PresenceEntry {
-  /** Unique per user and tab. */
+  /** Unique per editor, i.e. per tab. */
   readonly key: string;
   /** Unique per user; the same across their tabs. */
   readonly userKey: string;
   readonly user: PresenceUser;
   readonly color: string;
-  readonly location: PresenceLocation | null;
   readonly selection: PresenceSelection | null;
-  readonly lastSeen: number;
 }
 
-const heartbeatEvery = "10 seconds";
-const expireAfterMs = 30_000;
 const selectionThrottleMs = 100;
 
 // Readable with white text, in both themes.
@@ -44,26 +38,28 @@ const colorFor = (userKey: string) => {
 };
 
 /**
- * This tab's view of who else is in the studio, and where. Built only from
- * the messages every tab sends; entries expire when their heartbeats stop.
+ * Who else has a draft open, and their selections, with automerge-repo
+ * presence: ephemeral messages on the draft's handle, relayed by the server,
+ * which also sets who sent them. Peers that stop being heard from go.
  */
-class PresenceStore {
-  /** New for each run, so a stopped run's goodbye can't remove a newer one. */
-  clientId = "";
-  #entries = new Map<string, PresenceEntry>();
-  /**
-   * The newest update from each tab, kept a while after it leaves too, so
-   * updates relayed after its goodbye can't bring it back.
-   */
-  readonly #newest = new Map<string, { seq: number; at: number }>();
+export class DraftPresence {
+  readonly #presence: Presence<DraftPresenceState>;
   #snapshot: ReadonlyArray<PresenceEntry> = [];
   readonly #listeners = new Set<() => void>();
-
-  location: PresenceLocation | null = null;
-  selection: PresenceSelection | null = null;
-  /** Sends this tab's state; set while presence is running. */
-  send: (kind: "hello" | "update" | "leave") => void = () => {};
   #selectionTimer: ReturnType<typeof setTimeout> | undefined;
+  #pendingSelection: PresenceSelection | null = null;
+
+  constructor(handle: DocHandle<unknown>) {
+    this.#presence = new Presence<DraftPresenceState>({ handle });
+    for (const event of ["snapshot", "update", "goodbye", "pruning"] as const) {
+      this.#presence.on(event, this.#changed);
+    }
+    this.#presence.start({
+      initialState: { user: null, selection: null },
+      heartbeatMs: 10_000,
+      peerTtlMs: 30_000,
+    });
+  }
 
   get = () => this.#snapshot;
 
@@ -72,179 +68,51 @@ class PresenceStore {
     return () => this.#listeners.delete(listener);
   };
 
-  setLocation(location: PresenceLocation | null) {
-    const same =
-      location?.teamId === this.location?.teamId &&
-      location?.documentId === this.location?.documentId;
-    if (same) return;
-    this.location = location;
-    this.selection = null;
-    this.send("update");
+  /** This editor's own selection, as last set. */
+  get selection() {
+    return this.#pendingSelection;
   }
 
   /** Throttled: selections change with every keystroke. */
   setSelection(selection: PresenceSelection | null) {
-    this.selection = selection;
+    this.#pendingSelection = selection;
     if (this.#selectionTimer !== undefined) return;
     this.#selectionTimer = setTimeout(() => {
       this.#selectionTimer = undefined;
-      this.send("update");
+      this.#presence.broadcast("selection", this.#pendingSelection);
     }, selectionThrottleMs);
   }
 
-  receive(message: PresenceMessage) {
-    if (message.clientId === this.clientId) return;
-    const userKey = `${message.user.issuer}|${message.user.subject}`;
-    // Keyed by the sender's identity too, so nobody can overwrite others.
-    const key = `${userKey}|${message.clientId}`;
-    const newest = this.#newest.get(key);
-    if (newest !== undefined && message.seq <= newest.seq) return;
-    this.#newest.set(key, { seq: message.seq, at: Date.now() });
-    if (message.kind === "leave") {
-      this.#entries.delete(key);
-    } else {
-      this.#entries.set(key, {
-        key,
-        userKey,
-        user: message.user,
-        color: colorFor(userKey),
-        location: message.location,
-        selection: message.selection,
-        lastSeen: Date.now(),
+  /** Says goodbye to the others. */
+  stop() {
+    clearTimeout(this.#selectionTimer);
+    this.#presence.stop();
+    this.#presence.removeAllListeners();
+  }
+
+  #changed = () => {
+    this.#snapshot = Object.values(this.#presence.getPeerStates().value)
+      .filter((peer) => peer.value.user != null)
+      .map((peer) => {
+        const user = peer.value.user as PresenceUser;
+        const userKey = `${user.issuer}|${user.subject}`;
+        return {
+          key: peer.peerId,
+          userKey,
+          user,
+          color: colorFor(userKey),
+          selection: peer.value.selection ?? null,
+        };
       });
-    }
-    this.#changed();
-  }
-
-  expire() {
-    const cutoff = Date.now() - expireAfterMs;
-    let changed = false;
-    for (const [key, newest] of this.#newest) {
-      if (newest.at < cutoff - expireAfterMs) this.#newest.delete(key);
-    }
-    for (const [key, entry] of this.#entries) {
-      if (entry.lastSeen < cutoff) {
-        this.#entries.delete(key);
-        changed = true;
-      }
-    }
-    if (changed) this.#changed();
-  }
-
-  clear() {
-    this.#entries.clear();
-    this.#changed();
-  }
-
-  #changed() {
-    this.#snapshot = [...this.#entries.values()];
     for (const listener of this.#listeners) listener();
-  }
+  };
 }
 
-export const presence = new PresenceStore();
+const nobody: ReadonlyArray<PresenceEntry> = [];
 
-const program = Effect.gen(function* () {
-  const client = yield* DocumentsClient;
-  const clientId = crypto.randomUUID();
-  presence.clientId = clientId;
-  let seq = 0;
-  // Suspended, so each sends the state as it is then. Presence is best
-  // effort: the next heartbeat makes up for a lost update, so give up on
-  // one that takes long rather than hold up the heartbeat.
-  const publish = (kind: "hello" | "update" | "leave") =>
-    Effect.suspend(() =>
-      client.PublishPresence({
-        update: {
-          clientId,
-          seq: seq++,
-          kind,
-          location: presence.location,
-          selection: presence.selection,
-        },
-      }),
-    ).pipe(Effect.timeout("5 seconds"), Effect.ignore);
-  const services = yield* Effect.context<DocumentsClient>();
-  const send = (kind: "hello" | "update" | "leave") => {
-    void Effect.runPromiseWith(services)(publish(kind));
-  };
-  presence.send = send;
-
-  // Answer a newcomer after a short random wait, so not everyone at once.
-  let replying = false;
-  const reply = Effect.suspend(() => {
-    if (replying) return Effect.void;
-    replying = true;
-    return Effect.sleep(`${Math.round(Math.random() * 300)} millis`).pipe(
-      Effect.ensuring(Effect.sync(() => (replying = false))),
-      Effect.andThen(publish("update")),
-    );
-  });
-
-  const watch = client.WatchPresence().pipe(
-    // Replying waits on another call over the same socket; read the stream
-    // right away so that can't block the socket (see the document session).
-    Stream.buffer({ capacity: "unbounded" }),
-    Stream.runForEach((message) => {
-      if (message._tag === "PresenceResync") return reply;
-      presence.receive(message);
-      return message.kind === "hello" && message.clientId !== presence.clientId
-        ? reply
-        : Effect.void;
-    }),
-    Effect.ignore,
+/** Everyone else with the draft open, one entry per tab. */
+export const useDraftPresence = (presence: DraftPresence | null) =>
+  useSyncExternalStore(
+    (listener) => presence?.subscribe(listener) ?? (() => {}),
+    () => presence?.get() ?? nobody,
   );
-
-  // (Re)connecting: watch, then ask everyone to announce themselves.
-  const session = Effect.all(
-    [watch, Effect.sleep("200 millis").pipe(Effect.andThen(publish("hello")))],
-    { concurrency: "unbounded", discard: true },
-  ).pipe(Effect.andThen(Effect.sleep("1 second")), Effect.forever);
-
-  const heartbeat = publish("update").pipe(
-    Effect.repeat(Schedule.spaced(heartbeatEvery)),
-  );
-  const expiry = Effect.sync(() => presence.expire()).pipe(
-    Effect.repeat(Schedule.spaced("5 seconds")),
-  );
-
-  yield* Effect.all([session, heartbeat, expiry], {
-    concurrency: "unbounded",
-    discard: true,
-  }).pipe(
-    Effect.onInterrupt(() =>
-      publish("leave").pipe(
-        Effect.andThen(
-          Effect.sync(() => {
-            // Unless a newer run has taken over (React remounting the studio).
-            if (presence.send !== send) return;
-            presence.send = () => {};
-            presence.clear();
-          }),
-        ),
-      ),
-    ),
-  );
-});
-
-/** Runs presence while the studio is open; returns how to stop it. */
-export const startPresence = () => {
-  const fiber = runtime.runFork(program);
-  const leave = () => presence.send("leave");
-  // Background tabs may be throttled or frozen, and miss updates or drop
-  // out for others; coming back, ask everyone to announce themselves.
-  const back = () => {
-    if (document.visibilityState === "visible") presence.send("hello");
-  };
-  window.addEventListener("pagehide", leave);
-  document.addEventListener("visibilitychange", back);
-  return () => {
-    window.removeEventListener("pagehide", leave);
-    document.removeEventListener("visibilitychange", back);
-    runtime.runFork(Fiber.interrupt(fiber));
-  };
-};
-
-/** Everyone else in the studio, one entry per tab. */
-export const usePresence = () =>
-  useSyncExternalStore(presence.subscribe, presence.get);

@@ -72,8 +72,7 @@ export const listenTo = <A>(
 
     return {
       // Not Stream.fromSubscription: interrupting that fails with an internal
-      // "done" signal as well, which RPC streams can't encode and send to the
-      // client as a defect.
+      // "done" signal as well as the interruption.
       subscribe: Effect.map(PubSub.subscribe(pubsub), (subscription) =>
         Stream.fromEffectRepeat(PubSub.take(subscription)),
       ),

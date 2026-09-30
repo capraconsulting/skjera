@@ -757,42 +757,6 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
     }),
   );
 
-  it.effect("relays presence with the sender stamped on", () =>
-    Effect.gen(function* () {
-      const presence = yield* Presence;
-      const stream = yield* presence.subscribe;
-      const received = yield* stream.pipe(
-        Stream.filter((message) => message._tag === "PresenceMessage"),
-        Stream.take(1),
-        Stream.runCollect,
-        Effect.forkChild,
-      );
-      const team = yield* newTeam;
-      yield* presence.publish(
-        {
-          clientId: "tab-1",
-          seq: 0,
-          kind: "update",
-          location: { teamId: team, documentId: null },
-          selection: null,
-        },
-        alice,
-      );
-      const [message] = yield* Fiber.join(received);
-      assert.strictEqual(message?._tag, "PresenceMessage");
-      if (message?._tag === "PresenceMessage") {
-        assert.strictEqual(message.clientId, "tab-1");
-        assert.strictEqual(message.user.subject, "alice");
-        assert.deepStrictEqual(message.location, {
-          teamId: team,
-          documentId: null,
-        });
-      }
-    }).pipe(Effect.scoped, Effect.timeout("5 seconds")),
-  );
-
-  // The RPC server sends anything else in the cause to the client as a
-  // defect, since it can't encode it.
   it.effect("ends subscriptions with just an interrupt", () =>
     Effect.gen(function* () {
       const events = yield* DocumentEvents;

@@ -6,8 +6,9 @@ import { DocumentNotFound, PublishRejected, TeamNotFound } from "./errors.ts";
 import { DocumentId, Heads, Publication, TeamId } from "./Model.ts";
 
 /**
- * Creating and deleting documents, for signed-in users. Documents are
- * synced; their content is edited over the documents WebSocket.
+ * Creating, publishing and deleting documents, for signed-in users.
+ * Documents are synced as rows; their drafts sync over automerge-repo's
+ * WebSocket (see DraftSync.ts).
  */
 export class DocumentsApi extends HttpApiGroup.make("documents")
   .add(

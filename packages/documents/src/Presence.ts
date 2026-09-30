@@ -1,5 +1,4 @@
 import { PgClient } from "@effect/sql-pg";
-import type { Identity } from "@skjera/oauth/api";
 import {
   Context,
   Effect,
@@ -9,29 +8,40 @@ import {
   type Stream,
 } from "effect";
 import { listenTo } from "./internal/channel.ts";
-import {
-  PresenceMessage,
-  PresenceResync,
-  type PresenceUpdate,
-  PresenceUser,
-} from "./Model.ts";
 
-const channel = "studio_presence";
+const channel = "draft_ephemeral";
 
 /**
- * Presence in the studio, relayed between all backends through Postgres
- * NOTIFY. Nothing is kept: each studio tab builds its own picture from the
- * messages, and the server only adds who sent them.
+ * An automerge-repo ephemeral message about a draft, e.g. an editor's
+ * presence, on its way to the other connections that have the draft open.
+ */
+export class Relayed extends Schema.TaggedClass<Relayed>()("Relayed", {
+  /** automerge-repo's id for the draft. */
+  documentId: Schema.String,
+  senderId: Schema.String,
+  sessionId: Schema.String,
+  count: Schema.Int,
+  /** The message's CBOR bytes, in base64. */
+  data: Schema.String,
+}) {}
+
+/** Messages may have been missed; they are only ever short-lived anyway. */
+export class RelayReconnected extends Schema.TaggedClass<RelayReconnected>()(
+  "RelayReconnected",
+  {},
+) {}
+
+/**
+ * Relays ephemeral messages between backends through Postgres NOTIFY, so
+ * editors of a draft reach each other whichever backend they're on. Nothing
+ * is kept.
  */
 export class Presence extends Context.Service<
   Presence,
   {
-    readonly publish: (
-      update: PresenceUpdate,
-      sender: Identity,
-    ) => Effect.Effect<void>;
+    readonly publish: (message: Relayed) => Effect.Effect<void>;
     readonly subscribe: Effect.Effect<
-      Stream.Stream<PresenceMessage | PresenceResync>,
+      Stream.Stream<Relayed | RelayReconnected>,
       never,
       Scope.Scope
     >;
@@ -41,27 +51,17 @@ export class Presence extends Context.Service<
     Presence,
     Effect.gen(function* () {
       const pg = yield* PgClient.PgClient;
-      const encode = Schema.encodeEffect(PresenceMessage);
-      const events = yield* listenTo<PresenceMessage | PresenceResync>(
+      const encode = Schema.encodeEffect(Relayed);
+      const events = yield* listenTo<Relayed | RelayReconnected>(
         channel,
-        Schema.decodeUnknownEffect(PresenceMessage),
-        new PresenceResync({}),
+        Schema.decodeUnknownEffect(Relayed),
+        new RelayReconnected({}),
       );
 
       const publish = Effect.fn("Presence.publish")(function* (
-        update: PresenceUpdate,
-        sender: Identity,
+        message: Relayed,
       ) {
-        const message = new PresenceMessage({
-          ...update,
-          user: new PresenceUser({
-            issuer: sender.issuer,
-            subject: sender.subject,
-            name: sender.name ?? sender.email ?? sender.subject,
-          }),
-        });
-        const payload = JSON.stringify(yield* encode(message));
-        yield* pg.notify(channel, payload);
+        yield* pg.notify(channel, JSON.stringify(yield* encode(message)));
       }, Effect.orDie);
 
       return Presence.of({ publish, subscribe: events.subscribe });

@@ -165,7 +165,7 @@ export const AuthRoutes = HttpRouter.use(
 
 /**
  * Resolves the session cookie to the signed-in user, for anything that needs
- * to authenticate requests outside `HttpApi` (e.g. WebSocket RPC).
+ * to authenticate requests outside `HttpApi` (e.g. WebSocket upgrades).
  */
 export class Authenticator extends Context.Service<
   Authenticator,

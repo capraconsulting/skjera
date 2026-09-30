@@ -11,11 +11,9 @@ import {
   useNavigate,
   useRouteError,
 } from "react-router";
-import { Avatars } from "../../components/Avatars.tsx";
 import { Badge } from "../../components/Badge.tsx";
 import { Button } from "../../components/Button.tsx";
 import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
-import { type PresenceEntry, usePresence } from "../../presence/presence.ts";
 import { documents, events, teams } from "../../sync/tables.ts";
 import { formatDate, fromIsoDate } from "../../time.ts";
 import styles from "./Team.module.css";
@@ -61,7 +59,6 @@ type TeamEvent = ReturnType<typeof useTeamEvents>[number];
 /** The second column: the selected team's events. */
 export function Team() {
   const { teamId } = useLoaderData<typeof teamLoader>();
-  const others = usePresence();
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
 
@@ -105,13 +102,7 @@ export function Team() {
           <ul className={styles.list}>
             {rows.map((event) => (
               <li key={event.id}>
-                <EventItem
-                  teamId={teamId}
-                  event={event}
-                  here={others.filter(
-                    (entry) => entry.location?.documentId === event.id,
-                  )}
-                />
+                <EventItem teamId={teamId} event={event} />
               </li>
             ))}
           </ul>
@@ -125,7 +116,6 @@ export function Team() {
 function EventItem(props: {
   readonly teamId: TeamId;
   readonly event: TeamEvent;
-  readonly here: ReadonlyArray<PresenceEntry>;
 }) {
   const { teamId, event } = props;
   const { id } = event;
@@ -143,7 +133,6 @@ function EventItem(props: {
         ) : (
           <span className={styles.title}>{title}</span>
         )}
-        <Avatars small entries={props.here} />
       </span>
       <span className={styles.meta}>
         {event.date === null ? "No date" : formatDate(fromIsoDate(event.date))}

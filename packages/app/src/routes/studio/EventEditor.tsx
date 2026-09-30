@@ -9,7 +9,7 @@ import { useDocumentSession } from "../../documents/session.ts";
 import { CheckboxField, useBooleanField } from "../../editor/CheckboxField.tsx";
 import { DateField } from "../../editor/DateField.tsx";
 import { TextEditor } from "../../editor/TextEditor.tsx";
-import { usePresence } from "../../presence/presence.ts";
+import { useDraftPresence } from "../../presence/presence.ts";
 import { documents } from "../../sync/tables.ts";
 import { Attendees } from "./Attendees.tsx";
 import { EditorFooter } from "./EditorFooter.tsx";
@@ -28,17 +28,16 @@ function EventSession({ id }: { readonly id: DocumentId }) {
   const session = useDocumentSession(id);
   const { teamId } = useParams();
   const navigate = useNavigate();
-  const { handle, team } = session;
-  const here = usePresence().filter(
-    (entry) => entry.location?.documentId === id,
-  );
+  const { handle } = session;
+  const owner = session.teamId;
+  const here = useDraftPresence(session.presence);
 
   // A link with the wrong team: go to where the event actually is.
   useEffect(() => {
-    if (team !== null && team.id !== teamId) {
-      navigate(`/studio/teams/${team.id}/events/${id}`, { replace: true });
+    if (owner !== null && owner !== teamId) {
+      navigate(`/studio/teams/${owner}/events/${id}`, { replace: true });
     }
-  }, [team, teamId, id, navigate]);
+  }, [owner, teamId, id, navigate]);
 
   if (session.deleted) {
     return (
@@ -88,7 +87,7 @@ function EventSession({ id }: { readonly id: DocumentId }) {
             path={titlePath}
             label="Title"
             large
-            presence={{ documentId: id }}
+            presence={session.presence}
           />
         </Field>
         <Field label="Date">
@@ -115,7 +114,7 @@ function EventSession({ id }: { readonly id: DocumentId }) {
             path={bodyPath}
             label="Body"
             multiline
-            presence={{ documentId: id }}
+            presence={session.presence}
           />
         </Field>
         <Attendees id={id} />

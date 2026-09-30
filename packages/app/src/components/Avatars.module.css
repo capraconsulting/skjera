@@ -30,10 +30,6 @@
   color: var(--color-text-muted);
 }
 
-.small {
-  --avatar-size: 1.25rem;
-}
-
 .avatar:hover {
   z-index: 1;
 }
@@ -58,15 +54,9 @@
   transition: opacity 0.1s;
 }
 
-.large .tooltip {
+.avatar .tooltip {
   top: calc(100% + 0.375rem);
   right: 0;
-}
-
-.small .tooltip {
-  top: 50%;
-  right: calc(100% + 0.375rem);
-  transform: translateY(-50%);
 }
 
 .avatar:hover .tooltip {

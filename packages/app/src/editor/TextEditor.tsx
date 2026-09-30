@@ -1,11 +1,11 @@
 import type * as A from "@automerge/automerge/slim";
 import { type DocHandle, init } from "@automerge/prosemirror";
-import type { DocumentId } from "@skjera/documents/api";
 import { baseKeymap } from "prosemirror-commands";
 import { keymap } from "prosemirror-keymap";
 import { EditorState } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { useEffect, useRef } from "react";
+import type { DraftPresence } from "../presence/presence.ts";
 import { presencePlugin } from "./presencePlugin.ts";
 import { multiLineAdapter, singleLineAdapter } from "./schemas.ts";
 import styles from "./TextEditor.module.css";
@@ -19,7 +19,7 @@ export interface TextEditorProps {
   readonly large?: boolean;
   readonly label: string;
   /** Share selections with, and show, others in this document. */
-  readonly presence?: { readonly documentId: DocumentId };
+  readonly presence?: DraftPresence | null;
 }
 
 /**
@@ -35,7 +35,6 @@ export function TextEditor({
   label,
   presence,
 }: TextEditorProps) {
-  const documentId = presence?.documentId;
   const mount = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -52,13 +51,13 @@ export function TextEditor({
           keymap(multiline ? {} : { Enter: () => true }),
           keymap(baseKeymap),
           plugin,
-          ...(documentId === undefined
+          ...(presence == null
             ? []
             : [
                 presencePlugin({
                   handle,
                   path,
-                  documentId,
+                  presence,
                   caretClass: styles.caret ?? "",
                 }),
               ]),
@@ -83,7 +82,7 @@ export function TextEditor({
       },
     });
     return () => view.destroy();
-  }, [handle, path, multiline, label, documentId]);
+  }, [handle, path, multiline, label, presence]);
 
   return (
     <div

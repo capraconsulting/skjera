@@ -1,4 +1,5 @@
-// The Skjera backend: login, the session API and the documents WebSocket.
+// The Skjera backend: login, the HTTP API, table sync, and the WebSocket
+// drafts sync over.
 // Stateless: sessions and documents live in Postgres, so any number of
 // instances can run side by side.
 import { createServer } from "node:http";
@@ -188,7 +189,7 @@ const Routes = Layer.mergeAll(
       DocumentsHandlers,
     ]),
   ),
-  Documents.RpcServer.layerHttp({ path: "/rpc" }),
+  Documents.DraftSync.layerHttp({ path: Documents.draftSyncPath }),
   HttpRouter.add("GET", "/health", HttpServerResponse.text("ok")),
 ).pipe(Layer.provideMerge(OAuth.routes));
 

@@ -1,25 +1,24 @@
 import * as A from "@automerge/automerge/slim";
 import type { DocHandle } from "@automerge/prosemirror";
-import type { DocumentId } from "@skjera/documents/api";
 import { Plugin, PluginKey } from "prosemirror-state";
 import { Decoration, DecorationSet, type EditorView } from "prosemirror-view";
-import { type PresenceEntry, presence } from "../presence/presence.ts";
+import type { DraftPresence, PresenceEntry } from "../presence/presence.ts";
 
 // The fields are one paragraph of plain text, so a ProseMirror position is
 // the Automerge text index plus one (for the paragraph's opening).
 
 /**
- * Shares this editor's selection with the rest of the studio, and shows
- * everyone else's in it, as Automerge cursors that stay on the same
- * characters while the text changes.
+ * Shares this editor's selection with the others on the draft, and shows
+ * theirs in it, as Automerge cursors that stay on the same characters while
+ * the text changes.
  */
 export const presencePlugin = (options: {
   readonly handle: DocHandle<unknown>;
   readonly path: ReadonlyArray<A.Prop>;
-  readonly documentId: DocumentId;
+  readonly presence: DraftPresence;
   readonly caretClass: string;
 }) => {
-  const { handle, documentId, caretClass } = options;
+  const { handle, presence, caretClass } = options;
   const path = [...options.path];
   const field = String(path[0]);
   const key = new PluginKey(`presence-${field}`);
@@ -64,7 +63,7 @@ export const presencePlugin = (options: {
     element.className = caretClass;
     element.style.setProperty("--presence-color", entry.color);
     // Shown by CSS, so the name isn't part of the editor's text.
-    element.dataset["name"] = entry.user.name;
+    element.dataset.name = entry.user.name;
     return element;
   };
 
@@ -115,12 +114,7 @@ export const presencePlugin = (options: {
         const decorations: Array<Decoration> = [];
         for (const entry of presence.get()) {
           const selection = entry.selection;
-          if (
-            entry.location?.documentId !== documentId ||
-            selection?.field !== field
-          ) {
-            continue;
-          }
+          if (selection?.field !== field) continue;
           const head = toPosition(selection.head);
           if (head === null) continue;
           const anchor = toPosition(selection.anchor) ?? head;

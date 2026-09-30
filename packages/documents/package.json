@@ -15,6 +15,8 @@
     "@automerge/automerge": "catalog:",
     "@effect/sql-pg": "catalog:",
     "@skjera/oauth": "workspace:*",
+    "bs58check": "catalog:",
+    "cbor-x": "catalog:",
     "effect": "catalog:"
   },
   "devDependencies": {

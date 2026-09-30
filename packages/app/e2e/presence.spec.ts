@@ -15,7 +15,7 @@ import {
 const avatarsIn = (page: Page, column: string) =>
   page.getByRole("region", { name: column }).getByTestId("avatar");
 
-test("the studio shows who is where, with their cursors", async ({
+test("an event shows who else has it open, with their cursors", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -28,13 +28,8 @@ test("the studio shows who is where, with their cursors", async ({
   await bob.goto(eventPath(team, id));
   await expect(title(bob)).toHaveText("Hello there");
 
-  // Alice sees Bob in the event, on it in the list, and in the team.
+  // Alice sees Bob in the event, and Bob sees Alice.
   await expect(avatarsIn(alice, "Editor")).toHaveAccessibleName("bob");
-  await expect(avatarsIn(alice, "Events")).toHaveAccessibleName("bob");
-  await expect(
-    teamLink(alice, teamName).getByTestId("avatar"),
-  ).toHaveAccessibleName("bob");
-  // And Bob sees Alice.
   await expect(avatarsIn(bob, "Editor")).toHaveAccessibleName("alice");
 
   // Hovering an avatar shows the name.
@@ -66,13 +61,10 @@ test("the studio shows who is where, with their cursors", async ({
   await bob.getByRole("checkbox", { name: /Public event/ }).focus();
   await expect(bobsCaret).toHaveCount(0);
 
-  // When Bob moves on, he leaves the event but stays in the team.
+  // When Bob moves on, he's gone from the event.
   await teamLink(bob, teamName).click();
   await expect(avatarsIn(alice, "Editor")).toHaveCount(0);
   await expect(title(alice).locator('[data-name="bob"]')).toHaveCount(0);
-  await expect(
-    teamLink(alice, teamName).getByTestId("avatar"),
-  ).toHaveAccessibleName("bob");
 
   await deleteEvent(alice, id);
   await deleteTeam(alice, team);

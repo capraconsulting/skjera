@@ -173,6 +173,9 @@ catalogs:
     '@automerge/automerge-repo-network-messagechannel':
       specifier: 2.5.6
       version: 2.5.6
+    '@automerge/automerge-repo-network-websocket':
+      specifier: 2.5.6
+      version: 2.5.6
     '@automerge/automerge-repo-storage-indexeddb':
       specifier: 2.5.6
       version: 2.5.6
@@ -197,6 +200,12 @@ catalogs:
     '@types/node':
       specifier: ^24.19.0
       version: 24.19.0
+    bs58check:
+      specifier: 3.0.1
+      version: 3.0.1
+    cbor-x:
+      specifier: 1.6.6
+      version: 1.6.6
     effect:
       specifier: 4.0.0-rc.118
       version: 4.0.0-rc.118
@@ -236,6 +245,9 @@ importers:
         specifier: 'catalog:'
         version: 2.5.6
       '@automerge/automerge-repo-network-messagechannel':
+        specifier: 'catalog:'
+        version: 2.5.6
+      '@automerge/automerge-repo-network-websocket':
         specifier: 'catalog:'
         version: 2.5.6
       '@automerge/automerge-repo-storage-indexeddb':
@@ -317,6 +329,12 @@ importers:
       '@skjera/oauth':
         specifier: workspace:*
         version: link:../oauth
+      bs58check:
+        specifier: 'catalog:'
+        version: 3.0.1
+      cbor-x:
+        specifier: 'catalog:'
+        version: 1.6.6
       effect:
         specifier: 'catalog:'
         version: 4.0.0-rc.118
@@ -388,6 +406,9 @@ packages:
 
   '@automerge/automerge-repo-network-messagechannel@2.5.6':
     resolution: {integrity: sha512-0xd8UMD3hMS3XnC5Rl40pAGqpkaW06Ox/GgEabKGkJM2d8bcVe2w1eklzOr7zJUIhDGrzPwFdCDNq1iNUHo5VA==}
+
+  '@automerge/automerge-repo-network-websocket@2.5.6':
+    resolution: {integrity: sha512-xs/xzOCTf5ZuqhDUtBO1VQ3QOnunEobjtgEqGNu7UcoD2uYWET1ANHVfS+ZzSV8IOA1O9jFAPXxzc4FXoSL0hQ==}
 
   '@automerge/automerge-repo-storage-indexeddb@2.5.6':
     resolution: {integrity: sha512-3349orECq2Mj3mo9q6f9ZeXwDkP3lAm6KaivP5+znUpv6Ze+IraE36DdL5GVdzIm+cXej0yWSOCQOalnTMPcQg==}
@@ -1002,6 +1023,11 @@ packages:
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
 
+  isomorphic-ws@5.0.0:
+    resolution: {integrity: sha512-muId7Zzn9ywDsyXgTIafTry2sV3nySZeUDe6YedVd1Hvuuep5AsIlqK+XefWpYTyJG5e503F2xIuT2lcU6rCSw==}
+    peerDependencies:
+      ws: '*'
+
   lightningcss-android-arm64@1.33.0:
     resolution: {integrity: sha512-gEpRTalKdosp4Bb8qWtc2iOgE5SeIHlpS1up9bFq2wAyYhl1UdTObYiHe98zEM9SQvSoqQZ1IQD0JNpg3Ml5pg==}
     engines: {node: '>= 12.0.0'}
@@ -1368,6 +1394,19 @@ snapshots:
       eventemitter3: 5.0.4
     transitivePeerDependencies:
       - supports-color
+
+  '@automerge/automerge-repo-network-websocket@2.5.6':
+    dependencies:
+      '@automerge/automerge-repo': 2.5.6
+      cbor-x: 1.6.6
+      debug: 4.4.3
+      eventemitter3: 5.0.4
+      isomorphic-ws: 5.0.0(ws@8.22.0)
+      ws: 8.22.0
+    transitivePeerDependencies:
+      - bufferutil
+      - supports-color
+      - utf-8-validate
 
   '@automerge/automerge-repo-storage-indexeddb@2.5.6':
     dependencies:
@@ -1792,6 +1831,10 @@ snapshots:
 
   fsevents@2.3.3:
     optional: true
+
+  isomorphic-ws@5.0.0(ws@8.22.0):
+    dependencies:
+      ws: 8.22.0
 
   lightningcss-android-arm64@1.33.0:
     optional: true

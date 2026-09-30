@@ -13,19 +13,12 @@ export * as Database from "./Database.ts";
 export * from "./DocumentEvents.ts";
 export * from "./Documents.ts";
 export * from "./DocumentsApi.ts";
+export * as DraftSync from "./DraftSync.ts";
+export * from "./DraftSyncProtocol.ts";
 export * from "./errors.ts";
 export * from "./Model.ts";
 export * from "./Presence.ts";
 export * from "./PublicApi.ts";
-export {
-  CatchUp,
-  DocumentDeleted,
-  DocumentsAuth,
-  DocumentsRpc,
-  DraftChanged,
-  OpenedDocument,
-} from "./Rpc.ts";
-export * as RpcServer from "./RpcServer.ts";
 export * from "./Sync.ts";
 export * from "./SyncApi.ts";
 export * from "./Teams.ts";

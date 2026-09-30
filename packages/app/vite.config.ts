@@ -16,7 +16,7 @@ const backend = {
   proxy: {
     "/auth": "http://localhost:3000",
     "/api": "http://localhost:3000",
-    "/rpc": { target: "ws://localhost:3000", ws: true },
+    "/automerge": { target: "ws://localhost:3000", ws: true },
   },
 };
 

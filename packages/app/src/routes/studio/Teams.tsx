@@ -2,7 +2,6 @@ import type { TeamId } from "@skjera/documents/api";
 import { count, eq, lower, useLiveQuery } from "@tanstack/react-db";
 import { type FormEvent, useState } from "react";
 import { NavLink, Outlet, useNavigate, useParams } from "react-router";
-import { Avatars } from "../../components/Avatars.tsx";
 import { Button } from "../../components/Button.tsx";
 import { Dialog, dialogStyles } from "../../components/Dialog.tsx";
 import {
@@ -12,7 +11,6 @@ import {
 } from "../../components/Dropdown.tsx";
 import { Input } from "../../components/Input.tsx";
 import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
-import { usePresence } from "../../presence/presence.ts";
 import { documents, teams } from "../../sync/tables.ts";
 import styles from "./Teams.module.css";
 
@@ -112,7 +110,6 @@ function TeamRow(props: {
   const { team, onFailure } = props;
   const { teamId } = useParams();
   const navigate = useNavigate();
-  const others = usePresence();
 
   const deleteTeam = () => {
     const deleted = teams.collection.delete(team.id);
@@ -131,10 +128,6 @@ function TeamRow(props: {
         }
       >
         <span className={styles.name}>{team.name}</span>
-        <Avatars
-          small
-          entries={others.filter((entry) => entry.location?.teamId === team.id)}
-        />
       </NavLink>
       <span className={styles.menu}>
         <Dropdown label={`Options for ${team.name}`}>

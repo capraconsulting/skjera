@@ -9,13 +9,11 @@ const initials = (name: string) => {
 
 /**
  * Who is here: one avatar per person, however many tabs they have open.
- * Hovering one shows the name: below it, or to its left when `small`, since
- * small ones sit at the end of list rows.
+ * Hovering one shows the name below it.
  */
 export function Avatars(props: {
   readonly entries: ReadonlyArray<PresenceEntry>;
   readonly max?: number;
-  readonly small?: boolean;
 }) {
   const people = [
     ...new Map(props.entries.map((entry) => [entry.userKey, entry])).values(),
@@ -26,9 +24,7 @@ export function Avatars(props: {
   const hidden = people.slice(max);
   return (
     <ul
-      className={[styles.avatars, props.small ? styles.small : styles.large]
-        .filter(Boolean)
-        .join(" ")}
+      className={styles.avatars}
       aria-label={`Here: ${people.map((entry) => entry.user.name).join(", ")}`}
     >
       {shown.map((entry) => (
