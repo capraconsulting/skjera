@@ -1,22 +1,28 @@
 import {
   type AttendeeRow,
+  type DocumentId,
   type DocumentRow,
+  DocumentsApi,
   type EventRow,
   type GuestDetails,
   PublicSyncApi,
   type Snapshot,
   SyncApi,
   type TeamRow,
+  TeamsApi,
 } from "@skjera/documents/api";
 import { BasicIndex, createCollection } from "@tanstack/react-db";
 import { Effect } from "effect";
 import { FetchHttpClient } from "effect/http";
 import { HttpApi, HttpApiClient } from "effect/http-api";
-import { call, type DocumentsClient } from "../documents/client.ts";
 import { type PublicClient, runPublic } from "../site/client.ts";
 import { guestSignup, rememberGuestSignup } from "../site/guestSignups.ts";
 
-class Api extends HttpApi.make("sync").add(SyncApi).add(PublicSyncApi) {}
+class Api extends HttpApi.make("studio")
+  .add(SyncApi)
+  .add(PublicSyncApi)
+  .add(TeamsApi)
+  .add(DocumentsApi) {}
 
 const makeClient = HttpApiClient.make(Api, {
   baseUrl: window.location.origin,
@@ -164,11 +170,11 @@ const serverTable = <Row extends object>(options: {
   };
 };
 
-/** Runs a write over the documents API, failing with a message for people. */
-const send = <E extends { readonly _tag: string }>(
-  f: (client: DocumentsClient["Service"]) => Effect.Effect<unknown, E>,
+/** Runs a write over the studio's API, failing with a message for people. */
+const sendRequest = <E extends { readonly _tag: string }>(
+  f: (client: Effect.Success<typeof makeClient>) => Effect.Effect<unknown, E>,
 ) =>
-  call((client) =>
+  request((client) =>
     f(client).pipe(
       Effect.asVoid,
       Effect.mapError((error) => new Error(failureMessage(error))),
@@ -202,10 +208,18 @@ export const teams = serverTable({
     ),
   write: {
     insert: (team) =>
-      send((client) => client.CreateTeam({ id: team.id, name: team.name })),
+      sendRequest((client) =>
+        client.teams.create({ payload: { id: team.id, name: team.name } }),
+      ),
     update: (team) =>
-      send((client) => client.RenameTeam({ id: team.id, name: team.name })),
-    delete: (team) => send((client) => client.DeleteTeam({ id: team.id })),
+      sendRequest((client) =>
+        client.teams.rename({
+          params: { id: team.id },
+          payload: { name: team.name },
+        }),
+      ),
+    delete: (team) =>
+      sendRequest((client) => client.teams.delete({ params: { id: team.id } })),
   },
 });
 
@@ -218,22 +232,39 @@ export const documents = serverTable({
     ),
   write: {
     insert: (document) =>
-      send((client) =>
-        client.CreateDocument({
-          id: document.id,
-          type: document.type,
-          teamId: document.teamId,
+      sendRequest((client) =>
+        client.documents.create({
+          payload: {
+            id: document.id,
+            type: document.type,
+            teamId: document.teamId,
+          },
         }),
       ),
     // Gone already is as good as deleted.
     delete: (document) =>
-      send((client) =>
-        client
-          .DeleteDocument({ id: document.id })
+      sendRequest((client) =>
+        client.documents
+          .delete({ params: { id: document.id } })
           .pipe(Effect.catchTag("DocumentNotFound", () => Effect.void)),
       ),
   },
 });
+
+/**
+ * Publishes a draft as of `heads`, the version the user saw. The server
+ * must have all of it. The published version arrives as a row of `events`.
+ */
+export const publishDraft = (id: DocumentId, heads: ReadonlyArray<string>) =>
+  makeClient.pipe(
+    Effect.flatMap((client) =>
+      client.documents.update({
+        params: { id },
+        payload: { published: true, heads: [...heads] },
+      }),
+    ),
+    Effect.provide(FetchHttpClient.layer),
+  );
 
 /** Published events: every one for members, the public ones for anyone. */
 export const events = serverTable({

@@ -7,10 +7,6 @@ import {
   DocumentNotFound,
   InvalidChanges,
   InvalidContent,
-  InvalidTeamName,
-  PublishRejected,
-  TeamNotEmpty,
-  TeamNotFound,
 } from "./errors.ts";
 import {
   DocumentId,
@@ -18,9 +14,7 @@ import {
   PresenceMessage,
   PresenceResync,
   PresenceUpdate,
-  Publication,
   Team,
-  TeamId,
 } from "./Model.ts";
 
 // The editor's API, served over a WebSocket. Safe to import in the browser.
@@ -77,29 +71,6 @@ export class DocumentsRpc extends RpcGroup.make(
     success: Schema.Union([PresenceMessage, PresenceResync]),
     stream: true,
   }),
-  /** Creates a team with the id the client picked for it. */
-  Rpc.make("CreateTeam", {
-    payload: { id: TeamId, name: Schema.String },
-    success: Team,
-    error: InvalidTeamName,
-  }),
-  Rpc.make("RenameTeam", {
-    payload: { id: TeamId, name: Schema.String },
-    success: Team,
-    error: Schema.Union([InvalidTeamName, TeamNotFound]),
-  }),
-  /** Only teams without documents can be deleted. */
-  Rpc.make("DeleteTeam", {
-    payload: { id: TeamId },
-    error: Schema.Union([TeamNotFound, TeamNotEmpty]),
-  }),
-  /** Who is signed up for an event, for its organizers. */
-  /** Creates an empty document with the id the client picked for it. */
-  Rpc.make("CreateDocument", {
-    payload: { id: DocumentId, type: ContentTypeName, teamId: TeamId },
-    success: DocumentId,
-    error: TeamNotFound,
-  }),
   /** Starts an editor session with the draft and what to show around it. */
   Rpc.make("OpenDocument", {
     payload: { id: DocumentId },
@@ -133,16 +104,5 @@ export class DocumentsRpc extends RpcGroup.make(
     payload: { id: DocumentId },
     success: Schema.Union([DraftChanged, CatchUp, DocumentDeleted]),
     stream: true,
-  }),
-  /** Deletes the document, taking its published version off the site. */
-  Rpc.make("DeleteDocument", {
-    payload: { id: DocumentId },
-    error: DocumentNotFound,
-  }),
-  /** Publishes the draft as of `heads`, which the server must already have. */
-  Rpc.make("Publish", {
-    payload: { id: DocumentId, heads: Heads },
-    success: Publication,
-    error: Schema.Union([DocumentNotFound, PublishRejected]),
   }),
 ).middleware(DocumentsAuth) {}

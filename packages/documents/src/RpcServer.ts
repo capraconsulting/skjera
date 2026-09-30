@@ -58,16 +58,6 @@ export const DocumentsRpcHandlers = DocumentsRpc.toLayer(
           yield* presence.publish(update, yield* CurrentUser);
         }),
       WatchPresence: () => Stream.unwrap(presence.subscribe),
-      CreateTeam: ({ id, name }) =>
-        Effect.gen(function* () {
-          return yield* teams.create(name, yield* CurrentUser, id);
-        }),
-      RenameTeam: ({ id, name }) => teams.rename(id, name),
-      DeleteTeam: ({ id }) => teams.delete(id),
-      CreateDocument: ({ id, type, teamId }) =>
-        Effect.gen(function* () {
-          return yield* documents.create(type, teamId, yield* CurrentUser, id);
-        }),
       OpenDocument: ({ id }) =>
         Effect.gen(function* () {
           const snapshot = yield* documents.get(id);
@@ -111,11 +101,6 @@ export const DocumentsRpcHandlers = DocumentsRpc.toLayer(
             ),
           ),
         ),
-      DeleteDocument: ({ id }) => documents.delete(id),
-      Publish: ({ id, heads }) =>
-        Effect.gen(function* () {
-          return yield* documents.publish(id, heads, yield* CurrentUser);
-        }),
     });
   }),
 );

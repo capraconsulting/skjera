@@ -11,7 +11,7 @@ import {
   Stream,
 } from "effect";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { documents, events } from "../sync/tables.ts";
+import { documents, events, publishDraft } from "../sync/tables.ts";
 import { DocumentsClient, runtime } from "./client.ts";
 import { forgetLocal, openLocal } from "./repo.ts";
 
@@ -218,11 +218,7 @@ const session = (id: DocumentId, store: SessionStore) =>
     const publish = Semaphore.withPermits(
       syncing,
       1,
-    )(
-      push.pipe(
-        Effect.andThen(() => client.Publish({ id, heads: [...synced] })),
-      ),
-    ).pipe(
+    )(push.pipe(Effect.andThen(() => publishDraft(id, synced)))).pipe(
       // The published version reaches the page as a row of `events`.
       Effect.tap(() =>
         Effect.promise(() => events.refresh()).pipe(

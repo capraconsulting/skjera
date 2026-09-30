@@ -29,7 +29,9 @@ class Api extends HttpApi.make("skjera")
   // Public: no middleware, published content only.
   .add(Documents.EventsApi)
   .add(Documents.SyncApi)
-  .add(Documents.PublicSyncApi) {}
+  .add(Documents.PublicSyncApi)
+  .add(Documents.TeamsApi)
+  .add(Documents.DocumentsApi) {}
 
 const ApiHandlers = HttpApiBuilder.group(Api, "session", (handlers) =>
   handlers.handle("me", () =>
@@ -128,6 +130,53 @@ const PublicSyncHandlers = HttpApiBuilder.group(Api, "publicSync", (handlers) =>
   }),
 );
 
+const TeamsHandlers = HttpApiBuilder.group(Api, "teams", (handlers) =>
+  Effect.gen(function* () {
+    const teams = yield* Documents.Teams;
+    return handlers
+      .handle("create", ({ payload }) =>
+        Effect.gen(function* () {
+          return yield* teams.create(
+            payload.name,
+            yield* OAuth.CurrentUser,
+            payload.id,
+          );
+        }),
+      )
+      .handle("rename", ({ params, payload }) =>
+        teams.rename(params.id, payload.name),
+      )
+      .handle("delete", ({ params }) => teams.delete(params.id));
+  }),
+);
+
+const DocumentsHandlers = HttpApiBuilder.group(Api, "documents", (handlers) =>
+  Effect.gen(function* () {
+    const documents = yield* Documents.Documents;
+    return handlers
+      .handle("create", ({ payload }) =>
+        Effect.gen(function* () {
+          return yield* documents.create(
+            payload.type,
+            payload.teamId,
+            yield* OAuth.CurrentUser,
+            payload.id,
+          );
+        }),
+      )
+      .handle("update", ({ params, payload }) =>
+        Effect.gen(function* () {
+          return yield* documents.publish(
+            params.id,
+            payload.heads,
+            yield* OAuth.CurrentUser,
+          );
+        }),
+      )
+      .handle("delete", ({ params }) => documents.delete(params.id));
+  }),
+);
+
 const Routes = Layer.mergeAll(
   HttpApiBuilder.layer(Api).pipe(
     Layer.provide([
@@ -135,6 +184,8 @@ const Routes = Layer.mergeAll(
       EventsHandlers,
       SyncHandlers,
       PublicSyncHandlers,
+      TeamsHandlers,
+      DocumentsHandlers,
     ]),
   ),
   Documents.RpcServer.layerHttp({ path: "/rpc" }),

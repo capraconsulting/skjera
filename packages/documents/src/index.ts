@@ -12,6 +12,7 @@ export * from "./ContentTypes.ts";
 export * as Database from "./Database.ts";
 export * from "./DocumentEvents.ts";
 export * from "./Documents.ts";
+export * from "./DocumentsApi.ts";
 export * from "./errors.ts";
 export * from "./Model.ts";
 export * from "./Presence.ts";
@@ -28,6 +29,7 @@ export * as RpcServer from "./RpcServer.ts";
 export * from "./Sync.ts";
 export * from "./SyncApi.ts";
 export * from "./Teams.ts";
+export * from "./TeamsApi.ts";
 
 /**
  * Teams, documents, their change events, attendance and syncing them, on the

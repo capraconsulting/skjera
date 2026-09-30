@@ -3,6 +3,7 @@ import { Schema } from "effect";
 export class DocumentNotFound extends Schema.TaggedError<DocumentNotFound>()(
   "DocumentNotFound",
   { id: Schema.String },
+  { httpApiStatus: 404 },
 ) {}
 
 /** The changes are malformed, miss dependencies, or reuse an actor id. */
@@ -26,6 +27,7 @@ export class InvalidContent extends Schema.TaggedError<InvalidContent>()(
 export class PublishRejected extends Schema.TaggedError<PublishRejected>()(
   "PublishRejected",
   { message: Schema.String },
+  { httpApiStatus: 400 },
 ) {}
 
 /** No published event with that id (it may exist as an unpublished draft). */
@@ -38,18 +40,21 @@ export class EventNotFound extends Schema.TaggedError<EventNotFound>()(
 export class TeamNotFound extends Schema.TaggedError<TeamNotFound>()(
   "TeamNotFound",
   { id: Schema.String },
+  { httpApiStatus: 404 },
 ) {}
 
 /** Empty, too long, or already used by another team (names ignore case). */
 export class InvalidTeamName extends Schema.TaggedError<InvalidTeamName>()(
   "InvalidTeamName",
   { message: Schema.String },
+  { httpApiStatus: 400 },
 ) {}
 
 /** Only teams without events can be deleted. */
 export class TeamNotEmpty extends Schema.TaggedError<TeamNotEmpty>()(
   "TeamNotEmpty",
   { id: Schema.String },
+  { httpApiStatus: 409 },
 ) {}
 
 /** Attending as a member needs a login. */
