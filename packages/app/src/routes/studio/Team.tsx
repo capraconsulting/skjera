@@ -12,10 +12,12 @@ import {
   useLoaderData,
   useRouteError,
 } from "react-router";
+import { Avatars } from "../../components/Avatars.tsx";
 import { Badge } from "../../components/Badge.tsx";
 import { Button } from "../../components/Button.tsx";
 import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
 import { call } from "../../documents/client.ts";
+import { usePresence } from "../../presence/presence.ts";
 import { formatDate, fromIsoDate } from "../../time.ts";
 import styles from "./Team.module.css";
 
@@ -62,6 +64,7 @@ export const teamAction = async ({ request, params }: ActionFunctionArgs) => {
 /** The second column: the selected team's events. */
 export function Team() {
   const { team, events } = useLoaderData<typeof teamLoader>();
+  const others = usePresence();
   return (
     <>
       <Pane
@@ -92,13 +95,21 @@ export function Team() {
                     isActive ? `${styles.item} ${styles.active}` : styles.item
                   }
                 >
-                  {event.title.trim() === "" ? (
-                    <span className={`${styles.title} ${styles.untitled}`}>
-                      Untitled
-                    </span>
-                  ) : (
-                    <span className={styles.title}>{event.title}</span>
-                  )}
+                  <span className={styles.heading}>
+                    {event.title.trim() === "" ? (
+                      <span className={`${styles.title} ${styles.untitled}`}>
+                        Untitled
+                      </span>
+                    ) : (
+                      <span className={styles.title}>{event.title}</span>
+                    )}
+                    <Avatars
+                      small
+                      entries={others.filter(
+                        (entry) => entry.location?.documentId === event.id,
+                      )}
+                    />
+                  </span>
                   <span className={styles.meta}>
                     {event.date === null
                       ? "No date"

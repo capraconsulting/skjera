@@ -3,6 +3,7 @@ import { Attendance } from "./Attendance.ts";
 import * as Database from "./Database.ts";
 import { DocumentEvents } from "./DocumentEvents.ts";
 import { Documents } from "./Documents.ts";
+import { Presence } from "./Presence.ts";
 import { PublishedEvents } from "./PublishedEvents.ts";
 import { Teams } from "./Teams.ts";
 
@@ -13,6 +14,7 @@ export * from "./DocumentEvents.ts";
 export * from "./Documents.ts";
 export * from "./errors.ts";
 export * from "./Model.ts";
+export * from "./Presence.ts";
 export * from "./PublicApi.ts";
 export * from "./PublishedEvents.ts";
 export {
@@ -36,4 +38,5 @@ export const layer = Layer.mergeAll(
   PublishedEvents.layer,
   Teams.layer,
   Attendance.layer,
+  Presence.layer,
 ).pipe(Layer.provideMerge(Database.layer));

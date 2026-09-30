@@ -17,6 +17,9 @@ import {
   DocumentId,
   DocumentSummary,
   Heads,
+  PresenceMessage,
+  PresenceResync,
+  PresenceUpdate,
   Publication,
   Team,
   TeamId,
@@ -59,6 +62,13 @@ export class DocumentDeleted extends Schema.TaggedClass<DocumentDeleted>()(
 ) {}
 
 export class DocumentsRpc extends RpcGroup.make(
+  /** Tells the rest of the studio where this tab is, and its selection. */
+  Rpc.make("PublishPresence", { payload: { update: PresenceUpdate } }),
+  /** Presence updates from every studio tab, this one's included. */
+  Rpc.make("WatchPresence", {
+    success: Schema.Union([PresenceMessage, PresenceResync]),
+    stream: true,
+  }),
   Rpc.make("ListTeams", { success: Schema.Array(Team) }),
   Rpc.make("GetTeam", {
     payload: { id: TeamId },

@@ -1,10 +1,12 @@
 import type * as A from "@automerge/automerge/slim";
 import { type DocHandle, init } from "@automerge/prosemirror";
+import type { DocumentId } from "@skjera/documents/api";
 import { baseKeymap } from "prosemirror-commands";
 import { keymap } from "prosemirror-keymap";
 import { EditorState } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { useEffect, useRef } from "react";
+import { presencePlugin } from "./presencePlugin.ts";
 import { multiLineAdapter, singleLineAdapter } from "./schemas.ts";
 import styles from "./TextEditor.module.css";
 
@@ -16,6 +18,8 @@ export interface TextEditorProps {
   /** Bigger text, e.g. for a title. */
   readonly large?: boolean;
   readonly label: string;
+  /** Share selections with, and show, others in this document. */
+  readonly presence?: { readonly documentId: DocumentId };
 }
 
 /**
@@ -29,7 +33,9 @@ export function TextEditor({
   multiline = false,
   large = false,
   label,
+  presence,
 }: TextEditorProps) {
+  const documentId = presence?.documentId;
   const mount = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -46,6 +52,16 @@ export function TextEditor({
           keymap(multiline ? {} : { Enter: () => true }),
           keymap(baseKeymap),
           plugin,
+          ...(documentId === undefined
+            ? []
+            : [
+                presencePlugin({
+                  handle,
+                  path,
+                  documentId,
+                  caretClass: styles.caret ?? "",
+                }),
+              ]),
         ],
       }),
       // Paste as plain text so no blocks or formatting enter the document.
@@ -67,7 +83,7 @@ export function TextEditor({
       },
     });
     return () => view.destroy();
-  }, [handle, path, multiline, label]);
+  }, [handle, path, multiline, label, documentId]);
 
   return (
     <div

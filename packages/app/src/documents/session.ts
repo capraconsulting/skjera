@@ -133,6 +133,11 @@ const replica = (id: DocumentId, store: SessionStore) =>
       .pipe(Effect.map((changes) => handle.applyIncremental(changes)));
 
     const watchLoop = client.WatchDocument({ id }).pipe(
+      // Handling an event can wait on another call over the same socket,
+      // which must not wait for this stream in turn: the client reads the
+      // socket into a small buffer per stream, and stops reading, replies
+      // included, while one is full. So always read the stream right away.
+      Stream.buffer({ capacity: "unbounded" }),
       Stream.runForEach((event) => {
         switch (event._tag) {
           case "DocumentDeleted":

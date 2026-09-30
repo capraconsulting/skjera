@@ -6,6 +6,7 @@ import {
   useRevalidator,
   useSubmit,
 } from "react-router";
+import { Avatars } from "../../components/Avatars.tsx";
 import { Field } from "../../components/Field.tsx";
 import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
 import {
@@ -16,6 +17,7 @@ import { CheckboxField, useBooleanField } from "../../editor/CheckboxField.tsx";
 import { DateField } from "../../editor/DateField.tsx";
 import type { LocalDocHandle } from "../../editor/LocalDocHandle.ts";
 import { TextEditor } from "../../editor/TextEditor.tsx";
+import { usePresence } from "../../presence/presence.ts";
 import { Attendees } from "./Attendees.tsx";
 import { EditorFooter } from "./EditorFooter.tsx";
 import styles from "./EventEditor.module.css";
@@ -57,6 +59,9 @@ function EventSession({ id }: { readonly id: DocumentId }) {
   const submit = useSubmit();
   const { handle, team } = session;
   useRefreshEventsList(session);
+  const here = usePresence().filter(
+    (entry) => entry.location?.documentId === id,
+  );
 
   // A link with the wrong team: go to where the event actually is.
   useEffect(() => {
@@ -92,6 +97,7 @@ function EventSession({ id }: { readonly id: DocumentId }) {
     <Pane
       title="Event"
       label="Editor"
+      actions={<Avatars entries={here} />}
       footer={
         <EditorFooter
           id={id}
@@ -112,7 +118,13 @@ function EventSession({ id }: { readonly id: DocumentId }) {
         )}
         {/* The editors start over when the session reloads with a new handle. */}
         <Field label="Title">
-          <TextEditor handle={handle} path={titlePath} label="Title" large />
+          <TextEditor
+            handle={handle}
+            path={titlePath}
+            label="Title"
+            large
+            presence={{ documentId: id }}
+          />
         </Field>
         <Field label="Date">
           <DateField handle={handle} label="Date" />
@@ -133,7 +145,13 @@ function EventSession({ id }: { readonly id: DocumentId }) {
           />
         </Field>
         <Field label="Body">
-          <TextEditor handle={handle} path={bodyPath} label="Body" multiline />
+          <TextEditor
+            handle={handle}
+            path={bodyPath}
+            label="Body"
+            multiline
+            presence={{ documentId: id }}
+          />
         </Field>
         <Attendees id={id} />
       </div>

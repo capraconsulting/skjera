@@ -41,8 +41,15 @@
 }
 
 .row .item {
+  display: flex;
   flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   min-width: 0;
+}
+
+.name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

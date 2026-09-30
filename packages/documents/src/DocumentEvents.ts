@@ -1,15 +1,5 @@
-import { PgClient } from "@effect/sql-pg";
-import {
-  Context,
-  Effect,
-  Layer,
-  PubSub,
-  Queue,
-  Schedule,
-  Schema,
-  type Scope,
-  Stream,
-} from "effect";
+import { Context, Effect, Layer, Schema } from "effect";
+import { type Channel, listenTo } from "./internal/channel.ts";
 import { DocumentId, Heads } from "./Model.ts";
 
 export const channel = "documents_changed";
@@ -54,86 +44,27 @@ const Payload = Schema.Struct({
  */
 export class DocumentEvents extends Context.Service<
   DocumentEvents,
-  {
-    readonly events: Stream.Stream<DocumentEvent>;
-    /**
-     * Subscribes right away and returns the events from then on. Use it to
-     * start listening before fetching state, so nothing falls in between.
-     */
-    readonly subscribe: Effect.Effect<
-      Stream.Stream<DocumentEvent>,
-      never,
-      Scope.Scope
-    >;
-  }
+  Channel<DocumentEvent>
 >()("@skjera/documents/DocumentEvents") {
   static readonly layer = Layer.effect(
     DocumentEvents,
     Effect.gen(function* () {
-      const pg = yield* PgClient.PgClient;
-      const pubsub = yield* PubSub.unbounded<DocumentEvent>();
       const decode = Schema.decodeUnknownEffect(Payload);
-
-      const publishNotification = (payload: string) =>
-        Effect.try(() => JSON.parse(payload) as unknown).pipe(
-          Effect.flatMap(decode),
-          Effect.flatMap((notification) =>
-            PubSub.publish(
-              pubsub,
+      const events = yield* listenTo<DocumentEvent>(
+        channel,
+        (payload) =>
+          Effect.map(
+            decode(payload),
+            (notification) =>
               new DocumentChanged({
                 id: notification.key.id,
                 op: notification.op,
                 heads: notification.columns.draft?.heads ?? undefined,
               }),
-            ),
           ),
-          Effect.catch((error) =>
-            Effect.logWarning("Ignoring unreadable notification", error),
-          ),
-        );
-
-      // Runs until the listening connection fails.
-      const forward = (
-        queue: Queue.Dequeue<{ readonly payload: string }, unknown>,
-      ) =>
-        Queue.take(queue).pipe(
-          Effect.flatMap((notification) =>
-            publishNotification(notification.payload),
-          ),
-          Effect.forever,
-        );
-
-      // Notifications sent while reconnecting are lost, so tell subscribers.
-      const relisten = Effect.scoped(
-        pg.listen(channel).pipe(
-          Effect.tap(() => PubSub.publish(pubsub, new ListenerReconnected({}))),
-          Effect.flatMap(forward),
-        ),
-      ).pipe(
-        Effect.tapError((error) =>
-          Effect.logWarning("Lost the notification listener", error),
-        ),
-        Effect.retry(Schedule.spaced("1 second")),
+        new ListenerReconnected({}),
       );
-
-      // Listen before the layer is ready, so no change is missed from then on.
-      const first = yield* pg.listen(channel);
-      yield* forward(first).pipe(
-        Effect.tapError((error) =>
-          Effect.logWarning("Lost the notification listener", error),
-        ),
-        Effect.ignore,
-        Effect.andThen(relisten),
-        Effect.forkScoped,
-      );
-
-      return DocumentEvents.of({
-        events: Stream.fromPubSub(pubsub),
-        subscribe: Effect.map(
-          PubSub.subscribe(pubsub),
-          Stream.fromSubscription,
-        ),
-      });
+      return DocumentEvents.of(events);
     }),
   );
 }

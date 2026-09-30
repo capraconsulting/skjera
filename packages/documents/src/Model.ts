@@ -126,3 +126,61 @@ export class Attendee extends Schema.Class<Attendee>(
   guest: Schema.Boolean,
   signedUpAt: Schema.Date,
 }) {}
+
+// Presence: who is where in the studio, and their selection. Short-lived,
+// never stored; strings are capped so a message fits a Postgres NOTIFY.
+
+const Bounded = (max: number) =>
+  Schema.String.check(
+    Schema.makeFilter(
+      (value: string) => value.length <= max || `At most ${max} characters`,
+    ),
+  );
+
+/** Where someone is: a team, and the event they have open, if any. */
+export const PresenceLocation = Schema.Struct({
+  teamId: TeamId,
+  documentId: Schema.NullOr(DocumentId),
+});
+export type PresenceLocation = typeof PresenceLocation.Type;
+
+/** A selection in one field, as Automerge cursors that survive edits. */
+export const PresenceSelection = Schema.Struct({
+  field: Bounded(32),
+  anchor: Bounded(200),
+  head: Bounded(200),
+});
+export type PresenceSelection = typeof PresenceSelection.Type;
+
+/**
+ * What a studio tab says about itself. "hello" asks the others to announce
+ * themselves; "leave" says goodbye; "update" is everything in between,
+ * including heartbeats.
+ */
+export const PresenceUpdate = Schema.Struct({
+  clientId: Bounded(64),
+  kind: Schema.Literals(["hello", "update", "leave"]),
+  location: Schema.NullOr(PresenceLocation),
+  selection: Schema.NullOr(PresenceSelection),
+});
+export type PresenceUpdate = typeof PresenceUpdate.Type;
+
+export class PresenceUser extends Schema.Class<PresenceUser>(
+  "@skjera/documents/PresenceUser",
+)({
+  issuer: Schema.String,
+  subject: Schema.String,
+  name: Schema.String,
+}) {}
+
+/** An update as relayed to everyone, with who sent it, set by the server. */
+export class PresenceMessage extends Schema.TaggedClass<PresenceMessage>()(
+  "PresenceMessage",
+  { ...PresenceUpdate.fields, user: PresenceUser },
+) {}
+
+/** Messages may have been missed: everyone should announce themselves again. */
+export class PresenceResync extends Schema.TaggedClass<PresenceResync>()(
+  "PresenceResync",
+  {},
+) {}

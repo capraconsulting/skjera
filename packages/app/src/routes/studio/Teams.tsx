@@ -11,6 +11,7 @@ import {
   useNavigate,
   useParams,
 } from "react-router";
+import { Avatars } from "../../components/Avatars.tsx";
 import { Button } from "../../components/Button.tsx";
 import { Dialog, dialogStyles } from "../../components/Dialog.tsx";
 import {
@@ -21,6 +22,7 @@ import {
 import { Input } from "../../components/Input.tsx";
 import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
 import { call } from "../../documents/client.ts";
+import { usePresence } from "../../presence/presence.ts";
 import styles from "./Teams.module.css";
 
 export const teamsLoader = () => call((client) => client.ListTeams());
@@ -147,6 +149,7 @@ function TeamRow(props: {
 }) {
   const { team } = props;
   const { teamId } = useParams();
+  const others = usePresence();
   const deleter = useFetcher<TeamsActionResult>();
 
   return (
@@ -157,7 +160,11 @@ function TeamRow(props: {
           isActive ? `${styles.item} ${styles.active}` : styles.item
         }
       >
-        {team.name}
+        <span className={styles.name}>{team.name}</span>
+        <Avatars
+          small
+          entries={others.filter((entry) => entry.location?.teamId === team.id)}
+        />
       </NavLink>
       <span className={styles.menu}>
         <Dropdown label={`Options for ${team.name}`}>

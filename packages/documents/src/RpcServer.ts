@@ -5,6 +5,7 @@ import { RpcSerialization, RpcServer } from "effect/rpc";
 import { Attendance } from "./Attendance.ts";
 import { DocumentEvents } from "./DocumentEvents.ts";
 import { Documents } from "./Documents.ts";
+import { Presence } from "./Presence.ts";
 import {
   CatchUp,
   DocumentDeleted,
@@ -50,8 +51,14 @@ export const DocumentsRpcHandlers = DocumentsRpc.toLayer(
     const events = yield* DocumentEvents;
     const teams = yield* Teams;
     const attendance = yield* Attendance;
+    const presence = yield* Presence;
 
     return DocumentsRpc.of({
+      PublishPresence: ({ update }) =>
+        Effect.gen(function* () {
+          yield* presence.publish(update, yield* CurrentUser);
+        }),
+      WatchPresence: () => Stream.unwrap(presence.subscribe),
       ListTeams: () => teams.list,
       GetTeam: ({ id }) => teams.get(id),
       CreateTeam: ({ name }) =>

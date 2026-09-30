@@ -34,3 +34,29 @@
   font-weight: 600;
   letter-spacing: -0.01em;
 }
+
+/* Someone else's caret, with their name above it. */
+.caret {
+  position: relative;
+  margin: 0 -1px;
+  border-left: 2px solid var(--presence-color);
+  pointer-events: none;
+}
+
+.caret::after {
+  content: attr(data-name);
+  position: absolute;
+  bottom: 100%;
+  left: -2px;
+  padding: 0.0625rem 0.3125rem;
+  border-radius: 3px 3px 3px 0;
+  background: var(--presence-color);
+  color: white;
+  font-size: 0.6875rem;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.3;
+  white-space: nowrap;
+  user-select: none;
+}

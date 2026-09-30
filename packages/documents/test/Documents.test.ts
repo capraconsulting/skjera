@@ -1,13 +1,14 @@
 import * as A from "@automerge/automerge";
 import { assert, layer } from "@effect/vitest";
 import { Identity } from "@skjera/oauth/api";
-import { Effect, Fiber, Layer, Option, Stream } from "effect";
+import { Effect, Exit, Fiber, Layer, Option, Stream } from "effect";
 import { SqlClient } from "effect/sql";
 import { Attendance } from "../src/Attendance.ts";
 import type { EventContent } from "../src/ContentTypes.ts";
 import { DocumentEvents } from "../src/DocumentEvents.ts";
 import { Documents } from "../src/Documents.ts";
 import type { TeamId } from "../src/Model.ts";
+import { Presence } from "../src/Presence.ts";
 import { PublishedEvents } from "../src/PublishedEvents.ts";
 import { Teams } from "../src/Teams.ts";
 import { TestDatabase } from "./TestDatabase.ts";
@@ -21,6 +22,7 @@ const TestLayer = Layer.mergeAll(
   PublishedEvents.layer,
   Teams.layer,
   Attendance.layer,
+  Presence.layer,
 ).pipe(Layer.provideMerge(TestDatabase));
 
 let teamCount = 0;
@@ -686,14 +688,69 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
     }),
   );
 
+  it.effect("relays presence with the sender stamped on", () =>
+    Effect.gen(function* () {
+      const presence = yield* Presence;
+      const stream = yield* presence.subscribe;
+      const received = yield* stream.pipe(
+        Stream.filter((message) => message._tag === "PresenceMessage"),
+        Stream.take(1),
+        Stream.runCollect,
+        Effect.forkChild,
+      );
+      const team = yield* newTeam;
+      yield* presence.publish(
+        {
+          clientId: "tab-1",
+          kind: "update",
+          location: { teamId: team, documentId: null },
+          selection: null,
+        },
+        alice,
+      );
+      const [message] = yield* Fiber.join(received);
+      assert.strictEqual(message?._tag, "PresenceMessage");
+      if (message?._tag === "PresenceMessage") {
+        assert.strictEqual(message.clientId, "tab-1");
+        assert.strictEqual(message.user.subject, "alice");
+        assert.deepStrictEqual(message.location, {
+          teamId: team,
+          documentId: null,
+        });
+      }
+    }).pipe(Effect.scoped, Effect.timeout("5 seconds")),
+  );
+
+  // The RPC server sends anything else in the cause to the client as a
+  // defect, since it can't encode it.
+  it.effect("ends subscriptions with just an interrupt", () =>
+    Effect.gen(function* () {
+      const events = yield* DocumentEvents;
+      const fiber = yield* Stream.unwrap(events.subscribe).pipe(
+        Stream.runDrain,
+        Effect.forkChild,
+      );
+      yield* Effect.sleep("50 millis");
+      yield* Fiber.interrupt(fiber);
+      const exit = yield* Fiber.await(fiber);
+      assert.isTrue(Exit.isFailure(exit));
+      if (Exit.isFailure(exit)) {
+        assert.deepStrictEqual(
+          exit.cause.reasons.map((reason) => reason._tag),
+          ["Interrupt"],
+        );
+      }
+    }),
+  );
+
   it.effect("announces committed changes with their heads", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
-      const { events } = yield* DocumentEvents;
+      const events = yield* DocumentEvents;
       const id = yield* documents.create("event", yield* newTeam, alice);
       const editor = yield* openEditor(id, alice);
 
-      const next = yield* events.pipe(
+      const next = yield* (yield* events.subscribe).pipe(
         Stream.filter(
           (event) =>
             event._tag === "DocumentChanged" &&
@@ -703,8 +760,6 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         Stream.runHead,
         Effect.forkChild,
       );
-      // Let the subscriber attach before the change commits.
-      yield* Effect.sleep("100 millis");
       const heads = yield* documents.applyChanges(
         id,
         [editor.edit((event) => A.updateText(event, ["title"], "Ping"))],
@@ -715,18 +770,18 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       if (event._tag === "Some" && event.value._tag === "DocumentChanged") {
         assert.deepStrictEqual(event.value.heads, heads);
       }
-    }).pipe(Effect.timeout("5 seconds")),
+    }).pipe(Effect.scoped, Effect.timeout("5 seconds")),
   );
 
   it.effect("reconnects the listener and asks subscribers to catch up", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
-      const { events } = yield* DocumentEvents;
+      const events = yield* DocumentEvents;
       const sql = yield* SqlClient.SqlClient;
       const id = yield* documents.create("event", yield* newTeam, alice);
       const editor = yield* openEditor(id, alice);
 
-      const received = yield* events.pipe(
+      const received = yield* (yield* events.subscribe).pipe(
         Stream.filter(
           (event) =>
             event._tag === "ListenerReconnected" ||
@@ -736,7 +791,6 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         Stream.runCollect,
         Effect.forkChild,
       );
-      yield* Effect.sleep("100 millis");
 
       // Drop the listening connection, as a network failure would.
       yield* sql`
@@ -752,6 +806,6 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
 
       const tags = (yield* Fiber.join(received)).map((event) => event._tag);
       assert.deepStrictEqual(tags, ["ListenerReconnected", "DocumentChanged"]);
-    }).pipe(Effect.timeout("10 seconds")),
+    }).pipe(Effect.scoped, Effect.timeout("10 seconds")),
   );
 });
