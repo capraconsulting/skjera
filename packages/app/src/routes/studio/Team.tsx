@@ -15,15 +15,15 @@ import { Badge } from "../../components/Badge.tsx";
 import { Button } from "../../components/Button.tsx";
 import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
 import { call } from "../../documents/client.ts";
-import { timeAgo } from "../../time.ts";
+import { formatDate, fromIsoDate } from "../../time.ts";
 import styles from "./Team.module.css";
 
 export const teamLoader = ({ params }: LoaderFunctionArgs) =>
   call((client) =>
     Effect.all({
       team: client.GetTeam({ id: params.teamId as TeamId }),
-      posts: client.ListDocuments({
-        type: "post",
+      events: client.ListDocuments({
+        type: "event",
         teamId: params.teamId as TeamId,
       }),
     }).pipe(
@@ -35,7 +35,7 @@ export const teamLoader = ({ params }: LoaderFunctionArgs) =>
     ),
   );
 
-/** Creating and deleting posts, and deleting the team. */
+/** Creating and deleting events, and deleting the team. */
 export const teamAction = async ({ request, params }: ActionFunctionArgs) => {
   const teamId = params.teamId as TeamId;
   const form = await request.formData();
@@ -46,9 +46,9 @@ export const teamAction = async ({ request, params }: ActionFunctionArgs) => {
       );
       return Result.isSuccess(result)
         ? redirect("/studio/teams")
-        : { error: "Delete the team's posts first." };
+        : { error: "Delete the team's events first." };
     }
-    case "delete-post": {
+    case "delete-event": {
       const id = String(form.get("id")) as DocumentId;
       await call((client) =>
         client
@@ -58,39 +58,39 @@ export const teamAction = async ({ request, params }: ActionFunctionArgs) => {
       return redirect(`/studio/teams/${teamId}`);
     }
     default: {
-      const post = await call((client) =>
-        client.CreateDocument({ type: "post", teamId }),
+      const event = await call((client) =>
+        client.CreateDocument({ type: "event", teamId }),
       );
-      return redirect(`/studio/teams/${teamId}/posts/${post}`);
+      return redirect(`/studio/teams/${teamId}/events/${event}`);
     }
   }
 };
 
-/** The second column: the selected team's posts. */
+/** The second column: the selected team's events. */
 export function Team() {
-  const { team, posts } = useLoaderData<typeof teamLoader>();
+  const { team, events } = useLoaderData<typeof teamLoader>();
   const action = useActionData<typeof teamAction>();
   return (
     <>
       <Pane
         title={team.name}
-        label="Posts"
+        label="Events"
         actions={
           <Form method="post">
             <Button
               type="submit"
               name="intent"
-              value="create-post"
+              value="create-event"
               variant="primary"
             >
-              New post
+              New event
             </Button>
           </Form>
         }
       >
-        {posts.length === 0 ? (
+        {events.length === 0 ? (
           <div className={styles.empty}>
-            <p>No posts yet.</p>
+            <p>No events yet.</p>
             <Form method="post">
               <Button
                 type="submit"
@@ -104,26 +104,28 @@ export function Team() {
           </div>
         ) : (
           <ul className={styles.list}>
-            {posts.map((post) => (
-              <li key={post.id}>
+            {events.map((event) => (
+              <li key={event.id}>
                 <NavLink
-                  to={`/studio/teams/${team.id}/posts/${post.id}`}
+                  to={`/studio/teams/${team.id}/events/${event.id}`}
                   className={({ isActive }) =>
                     isActive ? `${styles.item} ${styles.active}` : styles.item
                   }
                 >
-                  {post.title.trim() === "" ? (
+                  {event.title.trim() === "" ? (
                     <span className={`${styles.title} ${styles.untitled}`}>
                       Untitled
                     </span>
                   ) : (
-                    <span className={styles.title}>{post.title}</span>
+                    <span className={styles.title}>{event.title}</span>
                   )}
                   <span className={styles.meta}>
-                    Edited {timeAgo(post.updatedAt)}
-                    {post.publishedAt === null ? (
+                    {event.date === null
+                      ? "No date"
+                      : formatDate(fromIsoDate(event.date))}
+                    {event.publishedAt === null ? (
                       <Badge tone="neutral">Draft</Badge>
-                    ) : post.hasUnpublishedChanges ? (
+                    ) : event.hasUnpublishedChanges ? (
                       <Badge tone="warning">Changed</Badge>
                     ) : (
                       <Badge tone="success">Published</Badge>
@@ -145,6 +147,6 @@ export function Team() {
   );
 }
 
-export function NoPostSelected() {
-  return <PanePlaceholder>Pick a post, or create a new one.</PanePlaceholder>;
+export function NoEventSelected() {
+  return <PanePlaceholder>Pick an event, or create a new one.</PanePlaceholder>;
 }

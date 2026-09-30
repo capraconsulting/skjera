@@ -28,9 +28,9 @@ export class PublishRejected extends Schema.TaggedError<PublishRejected>()(
   { message: Schema.String },
 ) {}
 
-/** No published post with that id (it may exist as an unpublished draft). */
-export class PostNotFound extends Schema.TaggedError<PostNotFound>()(
-  "PostNotFound",
+/** No published event with that id (it may exist as an unpublished draft). */
+export class EventNotFound extends Schema.TaggedError<EventNotFound>()(
+  "EventNotFound",
   { id: Schema.String },
   { httpApiStatus: 404 },
 ) {}
@@ -46,7 +46,7 @@ export class InvalidTeamName extends Schema.TaggedError<InvalidTeamName>()(
   { message: Schema.String },
 ) {}
 
-/** Only teams without posts can be deleted. */
+/** Only teams without events can be deleted. */
 export class TeamNotEmpty extends Schema.TaggedError<TeamNotEmpty>()(
   "TeamNotEmpty",
   { id: Schema.String },

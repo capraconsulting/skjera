@@ -14,18 +14,29 @@ const statements = (...queries: ReadonlyArray<string>) =>
 export const migrations = Migrator.fromRecord({
   "0001_documents": statements(
     `CREATE EXTENSION IF NOT EXISTS pg_automerge`,
+    // Teams own documents. Anyone signed in can see all teams and create new
+    // ones. They only organize the studio; the public site doesn't show them.
+    `CREATE TABLE teams (
+      id uuid PRIMARY KEY DEFAULT uuidv7(),
+      name text NOT NULL CHECK (btrim(name) <> '' AND length(name) <= 100),
+      created_by_issuer text NOT NULL,
+      created_by_subject text NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now()
+    )`,
+    `CREATE UNIQUE INDEX teams_name_key ON teams (lower(name))`,
     // One row per document. `draft` is the live Automerge document that
     // editors change together; published content lives in per-type tables.
     `CREATE TABLE documents (
       id uuid PRIMARY KEY DEFAULT uuidv7(),
       type text NOT NULL,
+      team_id uuid NOT NULL REFERENCES teams (id) ON DELETE RESTRICT,
       draft automerge NOT NULL,
       created_by_issuer text NOT NULL,
       created_by_subject text NOT NULL,
       created_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now()
     )`,
-    `CREATE INDEX documents_type_updated_at_idx ON documents (type, updated_at DESC)`,
+    `CREATE INDEX documents_team_id_idx ON documents (team_id, updated_at DESC)`,
     // Tells every backend when a draft changed, with its new heads.
     `CREATE TRIGGER documents_notify AFTER INSERT OR UPDATE OR DELETE ON documents
       FOR EACH ROW EXECUTE FUNCTION automerge_notify('documents_changed', 'id')`,
@@ -40,19 +51,6 @@ export const migrations = Migrator.fromRecord({
       created_at timestamptz NOT NULL DEFAULT now(),
       PRIMARY KEY (document_id, actor)
     )`,
-  ),
-  "0002_posts": statements(
-    // The published version of each post: what readers get.
-    `CREATE TABLE posts (
-      id uuid PRIMARY KEY REFERENCES documents (id) ON DELETE CASCADE,
-      title text NOT NULL CHECK (btrim(title) <> ''),
-      body text NOT NULL,
-      published_heads text[] NOT NULL,
-      published_by_issuer text NOT NULL,
-      published_by_subject text NOT NULL,
-      first_published_at timestamptz NOT NULL,
-      published_at timestamptz NOT NULL
-    )`,
     // Publish times are set by the database, never by the caller.
     `CREATE FUNCTION set_publish_times() RETURNS trigger LANGUAGE plpgsql AS $$
     BEGIN
@@ -61,49 +59,44 @@ export const migrations = Migrator.fromRecord({
       RETURN NEW;
     END
     $$`,
-    `CREATE TRIGGER posts_publish_times BEFORE INSERT OR UPDATE ON posts
+  ),
+  "0002_events": statements(
+    // The published version of each event: what the public site shows.
+    // Publishing needs a title and a date.
+    `CREATE TABLE events (
+      id uuid PRIMARY KEY REFERENCES documents (id) ON DELETE CASCADE,
+      title text NOT NULL CHECK (btrim(title) <> ''),
+      event_date date NOT NULL,
+      body text NOT NULL,
+      published_heads text[] NOT NULL,
+      published_by_issuer text NOT NULL,
+      published_by_subject text NOT NULL,
+      first_published_at timestamptz NOT NULL,
+      published_at timestamptz NOT NULL
+    )`,
+    `CREATE INDEX events_event_date_idx ON events (event_date)`,
+    `CREATE TRIGGER events_publish_times BEFORE INSERT OR UPDATE ON events
       FOR EACH ROW EXECUTE FUNCTION set_publish_times()`,
     // Materializes the draft as of the given heads (the version the user saw
-    // when they clicked publish) into posts.
-    `CREATE FUNCTION publish_post(document_id uuid, heads text[], issuer text, subject text)
-      RETURNS SETOF posts LANGUAGE sql AS $$
-      INSERT INTO posts AS p (id, title, body, published_heads, published_by_issuer, published_by_subject)
-      SELECT d.id, c.content->>'title', c.content->>'body',
+    // when they clicked publish) into events.
+    `CREATE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
+      RETURNS SETOF events LANGUAGE sql AS $$
+      INSERT INTO events AS e
+        (id, title, event_date, body, published_heads, published_by_issuer, published_by_subject)
+      SELECT d.id, c.content->>'title', (c.content->>'date')::date, c.content->>'body',
         -- Sorted like automerge_heads(), so the two can be compared.
         ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
       FROM documents d
       CROSS JOIN LATERAL (SELECT automerge_to_jsonb(d.draft, heads) AS content OFFSET 0) c
-      WHERE d.id = document_id AND d.type = 'post'
+      WHERE d.id = document_id AND d.type = 'event'
       ON CONFLICT (id) DO UPDATE SET
         title = EXCLUDED.title,
+        event_date = EXCLUDED.event_date,
         body = EXCLUDED.body,
         published_heads = EXCLUDED.published_heads,
         published_by_issuer = EXCLUDED.published_by_issuer,
         published_by_subject = EXCLUDED.published_by_subject
-      RETURNING p.*
+      RETURNING e.*
     $$`,
-  ),
-  "0003_teams": statements(
-    // Every document belongs to a team. Anyone signed in can see all teams
-    // and create new ones.
-    `CREATE TABLE teams (
-      id uuid PRIMARY KEY DEFAULT uuidv7(),
-      name text NOT NULL CHECK (btrim(name) <> '' AND length(name) <= 100),
-      created_by_issuer text NOT NULL,
-      created_by_subject text NOT NULL,
-      created_at timestamptz NOT NULL DEFAULT now()
-    )`,
-    `CREATE UNIQUE INDEX teams_name_key ON teams (lower(name))`,
-    `ALTER TABLE documents
-      ADD COLUMN team_id uuid REFERENCES teams (id) ON DELETE RESTRICT`,
-    // Documents from before teams existed go into a "General" team, created
-    // only when there are any.
-    `INSERT INTO teams (name, created_by_issuer, created_by_subject)
-      SELECT 'General', created_by_issuer, created_by_subject
-      FROM documents ORDER BY created_at LIMIT 1`,
-    `UPDATE documents SET team_id = (SELECT id FROM teams WHERE name = 'General')
-      WHERE team_id IS NULL`,
-    `ALTER TABLE documents ALTER COLUMN team_id SET NOT NULL`,
-    `CREATE INDEX documents_team_id_idx ON documents (team_id, updated_at DESC)`,
   ),
 });

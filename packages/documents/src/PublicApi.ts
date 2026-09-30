@@ -1,20 +1,20 @@
 import { Schema } from "effect";
 import { HttpApi, HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
-import { PostNotFound } from "./errors.ts";
-import { DocumentId, PublishedPost } from "./Model.ts";
+import { EventNotFound } from "./errors.ts";
+import { DocumentId, PublishedEvent } from "./Model.ts";
 
 // The public site's API: published content only, no login needed.
 
-export class PostsApi extends HttpApiGroup.make("posts").add(
-  HttpApiEndpoint.get("list", "/api/posts", {
-    success: Schema.Array(PublishedPost),
+export class EventsApi extends HttpApiGroup.make("events").add(
+  HttpApiEndpoint.get("list", "/api/events", {
+    success: Schema.Array(PublishedEvent),
   }),
-  HttpApiEndpoint.get("get", "/api/posts/:id", {
+  HttpApiEndpoint.get("get", "/api/events/:id", {
     params: { id: DocumentId },
-    success: PublishedPost,
-    error: PostNotFound,
+    success: PublishedEvent,
+    error: EventNotFound,
   }),
 ) {}
 
-/** For clients of the public API; servers add `PostsApi` to their own `HttpApi`. */
-export class PublicApi extends HttpApi.make("public").add(PostsApi) {}
+/** For clients of the public API; servers add `EventsApi` to their own `HttpApi`. */
+export class PublicApi extends HttpApi.make("public").add(EventsApi) {}

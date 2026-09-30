@@ -12,24 +12,25 @@ import {
   type SessionState,
   useDocumentSession,
 } from "../../documents/session.ts";
+import { DateField } from "../../editor/DateField.tsx";
 import { TextEditor } from "../../editor/TextEditor.tsx";
 import { EditorFooter } from "./EditorFooter.tsx";
-import styles from "./PostEditor.module.css";
+import styles from "./EventEditor.module.css";
 
 const titlePath = ["title"] as const;
 const bodyPath = ["body"] as const;
 
-/** The third column: the selected post. */
-export function PostEditor() {
+/** The third column: the selected event. */
+export function EventEditor() {
   const { id } = useParams();
-  return <PostSession key={id} id={id as DocumentId} />;
+  return <EventSession key={id} id={id as DocumentId} />;
 }
 
 /**
- * Refreshes the posts column once saving settles and after publishing, so
+ * Refreshes the events column once saving settles and after publishing, so
  * titles and badges there follow the editor.
  */
-function useRefreshPostsList(session: SessionState) {
+function useRefreshEventsList(session: SessionState) {
   const revalidator = useRevalidator();
   const revalidate = useRef(revalidator.revalidate);
   revalidate.current = revalidator.revalidate;
@@ -46,25 +47,25 @@ function useRefreshPostsList(session: SessionState) {
   }, [session.publication]);
 }
 
-function PostSession({ id }: { readonly id: DocumentId }) {
+function EventSession({ id }: { readonly id: DocumentId }) {
   const session = useDocumentSession(id);
   const { teamId } = useParams();
   const navigate = useNavigate();
   const submit = useSubmit();
   const { handle, team } = session;
-  useRefreshPostsList(session);
+  useRefreshEventsList(session);
 
-  // A link with the wrong team: go to where the post actually is.
+  // A link with the wrong team: go to where the event actually is.
   useEffect(() => {
     if (team !== null && team.id !== teamId) {
-      navigate(`/studio/teams/${team.id}/posts/${id}`, { replace: true });
+      navigate(`/studio/teams/${team.id}/events/${id}`, { replace: true });
     }
   }, [team, teamId, id, navigate]);
 
   if (session.deleted) {
     return (
       <PanePlaceholder>
-        <p role="alert">This post was deleted.</p>
+        <p role="alert">This event was deleted.</p>
       </PanePlaceholder>
     );
   }
@@ -74,19 +75,19 @@ function PostSession({ id }: { readonly id: DocumentId }) {
   }
 
   const remove = () => {
-    if (!window.confirm("Delete this post? It is also taken off the site.")) {
+    if (!window.confirm("Delete this event? It is also taken off the site.")) {
       return;
     }
-    // Through the team's route, so the posts column updates too.
+    // Through the team's route, so the events column updates too.
     submit(
-      { intent: "delete-post", id },
+      { intent: "delete-event", id },
       { method: "post", action: `/studio/teams/${teamId}` },
     );
   };
 
   return (
     <Pane
-      title="Post"
+      title="Event"
       label="Editor"
       footer={
         <EditorFooter
@@ -109,6 +110,9 @@ function PostSession({ id }: { readonly id: DocumentId }) {
         {/* The editors start over when the session reloads with a new handle. */}
         <Field label="Title">
           <TextEditor handle={handle} path={titlePath} label="Title" large />
+        </Field>
+        <Field label="Date">
+          <DateField handle={handle} label="Date" />
         </Field>
         <Field label="Body">
           <TextEditor handle={handle} path={bodyPath} label="Body" multiline />

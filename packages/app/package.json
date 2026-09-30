@@ -13,6 +13,7 @@
   "dependencies": {
     "@automerge/automerge": "catalog:",
     "@automerge/prosemirror": "catalog:",
+    "@daypicker/react": "^10.0.2",
     "@skjera/documents": "workspace:*",
     "@skjera/oauth": "workspace:*",
     "effect": "catalog:",

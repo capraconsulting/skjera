@@ -1,5 +1,9 @@
 import * as A from "@automerge/automerge/slim";
-import type { DocumentId, Post, Publication } from "@skjera/documents/api";
+import type {
+  DocumentId,
+  EventContent,
+  Publication,
+} from "@skjera/documents/api";
 import { useSyncExternalStore } from "react";
 import { Link } from "react-router";
 import { Button } from "../../components/Button.tsx";
@@ -8,7 +12,7 @@ import { timeAgo } from "../../time.ts";
 import styles from "./EditorFooter.module.css";
 
 /** The draft's version, as a string that changes whenever the draft does. */
-const useVersion = (handle: LocalDocHandle<Post>) =>
+const useVersion = (handle: LocalDocHandle<EventContent>) =>
   useSyncExternalStore(
     (onChange) => {
       handle.on("change", onChange);
@@ -23,7 +27,7 @@ const useVersion = (handle: LocalDocHandle<Post>) =>
  */
 export function EditorFooter(props: {
   readonly id: DocumentId;
-  readonly handle: LocalDocHandle<Post>;
+  readonly handle: LocalDocHandle<EventContent>;
   readonly saving: boolean;
   readonly publication: Publication | null;
   readonly publishing: boolean;
@@ -61,7 +65,7 @@ export function EditorFooter(props: {
               <span className={styles.separator} aria-hidden="true">
                 ·
               </span>
-              <Link to={`/posts/${props.id}`}>View on site</Link>
+              <Link to={`/events/${props.id}`}>View on site</Link>
             </>
           )}
         </p>

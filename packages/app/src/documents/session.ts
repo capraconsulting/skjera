@@ -1,7 +1,7 @@
 import * as A from "@automerge/automerge/slim";
 import type {
   DocumentId,
-  Post,
+  EventContent,
   Publication,
   Team,
 } from "@skjera/documents/api";
@@ -12,7 +12,7 @@ import { DocumentsClient, runtime } from "./client.ts";
 
 export interface SessionState {
   /** The replica being edited; replaced when the session has to reload. */
-  readonly handle: LocalDocHandle<Post> | null;
+  readonly handle: LocalDocHandle<EventContent> | null;
   /** The team the document belongs to, once it is open. */
   readonly team: Team | null;
   /** Local changes the server doesn't have yet. */
@@ -85,12 +85,15 @@ const replica = (id: DocumentId, store: SessionStore) =>
     const opened = yield* client.OpenDocument({ id, actor });
 
     const pending: Array<A.Change> = [];
-    const handle = new LocalDocHandle<Post>(A.load<Post>(opened.draft, actor), {
-      onLocalChange: (change) => {
-        pending.push(change);
-        store.set({ saving: true });
+    const handle = new LocalDocHandle<EventContent>(
+      A.load<EventContent>(opened.draft, actor),
+      {
+        onLocalChange: (change) => {
+          pending.push(change);
+          store.set({ saving: true });
+        },
       },
-    });
+    );
     const done = yield* Deferred.make<"reload" | "deleted">();
     const sending = yield* Semaphore.make(1);
 
@@ -207,7 +210,7 @@ const runSession = (id: DocumentId, store: SessionStore) =>
     Effect.repeat({ while: (outcome) => outcome === "reload" }),
     Effect.tap(() =>
       Effect.sync(() =>
-        store.set({ deleted: true, error: "This post was deleted" }),
+        store.set({ deleted: true, error: "This event was deleted" }),
       ),
     ),
     Effect.catchTags({

@@ -1,10 +1,11 @@
 import { expect, test } from "@playwright/test";
 import {
   body,
-  deletePost,
+  deleteEvent,
   deleteTeam,
-  newPost,
+  newEvent,
   newTeam,
+  pickDate,
   signInAtDex,
   title,
   typeAt,
@@ -15,7 +16,7 @@ import {
 test("visitors can read the site but not the studio", async ({ browser }) => {
   const page = await visitor(browser);
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Posts" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Events" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Log in" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Studio" })).toHaveCount(0);
 
@@ -70,27 +71,29 @@ test("the site shows what was published, and only that", async ({
   await signInAtDex(alice, "alice@example.com");
   const team = await newTeam(alice, uniqueTeamName("Site"));
   await alice.goto(`/studio/teams/${team}`);
-  const id = await newPost(alice);
+  const id = await newEvent(alice);
   const headline = `Launch ${id.slice(-12)}`;
 
   // Not public before it is published.
   const reader = await visitor(browser);
-  await reader.goto(`/posts/${id}`);
+  await reader.goto(`/events/${id}`);
   await expect(reader.getByText("isn't published")).toBeVisible();
 
   await title(alice).pressSequentially(headline);
   await body(alice).pressSequentially("Line one");
   await body(alice).press("Enter");
   await body(alice).pressSequentially("Line two");
+  const date = await pickDate(alice);
   await expect(alice.getByTestId("status")).toContainText("Saved");
   await alice.getByRole("button", { name: "Publish" }).click();
   await expect(alice.getByTestId("status")).toContainText("Published");
 
   await reader.goto("/");
   await reader.getByRole("link", { name: headline }).click();
-  await expect(reader).toHaveURL(new RegExp(`/posts/${id}$`));
+  await expect(reader).toHaveURL(new RegExp(`/events/${id}$`));
   await expect(reader.getByRole("heading", { name: headline })).toBeVisible();
-  await expect(reader.getByTestId("post-body")).toHaveText(
+  await expect(reader.getByText(date)).toBeVisible();
+  await expect(reader.getByTestId("event-body")).toHaveText(
     "Line one\nLine two",
   );
 
@@ -108,7 +111,7 @@ test("the site shows what was published, and only that", async ({
   ).toBeVisible();
 
   // Deleting takes it off the site too.
-  await deletePost(alice, id);
+  await deleteEvent(alice, id);
   await reader.goto("/");
   await expect(reader.getByRole("link", { name: headline })).toHaveCount(0);
   await deleteTeam(alice, team);

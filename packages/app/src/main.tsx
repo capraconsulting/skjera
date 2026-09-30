@@ -6,13 +6,17 @@ import { createBrowserRouter, redirect } from "react-router";
 import { RouterProvider } from "react-router/dom";
 import { Loading } from "./components/Loading.tsx";
 import { Playground } from "./routes/Playground.tsx";
+import {
+  EventError,
+  EventPage,
+  eventLoader,
+} from "./routes/site/EventPage.tsx";
 import { Home, homeLoader } from "./routes/site/Home.tsx";
-import { Post, PostError, postLoader } from "./routes/site/Post.tsx";
 import { SiteLayout, siteLoader } from "./routes/site/SiteLayout.tsx";
-import { PostEditor } from "./routes/studio/PostEditor.tsx";
+import { EventEditor } from "./routes/studio/EventEditor.tsx";
 import { StudioLayout, studioLoader } from "./routes/studio/StudioLayout.tsx";
 import {
-  NoPostSelected,
+  NoEventSelected,
   Team,
   teamAction,
   teamLoader,
@@ -40,15 +44,15 @@ const router = createBrowserRouter([
     children: [
       { index: true, Component: Home, loader: homeLoader },
       {
-        path: "posts/:id",
-        Component: Post,
-        loader: postLoader,
-        ErrorBoundary: PostError,
+        path: "events/:id",
+        Component: EventPage,
+        loader: eventLoader,
+        ErrorBoundary: EventError,
       },
     ],
   },
   // The studio: everything else, behind login. Its columns nest: teams,
-  // then the selected team's posts, then the selected post.
+  // then the selected team's events, then the selected event.
   {
     path: "/studio",
     Component: StudioLayout,
@@ -71,8 +75,8 @@ const router = createBrowserRouter([
             loader: teamLoader,
             action: teamAction,
             children: [
-              { index: true, Component: NoPostSelected },
-              { path: "posts/:id", Component: PostEditor },
+              { index: true, Component: NoEventSelected },
+              { path: "events/:id", Component: EventEditor },
             ],
           },
         ],

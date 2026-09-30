@@ -1,34 +1,31 @@
 import { Link, useLoaderData } from "react-router";
 import { runPublic } from "../../site/client.ts";
-import { formatDate } from "../../time.ts";
+import { formatLongDate } from "../../time.ts";
 import styles from "./Home.module.css";
 
-export const homeLoader = () => runPublic((client) => client.posts.list());
+export const homeLoader = () => runPublic((client) => client.events.list());
 
 const excerpt = (body: string) =>
   body.length > 200 ? `${body.slice(0, 200).trimEnd()}…` : body;
 
 export function Home() {
-  const posts = useLoaderData<typeof homeLoader>();
+  const events = useLoaderData<typeof homeLoader>();
   return (
     <div className={styles.home}>
-      <h1 className={styles.heading}>Posts</h1>
-      {posts.length === 0 ? (
+      <h1 className={styles.heading}>Events</h1>
+      {events.length === 0 ? (
         <p className={styles.empty}>Nothing has been published yet.</p>
       ) : (
         <div className={styles.list}>
-          {posts.map((post) => (
-            <article key={post.id} className={styles.teaser}>
-              <time
-                className={styles.date}
-                dateTime={post.firstPublishedAt.toISOString()}
-              >
-                {formatDate(post.firstPublishedAt)}
+          {events.map((event) => (
+            <article key={event.id} className={styles.teaser}>
+              <time className={styles.date} dateTime={event.date}>
+                {formatLongDate(event.date)}
               </time>
               <h2>
-                <Link to={`/posts/${post.id}`}>{post.title}</Link>
+                <Link to={`/events/${event.id}`}>{event.title}</Link>
               </h2>
-              <p className={styles.excerpt}>{excerpt(post.body)}</p>
+              <p className={styles.excerpt}>{excerpt(event.body)}</p>
             </article>
           ))}
         </div>

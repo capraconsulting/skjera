@@ -7,6 +7,7 @@ import {
   redirect,
   useActionData,
   useLoaderData,
+  useParams,
 } from "react-router";
 import { Button } from "../../components/Button.tsx";
 import { Input } from "../../components/Input.tsx";
@@ -34,19 +35,22 @@ export const createTeamAction = async ({ request }: ActionFunctionArgs) => {
 };
 
 /**
- * The studio: teams, the selected team's posts, and the selected post, side
+ * The studio: teams, the selected team's events, and the selected event, side
  * by side. This is the first column; the others come through the outlet.
  */
 export function Teams() {
   const teams = useLoaderData<typeof teamsLoader>();
   const action = useActionData<typeof createTeamAction>();
+  const { teamId } = useParams();
   return (
     <div className={styles.columns}>
       <Pane
         title="Teams"
         label="Teams"
         footer={
-          <Form method="post" className={styles.create}>
+          // Creating a team opens it, which gives the form a new key and so
+          // clears it; after a failed attempt the name stays for fixing.
+          <Form key={teamId} method="post" className={styles.create}>
             <Input
               name="name"
               aria-label="Team name"
@@ -92,7 +96,7 @@ export function Teams() {
 export function NoTeamSelected() {
   return (
     <PanePlaceholder span={2}>
-      Pick a team to see its posts, or create one.
+      Pick a team to see its events, or create one.
     </PanePlaceholder>
   );
 }

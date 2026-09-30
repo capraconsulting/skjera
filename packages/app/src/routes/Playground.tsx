@@ -6,7 +6,7 @@ import { LocalDocHandle } from "../editor/LocalDocHandle.ts";
 import { TextEditor } from "../editor/TextEditor.tsx";
 import styles from "./Playground.module.css";
 
-type Post = {
+type Draft = {
   title: string;
   body: string;
 };
@@ -15,13 +15,13 @@ const titlePath = ["title"] as const;
 const bodyPath = ["body"] as const;
 
 /**
- * Two replicas of one post, each with its own actor id, kept in sync by a
+ * Two replicas of one event, each with its own actor id, kept in sync by a
  * simulated network link that can be paused to produce concurrent edits.
  */
 function makeReplicas() {
-  const original = A.from<Post>({ title: "", body: "" });
+  const original = A.from<Draft>({ title: "", body: "" });
   // Loading a save gives the second replica its own random actor id.
-  const other = A.load<Post>(A.save(original));
+  const other = A.load<Draft>(A.save(original));
   return [
     { name: "Replica 1", handle: new LocalDocHandle(original), sent: original },
     { name: "Replica 2", handle: new LocalDocHandle(other), sent: other },
@@ -78,7 +78,7 @@ function Replica({
   handle,
 }: {
   readonly name: string;
-  readonly handle: LocalDocHandle<Post>;
+  readonly handle: LocalDocHandle<Draft>;
 }) {
   const doc = useSyncExternalStore(
     (onChange) => {

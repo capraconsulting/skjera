@@ -1,16 +1,18 @@
 import { expect, test } from "@playwright/test";
 import {
-  deletePost,
+  deleteEvent,
   deleteTeam,
-  newPost,
+  eventPath,
+  newEvent,
   newTeam,
-  postPath,
   signedIn,
   title,
   uniqueTeamName,
 } from "./helpers.ts";
 
-test("posts are created in a team and listed under it", async ({ browser }) => {
+test("events are created in a team and listed under it", async ({
+  browser,
+}) => {
   const alice = await signedIn(browser, "alice@example.com");
   const bob = await signedIn(browser, "bob@example.com");
   const redName = uniqueTeamName("Red");
@@ -25,33 +27,33 @@ test("posts are created in a team and listed under it", async ({ browser }) => {
     await expect(page.getByRole("link", { name: blueName })).toBeVisible();
   }
 
-  // Bob creates a post in Alice's team.
+  // Bob creates an event in Alice's team.
   await bob.goto(`/studio/teams/${red}`);
-  const post = await newPost(bob);
+  const event = await newEvent(bob);
   await expect(bob.getByRole("link", { name: redName })).toBeVisible();
   await title(bob).pressSequentially("Red news");
-  // The posts column follows the editor.
+  // The events column follows the editor.
   await expect(
-    bob.getByRole("region", { name: "Posts" }).getByRole("link", {
+    bob.getByRole("region", { name: "Events" }).getByRole("link", {
       name: /Red news/,
     }),
   ).toBeVisible();
   // A link with the wrong team leads to the right one.
-  await bob.goto(postPath(blue, post));
-  await expect(bob).toHaveURL(new RegExp(`${postPath(red, post)}$`));
+  await bob.goto(eventPath(blue, event));
+  await expect(bob).toHaveURL(new RegExp(`${eventPath(red, event)}$`));
   await expect(title(bob)).toHaveText("Red news");
 
   await alice.goto(`/studio/teams/${red}`);
   await expect(alice.getByRole("link", { name: "Red news" })).toBeVisible();
-  // A team with posts can't be deleted.
+  // A team with events can't be deleted.
   await expect(alice.getByRole("button", { name: "Delete team" })).toHaveCount(
     0,
   );
   await alice.goto(`/studio/teams/${blue}`);
-  await expect(alice.getByText("No posts yet.")).toBeVisible();
+  await expect(alice.getByText("No events yet.")).toBeVisible();
 
-  await bob.goto(postPath(red, post));
-  await deletePost(bob, post);
+  await bob.goto(eventPath(red, event));
+  await deleteEvent(bob, event);
   await deleteTeam(alice, red);
   await deleteTeam(alice, blue);
 });

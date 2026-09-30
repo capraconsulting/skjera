@@ -2,7 +2,11 @@ import * as A from "@automerge/automerge";
 import type { Identity } from "@skjera/oauth/api";
 import { Context, Effect, Layer, Schema } from "effect";
 import { SqlClient, SqlError } from "effect/sql";
-import { type ContentTypeName, contentTypes } from "./ContentTypes.ts";
+import {
+  type ContentTypeName,
+  contentTypes,
+  missingToPublish,
+} from "./ContentTypes.ts";
 import {
   ActorNotAllowed,
   DocumentNotFound,
@@ -15,6 +19,7 @@ import {
   type DocumentId,
   DocumentSummary,
   type Heads,
+  type IsoDate,
   Publication,
   type TeamId,
 } from "./Model.ts";
@@ -151,19 +156,21 @@ export class Documents extends Context.Service<
 
       // Per content type, as each has its own table of published versions.
       const summaries = {
-        post: (team: TeamId) => sql<{
+        event: (team: TeamId) => sql<{
           id: DocumentId;
           title: string;
+          date: IsoDate | null;
           updated_at: Date;
           published_at: Date | null;
           has_unpublished_changes: boolean;
         }>`
-          SELECT d.id, c.content->>'title' AS title, d.updated_at, p.published_at,
-            automerge_heads(d.draft) IS DISTINCT FROM p.published_heads AS has_unpublished_changes
+          SELECT d.id, c.content->>'title' AS title, c.content->>'date' AS date,
+            d.updated_at, e.published_at,
+            automerge_heads(d.draft) IS DISTINCT FROM e.published_heads AS has_unpublished_changes
           FROM documents d
           CROSS JOIN LATERAL (SELECT d.draft::jsonb AS content OFFSET 0) c
-          LEFT JOIN posts p ON p.id = d.id
-          WHERE d.type = 'post' AND d.team_id = ${team}
+          LEFT JOIN events e ON e.id = d.id
+          WHERE d.type = 'event' AND d.team_id = ${team}
           ORDER BY d.updated_at DESC
         `,
       } satisfies Record<ContentTypeName, unknown>;
@@ -178,6 +185,7 @@ export class Documents extends Context.Service<
             new DocumentSummary({
               id: row.id,
               title: row.title,
+              date: row.date,
               updatedAt: row.updated_at,
               publishedAt: row.published_at,
               hasUnpublishedChanges: row.has_unpublished_changes,
@@ -198,10 +206,10 @@ export class Documents extends Context.Service<
         });
 
       const publications = {
-        post: (id: DocumentId) =>
+        event: (id: DocumentId) =>
           sql<PublicationRow>`
             SELECT published_heads, published_at, first_published_at
-            FROM posts WHERE id = ${id}
+            FROM events WHERE id = ${id}
           `,
       } satisfies Record<ContentTypeName, unknown>;
 
@@ -339,12 +347,17 @@ export class Documents extends Context.Service<
       });
 
       const publishers = {
-        post: (id: DocumentId, heads: Heads, user: Identity) =>
+        event: (id: DocumentId, heads: Heads, user: Identity) =>
           sql<PublicationRow>`
             SELECT published_heads, published_at, first_published_at
-            FROM publish_post(${id}, ${heads}::text[], ${user.issuer}, ${user.subject})
+            FROM publish_event(${id}, ${heads}::text[], ${user.issuer}, ${user.subject})
           `,
       } satisfies Record<ContentTypeName, unknown>;
+
+      const unknownVersion = (error: SqlError.SqlError) =>
+        pgCode(error) === "22023"
+          ? Effect.fail(new PublishRejected({ message: "Unknown version" }))
+          : Effect.die(error);
 
       const publish = Effect.fn("Documents.publish")(function* (
         id: DocumentId,
@@ -352,23 +365,23 @@ export class Documents extends Context.Service<
         user: Identity,
       ) {
         const type = yield* typeOf(id);
+
+        // Check the version being published first, so the message names
+        // everything that is missing. The table constraints are a backstop.
+        const [version] = yield* sql<{ content: unknown }>`
+          SELECT automerge_to_jsonb(draft, ${heads}::text[]) AS content
+          FROM documents WHERE id = ${id}
+        `.pipe(Effect.catchIf(SqlError.isSqlError, unknownVersion));
+        const content = yield* Schema.decodeUnknownEffect(
+          contentTypes[type].schema,
+        )(version?.content).pipe(Effect.orDie);
+        const missing = missingToPublish(contentTypes[type].toPublish, content);
+        if (missing !== null) {
+          return yield* new PublishRejected({ message: missing });
+        }
+
         const [row] = yield* publishers[type](id, heads, user).pipe(
-          Effect.catchIf(SqlError.isSqlError, (error) => {
-            switch (pgCode(error)) {
-              case "22023":
-                return Effect.fail(
-                  new PublishRejected({ message: "Unknown version" }),
-                );
-              case "23514":
-                return Effect.fail(
-                  new PublishRejected({
-                    message: "The content isn't ready to publish",
-                  }),
-                );
-              default:
-                return Effect.die(error);
-            }
-          }),
+          Effect.catchIf(SqlError.isSqlError, unknownVersion),
         );
         if (row === undefined) {
           return yield* new DocumentNotFound({ id });

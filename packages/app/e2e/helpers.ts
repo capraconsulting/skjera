@@ -38,26 +38,28 @@ export const uniqueTeamName = (label: string) =>
 /** Creates a team from the teams page, opens it and returns its id. */
 export const newTeam = async (page: Page, name: string) => {
   await page.goto("/studio/teams");
-  await page.getByRole("textbox", { name: "Team name" }).fill(name);
+  const input = page.getByRole("textbox", { name: "Team name" });
+  await input.fill(name);
   await page.getByRole("button", { name: "Create team" }).click();
   await expect(page.getByRole("heading", { name })).toBeVisible();
+  await expect(input).toHaveValue("");
   return lastPathSegment(page);
 };
 
-/** Creates a post in the open team and returns its id. */
-export const newPost = async (page: Page) => {
-  await page.getByRole("button", { name: "New post" }).click();
+/** Creates an event in the open team and returns its id. */
+export const newEvent = async (page: Page) => {
+  await page.getByRole("button", { name: "New event" }).click();
   await expect(page).toHaveURL(
-    /\/studio\/teams\/[0-9a-f-]+\/posts\/[0-9a-f-]+$/,
+    /\/studio\/teams\/[0-9a-f-]+\/events\/[0-9a-f-]+$/,
   );
   return lastPathSegment(page);
 };
 
-/** The studio URL of a post. */
-export const postPath = (team: string, post: string) =>
-  `/studio/teams/${team}/posts/${post}`;
+/** The studio URL of an event. */
+export const eventPath = (team: string, event: string) =>
+  `/studio/teams/${team}/events/${event}`;
 
-/** Deletes a team that has no posts left, and checks it's gone. */
+/** Deletes a team that has no events left, and checks it's gone. */
 export const deleteTeam = async (page: Page, id: string) => {
   await page.goto(`/studio/teams/${id}`);
   await page.getByRole("button", { name: "Delete team" }).click();
@@ -66,17 +68,17 @@ export const deleteTeam = async (page: Page, id: string) => {
 };
 
 /**
- * Deletes the post open in the editor, and checks it's gone from the studio
- * and the site. Tests end with this, so they leave no posts behind.
+ * Deletes the event open in the editor, and checks it's gone from the studio
+ * and the site. Tests end with this, so they leave no events behind.
  */
-export const deletePost = async (page: Page, id: string) => {
+export const deleteEvent = async (page: Page, id: string) => {
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Delete", exact: true }).click();
-  // Back on the post's team, without the post.
+  // Back on the event's team, without the event.
   await expect(page).toHaveURL(/\/studio\/teams\/[0-9a-f-]+$/);
-  await expect(page.locator(`a[href$="/posts/${id}"]`)).toHaveCount(0);
+  await expect(page.locator(`a[href$="/events/${id}"]`)).toHaveCount(0);
 
-  await page.goto(`/posts/${id}`);
+  await page.goto(`/events/${id}`);
   await expect(page.getByText("isn't published")).toBeVisible();
 };
 
@@ -116,4 +118,29 @@ export const typeAt = async (
 ) => {
   await placeCaret(editor, where);
   await editor.page().keyboard.type(text);
+};
+
+/**
+ * Picks the 15th of the current month in the editor's date field, and
+ * returns it as the date the site shows ("Thursday, October 15, 2026").
+ */
+export const pickDate = async (page: Page) => {
+  const now = new Date();
+  const day = new Date(now.getFullYear(), now.getMonth(), 15);
+  const month = day.toLocaleDateString("en-US", { month: "long" });
+  const field = page.getByRole("button", { name: "Date", exact: true });
+  await field.click();
+  await page
+    .getByRole("button", {
+      name: new RegExp(`${month} 15th, ${day.getFullYear()}`),
+    })
+    .click();
+  const shown = day.toLocaleDateString("en-US", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  await expect(field).toHaveText(shown);
+  return shown;
 };

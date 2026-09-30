@@ -27,3 +27,30 @@ export const formatDate = (date: Date): string =>
     month: "short",
     year: "numeric",
   });
+
+/** A "2026-10-15" calendar date as a local Date, so it shows as that day. */
+export const fromIsoDate = (iso: string): Date => {
+  const [year, month, day] = iso.split("-").map(Number) as [
+    number,
+    number,
+    number,
+  ];
+  return new Date(year, month - 1, day);
+};
+
+/** A local Date as a "2026-10-15" calendar date. */
+export const toIsoDate = (date: Date): string =>
+  [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+
+/** "Thursday, October 15, 2026" */
+export const formatLongDate = (iso: string): string =>
+  fromIsoDate(iso).toLocaleDateString(undefined, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });

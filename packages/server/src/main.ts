@@ -22,7 +22,7 @@ class Api extends HttpApi.make("skjera")
       .middleware(OAuth.Authentication),
   )
   // Public: no middleware, published content only.
-  .add(Documents.PostsApi) {}
+  .add(Documents.EventsApi) {}
 
 const ApiHandlers = HttpApiBuilder.group(Api, "session", (handlers) =>
   handlers.handle("me", () =>
@@ -32,17 +32,17 @@ const ApiHandlers = HttpApiBuilder.group(Api, "session", (handlers) =>
   ),
 );
 
-const PostsHandlers = HttpApiBuilder.group(Api, "posts", (handlers) =>
+const EventsHandlers = HttpApiBuilder.group(Api, "events", (handlers) =>
   Effect.gen(function* () {
-    const posts = yield* Documents.PublishedPosts;
+    const events = yield* Documents.PublishedEvents;
     return handlers
-      .handle("list", () => posts.list)
-      .handle("get", ({ params }) => posts.get(params.id));
+      .handle("list", () => events.list)
+      .handle("get", ({ params }) => events.get(params.id));
   }),
 );
 
 const Routes = Layer.mergeAll(
-  HttpApiBuilder.layer(Api).pipe(Layer.provide([ApiHandlers, PostsHandlers])),
+  HttpApiBuilder.layer(Api).pipe(Layer.provide([ApiHandlers, EventsHandlers])),
   Documents.RpcServer.layerHttp({ path: "/rpc" }),
   HttpRouter.add("GET", "/health", HttpServerResponse.text("ok")),
 ).pipe(Layer.provideMerge(OAuth.routes));

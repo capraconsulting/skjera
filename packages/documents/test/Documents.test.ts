@@ -3,11 +3,11 @@ import { assert, layer } from "@effect/vitest";
 import { Identity } from "@skjera/oauth/api";
 import { Effect, Fiber, Layer, Stream } from "effect";
 import { SqlClient } from "effect/sql";
-import type { Post } from "../src/ContentTypes.ts";
+import type { EventContent } from "../src/ContentTypes.ts";
 import { DocumentEvents } from "../src/DocumentEvents.ts";
 import { Documents } from "../src/Documents.ts";
 import type { TeamId } from "../src/Model.ts";
-import { PublishedPosts } from "../src/PublishedPosts.ts";
+import { PublishedEvents } from "../src/PublishedEvents.ts";
 import { Teams } from "../src/Teams.ts";
 import { TestDatabase } from "./TestDatabase.ts";
 
@@ -17,7 +17,7 @@ const bob = new Identity({ issuer: "https://idp.example", subject: "bob" });
 const TestLayer = Layer.mergeAll(
   Documents.layer,
   DocumentEvents.layer,
-  PublishedPosts.layer,
+  PublishedEvents.layer,
   Teams.layer,
 ).pipe(Layer.provideMerge(TestDatabase));
 
@@ -29,6 +29,11 @@ const newTeam = Effect.gen(function* () {
   return (yield* teams.create(`Team ${teamCount}`, alice)).id;
 }).pipe(Effect.orDie);
 
+/** Sets the date the way the editor does: a value replaced as a whole. */
+const setDate = (event: EventContent, date: string) => {
+  (event as { date: unknown }).date = new A.ImmutableString(date);
+};
+
 /** An editor session: a replica of the draft with its own actor id. */
 const openEditor = Effect.fn(function* (
   id: Parameters<Documents["Service"]["get"]>[0],
@@ -36,12 +41,12 @@ const openEditor = Effect.fn(function* (
 ) {
   const documents = yield* Documents;
   const snapshot = yield* documents.get(id);
-  let doc = A.load<Post>(snapshot.draft);
+  let doc = A.load<EventContent>(snapshot.draft);
   yield* documents.registerActor(id, A.getActorId(doc), user);
   return {
     doc: () => doc,
     /** Makes a local change and returns it, as the editor would send it. */
-    edit: (fn: (post: Post) => void) => {
+    edit: (fn: (event: EventContent) => void) => {
       doc = A.change(doc, fn);
       const change = A.getLastLocalChange(doc);
       if (change === undefined) throw new Error("no change");
@@ -58,12 +63,13 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
   it.effect("creates an empty draft", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
-      const id = yield* documents.create("post", yield* newTeam, alice);
+      const id = yield* documents.create("event", yield* newTeam, alice);
       const snapshot = yield* documents.get(id);
-      assert.strictEqual(snapshot.type, "post");
+      assert.strictEqual(snapshot.type, "event");
       assert.deepStrictEqual(A.toJS(A.load(snapshot.draft)), {
         title: "",
         body: "",
+        date: null,
       });
       assert.deepStrictEqual(
         snapshot.heads,
@@ -75,18 +81,18 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
   it.effect("merges edits from two users and syncs them", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
-      const id = yield* documents.create("post", yield* newTeam, alice);
+      const id = yield* documents.create("event", yield* newTeam, alice);
       const aliceEditor = yield* openEditor(id, alice);
       const bobEditor = yield* openEditor(id, bob);
 
       yield* documents.applyChanges(
         id,
-        [aliceEditor.edit((post) => A.updateText(post, ["title"], "Hello"))],
+        [aliceEditor.edit((event) => A.updateText(event, ["title"], "Hello"))],
         alice,
       );
       const heads = yield* documents.applyChanges(
         id,
-        [bobEditor.edit((post) => A.updateText(post, ["body"], "World"))],
+        [bobEditor.edit((event) => A.updateText(event, ["body"], "World"))],
         bob,
       );
 
@@ -101,6 +107,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         assert.deepStrictEqual(A.toJS(editor.doc()), {
           title: "Hello",
           body: "World",
+          date: null,
         });
         assert.deepStrictEqual(
           [...A.getHeads(editor.doc())].sort(),
@@ -113,10 +120,10 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
   it.effect("accepts re-sent changes as a no-op", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
-      const id = yield* documents.create("post", yield* newTeam, alice);
+      const id = yield* documents.create("event", yield* newTeam, alice);
       const editor = yield* openEditor(id, alice);
-      const change = editor.edit((post) =>
-        A.updateText(post, ["title"], "Once"),
+      const change = editor.edit((event) =>
+        A.updateText(event, ["title"], "Once"),
       );
       const first = yield* documents.applyChanges(id, [change], alice);
       const again = yield* documents.applyChanges(id, [change], alice);
@@ -127,10 +134,10 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
   it.effect("only accepts changes from the sender's own actor ids", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
-      const id = yield* documents.create("post", yield* newTeam, alice);
+      const id = yield* documents.create("event", yield* newTeam, alice);
       const aliceEditor = yield* openEditor(id, alice);
-      const change = aliceEditor.edit((post) =>
-        A.updateText(post, ["title"], "Mine"),
+      const change = aliceEditor.edit((event) =>
+        A.updateText(event, ["title"], "Mine"),
       );
 
       // Bob can't send Alice's changes, nor claim her actor id.
@@ -148,14 +155,14 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
   it.effect("rejects changes that don't fit the content type", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
-      const id = yield* documents.create("post", yield* newTeam, alice);
+      const id = yield* documents.create("event", yield* newTeam, alice);
       const editor = yield* openEditor(id, alice);
       const before = (yield* documents.get(id)).heads;
 
       const extraField = yield* Effect.flip(
         documents.applyChanges(
           id,
-          [editor.edit((post) => Object.assign(post, { secret: "x" }))],
+          [editor.edit((event) => Object.assign(event, { secret: "x" }))],
           alice,
         ),
       );
@@ -167,7 +174,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       const wrongType = yield* Effect.flip(
         documents.applyChanges(
           id,
-          [fresh.edit((post) => Object.assign(post, { title: 42 }))],
+          [fresh.edit((event) => Object.assign(event, { title: 42 }))],
           alice,
         ),
       );
@@ -177,14 +184,32 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
     }),
   );
 
+  it.effect("only accepts real calendar dates", () =>
+    Effect.gen(function* () {
+      const documents = yield* Documents;
+      const id = yield* documents.create("event", yield* newTeam, alice);
+      for (const date of ["2026-02-30", "15.10.2026", "2026-10-15T12:00"]) {
+        const editor = yield* openEditor(id, alice);
+        const error = yield* Effect.flip(
+          documents.applyChanges(
+            id,
+            [editor.edit((event) => setDate(event, date))],
+            alice,
+          ),
+        );
+        assert.strictEqual(error._tag, "InvalidContent", date);
+      }
+    }),
+  );
+
   it.effect("rejects changes whose dependencies it hasn't seen", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
-      const id = yield* documents.create("post", yield* newTeam, alice);
+      const id = yield* documents.create("event", yield* newTeam, alice);
       const editor = yield* openEditor(id, alice);
-      editor.edit((post) => A.updateText(post, ["title"], "First"));
-      const second = editor.edit((post) =>
-        A.updateText(post, ["title"], "Second"),
+      editor.edit((event) => A.updateText(event, ["title"], "First"));
+      const second = editor.edit((event) =>
+        A.updateText(event, ["title"], "Second"),
       );
       const error = yield* Effect.flip(
         documents.applyChanges(id, [second], alice),
@@ -197,15 +222,16 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
     Effect.gen(function* () {
       const documents = yield* Documents;
       const sql = yield* SqlClient.SqlClient;
-      const id = yield* documents.create("post", yield* newTeam, alice);
+      const id = yield* documents.create("event", yield* newTeam, alice);
       const editor = yield* openEditor(id, alice);
 
       const seen = yield* documents.applyChanges(
         id,
         [
-          editor.edit((post) => {
-            A.updateText(post, ["title"], "Launch");
-            A.updateText(post, ["body"], "We're live");
+          editor.edit((event) => {
+            A.updateText(event, ["title"], "Launch");
+            A.updateText(event, ["body"], "We're live");
+            setDate(event, "2026-10-15");
           }),
         ],
         alice,
@@ -213,51 +239,84 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       // Someone keeps typing while Alice clicks publish.
       yield* documents.applyChanges(
         id,
-        [editor.edit((post) => A.updateText(post, ["title"], "Launch day!"))],
+        [editor.edit((event) => A.updateText(event, ["title"], "Launch day!"))],
         alice,
       );
 
       const first = yield* documents.publish(id, seen, alice);
       assert.deepStrictEqual(first.heads, seen);
-      const [row] = yield* sql<{ title: string; body: string }>`
-        SELECT title, body FROM posts WHERE id = ${id}
+      const [row] = yield* sql<{ title: string; body: string; date: string }>`
+        SELECT title, body, event_date::text AS date FROM events WHERE id = ${id}
       `;
-      assert.deepStrictEqual(row, { title: "Launch", body: "We're live" });
+      assert.deepStrictEqual(row, {
+        title: "Launch",
+        body: "We're live",
+        date: "2026-10-15",
+      });
 
       const latest = (yield* documents.get(id)).heads;
       const second = yield* documents.publish(id, latest, alice);
       assert.deepStrictEqual(second.firstPublishedAt, first.firstPublishedAt);
       assert.isTrue(second.publishedAt >= first.publishedAt);
       const [updated] = yield* sql<{ title: string }>`
-        SELECT title FROM posts WHERE id = ${id}
+        SELECT title FROM events WHERE id = ${id}
       `;
       assert.strictEqual(updated?.title, "Launch day!");
     }),
   );
 
-  it.effect("refuses to publish an untitled post or an unknown version", () =>
-    Effect.gen(function* () {
-      const documents = yield* Documents;
-      const id = yield* documents.create("post", yield* newTeam, alice);
-      const untitled = yield* Effect.flip(
-        documents.publish(id, (yield* documents.get(id)).heads, alice),
-      );
-      assert.strictEqual(untitled._tag, "PublishRejected");
+  it.effect(
+    "refuses to publish without a title or date, or an unknown version",
+    () =>
+      Effect.gen(function* () {
+        const documents = yield* Documents;
+        const id = yield* documents.create("event", yield* newTeam, alice);
+        const editor = yield* openEditor(id, alice);
+        const blank = (yield* documents.get(id)).heads;
+        const dated = yield* documents.applyChanges(
+          id,
+          [editor.edit((event) => setDate(event, "2026-10-15"))],
+          alice,
+        );
+        const empty = yield* Effect.flip(documents.publish(id, blank, alice));
+        assert.strictEqual(
+          empty.message,
+          "Add a title and a date before publishing",
+        );
+        const untitled = yield* Effect.flip(
+          documents.publish(id, dated, alice),
+        );
+        assert.strictEqual(untitled.message, "Add a title before publishing");
 
-      const unknown = yield* Effect.flip(
-        documents.publish(id, ["00".repeat(32)], alice),
-      );
-      assert.strictEqual(unknown._tag, "PublishRejected");
-    }),
+        const titled = yield* documents.applyChanges(
+          id,
+          [
+            editor.edit((event) => {
+              A.updateText(event, ["title"], "Dateless");
+              (event as { date: unknown }).date = null;
+            }),
+          ],
+          alice,
+        );
+        const undated = yield* Effect.flip(
+          documents.publish(id, titled, alice),
+        );
+        assert.strictEqual(undated.message, "Add a date before publishing");
+
+        const unknown = yield* Effect.flip(
+          documents.publish(id, ["00".repeat(32)], alice),
+        );
+        assert.strictEqual(unknown._tag, "PublishRejected");
+      }),
   );
 
-  it.effect("lists posts with their publish state", () =>
+  it.effect("lists events with their publish state", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
       const team = yield* newTeam;
-      const id = yield* documents.create("post", team, alice);
+      const id = yield* documents.create("event", team, alice);
       const editor = yield* openEditor(id, alice);
-      const find = Effect.map(documents.list("post", team), (rows) =>
+      const find = Effect.map(documents.list("event", team), (rows) =>
         rows.find((row) => row.id === id),
       );
 
@@ -268,7 +327,12 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
 
       const heads = yield* documents.applyChanges(
         id,
-        [editor.edit((post) => A.updateText(post, ["title"], "Listed"))],
+        [
+          editor.edit((event) => {
+            A.updateText(event, ["title"], "Listed");
+            setDate(event, "2026-10-15");
+          }),
+        ],
         alice,
       );
       const publication = yield* documents.publish(id, heads, alice);
@@ -282,7 +346,11 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
 
       yield* documents.applyChanges(
         id,
-        [editor.edit((post) => A.updateText(post, ["title"], "Listed again"))],
+        [
+          editor.edit((event) =>
+            A.updateText(event, ["title"], "Listed again"),
+          ),
+        ],
         alice,
       );
       assert.isTrue((yield* find)?.hasUnpublishedChanges);
@@ -292,29 +360,38 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
   it.effect("shows the public only what was published", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
-      const published = yield* PublishedPosts;
-      const id = yield* documents.create("post", yield* newTeam, alice);
+      const published = yield* PublishedEvents;
+      const id = yield* documents.create("event", yield* newTeam, alice);
       const editor = yield* openEditor(id, alice);
       const heads = yield* documents.applyChanges(
         id,
-        [editor.edit((post) => A.updateText(post, ["title"], "Public"))],
+        [
+          editor.edit((event) => {
+            A.updateText(event, ["title"], "Public");
+            setDate(event, "2026-10-15");
+          }),
+        ],
         alice,
       );
 
       // A draft is invisible until it is published.
       const hidden = yield* Effect.flip(published.get(id));
-      assert.strictEqual(hidden._tag, "PostNotFound");
+      assert.strictEqual(hidden._tag, "EventNotFound");
 
       yield* documents.publish(id, heads, alice);
       yield* documents.applyChanges(
         id,
-        [editor.edit((post) => A.updateText(post, ["title"], "Secret draft"))],
+        [
+          editor.edit((event) =>
+            A.updateText(event, ["title"], "Secret draft"),
+          ),
+        ],
         alice,
       );
 
       // Edits after publishing stay private until republished.
       assert.strictEqual((yield* published.get(id)).title, "Public");
-      const listed = (yield* published.list).find((post) => post.id === id);
+      const listed = (yield* published.list).find((event) => event.id === id);
       assert.strictEqual(listed?.title, "Public");
     }),
   );
@@ -322,12 +399,17 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
   it.effect("deletes a document and its published version", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
-      const published = yield* PublishedPosts;
-      const id = yield* documents.create("post", yield* newTeam, alice);
+      const published = yield* PublishedEvents;
+      const id = yield* documents.create("event", yield* newTeam, alice);
       const editor = yield* openEditor(id, alice);
       const heads = yield* documents.applyChanges(
         id,
-        [editor.edit((post) => A.updateText(post, ["title"], "Short-lived"))],
+        [
+          editor.edit((event) => {
+            A.updateText(event, ["title"], "Short-lived");
+            setDate(event, "2026-10-15");
+          }),
+        ],
         alice,
       );
       yield* documents.publish(id, heads, alice);
@@ -339,7 +421,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       );
       assert.strictEqual(
         (yield* Effect.flip(published.get(id)))._tag,
-        "PostNotFound",
+        "EventNotFound",
       );
       assert.strictEqual(
         (yield* Effect.flip(documents.delete(id)))._tag,
@@ -348,31 +430,31 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
     }),
   );
 
-  it.effect("lists a team's posts only", () =>
+  it.effect("lists a team's events only", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
       const [red, blue] = [yield* newTeam, yield* newTeam];
-      const redPost = yield* documents.create("post", red, alice);
-      const bluePost = yield* documents.create("post", blue, alice);
+      const redEvent = yield* documents.create("event", red, alice);
+      const blueEvent = yield* documents.create("event", blue, alice);
 
       const ids = (rows: ReadonlyArray<{ readonly id: string }>) =>
         rows.map((row) => row.id);
-      assert.deepStrictEqual(ids(yield* documents.list("post", red)), [
-        redPost,
+      assert.deepStrictEqual(ids(yield* documents.list("event", red)), [
+        redEvent,
       ]);
-      assert.deepStrictEqual(ids(yield* documents.list("post", blue)), [
-        bluePost,
+      assert.deepStrictEqual(ids(yield* documents.list("event", blue)), [
+        blueEvent,
       ]);
-      assert.strictEqual((yield* documents.get(redPost)).teamId, red);
+      assert.strictEqual((yield* documents.get(redEvent)).teamId, red);
     }),
   );
 
-  it.effect("creates posts only in existing teams", () =>
+  it.effect("creates events only in existing teams", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
       const error = yield* Effect.flip(
         documents.create(
-          "post",
+          "event",
           "01a0f2ff-0000-7000-8000-000000000000" as TeamId,
           alice,
         ),
@@ -396,11 +478,11 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       const blank = yield* Effect.flip(teams.create("   ", bob));
       assert.strictEqual(blank._tag, "InvalidTeamName");
 
-      // A team with posts can't be deleted; an empty one can.
-      const post = yield* documents.create("post", team.id, alice);
+      // A team with events can't be deleted; an empty one can.
+      const event = yield* documents.create("event", team.id, alice);
       const notEmpty = yield* Effect.flip(teams.delete(team.id));
       assert.strictEqual(notEmpty._tag, "TeamNotEmpty");
-      yield* documents.delete(post);
+      yield* documents.delete(event);
       yield* teams.delete(team.id);
       const gone = yield* Effect.flip(teams.get(team.id));
       assert.strictEqual(gone._tag, "TeamNotFound");
@@ -411,7 +493,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
     Effect.gen(function* () {
       const documents = yield* Documents;
       const { events } = yield* DocumentEvents;
-      const id = yield* documents.create("post", yield* newTeam, alice);
+      const id = yield* documents.create("event", yield* newTeam, alice);
       const editor = yield* openEditor(id, alice);
 
       const next = yield* events.pipe(
@@ -428,7 +510,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       yield* Effect.sleep("100 millis");
       const heads = yield* documents.applyChanges(
         id,
-        [editor.edit((post) => A.updateText(post, ["title"], "Ping"))],
+        [editor.edit((event) => A.updateText(event, ["title"], "Ping"))],
         alice,
       );
       const event = yield* Fiber.join(next);
@@ -444,7 +526,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       const documents = yield* Documents;
       const { events } = yield* DocumentEvents;
       const sql = yield* SqlClient.SqlClient;
-      const id = yield* documents.create("post", yield* newTeam, alice);
+      const id = yield* documents.create("event", yield* newTeam, alice);
       const editor = yield* openEditor(id, alice);
 
       const received = yield* events.pipe(
@@ -467,7 +549,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       yield* Effect.sleep("1500 millis");
       yield* documents.applyChanges(
         id,
-        [editor.edit((post) => A.updateText(post, ["title"], "Still here"))],
+        [editor.edit((event) => A.updateText(event, ["title"], "Still here"))],
         alice,
       );
 
