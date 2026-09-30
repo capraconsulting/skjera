@@ -7,7 +7,11 @@ import {
   useActionData,
   useLoaderData,
 } from "react-router";
+import { Button } from "../../components/Button.tsx";
+import { Input } from "../../components/Input.tsx";
+import { Toolbar } from "../../components/Toolbar.tsx";
 import { call } from "../../documents/client.ts";
+import { formatDate } from "../../time.ts";
 import styles from "./Teams.module.css";
 
 export const teamsLoader = () => call((client) => client.ListTeams());
@@ -28,27 +32,38 @@ export function Teams() {
   const action = useActionData<typeof createTeamAction>();
   return (
     <>
-      <h1>Teams</h1>
+      <Toolbar>
+        <h1>Teams</h1>
+      </Toolbar>
       {teams.length === 0 ? (
-        <p>No teams yet. Create the first one below.</p>
+        <p className={styles.empty}>
+          No teams yet. Create the first one below.
+        </p>
       ) : (
-        <ul className={styles.list}>
+        <ul className={styles.grid}>
           {teams.map((team) => (
             <li key={team.id}>
-              <Link to={`/studio/teams/${team.id}`}>{team.name}</Link>
+              <Link to={`/studio/teams/${team.id}`} className={styles.card}>
+                {team.name}
+                <span className={styles.meta}>
+                  Created {formatDate(team.createdAt)}
+                </span>
+              </Link>
             </li>
           ))}
         </ul>
       )}
       <Form method="post" className={styles.create}>
-        <input
+        <Input
           name="name"
           aria-label="Team name"
-          placeholder="Team name"
+          placeholder="New team name"
           required
           maxLength={100}
         />
-        <button type="submit">Create team</button>
+        <Button type="submit" variant="primary">
+          Create team
+        </Button>
       </Form>
       {action?.error === undefined ? null : (
         <p role="alert" className={styles.error}>

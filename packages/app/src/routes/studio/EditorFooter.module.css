@@ -1,0 +1,68 @@
+/* Like Sanity's document footer: status on the left, actions on the right. */
+.footer {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: 0 -4px 16px var(--color-shadow);
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 0.75rem 1.5rem;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--color-success);
+}
+
+.saving {
+  background: var(--color-warning);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.separator {
+  color: var(--color-border-strong);
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.publish {
+  min-width: 7.5rem;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .saving {
+    animation: none;
+  }
+}

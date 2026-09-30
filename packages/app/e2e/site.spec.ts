@@ -33,10 +33,33 @@ test("logging in from the site leads to the studio and back", async ({
   await expect(page).toHaveURL(/\/studio\/teams$/);
   await expect(page.getByTestId("me")).toHaveText("alice@example.com");
 
-  await page.getByRole("link", { name: "View site" }).click();
+  await page.getByRole("link", { name: "Skjera" }).click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("link", { name: "Studio" })).toBeVisible();
   await expect(page.getByTestId("me")).toHaveText("alice@example.com");
+});
+
+test("the theme follows the system until the user picks one", async ({
+  browser,
+}) => {
+  const page = await (
+    await browser.newContext({ colorScheme: "dark" })
+  ).newPage();
+  await page.goto("/");
+  const root = page.locator("html");
+  // Dark from the system, without an explicit choice.
+  await expect(root).toHaveCSS("background-color", "rgb(17, 20, 24)");
+  await expect(root).not.toHaveAttribute("data-theme");
+
+  await page.getByRole("button", { name: "Switch to light mode" }).click();
+  await expect(root).toHaveAttribute("data-theme", "light");
+  await expect(root).toHaveCSS("background-color", "rgb(246, 247, 249)");
+
+  // The choice is remembered.
+  await page.reload();
+  await expect(root).toHaveAttribute("data-theme", "light");
+  await page.getByRole("button", { name: "Switch to dark mode" }).click();
+  await expect(root).toHaveCSS("background-color", "rgb(17, 20, 24)");
 });
 
 test("the site shows what was published, and only that", async ({

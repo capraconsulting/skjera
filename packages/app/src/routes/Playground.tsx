@@ -54,7 +54,7 @@ export function Playground() {
   }, [replicas, connected]);
 
   return (
-    <Shell brand={{ to: "/", label: "Skjera" }} actions={null}>
+    <Shell>
       <h1>Playground</h1>
       <label>
         <input

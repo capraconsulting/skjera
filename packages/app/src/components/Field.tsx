@@ -8,7 +8,7 @@ export function Field(props: {
 }) {
   return (
     <div className={styles.field}>
-      {props.label}
+      <span className={styles.label}>{props.label}</span>
       {props.children}
     </div>
   );

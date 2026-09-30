@@ -1,9 +1,10 @@
 import type { DocumentId } from "@skjera/documents/api";
 import { Link, useNavigate, useParams } from "react-router";
+import { Breadcrumbs } from "../../components/Breadcrumbs.tsx";
 import { Field } from "../../components/Field.tsx";
-import { Toolbar } from "../../components/Toolbar.tsx";
 import { useDocumentSession } from "../../documents/session.ts";
 import { TextEditor } from "../../editor/TextEditor.tsx";
+import { EditorFooter } from "./EditorFooter.tsx";
 import styles from "./PostEditor.module.css";
 
 const titlePath = ["title"] as const;
@@ -17,14 +18,18 @@ export function PostEditor() {
 function PostSession({ id }: { readonly id: DocumentId }) {
   const session = useDocumentSession(id);
   const navigate = useNavigate();
-  const { handle, publication } = session;
+  const { handle, team } = session;
 
   if (session.deleted) {
     return (
-      <p role="alert">
+      <p role="alert" className={styles.message}>
         This post was deleted. <Link to="/studio/teams">Back to teams</Link>
       </p>
     );
+  }
+
+  if (handle === null) {
+    return <p className={styles.message}>{session.error ?? "Loading…"}</p>;
   }
 
   const remove = async () => {
@@ -32,54 +37,19 @@ function PostSession({ id }: { readonly id: DocumentId }) {
       return;
     }
     await session.remove();
-    navigate(
-      session.team === null
-        ? "/studio/teams"
-        : `/studio/teams/${session.team.id}`,
-    );
+    navigate(team === null ? "/studio/teams" : `/studio/teams/${team.id}`);
   };
 
-  if (handle === null) {
-    return <p>{session.error ?? "Loading…"}</p>;
-  }
-
   return (
-    <article>
-      {session.team === null ? null : (
-        <p>
-          <Link to="/studio/teams">Teams</Link> ›{" "}
-          <Link to={`/studio/teams/${session.team.id}`}>
-            {session.team.name}
-          </Link>
-        </p>
-      )}
-      <Toolbar>
-        <p data-testid="status">
-          {session.saving ? "Saving…" : "Saved"}
-          {" · "}
-          {publication === null
-            ? "Not published"
-            : `Published ${publication.publishedAt.toLocaleString()}`}
-          {publication === null ? null : (
-            <>
-              {" · "}
-              <Link to={`/posts/${id}`}>View on site</Link>
-            </>
-          )}
-        </p>
-        <div className={styles.actions}>
-          <button type="button" onClick={remove}>
-            Delete
-          </button>
-          <button
-            type="button"
-            onClick={session.publish}
-            disabled={session.publishing}
-          >
-            {session.publishing ? "Publishing…" : "Publish"}
-          </button>
-        </div>
-      </Toolbar>
+    <article className={styles.editor}>
+      <Breadcrumbs
+        items={[
+          { to: "/studio/teams", label: "Teams" },
+          ...(team === null
+            ? []
+            : [{ to: `/studio/teams/${team.id}`, label: team.name }]),
+        ]}
+      />
       {session.error === null ? null : (
         <p role="alert" className={styles.error}>
           {session.error}
@@ -87,11 +57,20 @@ function PostSession({ id }: { readonly id: DocumentId }) {
       )}
       {/* The editors start over when the session reloads with a new handle. */}
       <Field label="Title">
-        <TextEditor handle={handle} path={titlePath} label="Title" />
+        <TextEditor handle={handle} path={titlePath} label="Title" large />
       </Field>
       <Field label="Body">
         <TextEditor handle={handle} path={bodyPath} label="Body" multiline />
       </Field>
+      <EditorFooter
+        id={id}
+        handle={handle}
+        saving={session.saving}
+        publication={session.publication}
+        publishing={session.publishing}
+        onPublish={session.publish}
+        onDelete={remove}
+      />
     </article>
   );
 }

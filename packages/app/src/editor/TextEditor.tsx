@@ -13,6 +13,8 @@ export interface TextEditorProps {
   /** Path to an Automerge text field. Keep it referentially stable. */
   readonly path: ReadonlyArray<A.Prop>;
   readonly multiline?: boolean;
+  /** Bigger text, e.g. for a title. */
+  readonly large?: boolean;
   readonly label: string;
 }
 
@@ -25,6 +27,7 @@ export function TextEditor({
   handle,
   path,
   multiline = false,
+  large = false,
   label,
 }: TextEditorProps) {
   const mount = useRef<HTMLDivElement>(null);
@@ -69,9 +72,13 @@ export function TextEditor({
   return (
     <div
       ref={mount}
-      className={
-        multiline ? `${styles.editor} ${styles.multiline}` : styles.editor
-      }
+      className={[
+        styles.editor,
+        multiline ? styles.multiline : undefined,
+        large ? styles.large : undefined,
+      ]
+        .filter(Boolean)
+        .join(" ")}
     />
   );
 }

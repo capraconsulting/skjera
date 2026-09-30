@@ -1,10 +1,70 @@
-/* Document-level defaults only; everything else is in CSS modules. */
+/*
+ * Document-level defaults and the theme; everything else is in CSS modules.
+ *
+ * Each colour holds its light and dark value; `color-scheme` picks one. It
+ * follows the system until the user picks a theme with the toggle, which
+ * sets data-theme on <html> (see index.html and src/theme.ts).
+ */
 :root {
-  font-family: system-ui, sans-serif;
-  color: #1f2328;
-  background: #f6f8fa;
+  color-scheme: light dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+:root {
+  --font-sans:
+    "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-serif: Charter, "Iowan Old Style", Georgia, serif;
+
+  --color-bg: light-dark(#f6f7f9, #111418);
+  --color-surface: light-dark(#ffffff, #191d23);
+  --color-surface-muted: light-dark(#f0f2f5, #20252c);
+  --color-border: light-dark(#dfe3e8, #2c323b);
+  --color-border-strong: light-dark(#c3cad3, #3b434e);
+  --color-text: light-dark(#1b1f24, #e6e9ed);
+  --color-text-muted: light-dark(#5d6773, #9aa4b0);
+  --color-link: light-dark(#2257d6, #7fa6ff);
+  --color-focus: light-dark(#2f6bff, #6b95ff);
+  --color-primary: light-dark(#1f8a4c, #2ea463);
+  --color-primary-hover: light-dark(#19743f, #37b86f);
+  --color-primary-text: #ffffff;
+  --color-danger: light-dark(#c8323b, #f0737a);
+  --color-danger-soft: light-dark(#fbe9ea, #3a1f22);
+  --color-success: light-dark(#1f8a4c, #4cc684);
+  --color-success-soft: light-dark(#e3f4ea, #173325);
+  --color-warning: light-dark(#a8660a, #e3a44a);
+  --color-warning-soft: light-dark(#fdf1dc, #372a15);
+  --color-neutral-soft: light-dark(#eceff3, #262c34);
+  --color-shadow: light-dark(rgb(16 24 40 / 8%), rgb(0 0 0 / 40%));
+
+  --radius: 6px;
+  --radius-large: 10px;
+  --shadow: 0 1px 3px var(--color-shadow);
+  --content-width: 64rem;
+
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--color-text);
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
 }
 
 body {
   margin: 0;
+}
+
+a {
+  color: var(--color-link);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
 }

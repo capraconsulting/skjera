@@ -1,25 +1,68 @@
-.shell {
-  max-width: 64rem;
-  margin: 0 auto;
-  padding: 1rem;
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
 }
 
-.header {
+.bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 0.5rem 1.5rem;
 }
 
 .nav,
 .actions {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 1.25rem;
+}
+
+.actions {
+  gap: 0.75rem;
+  font-size: 0.875rem;
 }
 
 .brand {
-  font-weight: 600;
-  color: inherit;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
   text-decoration: none;
+}
+
+.nav a:not(.brand) {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.nav a:not(.brand):hover {
+  color: var(--color-text);
+}
+
+.main {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.nav a[aria-current="page"] {
+  color: var(--color-text);
+}
+
+.actions a {
+  color: var(--color-text-muted);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.actions a:hover {
+  color: var(--color-text);
 }

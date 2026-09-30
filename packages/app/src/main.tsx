@@ -4,6 +4,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, redirect } from "react-router";
 import { RouterProvider } from "react-router/dom";
+import { Loading } from "./components/Loading.tsx";
 import { Playground } from "./routes/Playground.tsx";
 import { Home, homeLoader } from "./routes/site/Home.tsx";
 import { Post, PostError, postLoader } from "./routes/site/Post.tsx";
@@ -28,6 +29,7 @@ const router = createBrowserRouter([
     path: "/",
     Component: SiteLayout,
     loader: siteLoader,
+    HydrateFallback: Loading,
     children: [
       { index: true, Component: Home, loader: homeLoader },
       {
@@ -43,6 +45,7 @@ const router = createBrowserRouter([
     path: "/studio",
     Component: StudioLayout,
     loader: studioLoader,
+    HydrateFallback: Loading,
     children: [
       { index: true, loader: () => redirect("/studio/teams") },
       {

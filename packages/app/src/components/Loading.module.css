@@ -1,0 +1,13 @@
+/* Only shows up when loading takes long enough to notice. */
+.loading {
+  padding: 3rem 1.5rem;
+  color: var(--color-text-muted);
+  text-align: center;
+  animation: appear 200ms 400ms both;
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+}

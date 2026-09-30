@@ -1,8 +1,51 @@
+.home {
+  max-width: 42rem;
+  margin: 0 auto;
+}
+
+.heading {
+  margin: 0 0 2rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.list {
+  display: grid;
+  gap: 2.5rem;
+}
+
 .teaser h2 {
-  margin-bottom: 0.25rem;
+  margin: 0.25rem 0 0.5rem;
+  font-family: var(--font-serif);
+  font-size: 1.75rem;
+  line-height: 1.25;
+}
+
+.teaser h2 a {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.teaser h2 a:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
 }
 
 .date {
-  color: #57606a;
+  color: var(--color-text-muted);
   font-size: 0.875rem;
+}
+
+.excerpt {
+  margin: 0;
+  color: var(--color-text-muted);
+  line-height: 1.65;
+}
+
+.empty {
+  color: var(--color-text-muted);
 }

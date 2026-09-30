@@ -10,8 +10,12 @@ import {
   useActionData,
   useLoaderData,
 } from "react-router";
+import { Badge } from "../../components/Badge.tsx";
+import { Breadcrumbs } from "../../components/Breadcrumbs.tsx";
+import { Button } from "../../components/Button.tsx";
 import { Toolbar } from "../../components/Toolbar.tsx";
 import { call } from "../../documents/client.ts";
+import { timeAgo } from "../../time.ts";
 import styles from "./Team.module.css";
 
 export const teamLoader = ({ params }: LoaderFunctionArgs) =>
@@ -54,45 +58,64 @@ export function Team() {
   const action = useActionData<typeof teamAction>();
   return (
     <>
-      <p>
-        <Link to="/studio/teams">Teams</Link>
-      </p>
+      <Breadcrumbs items={[{ to: "/studio/teams", label: "Teams" }]} />
       <Toolbar>
         <h1>{team.name}</h1>
         <Form method="post">
-          <button type="submit" name="intent" value="create-post">
+          <Button
+            type="submit"
+            name="intent"
+            value="create-post"
+            variant="primary"
+          >
             New post
-          </button>
+          </Button>
         </Form>
       </Toolbar>
       {posts.length === 0 ? (
-        <>
+        <div className={styles.empty}>
           <p>No posts yet.</p>
           <Form method="post">
-            <button type="submit" name="intent" value="delete-team">
+            <Button
+              type="submit"
+              name="intent"
+              value="delete-team"
+              variant="danger"
+            >
               Delete team
-            </button>
+            </Button>
           </Form>
-        </>
+        </div>
       ) : (
         <ul className={styles.list}>
           {posts.map((post) => (
             <li key={post.id}>
-              <Link to={`/studio/posts/${post.id}`}>
-                {post.title.trim() === "" ? "Untitled" : post.title}
-              </Link>{" "}
-              <span className={styles.badge}>
-                {post.publishedAt === null
-                  ? "Draft"
-                  : post.hasUnpublishedChanges
-                    ? "Changed since published"
-                    : "Published"}
-              </span>
+              <Link to={`/studio/posts/${post.id}`} className={styles.row}>
+                {post.title.trim() === "" ? (
+                  <span className={styles.untitled}>Untitled</span>
+                ) : (
+                  <span className={styles.title}>{post.title}</span>
+                )}
+                <span className={styles.edited}>
+                  Edited {timeAgo(post.updatedAt)}
+                </span>
+                {post.publishedAt === null ? (
+                  <Badge tone="neutral">Draft</Badge>
+                ) : post.hasUnpublishedChanges ? (
+                  <Badge tone="warning">Changed since published</Badge>
+                ) : (
+                  <Badge tone="success">Published</Badge>
+                )}
+              </Link>
             </li>
           ))}
         </ul>
       )}
-      {action?.error === undefined ? null : <p role="alert">{action.error}</p>}
+      {action?.error === undefined ? null : (
+        <p role="alert" className={styles.error}>
+          {action.error}
+        </p>
+      )}
     </>
   );
 }
