@@ -46,6 +46,9 @@ export function Attendees(props: { readonly id: DocumentId }) {
                 <span className={styles.email}>{attendee.email}</span>
               )}
               {attendee.guest ? <Badge tone="neutral">Guest</Badge> : null}
+              {attendee.dietary === null ? null : (
+                <span className={styles.dietary}>Diet: {attendee.dietary}</span>
+              )}
             </li>
           ))}
         </ul>

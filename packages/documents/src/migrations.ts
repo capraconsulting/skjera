@@ -73,6 +73,8 @@ export const migrations = Migrator.fromRecord({
       -- up for public events.
       is_public boolean NOT NULL,
       allow_guests boolean NOT NULL CHECK (is_public OR NOT allow_guests),
+      -- Guests must give their dietary preferences when signing up.
+      ask_dietary boolean NOT NULL CHECK (allow_guests OR NOT ask_dietary),
       published_heads text[] NOT NULL,
       published_by_issuer text NOT NULL,
       published_by_subject text NOT NULL,
@@ -87,11 +89,13 @@ export const migrations = Migrator.fromRecord({
     `CREATE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
       RETURNS SETOF events LANGUAGE sql AS $$
       INSERT INTO events AS e
-        (id, title, event_date, body, is_public, allow_guests,
+        (id, title, event_date, body, is_public, allow_guests, ask_dietary,
          published_heads, published_by_issuer, published_by_subject)
       SELECT d.id, c.content->>'title', (c.content->>'date')::date, c.content->>'body',
         (c.content->>'public')::boolean,
         (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
+        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean
+          AND (c.content->>'dietary')::boolean,
         -- Sorted like automerge_heads(), so the two can be compared.
         ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
       FROM documents d
@@ -103,6 +107,7 @@ export const migrations = Migrator.fromRecord({
         body = EXCLUDED.body,
         is_public = EXCLUDED.is_public,
         allow_guests = EXCLUDED.allow_guests,
+        ask_dietary = EXCLUDED.ask_dietary,
         published_heads = EXCLUDED.published_heads,
         published_by_issuer = EXCLUDED.published_by_issuer,
         published_by_subject = EXCLUDED.published_by_subject
@@ -120,6 +125,7 @@ export const migrations = Migrator.fromRecord({
       user_subject text,
       name text NOT NULL,
       email text,
+      dietary text,
       cancel_token_hash text UNIQUE,
       created_at timestamptz NOT NULL DEFAULT now(),
       CHECK (

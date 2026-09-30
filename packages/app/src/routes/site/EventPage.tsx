@@ -73,9 +73,11 @@ export const eventAction = async ({
       );
     }
     default: {
+      const dietary = form.get("dietary");
       const guest = {
         name: String(form.get("name") ?? ""),
         email: String(form.get("email") ?? ""),
+        ...(dietary === null ? {} : { dietary: String(dietary) }),
       };
       return runPublic((client) =>
         client.events.attend({ params: { id }, payload: { guest } }).pipe(

@@ -178,7 +178,11 @@ export const pickDate = async (page: Page) => {
  */
 export const publishedEvent = async (
   page: Page,
-  options: { readonly public: boolean; readonly guests?: boolean },
+  options: {
+    readonly public: boolean;
+    readonly guests?: boolean;
+    readonly dietary?: boolean;
+  },
 ) => {
   const id = await newEvent(page);
   const eventTitle = `Meetup ${id.slice(-12)}`;
@@ -189,6 +193,11 @@ export const publishedEvent = async (
   }
   if (options.guests) {
     await page.getByRole("checkbox", { name: /Guests can sign up/ }).check();
+  }
+  if (options.dietary) {
+    await page
+      .getByRole("checkbox", { name: /Ask guests for dietary preferences/ })
+      .check();
   }
   await expect(page.getByTestId("status")).toContainText("Saved");
   await page.getByRole("button", { name: "Publish" }).click();

@@ -3,7 +3,7 @@ import { useSyncExternalStore } from "react";
 import styles from "./CheckboxField.module.css";
 import type { LocalDocHandle } from "./LocalDocHandle.ts";
 
-type BooleanField = "public" | "guests";
+type BooleanField = "public" | "guests" | "dietary";
 
 /** The current value of a true/false field, following changes from anyone. */
 export const useBooleanField = (

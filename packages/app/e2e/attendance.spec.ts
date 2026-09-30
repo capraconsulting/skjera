@@ -74,6 +74,10 @@ test("guests sign up with their name and email", async ({ browser }) => {
 
   const guest = await visitor(browser);
   await guest.goto(`/events/${event.id}`);
+  // This event doesn't ask about food.
+  await expect(
+    attendance(guest).getByRole("textbox", { name: "Dietary preferences" }),
+  ).toHaveCount(0);
   await attendance(guest)
     .getByRole("textbox", { name: "Your name" })
     .fill("Gina");
@@ -120,5 +124,38 @@ test("guests sign up with their name and email", async ({ browser }) => {
   await deleteEvent(alice, event.id);
   await alice.goto(eventPath(team, closed.id));
   await deleteEvent(alice, closed.id);
+  await deleteTeam(alice, team);
+});
+
+test("guests give dietary preferences when the event asks", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await newTeam(alice, uniqueTeamName("Dinner"));
+  const event = await publishedEvent(alice, {
+    public: true,
+    guests: true,
+    dietary: true,
+  });
+
+  const guest = await visitor(browser);
+  await guest.goto(`/events/${event.id}`);
+  const box = attendance(guest);
+  await box.getByRole("textbox", { name: "Your name" }).fill("Gina");
+  await box
+    .getByRole("textbox", { name: "Your email" })
+    .fill("gina@example.org");
+  const dietary = box.getByRole("textbox", { name: "Dietary preferences" });
+  await expect(dietary).toHaveAttribute("required");
+  await dietary.fill("Vegetarian, no nuts");
+  await box.getByRole("button", { name: "Sign up" }).click();
+  await expect(box).toContainText("You're signed up.");
+
+  await alice.reload();
+  await expect(attendees(alice)).toContainText("Diet: Vegetarian, no nuts");
+
+  await box.getByRole("button", { name: "Cancel my signup" }).click();
+  await expect(box.getByRole("button", { name: "Sign up" })).toBeVisible();
+  await deleteEvent(alice, event.id);
   await deleteTeam(alice, team);
 });

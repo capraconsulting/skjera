@@ -63,14 +63,20 @@ export class Attendance extends Context.Service<
         event: DocumentId,
         audience: Audience,
       ) {
-        const [row] = yield* sql<{ allow_guests: boolean }>`
-          SELECT allow_guests FROM events
+        const [row] = yield* sql<{
+          allow_guests: boolean;
+          ask_dietary: boolean;
+        }>`
+          SELECT allow_guests, ask_dietary FROM events
           WHERE id = ${event} AND (is_public OR ${audience === "members"})
         `.pipe(Effect.orDie);
         if (row === undefined) {
           return yield* new EventNotFound({ id: event });
         }
-        return { allowGuests: row.allow_guests };
+        return {
+          allowGuests: row.allow_guests,
+          askDietary: row.ask_dietary,
+        };
       });
 
       const summary = Effect.fn("Attendance.summary")(function* (
@@ -128,16 +134,23 @@ export class Attendance extends Context.Service<
         event: DocumentId,
         guest: GuestDetails,
       ) {
-        const { allowGuests } = yield* rules(event, "anyone");
+        const { allowGuests, askDietary } = yield* rules(event, "anyone");
         if (!allowGuests) {
           return yield* new SignupRejected({
             message: "Log in to sign up for this event",
           });
         }
+        const dietary = askDietary ? (guest.dietary ?? "").trim() : null;
+        if (dietary !== null && (dietary === "" || dietary.length > 500)) {
+          return yield* new SignupRejected({
+            message: 'Tell us your dietary preferences, or write "none"',
+          });
+        }
         const token = randomBytes(32).toString("base64url");
         yield* sql`
-          INSERT INTO attendees (event_id, name, email, cancel_token_hash)
-          VALUES (${event}, ${guest.name.trim()}, ${guest.email.trim()}, ${hash(token)})
+          INSERT INTO attendees (event_id, name, email, dietary, cancel_token_hash)
+          VALUES (${event}, ${guest.name.trim()}, ${guest.email.trim()}, ${dietary},
+            ${hash(token)})
         `.pipe(
           Effect.catchIf(SqlError.isSqlError, (error) =>
             pgCode(error) === "23505"
@@ -170,10 +183,11 @@ export class Attendance extends Context.Service<
         const rows = yield* sql<{
           name: string;
           email: string | null;
+          dietary: string | null;
           guest: boolean;
           created_at: Date;
         }>`
-          SELECT name, email, user_issuer IS NULL AS guest, created_at
+          SELECT name, email, dietary, user_issuer IS NULL AS guest, created_at
           FROM attendees WHERE event_id = ${event}
           ORDER BY created_at
         `.pipe(Effect.orDie);
@@ -182,6 +196,7 @@ export class Attendance extends Context.Service<
             new Attendee({
               name: row.name,
               email: row.email,
+              dietary: row.dietary,
               guest: row.guest,
               signedUpAt: row.created_at,
             }),

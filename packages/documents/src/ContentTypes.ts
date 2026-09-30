@@ -20,6 +20,8 @@ export const EventContent = Schema.Struct({
    * effect for public events.
    */
   guests: Schema.Boolean,
+  /** Guests must say what they can't eat. Only takes effect with guests. */
+  dietary: Schema.Boolean,
 });
 export type EventContent = typeof EventContent.Type;
 
@@ -38,6 +40,7 @@ export const contentTypes = {
       date: null,
       public: false,
       guests: false,
+      dietary: false,
     } satisfies EventContent,
     toPublish: [
       { label: "a title", met: (event) => event.title.trim() !== "" },

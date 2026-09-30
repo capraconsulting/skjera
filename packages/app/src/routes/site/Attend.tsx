@@ -113,6 +113,17 @@ export function Attend(props: {
               required
             />
           </div>
+          {event.askDietary ? (
+            <Input
+              name="dietary"
+              aria-label="Dietary preferences"
+              placeholder={
+                'Dietary preferences (write "none" if you have none)'
+              }
+              required
+              maxLength={500}
+            />
+          ) : null}
           <div className={styles.row}>
             <Button type="submit" variant="primary">
               Sign up

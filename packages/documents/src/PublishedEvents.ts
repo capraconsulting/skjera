@@ -10,6 +10,7 @@ type Row = {
   body: string;
   is_public: boolean;
   allow_guests: boolean;
+  ask_dietary: boolean;
   published_at: Date;
   first_published_at: Date;
 };
@@ -22,6 +23,7 @@ const toEvent = (row: Row) =>
     body: row.body,
     isPublic: row.is_public,
     allowGuests: row.allow_guests,
+    askDietary: row.ask_dietary,
     publishedAt: row.published_at,
     firstPublishedAt: row.first_published_at,
   });
@@ -59,7 +61,7 @@ export class PublishedEvents extends Context.Service<
         audience: Audience,
       ) {
         const rows = yield* sql<Row>`
-          SELECT id, title, event_date::text AS date, body, is_public, allow_guests,
+          SELECT id, title, event_date::text AS date, body, is_public, allow_guests, ask_dietary,
             published_at, first_published_at
           FROM events
           WHERE is_public OR ${audience === "members"}
@@ -73,7 +75,7 @@ export class PublishedEvents extends Context.Service<
         audience: Audience,
       ) {
         const [row] = yield* sql<Row>`
-          SELECT id, title, event_date::text AS date, body, is_public, allow_guests,
+          SELECT id, title, event_date::text AS date, body, is_public, allow_guests, ask_dietary,
             published_at, first_published_at
           FROM events
           WHERE id = ${id} AND (is_public OR ${audience === "members"})
