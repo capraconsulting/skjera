@@ -1,43 +1,43 @@
 .list {
   margin: 0;
-  padding: 0;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-large);
-  background: var(--color-surface);
-  box-shadow: var(--shadow);
+  padding: 0.5rem;
   list-style: none;
-  overflow: hidden;
 }
 
-.row {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.875rem 1.25rem;
+.item {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--radius);
   color: var(--color-text);
   text-decoration: none;
 }
 
-.list li + li {
-  border-top: 1px solid var(--color-border);
-}
-
-.row:hover {
+.item:hover {
   background: var(--color-surface-muted);
 }
 
+.item.active {
+  background: var(--color-selected);
+}
+
 .title {
-  flex: 1;
+  overflow: hidden;
   font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .untitled {
-  flex: 1;
   color: var(--color-text-muted);
   font-style: italic;
 }
 
-.edited {
+.meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   color: var(--color-text-muted);
   font-size: 0.8125rem;
 }
@@ -45,11 +45,10 @@
 .empty {
   display: grid;
   justify-items: start;
-  gap: 1rem;
-  padding: 2rem;
-  border: 1px dashed var(--color-border-strong);
-  border-radius: var(--radius-large);
+  gap: 0.75rem;
+  padding: 1rem;
   color: var(--color-text-muted);
+  font-size: 0.875rem;
 }
 
 .empty p {
@@ -57,5 +56,7 @@
 }
 
 .error {
+  padding: 0 1rem;
   color: var(--color-danger);
+  font-size: 0.8125rem;
 }

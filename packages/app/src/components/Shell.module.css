@@ -66,3 +66,18 @@
 .actions a:hover {
   color: var(--color-text);
 }
+
+.filled {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
+
+.filled .bar {
+  max-width: none;
+}
+
+.fill {
+  flex: 1;
+  min-height: 0;
+}

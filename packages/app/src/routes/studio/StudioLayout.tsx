@@ -19,7 +19,8 @@ export function StudioLayout() {
   const me = useLoaderData<typeof studioLoader>();
   return (
     <Shell
-      links={<NavLink to="/studio/teams">Teams</NavLink>}
+      fill
+      links={<NavLink to="/studio/teams">Studio</NavLink>}
       actions={<SignedIn me={me} />}
     >
       <Outlet />

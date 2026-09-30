@@ -1,6 +1,7 @@
-.editor {
-  /* Room for the fixed footer. */
-  padding-bottom: 5rem;
+.content {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
 }
 
 .error {
@@ -8,8 +9,4 @@
   border-radius: var(--radius);
   background: var(--color-danger-soft);
   color: var(--color-danger);
-}
-
-.message {
-  color: var(--color-text-muted);
 }

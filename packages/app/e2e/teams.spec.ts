@@ -4,6 +4,7 @@ import {
   deleteTeam,
   newPost,
   newTeam,
+  postPath,
   signedIn,
   title,
   uniqueTeamName,
@@ -29,6 +30,16 @@ test("posts are created in a team and listed under it", async ({ browser }) => {
   const post = await newPost(bob);
   await expect(bob.getByRole("link", { name: redName })).toBeVisible();
   await title(bob).pressSequentially("Red news");
+  // The posts column follows the editor.
+  await expect(
+    bob.getByRole("region", { name: "Posts" }).getByRole("link", {
+      name: /Red news/,
+    }),
+  ).toBeVisible();
+  // A link with the wrong team leads to the right one.
+  await bob.goto(postPath(blue, post));
+  await expect(bob).toHaveURL(new RegExp(`${postPath(red, post)}$`));
+  await expect(title(bob)).toHaveText("Red news");
 
   await alice.goto(`/studio/teams/${red}`);
   await expect(alice.getByRole("link", { name: "Red news" })).toBeVisible();
@@ -39,7 +50,7 @@ test("posts are created in a team and listed under it", async ({ browser }) => {
   await alice.goto(`/studio/teams/${blue}`);
   await expect(alice.getByText("No posts yet.")).toBeVisible();
 
-  await bob.goto(`/studio/posts/${post}`);
+  await bob.goto(postPath(red, post));
   await deletePost(bob, post);
   await deleteTeam(alice, red);
   await deleteTeam(alice, blue);

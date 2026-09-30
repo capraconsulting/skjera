@@ -5,6 +5,7 @@ import {
   deleteTeam,
   newPost,
   newTeam,
+  postPath,
   signedIn,
   title,
   typeAt,
@@ -42,12 +43,12 @@ test("two users edit a post live, publish it and delete it", async ({
   await bob.goto(`/studio/teams/${team}`);
   const item = bob
     .getByRole("listitem")
-    .filter({ has: bob.locator(`a[href="/studio/posts/${id}"]`) });
+    .filter({ has: bob.locator(`a[href="${postPath(team, id)}"]`) });
   await expect(item).toContainText("Hello from Alice");
   await expect(item).toContainText("Published");
 
   // Bob has the post open when Alice deletes it.
-  await bob.goto(`/studio/posts/${id}`);
+  await bob.goto(postPath(team, id));
   await expect(title(bob)).toHaveText("Hello from Alice");
   await deletePost(alice, id);
   await expect(bob.getByRole("alert")).toContainText("This post was deleted");

@@ -2,19 +2,26 @@ import { Effect, Result } from "effect";
 import {
   type ActionFunctionArgs,
   Form,
-  Link,
+  NavLink,
+  Outlet,
   redirect,
   useActionData,
   useLoaderData,
 } from "react-router";
 import { Button } from "../../components/Button.tsx";
 import { Input } from "../../components/Input.tsx";
-import { Toolbar } from "../../components/Toolbar.tsx";
+import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
 import { call } from "../../documents/client.ts";
-import { formatDate } from "../../time.ts";
 import styles from "./Teams.module.css";
 
 export const teamsLoader = () => call((client) => client.ListTeams());
+
+/** The team list only changes through its own form. */
+export const teamsShouldRevalidate = ({
+  formMethod,
+}: {
+  readonly formMethod?: string | undefined;
+}) => formMethod !== undefined;
 
 export const createTeamAction = async ({ request }: ActionFunctionArgs) => {
   const name = String((await request.formData()).get("name") ?? "");
@@ -26,50 +33,66 @@ export const createTeamAction = async ({ request }: ActionFunctionArgs) => {
     : { error: result.failure.message };
 };
 
-/** Every team; posts are created from a team's page. */
+/**
+ * The studio: teams, the selected team's posts, and the selected post, side
+ * by side. This is the first column; the others come through the outlet.
+ */
 export function Teams() {
   const teams = useLoaderData<typeof teamsLoader>();
   const action = useActionData<typeof createTeamAction>();
   return (
-    <>
-      <Toolbar>
-        <h1>Teams</h1>
-      </Toolbar>
-      {teams.length === 0 ? (
-        <p className={styles.empty}>
-          No teams yet. Create the first one below.
-        </p>
-      ) : (
-        <ul className={styles.grid}>
-          {teams.map((team) => (
-            <li key={team.id}>
-              <Link to={`/studio/teams/${team.id}`} className={styles.card}>
-                {team.name}
-                <span className={styles.meta}>
-                  Created {formatDate(team.createdAt)}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-      <Form method="post" className={styles.create}>
-        <Input
-          name="name"
-          aria-label="Team name"
-          placeholder="New team name"
-          required
-          maxLength={100}
-        />
-        <Button type="submit" variant="primary">
-          Create team
-        </Button>
-      </Form>
-      {action?.error === undefined ? null : (
-        <p role="alert" className={styles.error}>
-          {action.error}
-        </p>
-      )}
-    </>
+    <div className={styles.columns}>
+      <Pane
+        title="Teams"
+        label="Teams"
+        footer={
+          <Form method="post" className={styles.create}>
+            <Input
+              name="name"
+              aria-label="Team name"
+              placeholder="New team name"
+              required
+              maxLength={100}
+            />
+            <Button type="submit" variant="primary">
+              Create team
+            </Button>
+            {action?.error === undefined ? null : (
+              <p role="alert" className={styles.error}>
+                {action.error}
+              </p>
+            )}
+          </Form>
+        }
+      >
+        {teams.length === 0 ? (
+          <p className={styles.empty}>No teams yet. Create the first one.</p>
+        ) : (
+          <ul className={styles.list}>
+            {teams.map((team) => (
+              <li key={team.id}>
+                <NavLink
+                  to={`/studio/teams/${team.id}`}
+                  className={({ isActive }) =>
+                    isActive ? `${styles.item} ${styles.active}` : styles.item
+                  }
+                >
+                  {team.name}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Pane>
+      <Outlet />
+    </div>
+  );
+}
+
+export function NoTeamSelected() {
+  return (
+    <PanePlaceholder span={2}>
+      Pick a team to see its posts, or create one.
+    </PanePlaceholder>
   );
 }

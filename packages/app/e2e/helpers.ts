@@ -44,12 +44,18 @@ export const newTeam = async (page: Page, name: string) => {
   return lastPathSegment(page);
 };
 
-/** Creates a post from the open team's page and returns its id. */
+/** Creates a post in the open team and returns its id. */
 export const newPost = async (page: Page) => {
   await page.getByRole("button", { name: "New post" }).click();
-  await expect(page).toHaveURL(/\/studio\/posts\/[0-9a-f-]+$/);
+  await expect(page).toHaveURL(
+    /\/studio\/teams\/[0-9a-f-]+\/posts\/[0-9a-f-]+$/,
+  );
   return lastPathSegment(page);
 };
+
+/** The studio URL of a post. */
+export const postPath = (team: string, post: string) =>
+  `/studio/teams/${team}/posts/${post}`;
 
 /** Deletes a team that has no posts left, and checks it's gone. */
 export const deleteTeam = async (page: Page, id: string) => {
@@ -68,7 +74,7 @@ export const deletePost = async (page: Page, id: string) => {
   await page.getByRole("button", { name: "Delete", exact: true }).click();
   // Back on the post's team, without the post.
   await expect(page).toHaveURL(/\/studio\/teams\/[0-9a-f-]+$/);
-  await expect(page.locator(`a[href="/studio/posts/${id}"]`)).toHaveCount(0);
+  await expect(page.locator(`a[href$="/posts/${id}"]`)).toHaveCount(0);
 
   await page.goto(`/posts/${id}`);
   await expect(page.getByText("isn't published")).toBeVisible();

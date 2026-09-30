@@ -41,6 +41,11 @@
   --color-warning: light-dark(#a8660a, #e3a44a);
   --color-warning-soft: light-dark(#fdf1dc, #372a15);
   --color-neutral-soft: light-dark(#eceff3, #262c34);
+  --color-selected: color-mix(
+    in srgb,
+    var(--color-focus) 12%,
+    var(--color-surface)
+  );
   --color-shadow: light-dark(rgb(16 24 40 / 8%), rgb(0 0 0 / 40%));
 
   --radius: 6px;

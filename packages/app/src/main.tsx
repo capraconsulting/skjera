@@ -11,11 +11,18 @@ import { Post, PostError, postLoader } from "./routes/site/Post.tsx";
 import { SiteLayout, siteLoader } from "./routes/site/SiteLayout.tsx";
 import { PostEditor } from "./routes/studio/PostEditor.tsx";
 import { StudioLayout, studioLoader } from "./routes/studio/StudioLayout.tsx";
-import { Team, teamAction, teamLoader } from "./routes/studio/Team.tsx";
+import {
+  NoPostSelected,
+  Team,
+  teamAction,
+  teamLoader,
+} from "./routes/studio/Team.tsx";
 import {
   createTeamAction,
+  NoTeamSelected,
   Teams,
   teamsLoader,
+  teamsShouldRevalidate,
 } from "./routes/studio/Teams.tsx";
 import "./global.css";
 
@@ -40,11 +47,13 @@ const router = createBrowserRouter([
       },
     ],
   },
-  // The studio: everything else, behind login.
+  // The studio: everything else, behind login. Its columns nest: teams,
+  // then the selected team's posts, then the selected post.
   {
     path: "/studio",
     Component: StudioLayout,
     loader: studioLoader,
+    shouldRevalidate: () => false,
     HydrateFallback: Loading,
     children: [
       { index: true, loader: () => redirect("/studio/teams") },
@@ -52,15 +61,22 @@ const router = createBrowserRouter([
         path: "teams",
         Component: Teams,
         loader: teamsLoader,
+        shouldRevalidate: teamsShouldRevalidate,
         action: createTeamAction,
+        children: [
+          { index: true, Component: NoTeamSelected },
+          {
+            path: ":teamId",
+            Component: Team,
+            loader: teamLoader,
+            action: teamAction,
+            children: [
+              { index: true, Component: NoPostSelected },
+              { path: "posts/:id", Component: PostEditor },
+            ],
+          },
+        ],
       },
-      {
-        path: "teams/:teamId",
-        Component: Team,
-        loader: teamLoader,
-        action: teamAction,
-      },
-      { path: "posts/:id", Component: PostEditor },
     ],
   },
   // Two local replicas syncing with each other, no server or login needed.

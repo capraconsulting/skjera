@@ -10,10 +10,12 @@ import { ThemeToggle } from "./ThemeToggle.tsx";
 export function Shell(props: {
   readonly links?: ReactNode;
   readonly actions?: ReactNode;
+  /** Fill the window below the header, for app-like layouts like the studio. */
+  readonly fill?: boolean;
   readonly children: ReactNode;
 }) {
   return (
-    <>
+    <div className={props.fill ? styles.filled : undefined}>
       <header className={styles.header}>
         <div className={styles.bar}>
           <nav className={styles.nav}>
@@ -28,7 +30,9 @@ export function Shell(props: {
           </div>
         </div>
       </header>
-      <main className={styles.main}>{props.children}</main>
-    </>
+      <main className={props.fill ? styles.fill : styles.main}>
+        {props.children}
+      </main>
+    </div>
   );
 }
