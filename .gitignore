@@ -1,0 +1,6 @@
+node_modules/
+.turbo/
+mise.local.toml
+test-results/
+playwright-report/
+mprocs.log

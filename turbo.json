@@ -1,0 +1,12 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "agentGuidance": false,
+  "globalPassThroughEnv": ["OAUTH_*", "AUTH_*", "CI"],
+  "tasks": {
+    "typecheck": {},
+    "test": {},
+    "test:e2e": {
+      "cache": false
+    }
+  }
+}

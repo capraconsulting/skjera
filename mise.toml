@@ -1,0 +1,23 @@
+[tools]
+node = "24.21.0"
+pnpm = "12.8.1"
+
+[env]
+OAUTH_ISSUER = "http://localhost:5556/dex"
+OAUTH_CLIENT_ID = "skjera-dev"
+OAUTH_CLIENT_SECRET = "skjera-dev-secret"
+OAUTH_REDIRECT_URI = "http://localhost:3000/auth/callback"
+OAUTH_ALLOWED_DOMAINS = "example.com"
+OAUTH_ALLOW_INSECURE_REQUESTS = "true"
+
+[tasks.hooks]
+description = "Activate git hooks in .hooks/"
+run = "git config core.hooksPath .hooks"
+
+[tasks.setup]
+description = "Install dependencies, git hooks and Playwright's browser"
+depends = ["hooks"]
+run = [
+  "pnpm install",
+  "pnpm --filter @skjera/oauth exec playwright install chromium",
+]

@@ -1,0 +1,43 @@
+# Local OpenID Connect provider for development and tests. Do not use in production.
+#
+# Everything here is deterministic: the client credentials and test users are
+# fixed, and state lives in memory, so restarting the container gives a clean
+# slate. Every test user's password is "password". mallory is outside the
+# allowed domain set in mise.toml and must be refused by the app.
+issuer: http://localhost:5556/dex
+
+storage:
+  type: memory
+
+web:
+  http: 0.0.0.0:5556
+
+telemetry:
+  http: 0.0.0.0:5558
+
+oauth2:
+  responseTypes: [code]
+  skipApprovalScreen: true
+
+staticClients:
+  - id: skjera-dev
+    secret: skjera-dev-secret
+    name: Skjera (dev)
+    redirectURIs:
+      - http://localhost:3000/auth/callback
+
+enablePasswordDB: true
+
+staticPasswords:
+  - email: alice@example.com
+    username: alice
+    userID: 00000000-0000-4000-8000-000000000001
+    hash: "$2y$10$L318IxTArNUghcAxRCPyW.EXrWqHb93YE0QBSsz4Yk7GNey2FfqYO"
+  - email: bob@example.com
+    username: bob
+    userID: 00000000-0000-4000-8000-000000000002
+    hash: "$2y$10$L318IxTArNUghcAxRCPyW.EXrWqHb93YE0QBSsz4Yk7GNey2FfqYO"
+  - email: mallory@other.example
+    username: mallory
+    userID: 00000000-0000-4000-8000-000000000003
+    hash: "$2y$10$L318IxTArNUghcAxRCPyW.EXrWqHb93YE0QBSsz4Yk7GNey2FfqYO"
