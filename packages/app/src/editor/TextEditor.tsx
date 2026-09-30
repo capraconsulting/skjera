@@ -6,6 +6,7 @@ import { EditorState } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { useEffect, useRef } from "react";
 import { multiLineAdapter, singleLineAdapter } from "./schemas.ts";
+import styles from "./TextEditor.module.css";
 
 export interface TextEditorProps {
   readonly handle: DocHandle<unknown>;
@@ -68,7 +69,9 @@ export function TextEditor({
   return (
     <div
       ref={mount}
-      className={multiline ? "editor editor--multiline" : "editor"}
+      className={
+        multiline ? `${styles.editor} ${styles.multiline}` : styles.editor
+      }
     />
   );
 }

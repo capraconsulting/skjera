@@ -2,8 +2,13 @@
 procs:
   postgres:
     cmd: ["docker", "compose", "up", "postgres"]
+    # Detach instead of stopping the container.
+    stop:
+      send-keys: ["<d>"]
   dex:
     cmd: ["docker", "compose", "up", "dex"]
+    stop:
+      send-keys: ["<d>"]
   server:
     cmd: ["pnpm", "--filter", "@skjera/server", "dev"]
   app:

@@ -78,6 +78,8 @@ export class Documents extends Context.Service<
       heads: Heads,
       user: Identity,
     ) => Effect.Effect<Publication, DocumentNotFound | PublishRejected>;
+    /** Deletes the document, its published version included. */
+    readonly delete: (id: DocumentId) => Effect.Effect<void, DocumentNotFound>;
   }
 >()("@skjera/documents/Documents") {
   static readonly layer = Layer.effect(
@@ -354,6 +356,18 @@ export class Documents extends Context.Service<
         return toPublication(row);
       });
 
+      const deleteDocument = Effect.fn("Documents.delete")(function* (
+        id: DocumentId,
+      ) {
+        // The published version and actor records go with it (ON DELETE CASCADE).
+        const deleted = yield* sql`
+          DELETE FROM documents WHERE id = ${id} RETURNING id
+        `.pipe(Effect.orDie);
+        if (deleted.length === 0) {
+          return yield* new DocumentNotFound({ id });
+        }
+      });
+
       return Documents.of({
         create,
         list,
@@ -363,6 +377,7 @@ export class Documents extends Context.Service<
         registerActor,
         applyChanges,
         publish,
+        delete: deleteDocument,
       });
     }),
   );

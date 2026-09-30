@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { typeAt } from "./helpers.ts";
 
 const editor = (page: Page, replica: 1 | 2, field: "title" | "body") =>
   page.getByRole("textbox", { name: `Replica ${replica} ${field}` });
@@ -35,10 +36,8 @@ test("merges concurrent edits made while disconnected", async ({ page }) => {
   await expect(editor(page, 2, "body")).toHaveText("Hello");
 
   await page.getByLabel("Replicas connected").uncheck();
-  await editor(page, 1, "body").press("End");
-  await editor(page, 1, "body").pressSequentially(" left");
-  await editor(page, 2, "body").press("Home");
-  await editor(page, 2, "body").pressSequentially("right ");
+  await typeAt(editor(page, 1, "body"), "end", " left");
+  await typeAt(editor(page, 2, "body"), "start", "right ");
   await page.getByLabel("Replicas connected").check();
 
   await expect(editor(page, 1, "body")).toHaveText("right Hello left");

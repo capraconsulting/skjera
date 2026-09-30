@@ -6,14 +6,17 @@ import { SqlClient } from "effect/sql";
 import type { Post } from "../src/ContentTypes.ts";
 import { DocumentEvents } from "../src/DocumentEvents.ts";
 import { Documents } from "../src/Documents.ts";
+import { PublishedPosts } from "../src/PublishedPosts.ts";
 import { TestDatabase } from "./TestDatabase.ts";
 
 const alice = new Identity({ issuer: "https://idp.example", subject: "alice" });
 const bob = new Identity({ issuer: "https://idp.example", subject: "bob" });
 
-const TestLayer = Layer.mergeAll(Documents.layer, DocumentEvents.layer).pipe(
-  Layer.provideMerge(TestDatabase),
-);
+const TestLayer = Layer.mergeAll(
+  Documents.layer,
+  DocumentEvents.layer,
+  PublishedPosts.layer,
+).pipe(Layer.provideMerge(TestDatabase));
 
 /** An editor session: a replica of the draft with its own actor id. */
 const openEditor = Effect.fn(function* (
@@ -271,6 +274,65 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         alice,
       );
       assert.isTrue((yield* find)?.hasUnpublishedChanges);
+    }),
+  );
+
+  it.effect("shows the public only what was published", () =>
+    Effect.gen(function* () {
+      const documents = yield* Documents;
+      const published = yield* PublishedPosts;
+      const id = yield* documents.create("post", alice);
+      const editor = yield* openEditor(id, alice);
+      const heads = yield* documents.applyChanges(
+        id,
+        [editor.edit((post) => A.updateText(post, ["title"], "Public"))],
+        alice,
+      );
+
+      // A draft is invisible until it is published.
+      const hidden = yield* Effect.flip(published.get(id));
+      assert.strictEqual(hidden._tag, "PostNotFound");
+
+      yield* documents.publish(id, heads, alice);
+      yield* documents.applyChanges(
+        id,
+        [editor.edit((post) => A.updateText(post, ["title"], "Secret draft"))],
+        alice,
+      );
+
+      // Edits after publishing stay private until republished.
+      assert.strictEqual((yield* published.get(id)).title, "Public");
+      const listed = (yield* published.list).find((post) => post.id === id);
+      assert.strictEqual(listed?.title, "Public");
+    }),
+  );
+
+  it.effect("deletes a document and its published version", () =>
+    Effect.gen(function* () {
+      const documents = yield* Documents;
+      const published = yield* PublishedPosts;
+      const id = yield* documents.create("post", alice);
+      const editor = yield* openEditor(id, alice);
+      const heads = yield* documents.applyChanges(
+        id,
+        [editor.edit((post) => A.updateText(post, ["title"], "Short-lived"))],
+        alice,
+      );
+      yield* documents.publish(id, heads, alice);
+
+      yield* documents.delete(id);
+      assert.strictEqual(
+        (yield* Effect.flip(documents.get(id)))._tag,
+        "DocumentNotFound",
+      );
+      assert.strictEqual(
+        (yield* Effect.flip(published.get(id)))._tag,
+        "PostNotFound",
+      );
+      assert.strictEqual(
+        (yield* Effect.flip(documents.delete(id)))._tag,
+        "DocumentNotFound",
+      );
     }),
   );
 

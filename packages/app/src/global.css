@@ -1,0 +1,10 @@
+/* Document-level defaults only; everything else is in CSS modules. */
+:root {
+  font-family: system-ui, sans-serif;
+  color: #1f2328;
+  background: #f6f8fa;
+}
+
+body {
+  margin: 0;
+}

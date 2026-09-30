@@ -27,3 +27,10 @@ export class PublishRejected extends Schema.TaggedError<PublishRejected>()(
   "PublishRejected",
   { message: Schema.String },
 ) {}
+
+/** No published post with that id (it may exist as an unpublished draft). */
+export class PostNotFound extends Schema.TaggedError<PostNotFound>()(
+  "PostNotFound",
+  { id: Schema.String },
+  { httpApiStatus: 404 },
+) {}

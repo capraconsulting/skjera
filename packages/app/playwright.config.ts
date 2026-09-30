@@ -9,6 +9,7 @@ export default defineConfig({
   reporter: ci ? "github" : "list",
   // Full-stack tests: logins and syncs go through Dex, the server and Postgres.
   expect: { timeout: 10_000 },
+  timeout: 60_000,
   use: {
     baseURL: "http://localhost:5173",
     trace: "retain-on-failure",

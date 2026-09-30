@@ -28,3 +28,14 @@ export class DocumentSummary extends Schema.Class<DocumentSummary>(
   /** The draft differs from the published version, or was never published. */
   hasUnpublishedChanges: Schema.Boolean,
 }) {}
+
+/** A post as the public site shows it: only ever the published version. */
+export class PublishedPost extends Schema.Class<PublishedPost>(
+  "@skjera/documents/PublishedPost",
+)({
+  id: DocumentId,
+  title: Schema.String,
+  body: Schema.String,
+  publishedAt: Schema.Date,
+  firstPublishedAt: Schema.Date,
+}) {}

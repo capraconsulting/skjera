@@ -1,0 +1,10 @@
+.replicas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  gap: 1rem;
+}
+
+.json {
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+}

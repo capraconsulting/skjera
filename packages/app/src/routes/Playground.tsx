@@ -1,7 +1,10 @@
 import * as A from "@automerge/automerge/slim";
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { Field } from "../components/Field.tsx";
+import { Shell } from "../components/Shell.tsx";
 import { LocalDocHandle } from "../editor/LocalDocHandle.ts";
 import { TextEditor } from "../editor/TextEditor.tsx";
+import styles from "./Playground.module.css";
 
 type Post = {
   title: string;
@@ -51,7 +54,7 @@ export function Playground() {
   }, [replicas, connected]);
 
   return (
-    <>
+    <Shell brand={{ to: "/", label: "Skjera" }} actions={null}>
       <h1>Playground</h1>
       <label>
         <input
@@ -61,12 +64,12 @@ export function Playground() {
         />{" "}
         Replicas connected
       </label>
-      <div className="playground">
+      <div className={styles.replicas}>
         {replicas.map(({ name, handle }) => (
           <Replica key={name} name={name} handle={handle} />
         ))}
       </div>
-    </>
+    </Shell>
   );
 }
 
@@ -88,20 +91,20 @@ function Replica({
   return (
     <section data-testid={name}>
       <h2>{name}</h2>
-      <div className="field">
-        Title
+      <Field label="Title">
         <TextEditor handle={handle} path={titlePath} label={`${name} title`} />
-      </div>
-      <div className="field">
-        Body
+      </Field>
+      <Field label="Body">
         <TextEditor
           handle={handle}
           path={bodyPath}
           label={`${name} body`}
           multiline
         />
-      </div>
-      <pre data-testid={`${name} json`}>{JSON.stringify(doc)}</pre>
+      </Field>
+      <pre className={styles.json} data-testid={`${name} json`}>
+        {JSON.stringify(doc)}
+      </pre>
     </section>
   );
 }

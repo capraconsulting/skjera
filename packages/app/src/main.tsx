@@ -4,23 +4,46 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, redirect } from "react-router";
 import { RouterProvider } from "react-router/dom";
-import { Layout, layoutLoader } from "./routes/Layout.tsx";
 import { Playground } from "./routes/Playground.tsx";
-import { PostEditor } from "./routes/PostEditor.tsx";
-import { createPostAction, Posts, postsLoader } from "./routes/Posts.tsx";
-import "./styles.css";
+import { Home, homeLoader } from "./routes/site/Home.tsx";
+import { Post, PostError, postLoader } from "./routes/site/Post.tsx";
+import { SiteLayout, siteLoader } from "./routes/site/SiteLayout.tsx";
+import { PostEditor } from "./routes/studio/PostEditor.tsx";
+import {
+  createPostAction,
+  Posts,
+  postsLoader,
+} from "./routes/studio/Posts.tsx";
+import { StudioLayout, studioLoader } from "./routes/studio/StudioLayout.tsx";
+import "./global.css";
 
 // The slim build loads Automerge's WebAssembly explicitly, so Vite needs no
 // wasm plugin. @automerge/prosemirror imports the same slim entry point.
 await initializeWasm(wasmUrl);
 
 const router = createBrowserRouter([
+  // The public site: published content, no login needed.
   {
     path: "/",
-    Component: Layout,
-    loader: layoutLoader,
+    Component: SiteLayout,
+    loader: siteLoader,
     children: [
-      { index: true, loader: () => redirect("/posts") },
+      { index: true, Component: Home, loader: homeLoader },
+      {
+        path: "posts/:id",
+        Component: Post,
+        loader: postLoader,
+        ErrorBoundary: PostError,
+      },
+    ],
+  },
+  // The studio: everything else, behind login.
+  {
+    path: "/studio",
+    Component: StudioLayout,
+    loader: studioLoader,
+    children: [
+      { index: true, loader: () => redirect("/studio/posts") },
       {
         path: "posts",
         Component: Posts,

@@ -13,7 +13,11 @@ export interface SessionState {
   readonly publication: Publication | null;
   readonly publishing: boolean;
   readonly error: string | null;
+  /** Someone deleted the document; the session has stopped. */
+  readonly deleted: boolean;
   readonly publish: () => void;
+  /** Deletes the document. Resolves when it's gone. */
+  readonly remove: () => Promise<void>;
 }
 
 class SessionStore {
@@ -23,7 +27,9 @@ class SessionStore {
     publication: null,
     publishing: false,
     error: null,
+    deleted: false,
     publish: () => {},
+    remove: () => Promise.resolve(),
   };
   readonly #listeners = new Set<() => void>();
 
@@ -61,6 +67,7 @@ const toLogin = () =>
  * One replica of a document, with a fresh actor id, kept in sync with the
  * server until it has to be thrown away: after the server rejects one of its
  * changes, every later change builds on it and would be rejected too.
+ * Completes with "reload" in that case, or "deleted" when the document is.
  */
 const replica = (id: DocumentId, store: SessionStore) =>
   Effect.gen(function* () {
@@ -76,7 +83,7 @@ const replica = (id: DocumentId, store: SessionStore) =>
         store.set({ saving: true });
       },
     });
-    const reload = yield* Deferred.make<void>();
+    const done = yield* Deferred.make<"reload" | "deleted">();
     const sending = yield* Semaphore.make(1);
 
     // Sends everything pending, including changes made while sending. Run
@@ -93,7 +100,7 @@ const replica = (id: DocumentId, store: SessionStore) =>
 
     const rejected = (message: string) =>
       Effect.sync(() => store.set({ error: message })).pipe(
-        Effect.andThen(Deferred.succeed(reload, undefined)),
+        Effect.andThen(Deferred.succeed(done, "reload")),
       );
 
     const sendLoop = flush.pipe(
@@ -115,13 +122,19 @@ const replica = (id: DocumentId, store: SessionStore) =>
       .pipe(Effect.map((changes) => handle.applyIncremental(changes)));
 
     const watchLoop = client.WatchDocument({ id }).pipe(
-      Stream.runForEach((event) =>
-        event._tag === "DraftChanged" &&
-        event.heads !== undefined &&
-        A.hasHeads(handle.doc(), [...event.heads])
-          ? Effect.void
-          : catchUp,
-      ),
+      Stream.runForEach((event) => {
+        switch (event._tag) {
+          case "DocumentDeleted":
+            return Deferred.succeed(done, "deleted");
+          case "DraftChanged":
+            return event.heads !== undefined &&
+              A.hasHeads(handle.doc(), [...event.heads])
+              ? Effect.void
+              : catchUp;
+          case "CatchUp":
+            return catchUp;
+        }
+      }),
       Effect.catchTag("Unauthorized", toLogin),
       // The stream ends or fails when the connection drops; watching again
       // starts with a catch-up.
@@ -167,10 +180,12 @@ const replica = (id: DocumentId, store: SessionStore) =>
         store.set({ publishing: true });
         void Effect.runPromiseWith(services)(publish);
       },
+      remove: () =>
+        Effect.runPromiseWith(services)(client.DeleteDocument({ id })),
     });
 
-    yield* Effect.raceFirst(
-      Deferred.await(reload),
+    return yield* Effect.raceFirst(
+      Deferred.await(done),
       Effect.all([sendLoop, watchLoop], {
         concurrency: "unbounded",
         discard: true,
@@ -180,7 +195,12 @@ const replica = (id: DocumentId, store: SessionStore) =>
 
 const runSession = (id: DocumentId, store: SessionStore) =>
   replica(id, store).pipe(
-    Effect.forever,
+    Effect.repeat({ while: (outcome) => outcome === "reload" }),
+    Effect.tap(() =>
+      Effect.sync(() =>
+        store.set({ deleted: true, error: "This post was deleted" }),
+      ),
+    ),
     Effect.catchTags({
       Unauthorized: toLogin,
       DocumentNotFound: () =>

@@ -1,6 +1,8 @@
 import { Effect } from "effect";
 import { Form, Link, redirect, useLoaderData } from "react-router";
-import { DocumentsClient, runtime } from "../documents/client.ts";
+import { Toolbar } from "../../components/Toolbar.tsx";
+import { DocumentsClient, runtime } from "../../documents/client.ts";
+import styles from "./Posts.module.css";
 
 export const postsLoader = () =>
   runtime.runPromise(
@@ -17,29 +19,29 @@ export const createPostAction = async () => {
       return yield* client.CreateDocument({ type: "post" });
     }),
   );
-  return redirect(`/posts/${id}`);
+  return redirect(`/studio/posts/${id}`);
 };
 
 export function Posts() {
   const posts = useLoaderData<typeof postsLoader>();
   return (
     <>
-      <div className="toolbar">
+      <Toolbar>
         <h1>Posts</h1>
         <Form method="post">
           <button type="submit">New post</button>
         </Form>
-      </div>
+      </Toolbar>
       {posts.length === 0 ? (
         <p>No posts yet.</p>
       ) : (
-        <ul className="list">
+        <ul className={styles.list}>
           {posts.map((post) => (
             <li key={post.id}>
-              <Link to={`/posts/${post.id}`}>
+              <Link to={`/studio/posts/${post.id}`}>
                 {post.title.trim() === "" ? "Untitled" : post.title}
               </Link>{" "}
-              <span className="badge">
+              <span className={styles.badge}>
                 {post.publishedAt === null
                   ? "Draft"
                   : post.hasUnpublishedChanges

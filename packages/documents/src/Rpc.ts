@@ -40,6 +40,12 @@ export class DraftChanged extends Schema.TaggedClass<DraftChanged>()(
 /** Changes may have been missed: fetch what's missing. Always sent first. */
 export class CatchUp extends Schema.TaggedClass<CatchUp>()("CatchUp", {}) {}
 
+/** The document was deleted; the stream ends. */
+export class DocumentDeleted extends Schema.TaggedClass<DocumentDeleted>()(
+  "DocumentDeleted",
+  {},
+) {}
+
 export class DocumentsRpc extends RpcGroup.make(
   Rpc.make("ListDocuments", {
     payload: { type: ContentTypeName },
@@ -77,8 +83,13 @@ export class DocumentsRpc extends RpcGroup.make(
   }),
   Rpc.make("WatchDocument", {
     payload: { id: DocumentId },
-    success: Schema.Union([DraftChanged, CatchUp]),
+    success: Schema.Union([DraftChanged, CatchUp, DocumentDeleted]),
     stream: true,
+  }),
+  /** Deletes the document, taking its published version off the site. */
+  Rpc.make("DeleteDocument", {
+    payload: { id: DocumentId },
+    error: DocumentNotFound,
   }),
   /** Publishes the draft as of `heads`, which the server must already have. */
   Rpc.make("Publish", {

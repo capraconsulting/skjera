@@ -1,0 +1,20 @@
+/* ProseMirror renders its own DOM, so its classes are global. */
+.editor :global(.ProseMirror) {
+  background: white;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  outline: none;
+}
+
+.editor :global(.ProseMirror):focus {
+  border-color: #0969da;
+}
+
+.editor :global(.ProseMirror) p {
+  margin: 0;
+}
+
+.multiline :global(.ProseMirror) {
+  min-height: 8rem;
+}

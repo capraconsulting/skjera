@@ -6,6 +6,7 @@ import { DocumentEvents } from "./DocumentEvents.ts";
 import { Documents } from "./Documents.ts";
 import {
   CatchUp,
+  DocumentDeleted,
   DocumentsAuth,
   DocumentsRpc,
   DraftChanged,
@@ -78,15 +79,20 @@ export const DocumentsRpcHandlers = DocumentsRpc.toLayer(
                 (event) =>
                   event._tag === "ListenerReconnected" || event.id === id,
               ),
-              Stream.map((event): DraftChanged | CatchUp =>
-                event._tag === "DocumentChanged"
-                  ? new DraftChanged({ heads: event.heads })
-                  : new CatchUp({}),
-              ),
+              Stream.map((event): DraftChanged | CatchUp | DocumentDeleted => {
+                if (event._tag === "ListenerReconnected") {
+                  return new CatchUp({});
+                }
+                return event.op === "DELETE"
+                  ? new DocumentDeleted({})
+                  : new DraftChanged({ heads: event.heads });
+              }),
+              Stream.takeUntil((event) => event._tag === "DocumentDeleted"),
               Stream.prepend([new CatchUp({})]),
             ),
           ),
         ),
+      DeleteDocument: ({ id }) => documents.delete(id),
       Publish: ({ id, heads }) =>
         Effect.gen(function* () {
           return yield* documents.publish(id, heads, yield* CurrentUser);

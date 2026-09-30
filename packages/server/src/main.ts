@@ -15,11 +15,14 @@ import {
 } from "effect/http-api";
 import { KeyValueStore } from "effect/persistence";
 
-class Api extends HttpApi.make("skjera").add(
-  HttpApiGroup.make("session")
-    .add(HttpApiEndpoint.get("me", "/api/me", { success: OAuth.Identity }))
-    .middleware(OAuth.Authentication),
-) {}
+class Api extends HttpApi.make("skjera")
+  .add(
+    HttpApiGroup.make("session")
+      .add(HttpApiEndpoint.get("me", "/api/me", { success: OAuth.Identity }))
+      .middleware(OAuth.Authentication),
+  )
+  // Public: no middleware, published content only.
+  .add(Documents.PostsApi) {}
 
 const ApiHandlers = HttpApiBuilder.group(Api, "session", (handlers) =>
   handlers.handle("me", () =>
@@ -29,8 +32,17 @@ const ApiHandlers = HttpApiBuilder.group(Api, "session", (handlers) =>
   ),
 );
 
+const PostsHandlers = HttpApiBuilder.group(Api, "posts", (handlers) =>
+  Effect.gen(function* () {
+    const posts = yield* Documents.PublishedPosts;
+    return handlers
+      .handle("list", () => posts.list)
+      .handle("get", ({ params }) => posts.get(params.id));
+  }),
+);
+
 const Routes = Layer.mergeAll(
-  HttpApiBuilder.layer(Api).pipe(Layer.provide(ApiHandlers)),
+  HttpApiBuilder.layer(Api).pipe(Layer.provide([ApiHandlers, PostsHandlers])),
   Documents.RpcServer.layerHttp({ path: "/rpc" }),
   HttpRouter.add("GET", "/health", HttpServerResponse.text("ok")),
 ).pipe(Layer.provideMerge(OAuth.routes));
