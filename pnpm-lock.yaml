@@ -183,14 +183,14 @@ catalogs:
       specifier: 0.2.0
       version: 0.2.0
     '@effect/platform-node':
-      specifier: 4.0.0-rc.118
-      version: 4.0.0-rc.118
+      specifier: 4.0.0
+      version: 4.0.0
     '@effect/sql-pg':
-      specifier: 4.0.0-rc.118
-      version: 4.0.0-rc.118
+      specifier: 4.0.0
+      version: 4.0.0
     '@effect/vitest':
-      specifier: 4.0.0-rc.118
-      version: 4.0.0-rc.118
+      specifier: 4.0.0
+      version: 4.0.0
     '@playwright/test':
       specifier: 1.63.0
       version: 1.63.0
@@ -210,8 +210,8 @@ catalogs:
       specifier: 1.6.6
       version: 1.6.6
     effect:
-      specifier: 4.0.0-rc.118
-      version: 4.0.0-rc.118
+      specifier: 4.0.0
+      version: 4.0.0
     oauth4webapi:
       specifier: ^3.8.8
       version: 3.8.8
@@ -276,7 +276,7 @@ importers:
         version: 0.4.1(react@19.3.0)(typescript@7.0.2)
       effect:
         specifier: 'catalog:'
-        version: 4.0.0-rc.118
+        version: 4.0.0
       prosemirror-commands:
         specifier: ^1.7.2
         version: 1.7.2
@@ -340,7 +340,7 @@ importers:
         version: 3.5.0
       '@effect/sql-pg':
         specifier: 'catalog:'
-        version: 4.0.0-rc.118(effect@4.0.0-rc.118)
+        version: 4.0.0(effect@4.0.0)
       '@skjera/oauth':
         specifier: workspace:*
         version: link:../oauth
@@ -355,14 +355,14 @@ importers:
         version: 1.6.6
       effect:
         specifier: 'catalog:'
-        version: 4.0.0-rc.118
+        version: 4.0.0
       temporal-polyfill:
         specifier: 'catalog:'
         version: 1.0.5
     devDependencies:
       '@effect/vitest':
         specifier: 'catalog:'
-        version: 4.0.0-rc.118(effect@4.0.0-rc.118)(vitest@5.0.2(@types/node@24.19.0)(vite@8.3.1(@types/node@24.19.0)))
+        version: 4.0.0(effect@4.0.0)(vitest@5.0.2(@types/node@24.19.0)(vite@8.3.1(@types/node@24.19.0)))
       '@types/node':
         specifier: 'catalog:'
         version: 24.19.0
@@ -377,17 +377,17 @@ importers:
     dependencies:
       effect:
         specifier: 'catalog:'
-        version: 4.0.0-rc.118
+        version: 4.0.0
       oauth4webapi:
         specifier: 'catalog:'
         version: 3.8.8
     devDependencies:
       '@effect/platform-node':
         specifier: 'catalog:'
-        version: 4.0.0-rc.118(effect@4.0.0-rc.118)(redis@6.2.1)
+        version: 4.0.0(effect@4.0.0)(redis@6.2.1)
       '@effect/vitest':
         specifier: 'catalog:'
-        version: 4.0.0-rc.118(effect@4.0.0-rc.118)(vitest@5.0.2(@types/node@24.19.0)(vite@8.3.1(@types/node@24.19.0)))
+        version: 4.0.0(effect@4.0.0)(vitest@5.0.2(@types/node@24.19.0)(vite@8.3.1(@types/node@24.19.0)))
       '@playwright/test':
         specifier: 'catalog:'
         version: 1.63.0
@@ -405,7 +405,7 @@ importers:
     dependencies:
       '@effect/platform-node':
         specifier: 'catalog:'
-        version: 4.0.0-rc.118(effect@4.0.0-rc.118)(redis@6.2.1)
+        version: 4.0.0(effect@4.0.0)(redis@6.2.1)
       '@skjera/documents':
         specifier: workspace:*
         version: link:../documents
@@ -414,7 +414,7 @@ importers:
         version: link:../oauth
       effect:
         specifier: 'catalog:'
-        version: 4.0.0-rc.118
+        version: 4.0.0
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -543,28 +543,28 @@ packages:
       '@types/react':
         optional: true
 
-  '@effect/platform-node-shared@4.0.0-rc.118':
-    resolution: {integrity: sha512-pNbmIlxbAUxAthUNsp2xm1NLG9kxoYecsPkoYl9mNF2oxPcKDxAvkOar7tYnLSUpXJeATm4pxYVipdZjQfqO4Q==}
+  '@effect/platform-node-shared@4.0.0':
+    resolution: {integrity: sha512-VBXHJU9UXVZPdQGGDRjGXpo+TpOzRwZuMrdKAtIxi1qwcRftmacZ1zTgIrzBa0Z2RA2KVkoOecQUsTlt/nJZhw==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
-      effect: ^4.0.0-rc.118
+      effect: ^4.0.0
 
-  '@effect/platform-node@4.0.0-rc.118':
-    resolution: {integrity: sha512-qdAxPZ+5bKxVnzkwziqcHZTHRHz2hyfFX6NhwEmm75CBpmaIzXIZR2LRqGd1/8eI3J3cOrXcAYzByhln7T1/EA==}
+  '@effect/platform-node@4.0.0':
+    resolution: {integrity: sha512-/L+4MUbl8FejPKLHLROYSOebvHnfixkP8KiblSD/DE5uH5xENZBHaux4nH6XMnRP+lr8ajpEJFS8sUrmmxFJeQ==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
-      effect: ^4.0.0-rc.118
+      effect: ^4.0.0
       redis: '>=5.0.0 <7.0.0'
 
-  '@effect/sql-pg@4.0.0-rc.118':
-    resolution: {integrity: sha512-aNl7fRpnu7o4TXIKr/Awzty1MwOss6o1uyRLrS416ouMTSRrItI/qIs4YNbtXIcLoMOny2HW3f2uE6A6/684cA==}
+  '@effect/sql-pg@4.0.0':
+    resolution: {integrity: sha512-w0sRMA08Tgz73aReYpFSxD+nz2LUKYhH/4zaRpo4G5b5YG+eqiAL7XYhqIjvGZ8MZacazbG71Jhprv6ccz9HDg==}
     peerDependencies:
-      effect: ^4.0.0-rc.118
+      effect: ^4.0.0
 
-  '@effect/vitest@4.0.0-rc.118':
-    resolution: {integrity: sha512-O0CPgtFVhkB+pyFtjP4up2XF4uVWsPgUmlv4hMjq8ARLOPKYix+uu3AUFIUKRHjzzQpx+JPce6KPhD6Flkrfag==}
+  '@effect/vitest@4.0.0':
+    resolution: {integrity: sha512-kGElCPFGtP+CgMCwV/HjJWqtE3zYo6I1+8MSA54l+EI24lPU9p2Efa+TBp1jfkg9j711KKzEqgSAy3VzTsb76Q==}
     peerDependencies:
-      effect: ^4.0.0-rc.118
+      effect: ^4.0.0
       vitest: '>=5.0.0 <6.0.0'
 
   '@jdxcode/mise@2026.9.17':
@@ -1010,8 +1010,8 @@ packages:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
 
-  effect@4.0.0-rc.118:
-    resolution: {integrity: sha512-hxhpCd+swzrtu9lnyPpEFre2ODQzJ9qxgyL1oHIEY8NKnW4PxTbM1XzplMZXiAsLD62HO+KJc41Nqxr9T791ZQ==}
+  effect@4.0.0:
+    resolution: {integrity: sha512-ooc1TG5t+FfzgYnFz2ff6BBKyZ7EwBRVXC7c4RhQUAD6/TZ2gTXXMeb4WX7a19ozQo4J73/QW+S00YAIresoMQ==}
 
   es-module-lexer@2.3.2:
     resolution: {integrity: sha512-poHGpORABojJJucnV9KbOavETW8lBVnphkW77ER5/BQ5Fz7oXSoCNek7IH3vR5nRjdsEz926ibFYX8KtLQmdyw==}
@@ -1540,32 +1540,32 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.3.0
 
-  '@effect/platform-node-shared@4.0.0-rc.118(effect@4.0.0-rc.118)':
+  '@effect/platform-node-shared@4.0.0(effect@4.0.0)':
     dependencies:
       '@types/ws': 8.18.2
-      effect: 4.0.0-rc.118
+      effect: 4.0.0
       ws: 8.22.0
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
 
-  '@effect/platform-node@4.0.0-rc.118(effect@4.0.0-rc.118)(redis@6.2.1)':
+  '@effect/platform-node@4.0.0(effect@4.0.0)(redis@6.2.1)':
     dependencies:
-      '@effect/platform-node-shared': 4.0.0-rc.118(effect@4.0.0-rc.118)
-      effect: 4.0.0-rc.118
+      '@effect/platform-node-shared': 4.0.0(effect@4.0.0)
+      effect: 4.0.0
       redis: 6.2.1
       undici: 8.11.2
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
 
-  '@effect/sql-pg@4.0.0-rc.118(effect@4.0.0-rc.118)':
+  '@effect/sql-pg@4.0.0(effect@4.0.0)':
     dependencies:
-      effect: 4.0.0-rc.118
+      effect: 4.0.0
 
-  '@effect/vitest@4.0.0-rc.118(effect@4.0.0-rc.118)(vitest@5.0.2(@types/node@24.19.0)(vite@8.3.1(@types/node@24.19.0)))':
+  '@effect/vitest@4.0.0(effect@4.0.0)(vitest@5.0.2(@types/node@24.19.0)(vite@8.3.1(@types/node@24.19.0)))':
     dependencies:
-      effect: 4.0.0-rc.118
+      effect: 4.0.0
       vitest: 5.0.2(@types/node@24.19.0)(vite@8.3.1(@types/node@24.19.0))
 
   '@jdxcode/mise@2026.9.17': {}
@@ -1847,7 +1847,7 @@ snapshots:
 
   detect-libc@2.1.2: {}
 
-  effect@4.0.0-rc.118: {}
+  effect@4.0.0: {}
 
   es-module-lexer@2.3.2: {}
 
