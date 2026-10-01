@@ -16,6 +16,8 @@ export * from "./DocumentsApi.ts";
 export * as DraftSync from "./DraftSync.ts";
 export * from "./DraftSyncProtocol.ts";
 export * from "./errors.ts";
+export * as Images from "./Images.ts";
+export * from "./ImagesApi.ts";
 export * from "./Model.ts";
 export * from "./Presence.ts";
 export * from "./PublicApi.ts";

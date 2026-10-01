@@ -49,3 +49,12 @@
 .empty {
   color: var(--color-text-muted);
 }
+
+.cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 1;
+  margin-bottom: 0.75rem;
+  border-radius: var(--radius-large);
+  object-fit: cover;
+}

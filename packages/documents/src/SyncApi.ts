@@ -2,7 +2,14 @@ import { Authentication } from "@skjera/oauth/api";
 import { Schema } from "effect";
 import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
 import { ContentTypeName } from "./ContentTypes.ts";
-import { DocumentId, Heads, IsoDate, TeamId } from "./Model.ts";
+import {
+  Cover,
+  DocumentId,
+  Heads,
+  IsoDate,
+  RichText,
+  TeamId,
+} from "./Model.ts";
 
 // Clients keep copies of tables. A pull returns the rows that changed since
 // the snapshot of the previous pull, which rows were deleted, and the
@@ -59,7 +66,8 @@ export const EventRow = Schema.Struct({
   id: DocumentId,
   title: Schema.String,
   date: IsoDate,
-  body: Schema.String,
+  body: RichText,
+  cover: Schema.NullOr(Cover),
   /** Visible without logging in. */
   isPublic: Schema.Boolean,
   /** People without an account can sign up to attend. */

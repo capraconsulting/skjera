@@ -77,3 +77,10 @@ export class SignupNotFound extends Schema.TaggedError<SignupNotFound>()(
   {},
   { httpApiStatus: 404 },
 ) {}
+
+/** Not an image that can be uploaded: the wrong format, or too big. */
+export class InvalidImage extends Schema.TaggedError<InvalidImage>()(
+  "InvalidImage",
+  { message: Schema.String },
+  { httpApiStatus: 400 },
+) {}

@@ -97,6 +97,13 @@ const publishedEvent = Effect.fn(function* (settings: {
 });
 
 /** An editor session: a replica of the draft with its own actor id. */
+/** Sets the cover as the editor does: `src` immutable, `alt` text. */
+const setCover = (event: EventContent, src: string | null) => {
+  const draft = event as { cover?: unknown };
+  if (src === null) delete draft.cover;
+  else draft.cover = { src: new A.ImmutableString(src), alt: "" };
+};
+
 const openEditor = Effect.fn(function* (
   id: Parameters<Documents["Service"]["get"]>[0],
 ) {
@@ -322,6 +329,61 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
     }),
   );
 
+  it.effect("publishes the cover image, which has to be an uploaded one", () =>
+    Effect.gen(function* () {
+      const documents = yield* Documents;
+      const sql = yield* SqlClient.SqlClient;
+      const id = yield* documents.create("event", yield* newTeam, alice);
+      const src = "/api/images/AAAAAAAAAAAAAAAAAAAAAA";
+
+      const elsewhere = yield* openEditor(id);
+      const error = yield* Effect.flip(
+        documents.applyChanges(
+          id,
+          [
+            elsewhere.edit((event) => {
+              setCover(event, "https://example.com/x.png");
+            }),
+          ],
+          alice,
+        ),
+      );
+      assert.strictEqual(error._tag, "InvalidContent");
+
+      const editor = yield* openEditor(id);
+      const withCover = yield* documents.applyChanges(
+        id,
+        [
+          editor.edit((event) => {
+            A.updateText(event, ["title"], "Launch");
+            setDate(event, "2026-10-15");
+            setCover(event, src);
+          }),
+          editor.edit((event) =>
+            A.updateText(event, ["cover", "alt"], "A full room"),
+          ),
+        ],
+        alice,
+      );
+      yield* documents.publish(id, withCover, alice);
+      const cover = sql<{ cover: unknown }>`
+        SELECT cover FROM events WHERE id = ${id}
+      `;
+      assert.deepStrictEqual(yield* cover, [
+        { cover: { src, alt: "A full room" } },
+      ]);
+
+      // Taken off again.
+      const without = yield* documents.applyChanges(
+        id,
+        [editor.edit((event) => setCover(event, null))],
+        alice,
+      );
+      yield* documents.publish(id, without, alice);
+      assert.deepStrictEqual(yield* cover, [{ cover: null }]);
+    }),
+  );
+
   it.effect("publishes the version the user saw", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
@@ -334,7 +396,26 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         [
           editor.edit((event) => {
             A.updateText(event, ["title"], "Launch");
-            A.updateText(event, ["body"], "We're live");
+            // A heading, and a paragraph with a bold word.
+            A.splitBlock(event, ["body"], 0, {
+              type: new A.ImmutableString("heading"),
+              parents: [],
+              attrs: { level: 2 },
+            });
+            A.splice(event, ["body"], 1, 0, "News");
+            A.splitBlock(event, ["body"], 5, {
+              type: new A.ImmutableString("paragraph"),
+              parents: [],
+              attrs: {},
+            });
+            A.splice(event, ["body"], 6, 0, "We're live");
+            A.mark(
+              event,
+              ["body"],
+              { start: 12, end: 16, expand: "none" },
+              "strong",
+              true,
+            );
             setDate(event, "2026-10-15");
           }),
         ],
@@ -349,12 +430,25 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
 
       const first = yield* documents.publish(id, seen, alice);
       assert.deepStrictEqual(first.heads, seen);
-      const [row] = yield* sql<{ title: string; body: string; date: string }>`
+      const [row] = yield* sql<{ title: string; body: unknown; date: string }>`
         SELECT title, body, event_date::text AS date FROM events WHERE id = ${id}
       `;
+      // The body keeps its structure.
       assert.deepStrictEqual(row, {
         title: "Launch",
-        body: "We're live",
+        body: [
+          {
+            type: "block",
+            value: { type: "heading", attrs: { level: 2 }, parents: [] },
+          },
+          { type: "text", value: "News" },
+          {
+            type: "block",
+            value: { type: "paragraph", attrs: {}, parents: [] },
+          },
+          { type: "text", value: "We're " },
+          { type: "text", value: "live", marks: { strong: true } },
+        ],
         date: "2026-10-15",
       });
 

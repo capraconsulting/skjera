@@ -199,4 +199,73 @@ export const migrations = Migrator.fromRecord({
       FOR EACH ROW EXECUTE FUNCTION documents_summarize()`,
     `UPDATE documents SET draft = draft`,
   ),
+  // pg_automerge 0.2.0 adds automerge_spans, for rich text; the image must
+  // have it (see compose.yml).
+  "0008_pg_automerge_0_2": statements(`ALTER EXTENSION pg_automerge UPDATE`),
+  "0009_rich_body": statements(
+    // The published body keeps its rich text structure: automerge_spans,
+    // runs of text with their marks, and blocks (paragraphs, headings, list
+    // items, images). Plain bodies published before become one run.
+    `ALTER TABLE events ALTER COLUMN body TYPE jsonb USING
+      CASE WHEN body = '' THEN '[]'::jsonb
+      ELSE jsonb_build_array(jsonb_build_object('type', 'text', 'value', body)) END`,
+    `CREATE OR REPLACE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
+      RETURNS SETOF events LANGUAGE sql AS $$
+      INSERT INTO events AS e
+        (id, title, event_date, body, is_public, allow_guests, ask_dietary,
+         published_heads, published_by_issuer, published_by_subject)
+      SELECT d.id, c.content->>'title', (c.content->>'date')::date, automerge_spans(d.draft, '{body}', heads),
+        (c.content->>'public')::boolean,
+        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
+        (c.content->>'dietary')::boolean,
+        -- Sorted like automerge_heads(), so the two can be compared.
+        ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
+      FROM documents d
+      CROSS JOIN LATERAL (SELECT automerge_to_jsonb(d.draft, heads) AS content OFFSET 0) c
+      WHERE d.id = document_id AND d.type = 'event'
+      ON CONFLICT (id) DO UPDATE SET
+        title = EXCLUDED.title,
+        event_date = EXCLUDED.event_date,
+        body = EXCLUDED.body,
+        is_public = EXCLUDED.is_public,
+        allow_guests = EXCLUDED.allow_guests,
+        ask_dietary = EXCLUDED.ask_dietary,
+        published_heads = EXCLUDED.published_heads,
+        published_by_issuer = EXCLUDED.published_by_issuer,
+        published_by_subject = EXCLUDED.published_by_subject
+      RETURNING e.*
+    $$`,
+  ),
+  "0010_cover": statements(
+    // The cover image: { src, alt }, or null.
+    `ALTER TABLE events ADD COLUMN cover jsonb`,
+    `CREATE OR REPLACE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
+      RETURNS SETOF events LANGUAGE sql AS $$
+      INSERT INTO events AS e
+        (id, title, event_date, body, cover, is_public, allow_guests, ask_dietary,
+         published_heads, published_by_issuer, published_by_subject)
+      SELECT d.id, c.content->>'title', (c.content->>'date')::date, automerge_spans(d.draft, '{body}', heads),
+        c.content->'cover',
+        (c.content->>'public')::boolean,
+        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
+        (c.content->>'dietary')::boolean,
+        -- Sorted like automerge_heads(), so the two can be compared.
+        ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
+      FROM documents d
+      CROSS JOIN LATERAL (SELECT automerge_to_jsonb(d.draft, heads) AS content OFFSET 0) c
+      WHERE d.id = document_id AND d.type = 'event'
+      ON CONFLICT (id) DO UPDATE SET
+        title = EXCLUDED.title,
+        event_date = EXCLUDED.event_date,
+        body = EXCLUDED.body,
+        cover = EXCLUDED.cover,
+        is_public = EXCLUDED.is_public,
+        allow_guests = EXCLUDED.allow_guests,
+        ask_dietary = EXCLUDED.ask_dietary,
+        published_heads = EXCLUDED.published_heads,
+        published_by_issuer = EXCLUDED.published_by_issuer,
+        published_by_subject = EXCLUDED.published_by_subject
+      RETURNING e.*
+    $$`,
+  ),
 });

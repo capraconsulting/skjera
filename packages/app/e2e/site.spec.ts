@@ -82,9 +82,27 @@ test("the site shows what was published, and only that", async ({
   await expect(reader.getByText("isn't published")).toBeVisible();
 
   await title(alice).pressSequentially(headline);
-  await body(alice).pressSequentially("Line one");
+  // Markdown-like typing, and the toolbar.
+  await body(alice).pressSequentially("## Agenda");
   await body(alice).press("Enter");
-  await body(alice).pressSequentially("Line two");
+  await body(alice).pressSequentially("Doors open at ");
+  await alice.getByRole("button", { name: "Bold" }).click();
+  await body(alice).pressSequentially("six");
+  await alice.getByRole("button", { name: "Bold" }).click();
+  await body(alice).pressSequentially(".");
+  await body(alice).press("Enter");
+  await body(alice).pressSequentially("- Bring snacks");
+  await body(alice).press("Enter");
+  await body(alice).pressSequentially("Bring friends");
+  for (const _ of "friends") await body(alice).press("Shift+ArrowLeft");
+  await alice.getByRole("button", { name: "Link" }).click();
+  await alice
+    .getByRole("textbox", { name: "Link address" })
+    .fill("https://example.com/friends");
+  await alice.getByRole("button", { name: "Add link" }).click();
+  await expect(
+    body(alice).getByRole("link", { name: "friends" }),
+  ).toBeVisible();
   const date = await pickDate(alice);
   await alice.getByRole("checkbox", { name: /Public event/ }).check();
   await expect(alice.getByTestId("status")).toContainText("Saved");
@@ -96,8 +114,21 @@ test("the site shows what was published, and only that", async ({
   await expect(reader).toHaveURL(new RegExp(`/events/${id}$`));
   await expect(reader.getByRole("heading", { name: headline })).toBeVisible();
   await expect(reader.getByText(date)).toBeVisible();
-  await expect(reader.getByTestId("event-body")).toHaveText(
-    "Line one\nLine two",
+  const content = reader.getByTestId("event-body");
+  await expect(
+    content.getByRole("heading", { name: "Agenda", level: 2 }),
+  ).toBeVisible();
+  await expect(content.getByRole("paragraph").first()).toHaveText(
+    "Doors open at six.",
+  );
+  await expect(content.locator("strong")).toHaveText("six");
+  await expect(content.getByRole("listitem")).toHaveText([
+    "Bring snacks",
+    "Bring friends",
+  ]);
+  await expect(content.getByRole("link", { name: "friends" })).toHaveAttribute(
+    "href",
+    "https://example.com/friends",
   );
 
   // Edits stay private until they are republished.

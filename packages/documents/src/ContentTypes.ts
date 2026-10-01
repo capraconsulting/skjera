@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import { IsoDate } from "./Model.ts";
+import { Cover, IsoDate } from "./Model.ts";
 
 // Content types are safe to share with the editor. A draft must always match
 // its type's schema exactly: changes that would add unknown fields or change
@@ -8,6 +8,11 @@ import { IsoDate } from "./Model.ts";
 export const EventContent = Schema.Struct({
   title: Schema.String,
   body: Schema.String,
+  /**
+   * Missing when there is none. `src` is an ImmutableString, replaced as a
+   * whole; `alt` is text, edited together.
+   */
+  cover: Schema.optionalKey(Cover),
   /**
    * Stored as an Automerge ImmutableString, replaced as a whole rather than
    * merged character by character. Null until picked.

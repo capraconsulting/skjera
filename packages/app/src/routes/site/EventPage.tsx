@@ -9,6 +9,7 @@ import {
   useRouteLoaderData,
 } from "react-router";
 import { Badge } from "../../components/Badge.tsx";
+import { RichText } from "../../components/RichText.tsx";
 import { attendees, events } from "../../sync/tables.ts";
 import { formatLongDate } from "../../time.ts";
 import { Attend } from "./Attend.tsx";
@@ -57,6 +58,13 @@ export function EventPage() {
   if (event === undefined) return <p className={styles.missing}>{missing}</p>;
   return (
     <article className={styles.event}>
+      {event.cover === null ? null : (
+        <img
+          className={styles.cover}
+          src={event.cover.src}
+          alt={event.cover.alt}
+        />
+      )}
       <h1 className={styles.title}>{event.title}</h1>
       <p className={styles.date}>
         <time dateTime={event.date}>{formatLongDate(event.date)}</time>
@@ -68,7 +76,7 @@ export function EventPage() {
         )}
       </p>
       <div className={styles.body} data-testid="event-body">
-        {event.body}
+        <RichText spans={event.body} />
       </div>
       <Attend
         event={event}

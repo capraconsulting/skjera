@@ -2,12 +2,12 @@ services:
   postgres:
     # Postgres 18 with pg_automerge. Until pg_automerge publishes an image,
     # it is built from a checkout next to this repository.
-    image: pg-automerge:0.1.0
+    image: pg-automerge:0.2.0
     build:
       context: ../pg-automerge
       dockerfile: docker/Dockerfile
       args:
-        PG_AUTOMERGE_VERSION: 0.1.0
+        PG_AUTOMERGE_VERSION: 0.2.0
     environment:
       POSTGRES_USER: skjera
       POSTGRES_PASSWORD: skjera
@@ -41,5 +41,24 @@ services:
       timeout: 2s
       retries: 30
 
+  # S3-compatible object storage for uploaded images.
+  rustfs:
+    image: rustfs/rustfs:1.0.0
+    environment:
+      RUSTFS_ACCESS_KEY: skjera
+      RUSTFS_SECRET_KEY: skjera-dev-secret
+    ports:
+      - "127.0.0.1:9000:9000"
+      # The web console.
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - rustfs:/data
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:9000/health"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
 volumes:
   postgres:
+  rustfs:

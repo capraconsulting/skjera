@@ -18,7 +18,8 @@ export default defineConfig({
   webServer: [
     {
       // Leaves the containers running, like `pnpm dev` would.
-      command: "docker compose up --wait postgres dex && tail -f /dev/null",
+      command:
+        "docker compose up --wait postgres dex rustfs && tail -f /dev/null",
       cwd: "../..",
       url: "http://localhost:5556/dex/.well-known/openid-configuration",
       reuseExistingServer: true,

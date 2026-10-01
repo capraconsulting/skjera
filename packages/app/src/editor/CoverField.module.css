@@ -1,0 +1,57 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.drop {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius);
+}
+
+.dragging {
+  border-style: solid;
+  border-color: var(--color-focus);
+  background: var(--color-selected);
+}
+
+.empty {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.preview {
+  display: block;
+  max-width: 100%;
+  max-height: 16rem;
+  border-radius: var(--radius);
+  object-fit: cover;
+}
+
+.preview[aria-busy="true"] {
+  opacity: 0.5;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.error {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: 0.875rem;
+}

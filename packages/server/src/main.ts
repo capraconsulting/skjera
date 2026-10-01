@@ -1,6 +1,6 @@
-// The Skjera backend: login, the HTTP API, table sync, and the WebSocket
-// drafts sync over.
-// Stateless: sessions and documents live in Postgres, so any number of
+// The Skjera backend: login, the HTTP API, table sync, the WebSocket
+// drafts sync over, and images.
+// Stateless: sessions and documents live in Postgres, images in S3, so any number of
 // instances can run side by side.
 import { createServer } from "node:http";
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
@@ -190,6 +190,7 @@ const Routes = Layer.mergeAll(
     ]),
   ),
   Documents.DraftSync.layerHttp({ path: Documents.draftSyncPath }),
+  Documents.Images.layerHttp,
   HttpRouter.add("GET", "/health", HttpServerResponse.text("ok")),
 ).pipe(Layer.provideMerge(OAuth.routes));
 
@@ -211,6 +212,7 @@ HttpRouter.serve(Routes).pipe(
     KeyValueStore.layerSql({ table: "oauth_sessions" }),
   ]),
   Layer.provideMerge(Documents.layer),
+  Layer.provide(Documents.Images.Images.layer),
   Layer.launch,
   NodeRuntime.runMain,
 );

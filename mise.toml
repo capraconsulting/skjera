@@ -10,6 +10,11 @@ OAUTH_CLIENT_SECRET = "skjera-dev-secret"
 OAUTH_REDIRECT_URI = "http://localhost:5173/auth/callback"
 OAUTH_ALLOWED_DOMAINS = "example.com"
 OAUTH_ALLOW_INSECURE_REQUESTS = "true"
+S3_ENDPOINT = "http://localhost:9000"
+S3_REGION = "us-east-1"
+S3_BUCKET = "skjera-images"
+S3_ACCESS_KEY_ID = "skjera"
+S3_SECRET_ACCESS_KEY = "skjera-dev-secret"
 
 [tasks.hooks]
 description = "Activate git hooks in .hooks/"

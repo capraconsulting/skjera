@@ -1,6 +1,8 @@
+import type { RichText } from "@skjera/documents/api";
 import { useLiveQuery } from "@tanstack/react-db";
 import { Link } from "react-router";
 import { Badge } from "../../components/Badge.tsx";
+import { plainText } from "../../components/RichText.tsx";
 import { events as eventsTable } from "../../sync/tables.ts";
 import { formatLongDate } from "../../time.ts";
 import styles from "./Home.module.css";
@@ -11,8 +13,10 @@ export const homeLoader = async () => {
   return null;
 };
 
-const excerpt = (body: string) =>
-  body.length > 200 ? `${body.slice(0, 200).trimEnd()}…` : body;
+const excerpt = (body: RichText) => {
+  const text = plainText(body);
+  return text.length > 200 ? `${text.slice(0, 200).trimEnd()}…` : text;
+};
 
 export function Home() {
   // By date, earliest first.
@@ -31,6 +35,15 @@ export function Home() {
         <div className={styles.list}>
           {events.map((event) => (
             <article key={event.id} className={styles.teaser}>
+              {event.cover === null ? null : (
+                // Decorative here: the title next to it says what it is.
+                <img
+                  className={styles.cover}
+                  src={event.cover.src}
+                  alt=""
+                  loading="lazy"
+                />
+              )}
               <time className={styles.date} dateTime={event.date}>
                 {formatLongDate(event.date)}
               </time>

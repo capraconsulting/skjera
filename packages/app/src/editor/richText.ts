@@ -1,0 +1,226 @@
+import { basicSchemaAdapter } from "@automerge/prosemirror";
+import { setBlockType, toggleMark } from "prosemirror-commands";
+import {
+  type InputRule,
+  inputRules,
+  textblockTypeInputRule,
+  wrappingInputRule,
+} from "prosemirror-inputrules";
+import { keymap } from "prosemirror-keymap";
+import type { MarkType, NodeType, Schema } from "prosemirror-model";
+import {
+  liftListItem,
+  sinkListItem,
+  splitListItem,
+  wrapInList,
+} from "prosemirror-schema-list";
+import {
+  type Command,
+  type EditorState,
+  NodeSelection,
+  type Plugin,
+} from "prosemirror-state";
+
+// Rich text with @automerge/prosemirror's basic schema: paragraphs,
+// headings, lists, links, bold and italics, and images. The editor offers
+// those; other blocks of the schema (quotes, code) can still come in with
+// pasted HTML.
+
+/** How rich text is stored in Automerge, and shown in ProseMirror. */
+export const richTextAdapter = basicSchemaAdapter;
+
+const nodes = (schema: Schema) => {
+  const { paragraph, heading, bullet_list, ordered_list, list_item, image } =
+    schema.nodes;
+  if (
+    !paragraph ||
+    !heading ||
+    !bullet_list ||
+    !ordered_list ||
+    !list_item ||
+    !image
+  ) {
+    throw new Error("Not the basic rich text schema");
+  }
+  return { paragraph, heading, bullet_list, ordered_list, list_item, image };
+};
+
+const marks = (schema: Schema) => {
+  const { strong, em, link } = schema.marks;
+  if (!strong || !em || !link)
+    throw new Error("Not the basic rich text schema");
+  return { strong, em, link };
+};
+
+/**
+ * Keyboard shortcuts, and Markdown-like typing: "## ", "- ", "1. ". Goes
+ * before ProseMirror's base keymap, so Enter in a list makes a new item.
+ */
+export const richTextPlugins = (schema: Schema): Array<Plugin> => {
+  const { heading, bullet_list, ordered_list, list_item } = nodes(schema);
+  const { strong, em } = marks(schema);
+  return [
+    inputRules({
+      rules: [
+        textblockTypeInputRule(/^##\s$/, heading, { level: 2 }),
+        textblockTypeInputRule(/^###\s$/, heading, { level: 3 }),
+        wrappingInputRule(/^\s*[-*]\s$/, bullet_list),
+        wrappingInputRule(
+          /^(\d+)\.\s$/,
+          ordered_list,
+          (match) => ({ order: Number(match[1]) }),
+          (match, node) =>
+            node.childCount + node.attrs["order"] === Number(match[1]),
+        ),
+      ] satisfies Array<InputRule>,
+    }),
+    keymap({
+      "Mod-b": toggleMark(strong),
+      "Mod-i": toggleMark(em),
+      Enter: splitListItem(list_item),
+      Tab: sinkListItem(list_item),
+      "Shift-Tab": liftListItem(list_item),
+    }),
+  ];
+};
+
+const markActive = (state: EditorState, type: MarkType) => {
+  const { from, $from, to, empty } = state.selection;
+  return empty
+    ? type.isInSet(state.storedMarks ?? $from.marks()) !== undefined
+    : state.doc.rangeHasMark(from, to, type);
+};
+
+/** The innermost list around the selection, if any. */
+const listAround = (state: EditorState): NodeType | null => {
+  const { $from } = state.selection;
+  for (let depth = $from.depth; depth > 0; depth--) {
+    const type = $from.node(depth).type;
+    if (type.name === "bullet_list" || type.name === "ordered_list") {
+      return type;
+    }
+  }
+  return null;
+};
+
+/** The image selected, if one is. */
+const selectedImage = (state: EditorState) => {
+  const { selection } = state;
+  return selection instanceof NodeSelection &&
+    selection.node.type === nodes(state.schema).image
+    ? selection.node
+    : null;
+};
+
+/** What the toolbar can do, and what's on where the selection is. */
+export const toolbarState = (state: EditorState) => {
+  const schema = state.schema;
+  const { paragraph, heading, bullet_list, ordered_list, list_item } =
+    nodes(schema);
+  const { strong, em, link } = marks(schema);
+  const list = listAround(state);
+  const inHeading = state.selection.$from.parent.type === heading;
+
+  const toggleList =
+    (type: NodeType): Command =>
+    (state, dispatch) =>
+      listAround(state) === type
+        ? liftListItem(list_item)(state, dispatch)
+        : wrapInList(type)(state, dispatch);
+
+  const image = selectedImage(state);
+  return {
+    /** The selected image's description, if an image is selected. */
+    image: image === null ? null : { alt: String(image.attrs["alt"] ?? "") },
+    bold: { active: markActive(state, strong), run: toggleMark(strong) },
+    italic: { active: markActive(state, em), run: toggleMark(em) },
+    heading: {
+      active: inHeading,
+      run: inHeading
+        ? setBlockType(paragraph)
+        : setBlockType(heading, { level: 2 }),
+    },
+    bulletList: {
+      active: list === bullet_list,
+      run: toggleList(bullet_list),
+    },
+    orderedList: {
+      active: list === ordered_list,
+      run: toggleList(ordered_list),
+    },
+    link: {
+      active: markActive(state, link),
+      /** Links need text to link. */
+      available: !state.selection.empty,
+      href: (() => {
+        const { from, to } = state.selection;
+        let href: string | null = null;
+        state.doc.nodesBetween(from, to, (node) => {
+          const found = link.isInSet(node.marks);
+          if (found) href = String(found.attrs["href"] ?? "");
+        });
+        return href;
+      })(),
+    },
+  };
+};
+
+/** Links the selected text to `href`, or unlinks it when `href` is null. */
+export const setLink =
+  (href: string | null): Command =>
+  (state, dispatch) => {
+    const { link } = marks(state.schema);
+    const { from, to, empty } = state.selection;
+    if (empty) return false;
+    if (dispatch) {
+      const tr = state.tr.removeMark(from, to, link);
+      dispatch(
+        href === null ? tr : tr.addMark(from, to, link.create({ href })),
+      );
+    }
+    return true;
+  };
+
+/** Puts an image where the selection is. */
+export const insertImage =
+  (src: string, alt: string): Command =>
+  (state, dispatch) => {
+    const { image } = nodes(state.schema);
+    if (dispatch) {
+      dispatch(state.tr.replaceSelectionWith(image.create({ src, alt })));
+    }
+    return true;
+  };
+
+/**
+ * Describes the selected image. The image is replaced rather than changed,
+ * as that is what syncs.
+ */
+export const setImageAlt =
+  (alt: string): Command =>
+  (state, dispatch) => {
+    const image = selectedImage(state);
+    if (image === null) return false;
+    if (dispatch) {
+      const { from, to } = state.selection;
+      const tr = state.tr.replaceWith(
+        from,
+        to,
+        image.type.create({ ...image.attrs, alt }),
+      );
+      dispatch(tr.setSelection(NodeSelection.create(tr.doc, from)));
+    }
+    return true;
+  };
+
+/** Only web and mail links. */
+export const safeHref = (href: string) => {
+  try {
+    const url = new URL(href, window.location.href);
+    return ["http:", "https:", "mailto:"].includes(url.protocol)
+      ? url.href
+      : null;
+  } catch {
+    return null;
+  }
+};

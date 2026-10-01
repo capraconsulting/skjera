@@ -87,6 +87,36 @@ export class GuestSignup extends Schema.Class<GuestSignup>(
   cancelToken: Schema.String,
 }) {}
 
+/**
+ * Rich text, as Automerge's `spans()` and pg_automerge's `automerge_spans`
+ * give it: runs of text with their marks (bold, links, ...), and blocks
+ * (paragraphs, headings, list items, images) that start the text after
+ * them.
+ */
+export const RichText = Schema.Array(
+  Schema.Union([
+    Schema.Struct({
+      type: Schema.Literal("text"),
+      value: Schema.String,
+      marks: Schema.optionalKey(Schema.Record(Schema.String, Schema.Unknown)),
+    }),
+    Schema.Struct({
+      type: Schema.Literal("block"),
+      value: Schema.Record(Schema.String, Schema.Unknown),
+    }),
+  ]),
+);
+export type RichText = typeof RichText.Type;
+
+/** Where an uploaded image is served (see ImagesApi.ts). */
+export const ImageSrc = Schema.String.check(
+  Schema.isPattern(/^\/api\/images\/[A-Za-z0-9_-]{22}$/),
+);
+
+/** An event's cover image, with a description for those who can't see it. */
+export const Cover = Schema.Struct({ src: ImageSrc, alt: Schema.String });
+export type Cover = typeof Cover.Type;
+
 // Presence: who has a draft open, and their selection. Shared as automerge-
 // repo presence, in ephemeral messages (see DraftSync.ts); never stored.
 

@@ -9,6 +9,10 @@ procs:
     cmd: ["docker", "compose", "up", "dex"]
     stop:
       send-keys: ["<d>"]
+  rustfs:
+    cmd: ["docker", "compose", "up", "rustfs"]
+    stop:
+      send-keys: ["<d>"]
   server:
     cmd: ["pnpm", "--filter", "@skjera/server", "dev"]
   app:

@@ -2,7 +2,15 @@ import type { Identity } from "@skjera/oauth/api";
 import { Context, Effect, Layer, Option } from "effect";
 import { SqlClient } from "effect/sql";
 import type { ContentTypeName } from "./ContentTypes.ts";
-import type { Audience, DocumentId, Heads, IsoDate, TeamId } from "./Model.ts";
+import type {
+  Audience,
+  Cover,
+  DocumentId,
+  Heads,
+  IsoDate,
+  RichText,
+  TeamId,
+} from "./Model.ts";
 import {
   AttendeeDetails,
   AttendeeRow,
@@ -186,7 +194,8 @@ export class Sync extends Context.Service<
             id: DocumentId;
             title: string;
             date: IsoDate;
-            body: string;
+            body: RichText;
+            cover: Cover | null;
             is_public: boolean;
             allow_guests: boolean;
             ask_dietary: boolean;
@@ -195,7 +204,7 @@ export class Sync extends Context.Service<
             first_published_at: Date;
             visible: boolean;
           }>`
-            SELECT id, title, event_date::text AS date, body, is_public,
+            SELECT id, title, event_date::text AS date, body, cover, is_public,
               allow_guests, ask_dietary, published_heads, published_at,
               first_published_at, is_public OR ${audience === "members"} AS visible
             FROM events WHERE ${unseen(since)}
@@ -209,6 +218,7 @@ export class Sync extends Context.Service<
                     title: row.title,
                     date: row.date,
                     body: row.body,
+                    cover: row.cover,
                     isPublic: row.is_public,
                     allowGuests: row.allow_guests,
                     askDietary: row.ask_dietary,

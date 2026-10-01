@@ -1,0 +1,320 @@
+import type { Command } from "prosemirror-state";
+import type { EditorView } from "prosemirror-view";
+import { type FormEvent, type ReactNode, useState } from "react";
+import { Button } from "../components/Button.tsx";
+import { Dialog, dialogStyles } from "../components/Dialog.tsx";
+import { Input } from "../components/Input.tsx";
+import styles from "./RichTextToolbar.module.css";
+import {
+  insertImage,
+  safeHref,
+  setImageAlt,
+  setLink,
+  toolbarState,
+} from "./richText.ts";
+import { acceptedImages, uploadImage } from "./uploadImage.ts";
+
+/** Formatting for a rich text editor, following its selection. */
+export function RichTextToolbar(props: {
+  readonly view: EditorView;
+  /** The editor's label, e.g. "Body", to name the toolbar. */
+  readonly label: string;
+}) {
+  const { view } = props;
+  const tools = toolbarState(view.state);
+  const [linking, setLinking] = useState(false);
+  const [addingImage, setAddingImage] = useState(false);
+  const [describing, setDescribing] = useState(false);
+
+  const run = (command: Command) => {
+    command(view.state, view.dispatch);
+    view.focus();
+  };
+
+  return (
+    <div
+      className={styles.toolbar}
+      role="toolbar"
+      aria-label={`${props.label} formatting`}
+    >
+      <Tool
+        label="Bold"
+        active={tools.bold.active}
+        onClick={() => run(tools.bold.run)}
+      >
+        <b>B</b>
+      </Tool>
+      <Tool
+        label="Italic"
+        active={tools.italic.active}
+        onClick={() => run(tools.italic.run)}
+      >
+        <i>I</i>
+      </Tool>
+      <span className={styles.separator} aria-hidden="true" />
+      <Tool
+        label="Heading"
+        active={tools.heading.active}
+        onClick={() => run(tools.heading.run)}
+      >
+        H
+      </Tool>
+      <Tool
+        label="Bulleted list"
+        active={tools.bulletList.active}
+        onClick={() => run(tools.bulletList.run)}
+      >
+        •
+      </Tool>
+      <Tool
+        label="Numbered list"
+        active={tools.orderedList.active}
+        onClick={() => run(tools.orderedList.run)}
+      >
+        1.
+      </Tool>
+      <span className={styles.separator} aria-hidden="true" />
+      <Tool
+        label="Link"
+        active={tools.link.active}
+        disabled={!tools.link.available}
+        onClick={() => setLinking(true)}
+      >
+        Link
+      </Tool>
+      <LinkDialog
+        open={linking}
+        href={tools.link.href}
+        onClose={() => {
+          setLinking(false);
+          view.focus();
+        }}
+        onLink={(href) => {
+          setLinking(false);
+          run(setLink(href));
+        }}
+      />
+      <Tool label="Image" onClick={() => setAddingImage(true)}>
+        Image
+      </Tool>
+      <ImageDialog
+        open={addingImage}
+        onClose={() => {
+          setAddingImage(false);
+          view.focus();
+        }}
+        onImage={(src, alt) => {
+          setAddingImage(false);
+          run(insertImage(src, alt));
+        }}
+      />
+      {tools.image === null ? null : (
+        <Tool label="Describe image" onClick={() => setDescribing(true)}>
+          Alt text
+        </Tool>
+      )}
+      <DescribeImageDialog
+        open={describing}
+        alt={tools.image?.alt ?? ""}
+        onClose={() => {
+          setDescribing(false);
+          view.focus();
+        }}
+        onDescribe={(alt) => {
+          setDescribing(false);
+          run(setImageAlt(alt));
+        }}
+      />
+    </div>
+  );
+}
+
+function Tool(props: {
+  readonly label: string;
+  /** Whether it is on, for tools that toggle. */
+  readonly active?: boolean;
+  readonly disabled?: boolean;
+  readonly onClick: () => void;
+  readonly children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      className={styles.tool}
+      aria-label={props.label}
+      title={props.label}
+      aria-pressed={props.active}
+      disabled={props.disabled}
+      // Keep the selection in the editor.
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={props.onClick}
+    >
+      {props.children}
+    </button>
+  );
+}
+
+/** Asks where a link should go; web and mail addresses only. */
+function LinkDialog(props: {
+  readonly open: boolean;
+  readonly href: string | null;
+  readonly onClose: () => void;
+  /** null removes the link. */
+  readonly onLink: (href: string | null) => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const value = String(new FormData(event.currentTarget).get("href") ?? "");
+    const href = safeHref(value.trim());
+    if (href === null) {
+      setError("Enter a web address, like https://example.com");
+      return;
+    }
+    setError(null);
+    props.onLink(href);
+  };
+
+  return (
+    <Dialog
+      open={props.open}
+      title={props.href === null ? "Add link" : "Edit link"}
+      onClose={() => {
+        setError(null);
+        props.onClose();
+      }}
+    >
+      <form onSubmit={submit}>
+        <Input
+          name="href"
+          type="url"
+          aria-label="Link address"
+          placeholder="https://"
+          className={dialogStyles.input}
+          defaultValue={props.href ?? ""}
+          required
+          autoFocus
+        />
+        {error === null ? null : (
+          <p role="alert" className={dialogStyles.error}>
+            {error}
+          </p>
+        )}
+        <div className={dialogStyles.actions}>
+          {props.href === null ? null : (
+            <Button variant="danger" onClick={() => props.onLink(null)}>
+              Remove link
+            </Button>
+          )}
+          <Button onClick={props.onClose}>Cancel</Button>
+          <Button type="submit" variant="primary">
+            {props.href === null ? "Add link" : "Save link"}
+          </Button>
+        </div>
+      </form>
+    </Dialog>
+  );
+}
+
+/** Uploads an image, with a description for those who can't see it. */
+function ImageDialog(props: {
+  readonly open: boolean;
+  readonly onClose: () => void;
+  readonly onImage: (src: string, alt: string) => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const close = () => {
+    setError(null);
+    props.onClose();
+  };
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const file = form.get("image");
+    if (!(file instanceof File) || file.size === 0) {
+      setError("Pick an image");
+      return;
+    }
+    setUploading(true);
+    try {
+      const src = await uploadImage(file);
+      setError(null);
+      props.onImage(src, String(form.get("alt") ?? "").trim());
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <Dialog open={props.open} title="Add image" onClose={close}>
+      <form onSubmit={submit}>
+        <Input
+          name="image"
+          type="file"
+          accept={acceptedImages}
+          aria-label="Image file"
+          className={dialogStyles.input}
+          required
+          autoFocus
+        />
+        <Input
+          name="alt"
+          aria-label="Description"
+          placeholder="Describe it for those who can't see it"
+          className={`${dialogStyles.input} ${styles.description}`}
+        />
+        {error === null ? null : (
+          <p role="alert" className={dialogStyles.error}>
+            {error}
+          </p>
+        )}
+        <div className={dialogStyles.actions}>
+          <Button onClick={close}>Cancel</Button>
+          <Button type="submit" variant="primary" disabled={uploading}>
+            {uploading ? "Uploading…" : "Add image"}
+          </Button>
+        </div>
+      </form>
+    </Dialog>
+  );
+}
+
+/** What an image shows, for those who can't see it. */
+function DescribeImageDialog(props: {
+  readonly open: boolean;
+  readonly alt: string;
+  readonly onClose: () => void;
+  readonly onDescribe: (alt: string) => void;
+}) {
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const alt = new FormData(event.currentTarget).get("alt");
+    props.onDescribe(String(alt ?? "").trim());
+  };
+  return (
+    <Dialog open={props.open} title="Describe image" onClose={props.onClose}>
+      <form onSubmit={submit}>
+        <Input
+          name="alt"
+          aria-label="Description"
+          placeholder="Describe it for those who can't see it"
+          className={dialogStyles.input}
+          defaultValue={props.alt}
+          autoFocus
+        />
+        <div className={dialogStyles.actions}>
+          <Button onClick={props.onClose}>Cancel</Button>
+          <Button type="submit" variant="primary">
+            Save
+          </Button>
+        </div>
+      </form>
+    </Dialog>
+  );
+}

@@ -3,6 +3,7 @@ export * from "./ContentTypes.ts";
 export * from "./DocumentsApi.ts";
 export * from "./DraftSyncProtocol.ts";
 export * from "./errors.ts";
+export * from "./ImagesApi.ts";
 export * from "./Model.ts";
 export * from "./PublicApi.ts";
 export * from "./SyncApi.ts";
