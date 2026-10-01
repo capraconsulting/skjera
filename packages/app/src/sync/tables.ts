@@ -1,6 +1,7 @@
 import {
   type Answers,
   type AttendeeRow,
+  AttendeesApi,
   type DocumentId,
   type DocumentRow,
   DocumentsApi,
@@ -23,7 +24,8 @@ class Api extends HttpApi.make("studio")
   .add(SyncApi)
   .add(PublicSyncApi)
   .add(TeamsApi)
-  .add(DocumentsApi) {}
+  .add(DocumentsApi)
+  .add(AttendeesApi) {}
 
 const makeClient = HttpApiClient.make(Api, {
   baseUrl: window.location.origin,
@@ -312,14 +314,54 @@ export const attendees = serverTable({
                 rememberGuestSignup(attendee.eventId, {
                   id: attendee.id,
                   cancelToken: signup.cancelToken,
+                  given: {
+                    ...(dietary === undefined ? {} : { dietary }),
+                    ...(answers === undefined ? {} : { answers }),
+                  },
                 });
               }),
             ),
           ),
       );
     },
-    // Cancelling one's own signup; a guest's with the token they were given.
-    delete: (attendee) => {
+    // Changing one's own answers; a guest's with the token they were given.
+    update: (attendee, metadata) => {
+      const change = metadata as SignupChange;
+      const guest = guestSignup(attendee.eventId);
+      if (guest?.id === attendee.id) {
+        return sendPublic((client) =>
+          client.events
+            .changeAsGuest({
+              params: { id: attendee.eventId, token: guest.cancelToken },
+              payload: change,
+            })
+            .pipe(
+              Effect.tap(() =>
+                Effect.sync(() =>
+                  rememberGuestSignup(attendee.eventId, {
+                    ...guest,
+                    given: change,
+                  }),
+                ),
+              ),
+            ),
+        );
+      }
+      return sendPublic((client) =>
+        client.events.change({
+          params: { id: attendee.eventId },
+          payload: change,
+        }),
+      );
+    },
+    // Cancelling one's own signup, a guest's with the token they were
+    // given, or taking someone off as an organizer (see `Removal`).
+    delete: (attendee, metadata) => {
+      if ((metadata as Removal | undefined)?.asOrganizer === true) {
+        return sendRequest((client) =>
+          client.attendees.remove({ params: { id: attendee.id } }),
+        );
+      }
       const guest = guestSignup(attendee.eventId);
       if (guest?.id === attendee.id) {
         return sendPublic((client) =>
@@ -329,7 +371,7 @@ export const attendees = serverTable({
             })
             // Gone either way: cancelled now, or already before.
             .pipe(
-              Effect.ignore,
+              Effect.catchTag("SignupNotFound", () => Effect.void),
               Effect.tap(() =>
                 Effect.sync(() => rememberGuestSignup(attendee.eventId, null)),
               ),
@@ -342,6 +384,18 @@ export const attendees = serverTable({
     },
   },
 });
+
+/**
+ * What changing a signup sends: pass it as the update's metadata, and set
+ * the row's `changedAt`, so the update has a change to send.
+ */
+export type SignupChange = {
+  readonly dietary?: string;
+  readonly answers?: Answers;
+};
+
+/** Pass as a delete's metadata to take someone off as an organizer. */
+export type Removal = { readonly asOrganizer: true };
 
 /** What signing up sends besides the row: pass it as the insert's metadata. */
 export type Signup = {

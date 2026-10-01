@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { expect, type Page, test } from "@playwright/test";
 import {
   deleteEvent,
@@ -266,6 +267,115 @@ test("events ask their own questions, and say what's served", async ({
 
   await box.getByRole("button", { name: "Cancel my signup" }).click();
   await expect(box.getByRole("button", { name: "Sign up" })).toBeVisible();
+  await deleteEvent(alice, event.id);
+  await deleteTeam(alice, team);
+});
+
+test("people change their answers; organizers export and remove them", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await newTeam(alice, uniqueTeamName("Changes"));
+  const event = await publishedEvent(alice, {
+    public: true,
+    guests: true,
+    dietary: true,
+  });
+  await alice.getByRole("button", { name: "Add question" }).click();
+  await alice
+    .getByRole("combobox", { name: "Question 1 type" })
+    .selectOption("One of several");
+  await alice
+    .getByRole("textbox", { name: "Question 1", exact: true })
+    .fill("Towel size");
+  await alice
+    .getByRole("textbox", { name: "Question 1 option 1" })
+    .fill("Small");
+  await alice
+    .getByRole("textbox", { name: "Question 1 option 2" })
+    .fill("Large");
+  await expect(alice.getByTestId("status")).toContainText("Saved");
+  await alice.getByRole("button", { name: "Publish" }).click();
+  await expect(alice.getByTestId("status")).toContainText("Published");
+
+  // A guest signs up, and changes their mind: the form starts from what
+  // they told.
+  const guest = await visitor(browser);
+  await guest.goto(`/events/${event.id}`);
+  const box = attendance(guest);
+  await box.getByRole("textbox", { name: "Your name" }).fill("Gina");
+  await box
+    .getByRole("textbox", { name: "Your email" })
+    .fill("gina@example.org");
+  await box.getByRole("textbox", { name: "Dietary preferences" }).fill("None");
+  await box.getByRole("radio", { name: "Small" }).check();
+  await box.getByRole("button", { name: "Sign up" }).click();
+  await expect(box).toContainText("You're signed up.");
+
+  await box.getByRole("button", { name: "Change answers" }).click();
+  const form = box.getByRole("form", { name: "Your answers" });
+  await expect(
+    form.getByRole("textbox", { name: "Dietary preferences" }),
+  ).toHaveValue("None");
+  await expect(form.getByRole("radio", { name: "Small" })).toBeChecked();
+  await form
+    .getByRole("textbox", { name: "Dietary preferences" })
+    .fill("Vegan");
+  await form.getByRole("radio", { name: "Large" }).check();
+  await form.getByRole("button", { name: "Save changes" }).click();
+  await expect(box).toContainText("You're signed up.");
+
+  // So does a member, from their own answers.
+  const bob = await signedIn(browser, "bob@example.com");
+  await bob.goto(`/events/${event.id}`);
+  const member = attendance(bob);
+  await member
+    .getByRole("textbox", { name: "Dietary preferences" })
+    .fill("Fish");
+  await member.getByRole("radio", { name: "Large" }).check();
+  await member.getByRole("button", { name: "Attend" }).click();
+  await expect(member).toContainText("You're attending.");
+  await member.getByRole("button", { name: "Change answers" }).click();
+  const memberForm = member.getByRole("form", { name: "Your answers" });
+  await expect(memberForm.getByRole("radio", { name: "Large" })).toBeChecked();
+  await memberForm.getByRole("radio", { name: "Small" }).check();
+  await memberForm.getByRole("button", { name: "Save changes" }).click();
+  await expect(member).toContainText("You're attending.");
+
+  const answer = (name: string) =>
+    attendees(alice)
+      .getByRole("listitem")
+      .filter({ hasText: name })
+      .getByRole("term")
+      .filter({ hasText: "Towel size" })
+      .locator("+ dd");
+  await expect(answer("Gina")).toHaveText("Large");
+  await expect(answer("bob")).toHaveText("Small");
+  await expect(attendees(alice)).toContainText("Diet: Vegan");
+
+  // A spreadsheet of them, with a column for the question.
+  const downloading = alice.waitForEvent("download");
+  await attendees(alice).getByRole("button", { name: "Download CSV" }).click();
+  const file = await downloading;
+  expect(file.suggestedFilename()).toBe(`${event.title} attendees.csv`);
+  const lines = (await readFile((await file.path()) ?? "", "utf8"))
+    .trim()
+    .split(/\r?\n/);
+  expect(lines[0]).toBe(
+    "Name,Email,Guest,Signed up,Changed,Dietary preferences,Towel size",
+  );
+  expect(lines.slice(1).sort()).toEqual([
+    expect.stringMatching(/^Gina,gina@example\.org,Yes,.*,Vegan,Large$/),
+    expect.stringMatching(/^bob,bob@example\.com,No,.*,Fish,Small$/),
+  ]);
+
+  // Organizers take people off; the guest sees they're no longer signed up.
+  alice.once("dialog", (dialog) => dialog.accept());
+  await attendees(alice).getByRole("button", { name: "Remove Gina" }).click();
+  await expect(attendees(alice)).not.toContainText("Gina");
+  await guest.reload();
+  await expect(box.getByRole("button", { name: "Sign up" })).toBeVisible();
+
   await deleteEvent(alice, event.id);
   await deleteTeam(alice, team);
 });

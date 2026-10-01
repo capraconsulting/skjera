@@ -388,4 +388,8 @@ export const migrations = Migrator.fromRecord({
       RETURNING e.*
     $$`,
   ),
+  "0013_attendee_changes": statements(
+    // When the signup's answers or dietary preferences last changed.
+    `ALTER TABLE attendees ADD COLUMN changed_at timestamptz NOT NULL DEFAULT now()`,
+  ),
 });

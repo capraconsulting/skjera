@@ -121,10 +121,16 @@ export const Answers = Schema.Record(
 );
 export type Answers = typeof Answers.Type;
 
-/** An answer as stored with the signup, in the words asked and picked. */
+/**
+ * An answer as stored with the signup: in the words asked and picked then,
+ * and as given (`value`, as in `Answers`), to change it later.
+ */
 export const Answer = Schema.Struct({
+  /** The question's id. */
+  id: Schema.String,
   question: Schema.String,
   answer: Schema.String,
+  value: Schema.Union([Schema.String, Schema.Boolean]),
 });
 export type Answer = typeof Answer.Type;
 

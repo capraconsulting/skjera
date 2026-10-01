@@ -1,10 +1,17 @@
-// A guest's signup stays in their browser: only they can cancel it, with
-// the token they were given.
+import type { Answers } from "@skjera/documents/api";
+
+// A guest's signup stays in their browser: only they can change or cancel
+// it, with the token they were given.
 
 export interface GuestSignup {
   /** The attendee row. */
   readonly id: string;
   readonly cancelToken: string;
+  /** What they told, to start from when changing it. */
+  readonly given?: {
+    readonly dietary?: string;
+    readonly answers?: Answers;
+  };
 }
 
 const key = (eventId: string) => `skjera-signup-${eventId}`;
@@ -15,10 +22,19 @@ export const guestSignup = (eventId: string): GuestSignup | null => {
     const stored = localStorage.getItem(key(eventId));
     if (stored === null) return null;
     const signup = JSON.parse(stored) as Partial<GuestSignup>;
-    return typeof signup.id === "string" &&
-      typeof signup.cancelToken === "string"
-      ? { id: signup.id, cancelToken: signup.cancelToken }
-      : null;
+    if (
+      typeof signup.id !== "string" ||
+      typeof signup.cancelToken !== "string"
+    ) {
+      return null;
+    }
+    return {
+      id: signup.id,
+      cancelToken: signup.cancelToken,
+      ...(typeof signup.given === "object" && signup.given !== null
+        ? { given: signup.given }
+        : {}),
+    };
   } catch {
     return null;
   }

@@ -14,6 +14,8 @@ catalog:
   "@playwright/test": 1.63.0
   "@tanstack/react-db": 0.4.1
   aws4fetch: 1.0.20
+  papaparse: 5.7.0
+  "@types/papaparse": 5.5.2
   temporal-polyfill: 1.0.5
   bs58check: 3.0.1
   cbor-x: 1.6.6

@@ -44,7 +44,14 @@ export const answersFor = (
         if (text === "" && question.required) {
           return reject(`Answer “${question.text}”`);
         }
-        if (text !== "") stored.push({ question: question.text, answer: text });
+        if (text !== "") {
+          stored.push({
+            id: question.id,
+            question: question.text,
+            answer: text,
+            value: text,
+          });
+        }
         break;
       }
       case "checkbox": {
@@ -52,7 +59,12 @@ export const answersFor = (
         if (!ticked && question.required) {
           return reject(`Tick “${question.text}” to sign up`);
         }
-        stored.push({ question: question.text, answer: ticked ? "Yes" : "No" });
+        stored.push({
+          id: question.id,
+          question: question.text,
+          answer: ticked ? "Yes" : "No",
+          value: ticked,
+        });
         break;
       }
       case "choice": {
@@ -64,7 +76,12 @@ export const answersFor = (
           return reject(`Answer “${question.text}”`);
         }
         if (option !== undefined) {
-          stored.push({ question: question.text, answer: option.text });
+          stored.push({
+            id: question.id,
+            question: question.text,
+            answer: option.text,
+            value: option.id,
+          });
         }
         break;
       }
@@ -110,6 +127,18 @@ export class Attendance extends Context.Service<
       event: DocumentId,
       cancelToken: string,
     ) => Effect.Effect<void, SignupNotFound | SignupRejected>;
+    /**
+     * Changes a signup's answers, and its dietary preferences while the
+     * event still asks for them, until the sign-up deadline. A member's
+     * signup is theirs; a guest's goes with its cancel token.
+     */
+    readonly change: (
+      event: DocumentId,
+      who: { readonly user: Identity } | { readonly cancelToken: string },
+      details: SignupDetails,
+    ) => Effect.Effect<void, EventNotFound | SignupNotFound | SignupRejected>;
+    /** Takes someone off an event, as its organizers: any time. */
+    readonly remove: (attendee: string) => Effect.Effect<void, SignupNotFound>;
   }
 >()("@skjera/documents/Attendance") {
   static readonly layer = Layer.effect(
@@ -250,11 +279,49 @@ export class Attendance extends Context.Service<
         `.pipe(Effect.orDie);
       });
 
+      const change = Effect.fn("Attendance.change")(function* (
+        event: DocumentId,
+        who: { readonly user: Identity } | { readonly cancelToken: string },
+        details: SignupDetails,
+      ) {
+        const { askDietary, questions } = yield* rules(
+          event,
+          "user" in who ? "members" : "anyone",
+        );
+        const dietary = yield* dietaryFor(askDietary, details.dietary);
+        const answers = yield* answersFor(questions, details.answers);
+        const changed = yield* sql`
+          UPDATE attendees SET
+            answers = ${JSON.stringify(answers)}::jsonb,
+            changed_at = now(),
+            -- Kept as given once the event stops asking.
+            dietary = CASE WHEN ${askDietary}::boolean THEN ${dietary}::text ELSE dietary END
+          WHERE event_id = ${event} AND ${
+            "user" in who
+              ? sql`user_issuer = ${who.user.issuer} AND user_subject = ${who.user.subject}`
+              : sql`cancel_token_hash = ${hash(who.cancelToken)}`
+          }
+          RETURNING id
+        `.pipe(Effect.orDie);
+        if (changed.length === 0) return yield* new SignupNotFound({});
+      });
+
+      const remove = Effect.fn("Attendance.remove")(function* (
+        attendee: string,
+      ) {
+        const removed = yield* sql`
+          DELETE FROM attendees WHERE id = ${attendee} RETURNING id
+        `.pipe(Effect.orDie);
+        if (removed.length === 0) return yield* new SignupNotFound({});
+      });
+
       return Attendance.of({
         attend,
         leave,
         attendAsGuest,
         leaveAsGuest,
+        change,
+        remove,
       });
     }),
   );

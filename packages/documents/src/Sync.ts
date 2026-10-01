@@ -269,6 +269,7 @@ export class Sync extends Context.Service<
             id: string;
             event_id: DocumentId;
             created_at: Date;
+            changed_at: Date;
             name: string;
             email: string | null;
             dietary: string | null;
@@ -277,7 +278,7 @@ export class Sync extends Context.Service<
             mine: boolean;
             visible: boolean;
           }>`
-            SELECT a.id, a.event_id, a.created_at, a.name, a.email, a.dietary, a.answers,
+            SELECT a.id, a.event_id, a.created_at, a.changed_at, a.name, a.email, a.dietary, a.answers,
               a.user_issuer IS NULL AS guest,
               coalesce(a.user_issuer = ${issuer} AND a.user_subject = ${subject}, false)
                 AS mine,
@@ -295,6 +296,7 @@ export class Sync extends Context.Service<
                     id: row.id,
                     eventId: row.event_id,
                     signedUpAt: row.created_at,
+                    changedAt: row.changed_at,
                     mine: row.mine,
                     details: member
                       ? AttendeeDetails.make({

@@ -9,7 +9,11 @@ import { Button } from "../../components/Button.tsx";
 import { Input } from "../../components/Input.tsx";
 import { loginUrl } from "../../site/client.ts";
 import { guestSignup, rememberGuestSignup } from "../../site/guestSignups.ts";
-import { attendees, type Signup } from "../../sync/tables.ts";
+import {
+  attendees,
+  type Signup,
+  type SignupChange,
+} from "../../sync/tables.ts";
 import { formatDateTime } from "../../time.ts";
 import styles from "./Attend.module.css";
 
@@ -43,8 +47,15 @@ export function Attend(props: {
 }) {
   const { event, signups } = props;
   const [error, setError] = useState<string | null>(null);
-  // This browser's guest signup, if it made one.
-  const [guest, setGuest] = useState(() => guestSignup(event.id));
+  // This browser's guest signup, if it made one and it's still there: the
+  // organizers may have taken it off.
+  const [remembered, setGuest] = useState(() => guestSignup(event.id));
+  const guest =
+    remembered !== null && signups.some((signup) => signup.id === remembered.id)
+      ? remembered
+      : null;
+  // Changing one's answers.
+  const [editing, setEditing] = useState(false);
   const mine = signups.find((signup) => signup.mine);
   const closesAt = event.signupDeadline ?? event.startsAt;
   const closed = useHasPassed(closesAt);
@@ -84,11 +95,36 @@ export function Attend(props: {
           id: crypto.randomUUID(),
           eventId: event.id,
           signedUpAt: new Date(),
+          changedAt: new Date(),
           mine: !asGuest,
           details: null,
         },
         { metadata: signup },
       ),
+    );
+  };
+
+  /** Saves changed answers; the row's own fields don't hold them. */
+  const change = (submitted: FormEvent<HTMLFormElement>, id: string) => {
+    submitted.preventDefault();
+    const form = new FormData(submitted.currentTarget);
+    const dietary = form.get("dietary");
+    const changed: SignupChange = {
+      ...(dietary === null ? {} : { dietary: String(dietary) }),
+      answers: answersFrom(event.questions, form),
+    };
+    const transaction = attendees.collection.update(
+      id,
+      { metadata: changed },
+      (draft) => {
+        draft.changedAt = new Date();
+      },
+    );
+    settle(transaction);
+    // Kept open when refused, with what they wrote, to fix it.
+    transaction.isPersisted.promise.then(
+      () => setEditing(false),
+      () => {},
     );
   };
 
@@ -135,12 +171,42 @@ export function Attend(props: {
         : null}
     </p>
   );
-  const asked = (
+  const asked = (given: Given = {}) => (
     <>
-      {asksDietary ? <DietaryInput /> : null}
-      <QuestionInputs questions={event.questions} />
+      {asksDietary ? <DietaryInput defaultValue={given.dietary} /> : null}
+      <QuestionInputs questions={event.questions} given={given.answers} />
     </>
   );
+  // There's something to change.
+  const changeable = asksDietary || event.questions.length > 0;
+
+  /** Signed up: changing the answers, or cancelling. */
+  const signedUp = (id: string, status: string, given: Given) =>
+    editing ? (
+      <form
+        className={styles.form}
+        onSubmit={(submitted) => change(submitted, id)}
+        aria-label="Your answers"
+      >
+        {asked(given)}
+        <div className={styles.row}>
+          <Button type="submit" variant="primary">
+            Save changes
+          </Button>
+          <Button onClick={() => setEditing(false)}>Keep as is</Button>
+        </div>
+      </form>
+    ) : (
+      <div className={styles.row}>
+        <p className={styles.status}>{status}</p>
+        {changeable ? (
+          <Button onClick={() => setEditing(true)}>Change answers</Button>
+        ) : null}
+        <Button onClick={() => cancel(id)}>
+          {mine !== undefined ? "Cancel attendance" : "Cancel my signup"}
+        </Button>
+      </div>
+    );
 
   if (props.signedIn) {
     return (
@@ -148,16 +214,23 @@ export function Attend(props: {
         <p className={styles.count}>{count}</p>
         {closes}
         {mine !== undefined ? (
-          <div className={styles.row}>
-            <p className={styles.status}>You're attending.</p>
-            <Button onClick={() => cancel(mine.id)}>Cancel attendance</Button>
-          </div>
+          signedUp(mine.id, "You're attending.", {
+            ...(mine.details?.dietary == null
+              ? {}
+              : { dietary: mine.details.dietary }),
+            answers: Object.fromEntries(
+              (mine.details?.answers ?? []).map((answer) => [
+                answer.id,
+                answer.value,
+              ]),
+            ),
+          })
         ) : (
           <form
             className={styles.form}
             onSubmit={(submitted) => signUp(submitted, false)}
           >
-            {asked}
+            {asked()}
             <div className={styles.row}>
               <Button type="submit" variant="primary">
                 Attend
@@ -206,7 +279,7 @@ export function Attend(props: {
               required
             />
           </div>
-          {asked}
+          {asked()}
           <div className={styles.row}>
             <Button type="submit" variant="primary">
               Sign up
@@ -217,20 +290,26 @@ export function Attend(props: {
           </div>
         </form>
       ) : (
-        <div className={styles.row}>
-          <p className={styles.status}>You're signed up.</p>
-          <Button onClick={() => cancel(guest.id)}>Cancel my signup</Button>
-        </div>
+        signedUp(guest.id, "You're signed up.", guest.given ?? {})
       )}
       {failure}
     </section>
   );
 }
 
+/** What someone told when signing up, to change it. */
+type Given = {
+  readonly dietary?: string | undefined;
+  readonly answers?: Answers | undefined;
+};
+
 /** Asked of everyone signing up, when the event wants to know. */
-const DietaryInput = () => (
+const DietaryInput = (props: {
+  readonly defaultValue?: string | undefined;
+}) => (
   <Input
     name="dietary"
+    defaultValue={props.defaultValue}
     aria-label="Dietary preferences"
     placeholder={'Dietary preferences (write "none" if you have none)'}
     required
@@ -257,7 +336,10 @@ const answersFrom = (
 /** The event's questions, as form fields. */
 function QuestionInputs(props: {
   readonly questions: ReadonlyArray<Question>;
+  /** Answers given before, to start from. */
+  readonly given?: Answers | undefined;
 }) {
+  const given = props.given ?? {};
   return props.questions.map((question) => {
     switch (question.type) {
       case "text":
@@ -272,6 +354,11 @@ function QuestionInputs(props: {
             <Input
               id={field(question)}
               name={field(question)}
+              defaultValue={
+                typeof given[question.id] === "string"
+                  ? String(given[question.id])
+                  : undefined
+              }
               required={question.required}
               maxLength={1000}
             />
@@ -284,6 +371,7 @@ function QuestionInputs(props: {
               type="checkbox"
               name={field(question)}
               required={question.required}
+              defaultChecked={given[question.id] === true}
             />
             {question.text}
           </label>
@@ -304,6 +392,7 @@ function QuestionInputs(props: {
                   name={field(question)}
                   value={option.id}
                   required={question.required}
+                  defaultChecked={given[question.id] === option.id}
                 />
                 {option.text}
               </label>

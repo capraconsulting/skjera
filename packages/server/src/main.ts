@@ -29,6 +29,7 @@ class Api extends HttpApi.make("skjera")
   )
   // Public: no middleware, published content only.
   .add(Documents.EventsApi)
+  .add(Documents.AttendeesApi)
   .add(Documents.SyncApi)
   .add(Documents.PublicSyncApi)
   .add(Documents.TeamsApi)
@@ -89,7 +90,24 @@ const EventsHandlers = HttpApiBuilder.group(Api, "events", (handlers) =>
       )
       .handle("leaveAsGuest", ({ params }) =>
         attendance.leaveAsGuest(params.id, params.token),
+      )
+      .handle("change", ({ params, payload }) =>
+        Effect.flatMap(signedIn, (user) =>
+          attendance.change(params.id, { user }, payload),
+        ),
+      )
+      .handle("changeAsGuest", ({ params, payload }) =>
+        attendance.change(params.id, { cancelToken: params.token }, payload),
       );
+  }),
+);
+
+const AttendeesHandlers = HttpApiBuilder.group(Api, "attendees", (handlers) =>
+  Effect.gen(function* () {
+    const attendance = yield* Documents.Attendance;
+    return handlers.handle("remove", ({ params }) =>
+      attendance.remove(params.id),
+    );
   }),
 );
 
@@ -177,6 +195,7 @@ const Routes = Layer.mergeAll(
     Layer.provide([
       ApiHandlers,
       EventsHandlers,
+      AttendeesHandlers,
       SyncHandlers,
       PublicSyncHandlers,
       TeamsHandlers,

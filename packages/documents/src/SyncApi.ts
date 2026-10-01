@@ -113,6 +113,8 @@ export const AttendeeRow = Schema.Struct({
   id: Schema.String,
   eventId: DocumentId,
   signedUpAt: Schema.Date,
+  /** When its answers or dietary preferences last changed. */
+  changedAt: Schema.Date,
   /** The signed-in user's own signup. Guests keep track in their browser. */
   mine: Schema.Boolean,
   /** Who it is: for signed-in users only; anyone else can only count. */

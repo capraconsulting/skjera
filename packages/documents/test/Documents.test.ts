@@ -1190,18 +1190,198 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         (yield* organizerView(id)).map((each) => each?.answers),
         [
           [
-            { question: "Where did you hear of it?", answer: "A poster" },
-            { question: "I accept the risks of swimming", answer: "Yes" },
-            { question: "Towel size", answer: "Large" },
-            { question: "I bring a friend", answer: "No" },
+            {
+              id: where,
+              question: "Where did you hear of it?",
+              answer: "A poster",
+              value: "A poster",
+            },
+            {
+              id: swim,
+              question: "I accept the risks of swimming",
+              answer: "Yes",
+              value: true,
+            },
+            { id: size, question: "Towel size", answer: "Large", value: large },
+            {
+              id: friend,
+              question: "I bring a friend",
+              answer: "No",
+              value: false,
+            },
           ],
           [
-            { question: "I accept the risks of swimming", answer: "Yes" },
-            { question: "Towel size", answer: "Small" },
-            { question: "I bring a friend", answer: "Yes" },
+            {
+              id: swim,
+              question: "I accept the risks of swimming",
+              answer: "Yes",
+              value: true,
+            },
+            { id: size, question: "Towel size", answer: "Small", value: small },
+            {
+              id: friend,
+              question: "I bring a friend",
+              answer: "Yes",
+              value: true,
+            },
           ],
         ],
       );
+    }),
+  );
+
+  it.effect("lets people change their answers until sign-up closes", () =>
+    Effect.gen(function* () {
+      const documents = yield* Documents;
+      const attendance = yield* Attendance;
+      const size = crypto.randomUUID();
+      const [small, large] = [crypto.randomUUID(), crypto.randomUUID()];
+      const id = yield* publishedEvent({
+        public: true,
+        guests: true,
+        dietary: true,
+        edit: (event) =>
+          setQuestions(event, [
+            {
+              id: size,
+              type: "choice",
+              text: "Towel size",
+              required: true,
+              options: [
+                { id: small, text: "Small" },
+                { id: large, text: "Large" },
+              ],
+            },
+          ]),
+      });
+      yield* attendance.attend(id, alice, {
+        dietary: "None",
+        answers: { [size]: small },
+      });
+      const token = yield* attendance.attendAsGuest(
+        id,
+        { name: "Gina", email: "gina@example.org" },
+        { dietary: "Vegan", answers: { [size]: small } },
+      );
+      const view = Effect.map(organizerView(id), (rows) =>
+        rows.map((each) => [each?.dietary, each?.answers[0]?.answer]),
+      );
+
+      yield* attendance.change(
+        id,
+        { user: alice },
+        { dietary: "Vegetarian", answers: { [size]: large } },
+      );
+      yield* attendance.change(
+        id,
+        { cancelToken: token },
+        { dietary: "Vegan", answers: { [size]: large } },
+      );
+      assert.deepStrictEqual(yield* view, [
+        ["Vegetarian", "Large"],
+        ["Vegan", "Large"],
+      ]);
+
+      // Changes are checked like signups, and need a signup to change.
+      const invalid = yield* Effect.flip(
+        attendance.change(
+          id,
+          { user: alice },
+          { dietary: "None", answers: {} },
+        ),
+      );
+      assert.strictEqual(invalid.message, "Answer “Towel size”");
+      const nobody = yield* Effect.flip(
+        attendance.change(
+          id,
+          { user: bob },
+          { dietary: "None", answers: { [size]: small } },
+        ),
+      );
+      assert.strictEqual(nobody._tag, "SignupNotFound");
+      const wrongToken = yield* Effect.flip(
+        attendance.change(
+          id,
+          { cancelToken: "guess" },
+          { dietary: "None", answers: { [size]: small } },
+        ),
+      );
+      assert.strictEqual(wrongToken._tag, "SignupNotFound");
+
+      // After the food deadline, what they can't eat stays as given.
+      const editor = yield* openEditor(id);
+      const heads = yield* documents.applyChanges(
+        id,
+        [
+          editor.edit((event) =>
+            setTimes(event, {
+              foodDeadline: "2020-01-15T12:00+01:00[Europe/Oslo]",
+            }),
+          ),
+        ],
+        alice,
+      );
+      yield* documents.publish(id, heads, alice);
+      yield* attendance.change(
+        id,
+        { user: alice },
+        { dietary: "Anything", answers: { [size]: small } },
+      );
+      assert.deepStrictEqual((yield* view)[0], ["Vegetarian", "Small"]);
+
+      // Not after sign-up closes.
+      const closing = yield* documents.applyChanges(
+        id,
+        [
+          editor.edit((event) =>
+            setTimes(event, {
+              deadline: "2020-01-15T12:00+01:00[Europe/Oslo]",
+            }),
+          ),
+        ],
+        alice,
+      );
+      yield* documents.publish(id, closing, alice);
+      const closed = yield* Effect.flip(
+        attendance.change(id, { user: alice }, { answers: { [size]: large } }),
+      );
+      assert.strictEqual(closed.message, "Sign-up for this event has closed");
+    }),
+  );
+
+  it.effect("lets organizers take people off, whenever", () =>
+    Effect.gen(function* () {
+      const documents = yield* Documents;
+      const attendance = yield* Attendance;
+      const id = yield* publishedEvent({ public: true, guests: true });
+      yield* attendance.attend(id, alice);
+      yield* attendance.attendAsGuest(id, {
+        name: "Gina",
+        email: "gina@example.org",
+      });
+      const editor = yield* openEditor(id);
+      const heads = yield* documents.applyChanges(
+        id,
+        [
+          editor.edit((event) =>
+            setTimes(event, {
+              deadline: "2020-01-15T12:00+01:00[Europe/Oslo]",
+            }),
+          ),
+        ],
+        alice,
+      );
+      yield* documents.publish(id, heads, alice);
+
+      const [first] = yield* signups(id, Option.some(alice));
+      assert.isDefined(first);
+      yield* attendance.remove(first?.id ?? "");
+      assert.deepStrictEqual(
+        (yield* organizerView(id)).map((each) => each?.name),
+        ["Gina"],
+      );
+      const again = yield* Effect.flip(attendance.remove(first?.id ?? ""));
+      assert.strictEqual(again._tag, "SignupNotFound");
     }),
   );
 
