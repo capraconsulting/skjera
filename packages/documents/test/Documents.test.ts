@@ -7,7 +7,7 @@ import { Attendance } from "../src/Attendance.ts";
 import type { EventContent } from "../src/ContentTypes.ts";
 import { DocumentEvents } from "../src/DocumentEvents.ts";
 import { Documents } from "../src/Documents.ts";
-import type { Audience, DocumentId, TeamId } from "../src/Model.ts";
+import type { Answers, Audience, DocumentId, TeamId } from "../src/Model.ts";
 import { Presence } from "../src/Presence.ts";
 import { Sync } from "../src/Sync.ts";
 import { Teams } from "../src/Teams.ts";
@@ -76,6 +76,7 @@ const setTimes = (
     readonly start?: string | null;
     readonly end?: string | null;
     readonly deadline?: string | null;
+    readonly foodDeadline?: string | null;
   } = { start, end },
 ) => {
   const draft = event as Record<string, unknown>;
@@ -89,6 +90,8 @@ const publishedEvent = Effect.fn(function* (settings: {
   readonly public: boolean;
   readonly guests: boolean;
   readonly dietary?: boolean;
+  /** Anything else to set before publishing. */
+  readonly edit?: (event: EventContent) => void;
 }) {
   const documents = yield* Documents;
   const id = yield* documents.create("event", yield* newTeam, alice);
@@ -102,6 +105,7 @@ const publishedEvent = Effect.fn(function* (settings: {
         (event as { public: boolean }).public = settings.public;
         (event as { guests: boolean }).guests = settings.guests;
         (event as { dietary: boolean }).dietary = settings.dietary ?? false;
+        settings.edit?.(event);
       }),
     ],
     alice,
@@ -109,6 +113,32 @@ const publishedEvent = Effect.fn(function* (settings: {
   yield* documents.publish(id, heads, alice);
   return id;
 });
+
+/** Sets the questions as the editor does: ids and types immutable. */
+const setQuestions = (
+  event: EventContent,
+  questions: ReadonlyArray<{
+    readonly id: string;
+    readonly type: "text" | "checkbox" | "choice";
+    readonly text: string;
+    readonly required?: boolean;
+    readonly options?: ReadonlyArray<{
+      readonly id: string;
+      readonly text: string;
+    }>;
+  }>,
+) => {
+  (event as { questions: unknown }).questions = questions.map((question) => ({
+    id: new A.ImmutableString(question.id),
+    type: new A.ImmutableString(question.type),
+    text: question.text,
+    required: question.required ?? false,
+    options: (question.options ?? []).map((option) => ({
+      id: new A.ImmutableString(option.id),
+      text: option.text,
+    })),
+  }));
+};
 
 /** Sets the cover as the editor does: `src` immutable, `alt` text. */
 const setCover = (event: EventContent, src: string | null) => {
@@ -175,6 +205,9 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         public: false,
         guests: false,
         dietary: false,
+        food: "",
+        foodDeadline: null,
+        questions: [],
       });
       assert.deepStrictEqual(
         snapshot.heads,
@@ -222,6 +255,9 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
           public: false,
           guests: false,
           dietary: false,
+          food: "",
+          foodDeadline: null,
+          questions: [],
         });
         assert.deepStrictEqual(
           [...A.getHeads(editor.doc())].sort(),
@@ -936,11 +972,11 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       );
       assert.strictEqual(guest._tag, "SignupRejected");
 
-      yield* attendance.attend(id, alice, "None");
+      yield* attendance.attend(id, alice, { dietary: "None" });
       yield* attendance.attendAsGuest(
         id,
         { name: "Gina", email: "g@example.org" },
-        " Vegetarian ",
+        { dietary: " Vegetarian " },
       );
       assert.deepStrictEqual(
         (yield* organizerView(id)).map((each) => each?.dietary),
@@ -954,19 +990,217 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         dietary: true,
       });
       assert.isTrue((yield* publishedAs(membersOnly, "members"))?.askDietary);
-      yield* attendance.attend(membersOnly, bob, "Vegan");
+      yield* attendance.attend(membersOnly, bob, { dietary: "Vegan" });
 
       // Events that don't ask ignore it.
       const plain = yield* publishedEvent({ public: true, guests: true });
-      yield* attendance.attend(plain, alice, "Vegan");
+      yield* attendance.attend(plain, alice, { dietary: "Vegan" });
       yield* attendance.attendAsGuest(
         plain,
         { name: "Gus", email: "gus@example.org" },
-        "Vegan",
+        { dietary: "Vegan" },
       );
       assert.deepStrictEqual(
         (yield* organizerView(plain)).map((each) => each?.dietary),
         [null, null],
+      );
+    }),
+  );
+
+  it.effect(
+    "refuses to publish half-made questions or a late food deadline",
+    () =>
+      Effect.gen(function* () {
+        const documents = yield* Documents;
+        const id = yield* documents.create("event", yield* newTeam, alice);
+        const editor = yield* openEditor(id);
+        const refusal = (edit: (event: EventContent) => void) =>
+          Effect.gen(function* () {
+            const heads = yield* documents.applyChanges(
+              id,
+              [editor.edit(edit)],
+              alice,
+            );
+            const error = yield* Effect.flip(
+              documents.publish(id, heads, alice),
+            );
+            return error.message;
+          });
+        yield* documents.applyChanges(
+          id,
+          [
+            editor.edit((event) => {
+              A.updateText(event, ["title"], "Questions");
+              setTimes(event);
+            }),
+          ],
+          alice,
+        );
+        const option = () => ({ id: crypto.randomUUID(), text: "Yes" });
+        const question = {
+          id: crypto.randomUUID(),
+          type: "choice",
+          text: "Coming by bike?",
+        } as const;
+
+        assert.strictEqual(
+          yield* refusal((event) =>
+            setQuestions(event, [{ ...question, type: "text", text: " " }]),
+          ),
+          "Every question needs its text",
+        );
+        assert.strictEqual(
+          yield* refusal((event) =>
+            setQuestions(event, [{ ...question, options: [option()] }]),
+          ),
+          "Choice questions need at least two options, all filled in",
+        );
+        assert.strictEqual(
+          yield* refusal((event) =>
+            setQuestions(event, [
+              { ...question, options: [option(), { ...option(), text: "" }] },
+            ]),
+          ),
+          "Choice questions need at least two options, all filled in",
+        );
+        assert.strictEqual(
+          yield* refusal((event) => {
+            setQuestions(event, []);
+            setTimes(event, {
+              deadline: "2036-10-14T12:00+02:00[Europe/Oslo]",
+              foodDeadline: "2036-10-14T12:01+02:00[Europe/Oslo]",
+            });
+          }),
+          "The food deadline can't be after sign-up closes",
+        );
+      }),
+  );
+
+  it.effect("stops asking what people eat after the food deadline", () =>
+    Effect.gen(function* () {
+      const attendance = yield* Attendance;
+      const id = yield* publishedEvent({
+        public: true,
+        guests: true,
+        dietary: true,
+        edit: (event) =>
+          setTimes(event, {
+            foodDeadline: "2020-01-15T12:00+01:00[Europe/Oslo]",
+          }),
+      });
+      const published = yield* publishedAs(id, "anyone");
+      assert.strictEqual(
+        published?.foodDeadline?.toISOString(),
+        "2020-01-15T11:00:00.000Z",
+      );
+      // Still open to sign up; dietary preferences are no longer taken.
+      yield* attendance.attend(id, alice);
+      yield* attendance.attend(id, bob, { dietary: "Vegan" });
+      assert.deepStrictEqual(
+        (yield* organizerView(id)).map((each) => each?.dietary),
+        [null, null],
+      );
+    }),
+  );
+
+  it.effect("asks the event's questions, and keeps the answers as given", () =>
+    Effect.gen(function* () {
+      const attendance = yield* Attendance;
+      const [where, swim, size, friend] = [
+        crypto.randomUUID(),
+        crypto.randomUUID(),
+        crypto.randomUUID(),
+        crypto.randomUUID(),
+      ];
+      const [small, large] = [crypto.randomUUID(), crypto.randomUUID()];
+      const id = yield* publishedEvent({
+        public: true,
+        guests: true,
+        edit: (event) =>
+          setQuestions(event, [
+            { id: where, type: "text", text: "Where did you hear of it?" },
+            {
+              id: swim,
+              type: "checkbox",
+              text: "I accept the risks of swimming",
+              required: true,
+            },
+            {
+              id: size,
+              type: "choice",
+              text: "Towel size",
+              required: true,
+              options: [
+                { id: small, text: "Small" },
+                { id: large, text: "Large" },
+              ],
+            },
+            { id: friend, type: "checkbox", text: "I bring a friend" },
+          ]),
+      });
+      assert.deepStrictEqual(
+        (yield* publishedAs(id, "anyone"))?.questions.map((q) => q.text),
+        [
+          "Where did you hear of it?",
+          "I accept the risks of swimming",
+          "Towel size",
+          "I bring a friend",
+        ],
+      );
+
+      const refused = (answers: Answers) =>
+        Effect.flip(attendance.attend(id, alice, { answers })).pipe(
+          Effect.map((error) => error.message),
+        );
+      assert.strictEqual(
+        yield* refused({ [size]: small }),
+        "Tick “I accept the risks of swimming” to sign up",
+      );
+      assert.strictEqual(
+        yield* refused({ [swim]: true }),
+        "Answer “Towel size”",
+      );
+      assert.strictEqual(
+        yield* refused({ [swim]: true, [size]: "medium" }),
+        "Pick one of the answers to “Towel size”",
+      );
+      assert.strictEqual(
+        yield* refused({
+          [swim]: true,
+          [size]: small,
+          [where]: "x".repeat(1001),
+        }),
+        "Keep your answer to “Where did you hear of it?” shorter",
+      );
+
+      yield* attendance.attend(id, alice, {
+        answers: {
+          [swim]: true,
+          [size]: large,
+          [where]: " A poster ",
+          other: "x",
+        },
+      });
+      yield* attendance.attendAsGuest(
+        id,
+        { name: "Gina", email: "gina@example.org" },
+        { answers: { [swim]: true, [size]: small, [friend]: true } },
+      );
+      assert.deepStrictEqual(
+        (yield* organizerView(id)).map((each) => each?.answers),
+        [
+          [
+            { question: "Where did you hear of it?", answer: "A poster" },
+            { question: "I accept the risks of swimming", answer: "Yes" },
+            { question: "Towel size", answer: "Large" },
+            { question: "I bring a friend", answer: "No" },
+          ],
+          [
+            { question: "I accept the risks of swimming", answer: "Yes" },
+            { question: "Towel size", answer: "Small" },
+            { question: "I bring a friend", answer: "Yes" },
+          ],
+        ],
       );
     }),
   );

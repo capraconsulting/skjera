@@ -228,9 +228,7 @@ export const publishedEvent = async (
     await page.getByRole("checkbox", { name: /Guests can sign up/ }).check();
   }
   if (options.dietary) {
-    await page
-      .getByRole("checkbox", { name: /Ask for dietary preferences/ })
-      .check();
+    await page.getByRole("checkbox", { name: /Food is served/ }).check();
   }
   await expect(page.getByTestId("status")).toContainText("Saved");
   await page.getByRole("button", { name: "Publish" }).click();

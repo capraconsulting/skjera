@@ -52,3 +52,34 @@
   color: var(--color-text-muted);
   font-size: 0.875rem;
 }
+
+.question {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.9375rem;
+}
+
+.optional {
+  color: var(--color-text-muted);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
+}
+
+.choice {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 0.9375rem;
+}
+
+.choice legend {
+  margin-bottom: 0.25rem;
+  padding: 0;
+}

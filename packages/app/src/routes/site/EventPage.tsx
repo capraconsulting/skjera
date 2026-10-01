@@ -77,6 +77,11 @@ export function EventPage() {
           </>
         )}
       </p>
+      {event.askDietary && event.food.trim() !== "" ? (
+        <p className={styles.food}>
+          <span className={styles.foodLabel}>Food</span> {event.food}
+        </p>
+      ) : null}
       <div className={styles.body} data-testid="event-body">
         <RichText spans={event.body} />
       </div>

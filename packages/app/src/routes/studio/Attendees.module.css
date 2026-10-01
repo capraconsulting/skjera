@@ -41,3 +41,28 @@
   color: var(--color-text-muted);
   font-size: 0.8125rem;
 }
+
+.answers {
+  display: grid;
+  flex-basis: 100%;
+  gap: 0.125rem;
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+}
+
+.answers div {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.answers dt {
+  color: var(--color-text-muted);
+}
+
+.answers dt::after {
+  content: ":";
+}
+
+.answers dd {
+  margin: 0;
+}

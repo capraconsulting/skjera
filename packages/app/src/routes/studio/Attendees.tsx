@@ -38,6 +38,16 @@ export function Attendees(props: { readonly id: DocumentId }) {
                 {who.dietary === null ? null : (
                   <span className={styles.dietary}>Diet: {who.dietary}</span>
                 )}
+                {who.answers.length === 0 ? null : (
+                  <dl className={styles.answers}>
+                    {who.answers.map(({ question, answer }) => (
+                      <div key={question}>
+                        <dt>{question}</dt>
+                        <dd>{answer}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
               </li>
             ),
           )}

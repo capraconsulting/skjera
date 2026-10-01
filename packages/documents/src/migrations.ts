@@ -337,4 +337,55 @@ export const migrations = Migrator.fromRecord({
       RETURNING e.*
     $$`,
   ),
+  "0012_food_and_questions": statements(
+    `ALTER TABLE events
+      -- What or where people eat, when food is served (ask_dietary).
+      ADD COLUMN food text NOT NULL DEFAULT '',
+      -- Dietary preferences are asked until then; until sign-up closes if null.
+      ADD COLUMN food_deadline timestamptz
+        CHECK (food_deadline <= coalesce(signup_deadline, starts_at)),
+      -- Asked of everyone signing up (see Question in Model.ts).
+      ADD COLUMN questions jsonb NOT NULL DEFAULT '[]'`,
+    // In the words asked and picked: [{ question, answer }].
+    `ALTER TABLE attendees ADD COLUMN answers jsonb NOT NULL DEFAULT '[]'`,
+    `CREATE OR REPLACE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
+      RETURNS SETOF events LANGUAGE sql AS $$
+      INSERT INTO events AS e
+        (id, title, starts_at, ends_at, signup_deadline, time_zone, body, cover,
+         is_public, allow_guests, ask_dietary, food, food_deadline, questions,
+         published_heads, published_by_issuer, published_by_subject)
+      SELECT d.id, c.content->>'title',
+        zoned_instant(c.content->>'start'), zoned_instant(c.content->>'end'),
+        zoned_instant(c.content->>'deadline'), zoned_zone(c.content->>'start'),
+        automerge_spans(d.draft, '{body}', heads), c.content->'cover',
+        (c.content->>'public')::boolean,
+        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
+        (c.content->>'dietary')::boolean,
+        c.content->>'food', zoned_instant(c.content->>'foodDeadline'),
+        c.content->'questions',
+        -- Sorted like automerge_heads(), so the two can be compared.
+        ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
+      FROM documents d
+      CROSS JOIN LATERAL (SELECT automerge_to_jsonb(d.draft, heads) AS content OFFSET 0) c
+      WHERE d.id = document_id AND d.type = 'event'
+      ON CONFLICT (id) DO UPDATE SET
+        title = EXCLUDED.title,
+        starts_at = EXCLUDED.starts_at,
+        ends_at = EXCLUDED.ends_at,
+        signup_deadline = EXCLUDED.signup_deadline,
+        time_zone = EXCLUDED.time_zone,
+        body = EXCLUDED.body,
+        cover = EXCLUDED.cover,
+        is_public = EXCLUDED.is_public,
+        allow_guests = EXCLUDED.allow_guests,
+        ask_dietary = EXCLUDED.ask_dietary,
+        food = EXCLUDED.food,
+        food_deadline = EXCLUDED.food_deadline,
+        questions = EXCLUDED.questions,
+        published_heads = EXCLUDED.published_heads,
+        published_by_issuer = EXCLUDED.published_by_issuer,
+        published_by_subject = EXCLUDED.published_by_subject
+      RETURNING e.*
+    $$`,
+  ),
 });

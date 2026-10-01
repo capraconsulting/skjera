@@ -8,9 +8,13 @@ import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
 import { useDocumentSession } from "../../documents/session.ts";
 import { CheckboxField, useBooleanField } from "../../editor/CheckboxField.tsx";
 import { CoverField } from "../../editor/CoverField.tsx";
-import { EventTimes } from "../../editor/DateTimeField.tsx";
+import { EventTimes, FoodDeadline } from "../../editor/DateTimeField.tsx";
+import { QuestionsField } from "../../editor/QuestionsField.tsx";
 import { TextEditor } from "../../editor/TextEditor.tsx";
-import { useDraftPresence } from "../../presence/presence.ts";
+import {
+  type DraftPresence,
+  useDraftPresence,
+} from "../../presence/presence.ts";
 import { documents } from "../../sync/tables.ts";
 import { Attendees } from "./Attendees.tsx";
 import { EditorFooter } from "./EditorFooter.tsx";
@@ -18,6 +22,7 @@ import styles from "./EventEditor.module.css";
 
 const titlePath = ["title"] as const;
 const bodyPath = ["body"] as const;
+const foodPath = ["food"] as const;
 
 /** The third column: the selected event. */
 export function EventEditor() {
@@ -103,12 +108,18 @@ function EventSession({ id }: { readonly id: DocumentId }) {
             hint="Anyone can see it. Otherwise only signed-in users."
           />
           <GuestsCheckbox handle={handle} />
+        </Field>
+        <Field label="Food">
           <CheckboxField
             handle={handle}
             field="dietary"
-            label="Ask for dietary preferences"
-            hint="Everyone signing up, members and guests, has to fill it in."
+            label="Food is served"
+            hint="Everyone signing up, members and guests, says what they can't eat."
           />
+          <FoodDetails handle={handle} presence={session.presence} />
+        </Field>
+        <Field label="Questions">
+          <QuestionsField handle={handle} />
         </Field>
         <Field label="Body">
           <TextEditor
@@ -122,6 +133,26 @@ function EventSession({ id }: { readonly id: DocumentId }) {
         <Attendees id={id} />
       </div>
     </Pane>
+  );
+}
+
+/** What is served, and until when people can say what they can't eat. */
+function FoodDetails(props: {
+  readonly handle: DocHandle<EventContent>;
+  readonly presence: DraftPresence | null;
+}) {
+  const served = useBooleanField(props.handle, "dietary");
+  if (!served) return null;
+  return (
+    <div className={styles.food}>
+      <TextEditor
+        handle={props.handle}
+        path={foodPath}
+        label="What's served"
+        presence={props.presence}
+      />
+      <FoodDeadline handle={props.handle} />
+    </div>
   );
 }
 

@@ -89,6 +89,45 @@ export const GuestDetails = Schema.Struct({
 });
 export type GuestDetails = typeof GuestDetails.Type;
 
+/**
+ * A question asked of everyone signing up. "text" takes a written answer,
+ * "checkbox" a tick (the text is its label, e.g. "I'll bring a friend"),
+ * and "choice" one of its options. Ids keep answers to the question they
+ * were given for, whatever is edited.
+ */
+export const Question = Schema.Struct({
+  id: Schema.String.check(Schema.isUUID()),
+  type: Schema.Literals(["text", "checkbox", "choice"]),
+  text: Schema.String,
+  /** Text and choice: an answer is needed. Checkbox: it must be ticked. */
+  required: Schema.Boolean,
+  /** For choice questions; empty for the others. */
+  options: Schema.Array(
+    Schema.Struct({
+      id: Schema.String.check(Schema.isUUID()),
+      text: Schema.String,
+    }),
+  ),
+});
+export type Question = typeof Question.Type;
+
+/**
+ * Answers given when signing up, by question id: text for text questions,
+ * true or false for checkboxes, and the option's id for choices.
+ */
+export const Answers = Schema.Record(
+  Schema.String,
+  Schema.Union([Schema.String, Schema.Boolean]),
+);
+export type Answers = typeof Answers.Type;
+
+/** An answer as stored with the signup, in the words asked and picked. */
+export const Answer = Schema.Struct({
+  question: Schema.String,
+  answer: Schema.String,
+});
+export type Answer = typeof Answer.Type;
+
 export class GuestSignup extends Schema.Class<GuestSignup>(
   "@skjera/documents/GuestSignup",
 )({

@@ -2,7 +2,15 @@ import { Authentication } from "@skjera/oauth/api";
 import { Schema } from "effect";
 import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
 import { ContentTypeName } from "./ContentTypes.ts";
-import { Cover, DocumentId, Heads, RichText, TeamId } from "./Model.ts";
+import {
+  Answer,
+  Cover,
+  DocumentId,
+  Heads,
+  Question,
+  RichText,
+  TeamId,
+} from "./Model.ts";
 
 // Clients keep copies of tables. A pull returns the rows that changed since
 // the snapshot of the previous pull, which rows were deleted, and the
@@ -72,8 +80,14 @@ export const EventRow = Schema.Struct({
   isPublic: Schema.Boolean,
   /** People without an account can sign up to attend. */
   allowGuests: Schema.Boolean,
-  /** Everyone signing up must give their dietary preferences. */
+  /** Food is served: everyone signing up must give their dietary preferences. */
   askDietary: Schema.Boolean,
+  /** What or where people eat. */
+  food: Schema.String,
+  /** Dietary preferences are asked until then; until sign-up closes if null. */
+  foodDeadline: Schema.NullOr(Schema.Date),
+  /** Asked of everyone signing up. */
+  questions: Schema.Array(Question),
   /** The version of the draft that was published. */
   publishedHeads: Heads,
   publishedAt: Schema.Date,
@@ -87,6 +101,8 @@ export const AttendeeDetails = Schema.Struct({
   email: Schema.NullOr(Schema.String),
   /** What they can't eat, when the event asked. */
   dietary: Schema.NullOr(Schema.String),
+  /** Answers to the event's questions, as asked and picked then. */
+  answers: Schema.Array(Answer),
   /** Signed up without an account. */
   guest: Schema.Boolean,
 });

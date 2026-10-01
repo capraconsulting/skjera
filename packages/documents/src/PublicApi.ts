@@ -6,7 +6,7 @@ import {
   SignupNotFound,
   SignupRejected,
 } from "./errors.ts";
-import { DocumentId, GuestDetails, GuestSignup } from "./Model.ts";
+import { Answers, DocumentId, GuestDetails, GuestSignup } from "./Model.ts";
 
 // The site's API for signing up to published events. Public events are
 // there for anyone; with a session, members-only events too. The events
@@ -16,7 +16,8 @@ export class EventsApi extends HttpApiGroup.make("events").add(
   /**
    * Signs up the signed-in user, or, without a session, a guest with the
    * details given. A guest gets the token that cancels their signup.
-   * `dietary` is required when the event asks for it.
+   * `dietary` is required while the event asks for it, and `answers` for
+   * its required questions.
    */
   HttpApiEndpoint.post("attend", "/api/events/:id/attendance", {
     params: { id: DocumentId },
@@ -25,6 +26,8 @@ export class EventsApi extends HttpApiGroup.make("events").add(
       id: Schema.String.check(Schema.isUUID()),
       guest: Schema.optionalKey(GuestDetails),
       dietary: Schema.optionalKey(Schema.String),
+      /** Answers to the event's questions, by question id. */
+      answers: Schema.optionalKey(Answers),
     }),
     success: Schema.NullOr(GuestSignup),
     error: [EventNotFound, SignInRequired, SignupRejected],

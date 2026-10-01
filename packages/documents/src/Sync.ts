@@ -3,10 +3,12 @@ import { Context, Effect, Layer, Option } from "effect";
 import { SqlClient } from "effect/sql";
 import type { ContentTypeName } from "./ContentTypes.ts";
 import type {
+  Answer,
   Audience,
   Cover,
   DocumentId,
   Heads,
+  Question,
   RichText,
   TeamId,
 } from "./Model.ts";
@@ -203,13 +205,17 @@ export class Sync extends Context.Service<
             is_public: boolean;
             allow_guests: boolean;
             ask_dietary: boolean;
+            food: string;
+            food_deadline: Date | null;
+            questions: ReadonlyArray<Question>;
             published_heads: Heads;
             published_at: Date;
             first_published_at: Date;
             visible: boolean;
           }>`
             SELECT id, title, starts_at, ends_at, signup_deadline, time_zone, body, cover, is_public,
-              allow_guests, ask_dietary, published_heads, published_at,
+              allow_guests, ask_dietary, food, food_deadline, questions,
+              published_heads, published_at,
               first_published_at, is_public OR ${audience === "members"} AS visible
             FROM events WHERE ${unseen(since)}
           `.pipe(
@@ -229,6 +235,9 @@ export class Sync extends Context.Service<
                     isPublic: row.is_public,
                     allowGuests: row.allow_guests,
                     askDietary: row.ask_dietary,
+                    food: row.food,
+                    foodDeadline: row.food_deadline,
+                    questions: row.questions,
                     publishedHeads: row.published_heads,
                     publishedAt: row.published_at,
                     firstPublishedAt: row.first_published_at,
@@ -263,11 +272,12 @@ export class Sync extends Context.Service<
             name: string;
             email: string | null;
             dietary: string | null;
+            answers: ReadonlyArray<Answer>;
             guest: boolean;
             mine: boolean;
             visible: boolean;
           }>`
-            SELECT a.id, a.event_id, a.created_at, a.name, a.email, a.dietary,
+            SELECT a.id, a.event_id, a.created_at, a.name, a.email, a.dietary, a.answers,
               a.user_issuer IS NULL AS guest,
               coalesce(a.user_issuer = ${issuer} AND a.user_subject = ${subject}, false)
                 AS mine,
@@ -291,6 +301,7 @@ export class Sync extends Context.Service<
                           name: row.name,
                           email: row.email,
                           dietary: row.dietary,
+                          answers: row.answers,
                           guest: row.guest,
                         })
                       : null,

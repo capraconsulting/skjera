@@ -1,4 +1,5 @@
 import {
+  type Answers,
   type AttendeeRow,
   type DocumentId,
   type DocumentRow,
@@ -292,7 +293,7 @@ export const attendees = serverTable({
   write: {
     // Signing up, as the signed-in user or as a guest (see `Signup`).
     insert: (attendee, metadata) => {
-      const { guest, dietary } = metadata as Signup;
+      const { guest, dietary, answers } = metadata as Signup;
       return sendPublic((client) =>
         client.events
           .attend({
@@ -301,6 +302,7 @@ export const attendees = serverTable({
               id: attendee.id,
               ...(guest === undefined ? {} : { guest }),
               ...(dietary === undefined ? {} : { dietary }),
+              ...(answers === undefined ? {} : { answers }),
             },
           })
           .pipe(
@@ -346,4 +348,6 @@ export type Signup = {
   /** Signing up as a guest, without an account. */
   readonly guest?: GuestDetails;
   readonly dietary?: string;
+  /** Answers to the event's questions, by question id. */
+  readonly answers?: Answers;
 };

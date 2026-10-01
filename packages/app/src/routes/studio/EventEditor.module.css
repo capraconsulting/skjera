@@ -10,3 +10,9 @@
   background: var(--color-danger-soft);
   color: var(--color-danger);
 }
+
+.food {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}

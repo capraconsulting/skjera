@@ -1,4 +1,9 @@
-import type { AttendeeRow, EventRow } from "@skjera/documents/api";
+import type {
+  Answers,
+  AttendeeRow,
+  EventRow,
+  Question,
+} from "@skjera/documents/api";
 import { type FormEvent, useEffect, useState } from "react";
 import { Button } from "../../components/Button.tsx";
 import { Input } from "../../components/Input.tsx";
@@ -43,6 +48,9 @@ export function Attend(props: {
   const mine = signups.find((signup) => signup.mine);
   const closesAt = event.signupDeadline ?? event.startsAt;
   const closed = useHasPassed(closesAt);
+  // After the food deadline, people can still come; they're not asked.
+  const foodClosed = useHasPassed(event.foodDeadline ?? closesAt);
+  const asksDietary = event.askDietary && !foodClosed;
 
   const settle = (change: {
     readonly isPersisted: { promise: Promise<unknown> };
@@ -60,6 +68,7 @@ export function Attend(props: {
     const dietary = form.get("dietary");
     const signup: Signup = {
       ...(dietary === null ? {} : { dietary: String(dietary) }),
+      answers: answersFrom(event.questions, form),
       ...(asGuest
         ? {
             guest: {
@@ -121,7 +130,16 @@ export function Attend(props: {
   const closes = (
     <p className={styles.closes}>
       Sign-up closes {formatDateTime(closesAt, event.timeZone)}.
+      {asksDietary && event.foodDeadline !== null
+        ? ` Dietary preferences by ${formatDateTime(event.foodDeadline, event.timeZone)}.`
+        : null}
     </p>
+  );
+  const asked = (
+    <>
+      {asksDietary ? <DietaryInput /> : null}
+      <QuestionInputs questions={event.questions} />
+    </>
   );
 
   if (props.signedIn) {
@@ -139,7 +157,7 @@ export function Attend(props: {
             className={styles.form}
             onSubmit={(submitted) => signUp(submitted, false)}
           >
-            {event.askDietary ? <DietaryInput /> : null}
+            {asked}
             <div className={styles.row}>
               <Button type="submit" variant="primary">
                 Attend
@@ -188,7 +206,7 @@ export function Attend(props: {
               required
             />
           </div>
-          {event.askDietary ? <DietaryInput /> : null}
+          {asked}
           <div className={styles.row}>
             <Button type="submit" variant="primary">
               Sign up
@@ -219,3 +237,81 @@ const DietaryInput = () => (
     maxLength={500}
   />
 );
+
+const field = (question: Question) => `question-${question.id}`;
+
+/** The answers in a signup form, by question id. */
+const answersFrom = (
+  questions: ReadonlyArray<Question>,
+  form: FormData,
+): Answers => {
+  const answers: Record<string, string | boolean> = {};
+  for (const question of questions) {
+    const value = form.get(field(question));
+    if (question.type === "checkbox") answers[question.id] = value !== null;
+    else if (value !== null) answers[question.id] = String(value);
+  }
+  return answers;
+};
+
+/** The event's questions, as form fields. */
+function QuestionInputs(props: {
+  readonly questions: ReadonlyArray<Question>;
+}) {
+  return props.questions.map((question) => {
+    switch (question.type) {
+      case "text":
+        return (
+          <div key={question.id} className={styles.question}>
+            <label htmlFor={field(question)}>
+              {question.text}
+              {question.required ? null : (
+                <span className={styles.optional}> (optional)</span>
+              )}
+            </label>
+            <Input
+              id={field(question)}
+              name={field(question)}
+              required={question.required}
+              maxLength={1000}
+            />
+          </div>
+        );
+      case "checkbox":
+        return (
+          <label key={question.id} className={styles.check}>
+            <input
+              type="checkbox"
+              name={field(question)}
+              required={question.required}
+            />
+            {question.text}
+          </label>
+        );
+      case "choice":
+        return (
+          <fieldset key={question.id} className={styles.choice}>
+            <legend>
+              {question.text}
+              {question.required ? null : (
+                <span className={styles.optional}> (optional)</span>
+              )}
+            </legend>
+            {question.options.map((option) => (
+              <label key={option.id} className={styles.check}>
+                <input
+                  type="radio"
+                  name={field(question)}
+                  value={option.id}
+                  required={question.required}
+                />
+                {option.text}
+              </label>
+            ))}
+          </fieldset>
+        );
+      default:
+        return null;
+    }
+  });
+}

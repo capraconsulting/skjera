@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 import { Temporal } from "temporal-polyfill";
-import { Cover, ZonedDateTime } from "./Model.ts";
+import { Cover, Question, ZonedDateTime } from "./Model.ts";
 
 // Content types are safe to share with the editor. A draft must always match
 // its type's schema exactly: changes that would add unknown fields or change
@@ -27,8 +27,17 @@ export const EventContent = Schema.Struct({
    * effect for public events.
    */
   guests: Schema.Boolean,
-  /** Everyone signing up, members and guests, must say what they can't eat. */
+  /**
+   * Food is served: everyone signing up, members and guests, must say what
+   * they can't eat, until the food deadline.
+   */
   dietary: Schema.Boolean,
+  /** What or where people eat, e.g. "Pizza from Lorem". */
+  food: Schema.String,
+  /** Dietary preferences are asked until then; null: until sign-up closes. */
+  foodDeadline: Schema.NullOr(ZonedDateTime),
+  /** Asked of everyone signing up. */
+  questions: Schema.Array(Question),
 });
 export type EventContent = typeof EventContent.Type;
 
@@ -50,6 +59,9 @@ export const contentTypes = {
       public: false,
       guests: false,
       dietary: false,
+      food: "",
+      foodDeadline: null,
+      questions: [],
     } satisfies EventContent,
     toPublish: [
       { label: "a title", met: (event) => event.title.trim() !== "" },
@@ -69,9 +81,30 @@ export const contentTypes = {
         compare(event.deadline, event.start) > 0
           ? "The sign-up deadline can't be after the event starts"
           : null,
+      (event) => {
+        const closes = event.deadline ?? event.start;
+        return event.foodDeadline !== null &&
+          closes !== null &&
+          compare(event.foodDeadline, closes) > 0
+          ? "The food deadline can't be after sign-up closes"
+          : null;
+      },
+      (event) =>
+        event.questions.some((question) => question.text.trim() === "")
+          ? "Every question needs its text"
+          : null,
+      (event) =>
+        event.questions.some(
+          (question) =>
+            question.type === "choice" &&
+            (question.options.length < 2 ||
+              question.options.some((option) => option.text.trim() === "")),
+        )
+          ? "Choice questions need at least two options, all filled in"
+          : null,
       (event) =>
         new Set(
-          [event.start, event.end, event.deadline]
+          [event.start, event.end, event.deadline, event.foodDeadline]
             .filter((time) => time !== null)
             .map((time) => Temporal.ZonedDateTime.from(time).timeZoneId),
         ).size > 1

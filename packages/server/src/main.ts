@@ -68,12 +68,7 @@ const EventsHandlers = HttpApiBuilder.group(Api, "events", (handlers) =>
         Effect.gen(function* () {
           const user = yield* currentUser;
           if (Option.isSome(user)) {
-            yield* attendance.attend(
-              params.id,
-              user.value,
-              payload.dietary,
-              payload.id,
-            );
+            yield* attendance.attend(params.id, user.value, payload);
             return null;
           }
           if (payload.guest === undefined) {
@@ -84,8 +79,7 @@ const EventsHandlers = HttpApiBuilder.group(Api, "events", (handlers) =>
           const cancelToken = yield* attendance.attendAsGuest(
             params.id,
             payload.guest,
-            payload.dietary,
-            payload.id,
+            payload,
           );
           return new Documents.GuestSignup({ cancelToken });
         }),

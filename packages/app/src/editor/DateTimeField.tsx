@@ -18,16 +18,24 @@ import styles from "./DateTimeField.module.css";
 // concurrent edits resolve to one of them rather than a mix. They are
 // edited as a day and a time on the clock in the event's time zone.
 
-type TimeName = "start" | "end" | "deadline";
+type TimeName = "start" | "end" | "deadline" | "foodDeadline";
 type Times = Readonly<Record<TimeName, Temporal.ZonedDateTime | null>>;
 
-const names: ReadonlyArray<TimeName> = ["start", "end", "deadline"];
+const names: ReadonlyArray<TimeName> = [
+  "start",
+  "end",
+  "deadline",
+  "foodDeadline",
+];
 
 const write = (time: Temporal.ZonedDateTime) =>
   new A.ImmutableString(time.toString({ smallestUnit: "minute" }));
 
-/** The draft's times, updated as they change. */
-const useTimes = (handle: DocHandle<EventContent>): Times => {
+/**
+ * The draft's times, updated as they change, the zone they are in, and
+ * setting them.
+ */
+const useEventTimes = (handle: DocHandle<EventContent>) => {
   const key = useSyncExternalStore(
     (onChange) => {
       handle.on("change", onChange);
@@ -38,29 +46,17 @@ const useTimes = (handle: DocHandle<EventContent>): Times => {
       return names.map((name) => String(doc[name] ?? "")).join(" ");
     },
   );
-  return useMemo(() => {
-    const [start, end, deadline] = key
-      .split(" ")
-      .map((value) =>
-        value === "" ? null : Temporal.ZonedDateTime.from(value),
-      ) as [
-      Temporal.ZonedDateTime | null,
-      ...Array<Temporal.ZonedDateTime | null>,
-    ];
-    return { start, end: end ?? null, deadline: deadline ?? null };
+  const times = useMemo(() => {
+    const values = key.split(" ");
+    return Object.fromEntries(
+      names.map((name, index) => {
+        const value = values[index] ?? "";
+        return [name, value === "" ? null : Temporal.ZonedDateTime.from(value)];
+      }),
+    ) as Times;
   }, [key]);
-};
-
-/** When the event starts and ends, when sign-up closes, and in what zone. */
-export function EventTimes(props: {
-  readonly handle: DocHandle<EventContent>;
-}) {
-  const { handle } = props;
-  const times = useTimes(handle);
   const timeZone =
-    times.start?.timeZoneId ??
-    times.end?.timeZoneId ??
-    times.deadline?.timeZoneId ??
+    names.map((name) => times[name]?.timeZoneId).find(Boolean) ??
     localTimeZone();
 
   const set = (name: TimeName, time: Temporal.ZonedDateTime | null) =>
@@ -89,6 +85,14 @@ export function EventTimes(props: {
       }
     });
 
+  return { times, timeZone, set, setZone };
+};
+
+/** When the event starts and ends, when sign-up closes, and in what zone. */
+export function EventTimes(props: {
+  readonly handle: DocHandle<EventContent>;
+}) {
+  const { times, timeZone, set, setZone } = useEventTimes(props.handle);
   const startDate = times.start?.toPlainDate();
   return (
     <>
@@ -134,6 +138,31 @@ export function EventTimes(props: {
       <Field label="Time zone">
         <TimeZoneSelect value={timeZone} onChange={setZone} />
       </Field>
+    </>
+  );
+}
+
+/** Until when people say what they can't eat, in the event's zone. */
+export function FoodDeadline(props: {
+  readonly handle: DocHandle<EventContent>;
+}) {
+  const { times, timeZone, set } = useEventTimes(props.handle);
+  const closes = (times.deadline ?? times.start)?.toPlainDate();
+  return (
+    <>
+      <DateTimeField
+        label="Food deadline"
+        value={times.foodDeadline}
+        timeZone={timeZone}
+        defaultTime={Temporal.PlainTime.from("12:00")}
+        {...(closes === undefined ? {} : { defaultDate: closes })}
+        onChange={(time) => set("foodDeadline", time)}
+        clearable
+      />
+      <p className={styles.hint}>
+        Dietary preferences are asked until then; people can still sign up
+        after. Without one, until sign-up closes.
+      </p>
     </>
   );
 }

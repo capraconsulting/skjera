@@ -37,3 +37,16 @@
   border-radius: var(--radius-large);
   object-fit: cover;
 }
+
+.food {
+  margin: -1.5rem 0 2rem;
+}
+
+.foodLabel {
+  margin-right: 0.25rem;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
