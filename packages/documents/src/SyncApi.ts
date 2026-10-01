@@ -2,14 +2,7 @@ import { Authentication } from "@skjera/oauth/api";
 import { Schema } from "effect";
 import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
 import { ContentTypeName } from "./ContentTypes.ts";
-import {
-  Cover,
-  DocumentId,
-  Heads,
-  IsoDate,
-  RichText,
-  TeamId,
-} from "./Model.ts";
+import { Cover, DocumentId, Heads, RichText, TeamId } from "./Model.ts";
 
 // Clients keep copies of tables. A pull returns the rows that changed since
 // the snapshot of the previous pull, which rows were deleted, and the
@@ -53,7 +46,9 @@ export const DocumentRow = Schema.Struct({
   type: ContentTypeName,
   teamId: TeamId,
   title: Schema.String,
-  date: Schema.NullOr(IsoDate),
+  /** When the event starts, and the zone it was set in. */
+  startsAt: Schema.NullOr(Schema.Date),
+  timeZone: Schema.NullOr(Schema.String),
   /** The draft's version, sorted like `EventRow.publishedHeads`. */
   draftHeads: Heads,
   createdAt: Schema.Date,
@@ -65,7 +60,12 @@ export type DocumentRow = typeof DocumentRow.Type;
 export const EventRow = Schema.Struct({
   id: DocumentId,
   title: Schema.String,
-  date: IsoDate,
+  startsAt: Schema.Date,
+  endsAt: Schema.Date,
+  /** Signing up and cancelling close then; when it starts if null. */
+  signupDeadline: Schema.NullOr(Schema.Date),
+  /** The zone the times were set in, to show them in: "Europe/Oslo". */
+  timeZone: Schema.String,
   body: RichText,
   cover: Schema.NullOr(Cover),
   /** Visible without logging in. */

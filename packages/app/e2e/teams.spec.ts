@@ -7,7 +7,7 @@ import {
   newTeam,
   openNewTeamDialog,
   openTeamMenu,
-  pickDate,
+  pickTimes,
   signedIn,
   teamLink,
   title,
@@ -177,7 +177,7 @@ test("publishing shows for others without reloading", async ({ browser }) => {
   await bob.goto(`/studio/teams/${team}`);
   const event = await newEvent(bob);
   await title(bob).pressSequentially("Launch party");
-  await pickDate(bob);
+  await pickTimes(bob);
   await expect(bob.getByTestId("status")).toContainText("Saved");
 
   // Alice has it open, unpublished.

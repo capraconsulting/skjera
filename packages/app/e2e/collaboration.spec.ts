@@ -6,7 +6,7 @@ import {
   eventPath,
   newEvent,
   newTeam,
-  pickDate,
+  pickTimes,
   signedIn,
   title,
   typeAt,
@@ -37,11 +37,13 @@ test("two users edit an event live, publish it and delete it", async ({
   await expect(body(alice)).toHaveText("First, Bob writes and Alice adds");
   await expect(body(bob)).toHaveText("First, Bob writes and Alice adds");
 
-  // Alice picks the date; Bob sees it too.
-  const date = await pickDate(alice);
-  await expect(
-    bob.getByRole("button", { name: "Date", exact: true }),
-  ).toHaveText(date);
+  // Alice sets the times; Bob sees them too.
+  const date = await pickTimes(alice);
+  await expect(bob.getByRole("button", { name: "Start date" })).toHaveText(
+    date,
+  );
+  await expect(bob.getByLabel("Start time")).toHaveValue("18:00");
+  await expect(bob.getByLabel("End time")).toHaveValue("20:00");
 
   await expect(alice.getByTestId("status")).toContainText("Saved");
   await alice.getByRole("button", { name: "Publish" }).click();
@@ -62,20 +64,29 @@ test("two users edit an event live, publish it and delete it", async ({
   await deleteTeam(alice, team);
 });
 
-test("publishing needs a title and a date", async ({ browser }) => {
+test("publishing needs a title and times that make sense", async ({
+  browser,
+}) => {
   const alice = await signedIn(browser, "alice@example.com");
   const team = await newTeam(alice, uniqueTeamName("Untitled"));
   const id = await newEvent(alice);
   await body(alice).pressSequentially("No title here");
   await alice.getByRole("button", { name: "Publish" }).click();
   await expect(alice.getByRole("alert")).toHaveText(
-    "Add a title and a date before publishing",
+    "Add a title, a start time and an end time before publishing",
   );
 
   await title(alice).pressSequentially("Titled");
   await alice.getByRole("button", { name: "Publish" }).click();
   await expect(alice.getByRole("alert")).toHaveText(
-    "Add a date before publishing",
+    "Add a start time and an end time before publishing",
+  );
+
+  await pickTimes(alice);
+  await alice.getByLabel("End time").fill("17:00");
+  await alice.getByRole("button", { name: "Publish" }).click();
+  await expect(alice.getByRole("alert")).toHaveText(
+    "The event has to end after it starts",
   );
   await expect(alice.getByTestId("status")).toContainText("Not published");
 

@@ -1,4 +1,5 @@
 import { Schema } from "effect";
+import { Temporal } from "temporal-polyfill";
 
 // Document identity and publish state, shared by the server and the editor.
 
@@ -8,24 +9,32 @@ export const DocumentId = Schema.String.check(Schema.isUUID()).pipe(
 );
 export type DocumentId = typeof DocumentId.Type;
 
-/** A calendar date, without time or time zone: "2026-10-15". */
-export const IsoDate = Schema.String.check(
+/**
+ * A moment as the time on the clock in a time zone, with the zone's offset
+ * then: "2026-10-15T18:00+02:00[Europe/Oslo]" (RFC 9557, as Temporal
+ * writes it). The offset has to be the zone's at that time, so the value
+ * reads the same with or without time zone rules.
+ */
+export const ZonedDateTime = Schema.String.check(
   Schema.makeFilter((value: string) => {
-    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-    if (match === null) return "Expected a date as YYYY-MM-DD";
-    const [year, month, day] = match.slice(1).map(Number) as [
-      number,
-      number,
-      number,
-    ];
-    const date = new Date(Date.UTC(year, month - 1, day));
-    return (
-      (date.getUTCMonth() === month - 1 && date.getUTCDate() === day) ||
-      "Expected a date that exists"
-    );
+    if (
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?[+-]\d{2}:\d{2}\[[A-Za-z0-9_/+-]+\]$/.test(
+        value,
+      )
+    ) {
+      return "Expected a time like 2026-10-15T18:00+02:00[Europe/Oslo]";
+    }
+    try {
+      // Rejects unknown zones, impossible times, and offsets the zone
+      // doesn't have then.
+      Temporal.ZonedDateTime.from(value, { offset: "reject" });
+      return true;
+    } catch {
+      return "Expected a time that exists in its time zone";
+    }
   }),
 );
-export type IsoDate = typeof IsoDate.Type;
+export type ZonedDateTime = typeof ZonedDateTime.Type;
 
 /** A UUID; clients may pick it when creating a team. */
 export const TeamId = Schema.String.check(Schema.isUUID()).pipe(

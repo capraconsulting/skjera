@@ -11,7 +11,7 @@ import {
 import { Badge } from "../../components/Badge.tsx";
 import { RichText } from "../../components/RichText.tsx";
 import { attendees, events } from "../../sync/tables.ts";
-import { formatLongDate } from "../../time.ts";
+import { formatEventTimes } from "../../time.ts";
 import { Attend } from "./Attend.tsx";
 import styles from "./EventPage.module.css";
 import type { siteLoader } from "./SiteLayout.tsx";
@@ -67,7 +67,9 @@ export function EventPage() {
       )}
       <h1 className={styles.title}>{event.title}</h1>
       <p className={styles.date}>
-        <time dateTime={event.date}>{formatLongDate(event.date)}</time>
+        <time dateTime={event.startsAt.toISOString()}>
+          {formatEventTimes(event.startsAt, event.endsAt, event.timeZone)}
+        </time>
         {event.isPublic ? null : (
           <>
             {" "}

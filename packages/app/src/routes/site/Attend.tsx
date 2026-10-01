@@ -1,15 +1,34 @@
 import type { AttendeeRow, EventRow } from "@skjera/documents/api";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { Button } from "../../components/Button.tsx";
 import { Input } from "../../components/Input.tsx";
 import { loginUrl } from "../../site/client.ts";
 import { guestSignup, rememberGuestSignup } from "../../site/guestSignups.ts";
 import { attendees, type Signup } from "../../sync/tables.ts";
+import { formatDateTime } from "../../time.ts";
 import styles from "./Attend.module.css";
 
+/** Whether `at` has passed, turning true when it does. */
+const useHasPassed = (at: Date) => {
+  const time = at.getTime();
+  const [passed, setPassed] = useState(() => time <= Date.now());
+  useEffect(() => {
+    const left = time - Date.now();
+    setPassed(left <= 0);
+    if (left <= 0) return;
+    // setTimeout takes at most about 24 days.
+    const timer = setTimeout(
+      () => setPassed(time <= Date.now()),
+      Math.min(left, 2 ** 31 - 1),
+    );
+    return () => clearTimeout(timer);
+  }, [time]);
+  return passed;
+};
+
 /**
- * Signing up to attend an event, and changing one's mind. Changes show at
- * once; a refused one is undone, and says why.
+ * Signing up to attend an event, and changing one's mind, until sign-up
+ * closes. Changes show at once; a refused one is undone, and says why.
  */
 export function Attend(props: {
   readonly event: EventRow;
@@ -22,6 +41,8 @@ export function Attend(props: {
   // This browser's guest signup, if it made one.
   const [guest, setGuest] = useState(() => guestSignup(event.id));
   const mine = signups.find((signup) => signup.mine);
+  const closesAt = event.signupDeadline ?? event.startsAt;
+  const closed = useHasPassed(closesAt);
 
   const settle = (change: {
     readonly isPersisted: { promise: Promise<unknown> };
@@ -83,10 +104,31 @@ export function Attend(props: {
       </p>
     );
 
+  if (closed) {
+    return (
+      <section className={styles.box} aria-label="Attendance">
+        <p className={styles.count}>{count}</p>
+        {mine !== undefined || guest !== null ? (
+          <p className={styles.status}>
+            {mine !== undefined ? "You're attending." : "You're signed up."}
+          </p>
+        ) : null}
+        <p className={styles.closes}>Sign-up has closed.</p>
+      </section>
+    );
+  }
+
+  const closes = (
+    <p className={styles.closes}>
+      Sign-up closes {formatDateTime(closesAt, event.timeZone)}.
+    </p>
+  );
+
   if (props.signedIn) {
     return (
       <section className={styles.box} aria-label="Attendance">
         <p className={styles.count}>{count}</p>
+        {closes}
         {mine !== undefined ? (
           <div className={styles.row}>
             <p className={styles.status}>You're attending.</p>
@@ -114,6 +156,7 @@ export function Attend(props: {
     return (
       <section className={styles.box} aria-label="Attendance">
         <p className={styles.count}>{count}</p>
+        {closes}
         <p className={styles.row}>
           <a href={loginUrl(`/events/${event.id}`)}>Log in to attend</a>
         </p>
@@ -124,6 +167,7 @@ export function Attend(props: {
   return (
     <section className={styles.box} aria-label="Attendance">
       <p className={styles.count}>{count}</p>
+      {closes}
       {guest === null ? (
         <form
           className={styles.form}

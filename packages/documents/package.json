@@ -18,7 +18,8 @@
     "aws4fetch": "catalog:",
     "bs58check": "catalog:",
     "cbor-x": "catalog:",
-    "effect": "catalog:"
+    "effect": "catalog:",
+    "temporal-polyfill": "catalog:"
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",

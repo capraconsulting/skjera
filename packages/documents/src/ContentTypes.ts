@@ -1,5 +1,6 @@
 import { Schema } from "effect";
-import { Cover, IsoDate } from "./Model.ts";
+import { Temporal } from "temporal-polyfill";
+import { Cover, ZonedDateTime } from "./Model.ts";
 
 // Content types are safe to share with the editor. A draft must always match
 // its type's schema exactly: changes that would add unknown fields or change
@@ -13,11 +14,12 @@ export const EventContent = Schema.Struct({
    * whole; `alt` is text, edited together.
    */
   cover: Schema.optionalKey(Cover),
-  /**
-   * Stored as an Automerge ImmutableString, replaced as a whole rather than
-   * merged character by character. Null until picked.
-   */
-  date: Schema.NullOr(IsoDate),
+  // The times are Automerge ImmutableStrings, replaced as a whole rather
+  // than merged character by character. Null until picked.
+  start: Schema.NullOr(ZonedDateTime),
+  end: Schema.NullOr(ZonedDateTime),
+  /** When signing up and cancelling close. Null: when the event starts. */
+  deadline: Schema.NullOr(ZonedDateTime),
   /** Visible without logging in. Otherwise only signed-in users see it. */
   public: Schema.Boolean,
   /**
@@ -42,19 +44,68 @@ export const contentTypes = {
     initial: {
       title: "",
       body: "",
-      date: null,
+      start: null,
+      end: null,
+      deadline: null,
       public: false,
       guests: false,
       dietary: false,
     } satisfies EventContent,
     toPublish: [
       { label: "a title", met: (event) => event.title.trim() !== "" },
-      { label: "a date", met: (event) => event.date !== null },
+      { label: "a start time", met: (event) => event.start !== null },
+      { label: "an end time", met: (event) => event.end !== null },
     ] satisfies ReadonlyArray<Requirement<EventContent>>,
+    checks: [
+      (event) =>
+        event.start !== null &&
+        event.end !== null &&
+        compare(event.end, event.start) <= 0
+          ? "The event has to end after it starts"
+          : null,
+      (event) =>
+        event.start !== null &&
+        event.deadline !== null &&
+        compare(event.deadline, event.start) > 0
+          ? "The sign-up deadline can't be after the event starts"
+          : null,
+      (event) =>
+        new Set(
+          [event.start, event.end, event.deadline]
+            .filter((time) => time !== null)
+            .map((time) => Temporal.ZonedDateTime.from(time).timeZoneId),
+        ).size > 1
+          ? "The times have to be in the same time zone"
+          : null,
+    ] satisfies ReadonlyArray<Check<EventContent>>,
   },
 };
 
-/** "Add a title and a date before publishing", or null when nothing is missing. */
+/** Something else that must hold to publish: why not, or null. */
+export type Check<Content> = (content: Content) => string | null;
+
+const compare = (a: ZonedDateTime, b: ZonedDateTime) =>
+  Temporal.ZonedDateTime.compare(
+    Temporal.ZonedDateTime.from(a),
+    Temporal.ZonedDateTime.from(b),
+  );
+
+/**
+ * Why the content can't be published yet: "Add a title and a start time
+ * before publishing", or a failed check. Null when it can be.
+ */
+export const cantPublish = <Content>(
+  type: {
+    readonly toPublish: ReadonlyArray<Requirement<Content>>;
+    readonly checks: ReadonlyArray<Check<Content>>;
+  },
+  content: Content,
+): string | null =>
+  missingToPublish(type.toPublish, content) ??
+  type.checks.map((check) => check(content)).find((why) => why !== null) ??
+  null;
+
+/** "Add a title and a start time before publishing", or null when nothing is missing. */
 export const missingToPublish = <Content>(
   requirements: ReadonlyArray<Requirement<Content>>,
   content: Content,

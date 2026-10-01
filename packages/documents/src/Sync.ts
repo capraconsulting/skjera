@@ -7,7 +7,6 @@ import type {
   Cover,
   DocumentId,
   Heads,
-  IsoDate,
   RichText,
   TeamId,
 } from "./Model.ts";
@@ -155,12 +154,13 @@ export class Sync extends Context.Service<
             type: ContentTypeName;
             team_id: TeamId;
             title: string;
-            date: IsoDate | null;
+            starts_at: Date | null;
+            time_zone: string | null;
             draft_heads: Heads;
             created_at: Date;
             updated_at: Date;
           }>`
-            SELECT id, type, team_id, title, event_date::text AS date,
+            SELECT id, type, team_id, title, starts_at, time_zone,
               draft_heads, created_at, updated_at
             FROM documents WHERE ${unseen(since)}
           `.pipe(
@@ -171,7 +171,8 @@ export class Sync extends Context.Service<
                   type: row.type,
                   teamId: row.team_id,
                   title: row.title,
-                  date: row.date,
+                  startsAt: row.starts_at,
+                  timeZone: row.time_zone,
                   draftHeads: row.draft_heads,
                   createdAt: row.created_at,
                   updatedAt: row.updated_at,
@@ -193,7 +194,10 @@ export class Sync extends Context.Service<
           sql<{
             id: DocumentId;
             title: string;
-            date: IsoDate;
+            starts_at: Date;
+            ends_at: Date;
+            signup_deadline: Date | null;
+            time_zone: string;
             body: RichText;
             cover: Cover | null;
             is_public: boolean;
@@ -204,7 +208,7 @@ export class Sync extends Context.Service<
             first_published_at: Date;
             visible: boolean;
           }>`
-            SELECT id, title, event_date::text AS date, body, cover, is_public,
+            SELECT id, title, starts_at, ends_at, signup_deadline, time_zone, body, cover, is_public,
               allow_guests, ask_dietary, published_heads, published_at,
               first_published_at, is_public OR ${audience === "members"} AS visible
             FROM events WHERE ${unseen(since)}
@@ -216,7 +220,10 @@ export class Sync extends Context.Service<
                   EventRow.make({
                     id: row.id,
                     title: row.title,
-                    date: row.date,
+                    startsAt: row.starts_at,
+                    endsAt: row.ends_at,
+                    signupDeadline: row.signup_deadline,
+                    timeZone: row.time_zone,
                     body: row.body,
                     cover: row.cover,
                     isPublic: row.is_public,

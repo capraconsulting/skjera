@@ -121,10 +121,10 @@ layer(TestLayer, { excludeTestServices: true })("Sync", (it) => {
         Effect.gen(function* () {
           const id = yield* documents.create("event", team.id, alice);
           yield* sql`
-            INSERT INTO events (id, title, event_date, body, is_public,
+            INSERT INTO events (id, title, starts_at, ends_at, time_zone, body, is_public,
               allow_guests, ask_dietary, published_heads,
               published_by_issuer, published_by_subject)
-            VALUES (${id}, 'Event', '2026-10-15', '[]', ${isPublic}, false,
+            VALUES (${id}, 'Event', '2036-10-15T18:00+02', '2036-10-15T21:00+02', 'Europe/Oslo', '[]', ${isPublic}, false,
               false, '{}', 'test', 'test')
           `;
           return id;
@@ -164,10 +164,10 @@ layer(TestLayer, { excludeTestServices: true })("Sync", (it) => {
       const team = yield* teams.create(teamName(), alice);
       const event = yield* documents.create("event", team.id, alice);
       yield* sql`
-        INSERT INTO events (id, title, event_date, body, is_public,
+        INSERT INTO events (id, title, starts_at, ends_at, time_zone, body, is_public,
           allow_guests, ask_dietary, published_heads,
           published_by_issuer, published_by_subject)
-        VALUES (${event}, 'Event', '2026-10-15', '[]', true, false, false,
+        VALUES (${event}, 'Event', '2036-10-15T18:00+02', '2036-10-15T21:00+02', 'Europe/Oslo', '[]', true, false, false,
           '{}', 'test', 'test')
       `;
       const [signup] = yield* sql<{ id: string }>`
@@ -215,10 +215,11 @@ layer(TestLayer, { excludeTestServices: true })("Sync", (it) => {
         row === undefined ? undefined : Object.keys(row).sort(),
         [
           "createdAt",
-          "date",
           "draftHeads",
           "id",
+          "startsAt",
           "teamId",
+          "timeZone",
           "title",
           "type",
           "updatedAt",

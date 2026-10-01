@@ -31,11 +31,11 @@ export class EventsApi extends HttpApiGroup.make("events").add(
   }),
   HttpApiEndpoint.delete("leave", "/api/events/:id/attendance", {
     params: { id: DocumentId },
-    error: [EventNotFound, SignInRequired],
+    error: [EventNotFound, SignInRequired, SignupRejected],
   }),
   HttpApiEndpoint.delete("leaveAsGuest", "/api/events/:id/attendance/:token", {
     params: { id: DocumentId, token: Schema.String },
-    error: SignupNotFound,
+    error: [SignupNotFound, SignupRejected],
   }),
 ) {}
 

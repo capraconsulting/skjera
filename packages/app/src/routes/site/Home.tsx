@@ -4,7 +4,7 @@ import { Link } from "react-router";
 import { Badge } from "../../components/Badge.tsx";
 import { plainText } from "../../components/RichText.tsx";
 import { events as eventsTable } from "../../sync/tables.ts";
-import { formatLongDate } from "../../time.ts";
+import { formatEventTimes } from "../../time.ts";
 import styles from "./Home.module.css";
 
 /** Waits for the copy of the published events. */
@@ -19,11 +19,11 @@ const excerpt = (body: RichText) => {
 };
 
 export function Home() {
-  // By date, earliest first.
+  // Soonest first.
   const events = useLiveQuery((q) =>
     q
       .from({ event: eventsTable.collection })
-      .orderBy(({ event }) => event.date)
+      .orderBy(({ event }) => event.startsAt)
       .orderBy(({ event }) => event.firstPublishedAt),
   ).data;
   return (
@@ -44,8 +44,11 @@ export function Home() {
                   loading="lazy"
                 />
               )}
-              <time className={styles.date} dateTime={event.date}>
-                {formatLongDate(event.date)}
+              <time
+                className={styles.date}
+                dateTime={event.startsAt.toISOString()}
+              >
+                {formatEventTimes(event.startsAt, event.endsAt, event.timeZone)}
               </time>
               <h2>
                 <Link to={`/events/${event.id}`}>{event.title}</Link>

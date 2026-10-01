@@ -268,4 +268,73 @@ export const migrations = Migrator.fromRecord({
       RETURNING e.*
     $$`,
   ),
+  "0011_event_times": statements(
+    // Times are stored in drafts as "2026-10-15T18:00+02:00[Europe/Oslo]":
+    // the instant (with its offset), and the zone it was set in.
+    `CREATE FUNCTION zoned_instant(value text) RETURNS timestamptz
+      LANGUAGE sql STABLE RETURN regexp_replace(value, '\\[[^]]*\\]$', '')::timestamptz`,
+    `CREATE FUNCTION zoned_zone(value text) RETURNS text
+      LANGUAGE sql IMMUTABLE RETURN substring(value from '\\[([^]]*)\\]$')`,
+    // Events had a date only. Nothing published with one is kept.
+    `DELETE FROM events`,
+    `ALTER TABLE events
+      DROP COLUMN event_date,
+      ADD COLUMN starts_at timestamptz NOT NULL,
+      ADD COLUMN ends_at timestamptz NOT NULL CHECK (ends_at > starts_at),
+      -- Signing up and cancelling close then; at the start when null.
+      ADD COLUMN signup_deadline timestamptz CHECK (signup_deadline <= starts_at),
+      -- The zone the times were set in, e.g. Europe/Oslo, to show them in.
+      ADD COLUMN time_zone text NOT NULL`,
+    `CREATE INDEX events_starts_at_idx ON events (starts_at)`,
+    `ALTER TABLE documents
+      DROP COLUMN event_date,
+      ADD COLUMN starts_at timestamptz,
+      ADD COLUMN time_zone text`,
+    `CREATE OR REPLACE FUNCTION documents_summarize() RETURNS trigger LANGUAGE plpgsql AS $$
+    DECLARE
+      content jsonb := NEW.draft::jsonb;
+    BEGIN
+      NEW.title := coalesce(content->>'title', '');
+      NEW.starts_at := zoned_instant(content->>'start');
+      NEW.time_zone := zoned_zone(content->>'start');
+      -- Sorted, like published_heads, so the two can be compared.
+      NEW.draft_heads := automerge_heads(NEW.draft);
+      RETURN NEW;
+    END
+    $$`,
+    `CREATE OR REPLACE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
+      RETURNS SETOF events LANGUAGE sql AS $$
+      INSERT INTO events AS e
+        (id, title, starts_at, ends_at, signup_deadline, time_zone, body, cover,
+         is_public, allow_guests, ask_dietary,
+         published_heads, published_by_issuer, published_by_subject)
+      SELECT d.id, c.content->>'title',
+        zoned_instant(c.content->>'start'), zoned_instant(c.content->>'end'),
+        zoned_instant(c.content->>'deadline'), zoned_zone(c.content->>'start'),
+        automerge_spans(d.draft, '{body}', heads), c.content->'cover',
+        (c.content->>'public')::boolean,
+        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
+        (c.content->>'dietary')::boolean,
+        -- Sorted like automerge_heads(), so the two can be compared.
+        ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
+      FROM documents d
+      CROSS JOIN LATERAL (SELECT automerge_to_jsonb(d.draft, heads) AS content OFFSET 0) c
+      WHERE d.id = document_id AND d.type = 'event'
+      ON CONFLICT (id) DO UPDATE SET
+        title = EXCLUDED.title,
+        starts_at = EXCLUDED.starts_at,
+        ends_at = EXCLUDED.ends_at,
+        signup_deadline = EXCLUDED.signup_deadline,
+        time_zone = EXCLUDED.time_zone,
+        body = EXCLUDED.body,
+        cover = EXCLUDED.cover,
+        is_public = EXCLUDED.is_public,
+        allow_guests = EXCLUDED.allow_guests,
+        ask_dietary = EXCLUDED.ask_dietary,
+        published_heads = EXCLUDED.published_heads,
+        published_by_issuer = EXCLUDED.published_by_issuer,
+        published_by_subject = EXCLUDED.published_by_subject
+      RETURNING e.*
+    $$`,
+  ),
 });

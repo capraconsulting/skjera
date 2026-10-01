@@ -28,10 +28,11 @@ export class Attendance extends Context.Service<
       dietary?: string,
       id?: string,
     ) => Effect.Effect<void, EventNotFound | SignupRejected>;
+    /** Cancels a member's signup, until the sign-up deadline. */
     readonly leave: (
       event: DocumentId,
       user: Identity,
-    ) => Effect.Effect<void, EventNotFound>;
+    ) => Effect.Effect<void, EventNotFound | SignupRejected>;
     /** Signs a guest up, returning the token that cancels the signup. */
     readonly attendAsGuest: (
       event: DocumentId,
@@ -42,7 +43,7 @@ export class Attendance extends Context.Service<
     readonly leaveAsGuest: (
       event: DocumentId,
       cancelToken: string,
-    ) => Effect.Effect<void, SignupNotFound>;
+    ) => Effect.Effect<void, SignupNotFound | SignupRejected>;
   }
 >()("@skjera/documents/Attendance") {
   static readonly layer = Layer.effect(
@@ -50,7 +51,14 @@ export class Attendance extends Context.Service<
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
 
-      /** The event's signup rules, if the audience may see it. */
+      const closed = new SignupRejected({
+        message: "Sign-up for this event has closed",
+      });
+
+      /**
+       * The event's signup rules, if the audience may see it. Signing up
+       * and cancelling close at the deadline, or else when it starts.
+       */
       const rules = Effect.fn(function* (
         event: DocumentId,
         audience: Audience,
@@ -58,13 +66,17 @@ export class Attendance extends Context.Service<
         const [row] = yield* sql<{
           allow_guests: boolean;
           ask_dietary: boolean;
+          open: boolean;
         }>`
-          SELECT allow_guests, ask_dietary FROM events
+          SELECT allow_guests, ask_dietary,
+            coalesce(signup_deadline, starts_at) > now() AS open
+          FROM events
           WHERE id = ${event} AND (is_public OR ${audience === "members"})
         `.pipe(Effect.orDie);
         if (row === undefined) {
           return yield* new EventNotFound({ id: event });
         }
+        if (!row.open) return yield* closed;
         return {
           allowGuests: row.allow_guests,
           askDietary: row.ask_dietary,
@@ -150,14 +162,17 @@ export class Attendance extends Context.Service<
         event: DocumentId,
         cancelToken: string,
       ) {
-        const deleted = yield* sql`
+        const [found] = yield* sql<{ open: boolean }>`
+          SELECT coalesce(e.signup_deadline, e.starts_at) > now() AS open
+          FROM attendees a JOIN events e ON e.id = a.event_id
+          WHERE a.event_id = ${event} AND a.cancel_token_hash = ${hash(cancelToken)}
+        `.pipe(Effect.orDie);
+        if (found === undefined) return yield* new SignupNotFound({});
+        if (!found.open) return yield* closed;
+        yield* sql`
           DELETE FROM attendees
           WHERE event_id = ${event} AND cancel_token_hash = ${hash(cancelToken)}
-          RETURNING id
         `.pipe(Effect.orDie);
-        if (deleted.length === 0) {
-          return yield* new SignupNotFound({});
-        }
       });
 
       return Attendance.of({

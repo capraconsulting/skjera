@@ -65,9 +65,23 @@ const newTeam = Effect.gen(function* () {
   return (yield* teams.create(`Team ${teamCount}`, alice)).id;
 }).pipe(Effect.orDie);
 
-/** Sets the date the way the editor does: a value replaced as a whole. */
-const setDate = (event: EventContent, date: string) => {
-  (event as { date: unknown }).date = new A.ImmutableString(date);
+// An evening in Oslo, far enough ahead that sign-up stays open.
+const start = "2036-10-15T18:00+02:00[Europe/Oslo]";
+const end = "2036-10-15T21:00+02:00[Europe/Oslo]";
+
+/** Sets times the way the editor does: values replaced as a whole. */
+const setTimes = (
+  event: EventContent,
+  times: {
+    readonly start?: string | null;
+    readonly end?: string | null;
+    readonly deadline?: string | null;
+  } = { start, end },
+) => {
+  const draft = event as Record<string, unknown>;
+  for (const [field, value] of Object.entries(times)) {
+    draft[field] = value === null ? null : new A.ImmutableString(value);
+  }
 };
 
 /** Creates and publishes an event, with the given visibility settings. */
@@ -84,7 +98,7 @@ const publishedEvent = Effect.fn(function* (settings: {
     [
       editor.edit((event) => {
         A.updateText(event, ["title"], "Meetup");
-        setDate(event, "2026-10-15");
+        setTimes(event);
         (event as { public: boolean }).public = settings.public;
         (event as { guests: boolean }).guests = settings.guests;
         (event as { dietary: boolean }).dietary = settings.dietary ?? false;
@@ -96,7 +110,6 @@ const publishedEvent = Effect.fn(function* (settings: {
   return id;
 });
 
-/** An editor session: a replica of the draft with its own actor id. */
 /** Sets the cover as the editor does: `src` immutable, `alt` text. */
 const setCover = (event: EventContent, src: string | null) => {
   const draft = event as { cover?: unknown };
@@ -104,6 +117,7 @@ const setCover = (event: EventContent, src: string | null) => {
   else draft.cover = { src: new A.ImmutableString(src), alt: "" };
 };
 
+/** An editor session: a replica of the draft with its own actor id. */
 const openEditor = Effect.fn(function* (
   id: Parameters<Documents["Service"]["get"]>[0],
 ) {
@@ -155,7 +169,9 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       assert.deepStrictEqual(A.toJS(A.load(snapshot.draft)), {
         title: "",
         body: "",
-        date: null,
+        start: null,
+        end: null,
+        deadline: null,
         public: false,
         guests: false,
         dietary: false,
@@ -200,7 +216,9 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         assert.deepStrictEqual(A.toJS(editor.doc()), {
           title: "Hello",
           body: "World",
-          date: null,
+          start: null,
+          end: null,
+          deadline: null,
           public: false,
           guests: false,
           dietary: false,
@@ -295,21 +313,42 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
     }),
   );
 
-  it.effect("only accepts real calendar dates", () =>
+  it.effect("only accepts times that exist, in their time zone", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
       const id = yield* documents.create("event", yield* newTeam, alice);
-      for (const date of ["2026-02-30", "15.10.2026", "2026-10-15T12:00"]) {
+      for (const time of [
+        "2036-10-15",
+        "2036-10-15T18:00",
+        "2036-10-15T18:00+02:00",
+        "2036-02-30T18:00+01:00[Europe/Oslo]",
+        // Oslo is +01:00 in winter.
+        "2036-01-15T18:00+02:00[Europe/Oslo]",
+        "2036-10-15T18:00+02:00[Europe/Atlantis]",
+      ]) {
         const editor = yield* openEditor(id);
         const error = yield* Effect.flip(
           documents.applyChanges(
             id,
-            [editor.edit((event) => setDate(event, date))],
+            [editor.edit((event) => setTimes(event, { start: time }))],
             alice,
           ),
         );
-        assert.strictEqual(error._tag, "InvalidContent", date);
+        assert.strictEqual(error._tag, "InvalidContent", time);
       }
+      const editor = yield* openEditor(id);
+      yield* documents.applyChanges(
+        id,
+        [
+          editor.edit((event) =>
+            setTimes(event, {
+              start: "2036-01-15T18:00:30+01:00[Europe/Oslo]",
+              deadline: "2036-01-15T12:00-05:00[America/New_York]",
+            }),
+          ),
+        ],
+        alice,
+      );
     }),
   );
 
@@ -356,7 +395,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         [
           editor.edit((event) => {
             A.updateText(event, ["title"], "Launch");
-            setDate(event, "2026-10-15");
+            setTimes(event);
             setCover(event, src);
           }),
           editor.edit((event) =>
@@ -416,7 +455,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
               "strong",
               true,
             );
-            setDate(event, "2026-10-15");
+            setTimes(event);
           }),
         ],
         alice,
@@ -430,8 +469,16 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
 
       const first = yield* documents.publish(id, seen, alice);
       assert.deepStrictEqual(first.heads, seen);
-      const [row] = yield* sql<{ title: string; body: unknown; date: string }>`
-        SELECT title, body, event_date::text AS date FROM events WHERE id = ${id}
+      const [row] = yield* sql<{
+        title: string;
+        body: unknown;
+        starts_at: Date;
+        ends_at: Date;
+        signup_deadline: Date | null;
+        time_zone: string;
+      }>`
+        SELECT title, body, starts_at, ends_at, signup_deadline, time_zone
+        FROM events WHERE id = ${id}
       `;
       // The body keeps its structure.
       assert.deepStrictEqual(row, {
@@ -449,7 +496,10 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
           { type: "text", value: "We're " },
           { type: "text", value: "live", marks: { strong: true } },
         ],
-        date: "2026-10-15",
+        starts_at: new Date("2036-10-15T16:00:00Z"),
+        ends_at: new Date("2036-10-15T19:00:00Z"),
+        signup_deadline: null,
+        time_zone: "Europe/Oslo",
       });
 
       const latest = (yield* documents.get(id)).heads;
@@ -464,7 +514,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
   );
 
   it.effect(
-    "refuses to publish without a title or date, or an unknown version",
+    "refuses to publish without a title or times, or an unknown version",
     () =>
       Effect.gen(function* () {
         const documents = yield* Documents;
@@ -473,13 +523,13 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         const blank = (yield* documents.get(id)).heads;
         const dated = yield* documents.applyChanges(
           id,
-          [editor.edit((event) => setDate(event, "2026-10-15"))],
+          [editor.edit((event) => setTimes(event))],
           alice,
         );
         const empty = yield* Effect.flip(documents.publish(id, blank, alice));
         assert.strictEqual(
           empty.message,
-          "Add a title and a date before publishing",
+          "Add a title, a start time and an end time before publishing",
         );
         const untitled = yield* Effect.flip(
           documents.publish(id, dated, alice),
@@ -490,8 +540,8 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
           id,
           [
             editor.edit((event) => {
-              A.updateText(event, ["title"], "Dateless");
-              (event as { date: unknown }).date = null;
+              A.updateText(event, ["title"], "Endless");
+              setTimes(event, { end: null });
             }),
           ],
           alice,
@@ -499,7 +549,33 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         const undated = yield* Effect.flip(
           documents.publish(id, titled, alice),
         );
-        assert.strictEqual(undated.message, "Add a date before publishing");
+        assert.strictEqual(
+          undated.message,
+          "Add an end time before publishing",
+        );
+
+        // The times have to make sense together.
+        for (const [times, message] of [
+          [{ end: start }, "The event has to end after it starts"],
+          [
+            { end, deadline: "2036-10-15T18:01+02:00[Europe/Oslo]" },
+            "The sign-up deadline can't be after the event starts",
+          ],
+          [
+            { end: "2036-10-15T20:00+01:00[Europe/London]", deadline: null },
+            "The times have to be in the same time zone",
+          ],
+        ] as const) {
+          const heads = yield* documents.applyChanges(
+            id,
+            [editor.edit((event) => setTimes(event, times))],
+            alice,
+          );
+          const refused = yield* Effect.flip(
+            documents.publish(id, heads, alice),
+          );
+          assert.strictEqual(refused.message, message);
+        }
 
         const unknown = yield* Effect.flip(
           documents.publish(id, ["00".repeat(32)], alice),
@@ -523,7 +599,10 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       });
 
       const draft = yield* find;
-      assert.deepStrictEqual([draft?.title, draft?.date], ["", null]);
+      assert.deepStrictEqual(
+        [draft?.title, draft?.startsAt, draft?.timeZone],
+        ["", null, null],
+      );
       assert.deepStrictEqual(draft?.draftHeads, [...A.getHeads(editor.doc())]);
       assert.isUndefined(yield* publishedAs(id, "members"));
       assert.isTrue(yield* unpublished);
@@ -533,7 +612,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         [
           editor.edit((event) => {
             A.updateText(event, ["title"], "Listed");
-            setDate(event, "2026-10-15");
+            setTimes(event);
           }),
         ],
         alice,
@@ -541,8 +620,8 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       const publication = yield* documents.publish(id, heads, alice);
       const published = yield* find;
       assert.deepStrictEqual(
-        [published?.title, published?.date],
-        ["Listed", "2026-10-15"],
+        [published?.title, published?.startsAt, published?.timeZone],
+        ["Listed", new Date("2036-10-15T16:00:00Z"), "Europe/Oslo"],
       );
       assert.isFalse(yield* unpublished);
       assert.deepStrictEqual(
@@ -574,7 +653,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         [
           editor.edit((event) => {
             A.updateText(event, ["title"], "Public");
-            setDate(event, "2026-10-15");
+            setTimes(event);
           }),
         ],
         alice,
@@ -609,7 +688,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         [
           editor.edit((event) => {
             A.updateText(event, ["title"], "Short-lived");
-            setDate(event, "2026-10-15");
+            setTimes(event);
           }),
         ],
         alice,
@@ -744,6 +823,47 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
 
       // Members-only events don't exist for anyone signed out.
       assert.deepStrictEqual(yield* signups(id, Option.none()), []);
+    }),
+  );
+
+  it.effect("closes signing up and cancelling at the deadline", () =>
+    Effect.gen(function* () {
+      const documents = yield* Documents;
+      const attendance = yield* Attendance;
+      const id = yield* publishedEvent({ public: true, guests: true });
+      yield* attendance.attend(id, alice);
+      const token = yield* attendance.attendAsGuest(id, {
+        name: "Gina",
+        email: "gina@example.org",
+      });
+
+      const editor = yield* openEditor(id);
+      const heads = yield* documents.applyChanges(
+        id,
+        [
+          editor.edit((event) =>
+            setTimes(event, {
+              deadline: "2020-01-15T12:00+01:00[Europe/Oslo]",
+            }),
+          ),
+        ],
+        alice,
+      );
+      yield* documents.publish(id, heads, alice);
+
+      for (const refused of [
+        attendance.attend(id, bob),
+        attendance.leave(id, alice),
+        attendance.attendAsGuest(id, { name: "Gus", email: "gus@example.org" }),
+        attendance.leaveAsGuest(id, token),
+      ] as ReadonlyArray<Effect.Effect<unknown, { readonly _tag: string }>>) {
+        const error = yield* Effect.flip(refused);
+        assert.deepStrictEqual(
+          [error._tag, "message" in error ? error.message : undefined],
+          ["SignupRejected", "Sign-up for this event has closed"],
+        );
+      }
+      assert.strictEqual((yield* organizerView(id)).length, 2);
     }),
   );
 

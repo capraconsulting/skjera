@@ -5,7 +5,7 @@ import {
   deleteTeam,
   newEvent,
   newTeam,
-  pickDate,
+  pickTimes,
   publishedEvent,
   signedIn,
   signInAtDex,
@@ -103,7 +103,7 @@ test("the site shows what was published, and only that", async ({
   await expect(
     body(alice).getByRole("link", { name: "friends" }),
   ).toBeVisible();
-  const date = await pickDate(alice);
+  const date = await pickTimes(alice);
   await alice.getByRole("checkbox", { name: /Public event/ }).check();
   await expect(alice.getByTestId("status")).toContainText("Saved");
   await alice.getByRole("button", { name: "Publish" }).click();
@@ -113,7 +113,9 @@ test("the site shows what was published, and only that", async ({
   await reader.getByRole("link", { name: headline }).click();
   await expect(reader).toHaveURL(new RegExp(`/events/${id}$`));
   await expect(reader.getByRole("heading", { name: headline })).toBeVisible();
-  await expect(reader.getByText(date)).toBeVisible();
+  const when = reader.getByRole("article").locator("time").first();
+  await expect(when).toContainText(date);
+  await expect(when).toContainText(/6:00\s*–\s*8:00\s*PM$/);
   const content = reader.getByTestId("event-body");
   await expect(
     content.getByRole("heading", { name: "Agenda", level: 2 }),
@@ -167,6 +169,49 @@ test("the site follows publishing without reloading", async ({ browser }) => {
   await alice.getByRole("button", { name: "Publish" }).click();
   await expect(alice.getByTestId("status")).toContainText("Published");
   await expect(link).toHaveCount(0);
+
+  await deleteEvent(alice, event.id);
+  await deleteTeam(alice, team);
+});
+
+test("sign-up closes at the deadline, in the event's time zone", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await newTeam(alice, uniqueTeamName("Deadline"));
+  const event = await publishedEvent(alice, { public: true, guests: true });
+  const reader = await visitor(browser);
+  await reader.goto(`/events/${event.id}`);
+  const attendance = reader.getByRole("region", { name: "Attendance" });
+  // Without a deadline, sign-up closes when the event starts.
+  await expect(attendance).toContainText(/Sign-up closes .* at 6:00\s*PM\./);
+
+  // Moved to New York, it starts at 18:00 there: shown as such, and named.
+  await alice
+    .getByRole("combobox", { name: "Time zone" })
+    .selectOption("America/New_York");
+  await expect(alice.getByLabel("Start time")).toHaveValue("18:00");
+  await expect(alice.getByTestId("status")).toContainText("Saved");
+  await alice.getByRole("button", { name: "Publish" }).click();
+  await expect(alice.getByTestId("status")).toContainText("Published");
+  await reader.reload();
+  await expect(
+    reader.getByRole("article").locator("time").first(),
+  ).toContainText(/6:00\s*–\s*8:00\s*PM \(ET\)$/);
+
+  // A deadline that has passed closes it.
+  await alice.getByRole("button", { name: "Deadline date" }).click();
+  await alice
+    .getByRole("button", { name: /1st, \d{4}/ })
+    .first()
+    .click();
+  await alice.getByLabel("Deadline time").fill("00:00");
+  await expect(alice.getByTestId("status")).toContainText("Saved");
+  await alice.getByRole("button", { name: "Publish" }).click();
+  await expect(alice.getByTestId("status")).toContainText("Published");
+  await reader.reload();
+  await expect(attendance).toContainText("Sign-up has closed.");
+  await expect(attendance.getByRole("button")).toHaveCount(0);
 
   await deleteEvent(alice, event.id);
   await deleteTeam(alice, team);

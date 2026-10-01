@@ -13,6 +13,9 @@ export default defineConfig({
   use: {
     baseURL: "http://localhost:5173",
     trace: "retain-on-failure",
+    // Times show in the viewer's locale and zone; these pin what they read.
+    locale: "en-US",
+    timezoneId: "Europe/Oslo",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: [

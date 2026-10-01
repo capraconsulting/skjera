@@ -4,8 +4,8 @@ import { Context, Effect, Layer, Schema } from "effect";
 import { SqlClient, SqlError } from "effect/sql";
 import {
   type ContentTypeName,
+  cantPublish,
   contentTypes,
-  missingToPublish,
 } from "./ContentTypes.ts";
 import {
   ActorNotAllowed,
@@ -299,7 +299,7 @@ export class Documents extends Context.Service<
         const content = yield* Schema.decodeUnknownEffect(
           contentTypes[type].schema,
         )(version?.content).pipe(Effect.orDie);
-        const missing = missingToPublish(contentTypes[type].toPublish, content);
+        const missing = cantPublish(contentTypes[type], content);
         if (missing !== null) {
           return yield* new PublishRejected({ message: missing });
         }

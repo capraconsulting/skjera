@@ -20,37 +20,52 @@ export const timeAgo = (date: Date, now = new Date()): string => {
   return "just now";
 };
 
-/** "30 Sep 2026" */
-export const formatDate = (date: Date): string =>
-  date.toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+/** The viewer's time zone: "Europe/Oslo". */
+export const localTimeZone = () =>
+  Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-/** A "2026-10-15" calendar date as a local Date, so it shows as that day. */
-export const fromIsoDate = (iso: string): Date => {
-  const [year, month, day] = iso.split("-").map(Number) as [
-    number,
-    number,
-    number,
-  ];
-  return new Date(year, month - 1, day);
-};
+/** "Norway Time", to say what zone times are shown in. */
+export const timeZoneName = (timeZone: string, at = new Date()): string =>
+  new Intl.DateTimeFormat(undefined, { timeZone, timeZoneName: "shortGeneric" })
+    .formatToParts(at)
+    .find((part) => part.type === "timeZoneName")?.value ?? timeZone;
 
-/** A local Date as a "2026-10-15" calendar date. */
-export const toIsoDate = (date: Date): string =>
-  [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, "0"),
-    String(date.getDate()).padStart(2, "0"),
-  ].join("-");
-
-/** "Thursday, October 15, 2026" */
-export const formatLongDate = (iso: string): string =>
-  fromIsoDate(iso).toLocaleDateString(undefined, {
+const dateTime = (timeZone: string) =>
+  new Intl.DateTimeFormat(undefined, {
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone,
+  });
+
+/** " (Norway Time)" when the viewer is elsewhere, so times aren't misread. */
+const zoneNote = (timeZone: string, at: Date) =>
+  timeZone === localTimeZone() ? "" : ` (${timeZoneName(timeZone, at)})`;
+
+/**
+ * When an event is, in its own time zone: "Thursday, October 15, 2026,
+ * 6:00 – 9:00 PM", or both days in full when it runs past midnight.
+ */
+export const formatEventTimes = (
+  startsAt: Date,
+  endsAt: Date,
+  timeZone: string,
+): string =>
+  dateTime(timeZone).formatRange(startsAt, endsAt) +
+  zoneNote(timeZone, startsAt);
+
+/** "Thursday, October 15, 2026 at 6:00 PM", in the given zone. */
+export const formatDateTime = (at: Date, timeZone: string): string =>
+  dateTime(timeZone).format(at) + zoneNote(timeZone, at);
+
+/** "15 Oct 2026", the day it is in the given zone. */
+export const formatDateIn = (at: Date, timeZone: string): string =>
+  at.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone,
   });

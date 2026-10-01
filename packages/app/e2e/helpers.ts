@@ -176,20 +176,23 @@ export const typeAt = async (
 };
 
 /**
- * Picks the 15th of the current month in the editor's date field, and
- * returns it as the date the site shows ("Thursday, October 15, 2026").
+ * Sets the event to start at 18:00 on the 15th of next month, so sign-up
+ * is open; it ends two hours later. Returns the day as the site shows it
+ * ("Sunday, November 15, 2026").
  */
-export const pickDate = async (page: Page) => {
+export const pickTimes = async (page: Page) => {
   const now = new Date();
-  const day = new Date(now.getFullYear(), now.getMonth(), 15);
+  const day = new Date(now.getFullYear(), now.getMonth() + 1, 15);
   const month = day.toLocaleDateString("en-US", { month: "long" });
-  const field = page.getByRole("button", { name: "Date", exact: true });
+  const field = page.getByRole("button", { name: "Start date" });
   await field.click();
+  await page.getByRole("button", { name: /next month/i }).click();
   await page
     .getByRole("button", {
       name: new RegExp(`${month} 15th, ${day.getFullYear()}`),
     })
     .click();
+  await page.getByLabel("Start time").fill("18:00");
   const shown = day.toLocaleDateString("en-US", {
     weekday: "long",
     day: "numeric",
@@ -197,6 +200,8 @@ export const pickDate = async (page: Page) => {
     year: "numeric",
   });
   await expect(field).toHaveText(shown);
+  await expect(page.getByLabel("Start time")).toHaveValue("18:00");
+  await expect(page.getByLabel("End time")).toHaveValue("20:00");
   return shown;
 };
 
@@ -215,7 +220,7 @@ export const publishedEvent = async (
   const id = await newEvent(page);
   const eventTitle = `Meetup ${id.slice(-12)}`;
   await title(page).pressSequentially(eventTitle);
-  await pickDate(page);
+  await pickTimes(page);
   if (options.public) {
     await page.getByRole("checkbox", { name: /Public event/ }).check();
   }

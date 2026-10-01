@@ -15,7 +15,7 @@ import { Badge } from "../../components/Badge.tsx";
 import { Button } from "../../components/Button.tsx";
 import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
 import { documents, events, teams } from "../../sync/tables.ts";
-import { formatDate, fromIsoDate } from "../../time.ts";
+import { formatDateIn } from "../../time.ts";
 import styles from "./Team.module.css";
 
 export const teamLoader = async ({ params }: LoaderFunctionArgs) => {
@@ -47,7 +47,8 @@ const useTeamEvents = (teamId: TeamId) =>
         .select(({ document, event }) => ({
           id: document.id,
           title: document.title,
-          date: document.date,
+          startsAt: document.startsAt,
+          timeZone: document.timeZone,
           draftHeads: document.draftHeads,
           publishedHeads: event?.publishedHeads,
         })),
@@ -73,7 +74,8 @@ export function Team() {
         type: "event",
         teamId,
         title: "",
-        date: null,
+        startsAt: null,
+        timeZone: null,
         draftHeads: [],
         createdAt: now,
         updatedAt: now,
@@ -135,7 +137,9 @@ function EventItem(props: {
         )}
       </span>
       <span className={styles.meta}>
-        {event.date === null ? "No date" : formatDate(fromIsoDate(event.date))}
+        {event.startsAt == null || event.timeZone == null
+          ? "No date"
+          : formatDateIn(event.startsAt, event.timeZone)}
         {event.publishedHeads === undefined ? (
           <Badge tone="neutral">Draft</Badge>
         ) : event.publishedHeads.join() !== event.draftHeads.join() ? (

@@ -8,7 +8,7 @@ import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
 import { useDocumentSession } from "../../documents/session.ts";
 import { CheckboxField, useBooleanField } from "../../editor/CheckboxField.tsx";
 import { CoverField } from "../../editor/CoverField.tsx";
-import { DateField } from "../../editor/DateField.tsx";
+import { EventTimes } from "../../editor/DateTimeField.tsx";
 import { TextEditor } from "../../editor/TextEditor.tsx";
 import { useDraftPresence } from "../../presence/presence.ts";
 import { documents } from "../../sync/tables.ts";
@@ -94,9 +94,7 @@ function EventSession({ id }: { readonly id: DocumentId }) {
         <Field label="Cover image">
           <CoverField handle={handle} presence={session.presence} />
         </Field>
-        <Field label="Date">
-          <DateField handle={handle} label="Date" />
-        </Field>
+        <EventTimes handle={handle} />
         <Field label="Visibility">
           <CheckboxField
             handle={handle}
