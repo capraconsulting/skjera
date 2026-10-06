@@ -479,4 +479,18 @@ export const migrations = Migrator.fromRecord({
     `DROP FUNCTION sync_touch()`,
     `DROP FUNCTION sync_tombstone()`,
   ),
+  "0016_attendees_follow_events": statements(
+    // Pulls page by each table's own transaction ids, so attendees change
+    // when whether visitors may see them does: when their event's public
+    // flag does. (Deleted events take their attendees, leaving tombstones.)
+    `CREATE FUNCTION events_touch_attendees() RETURNS trigger LANGUAGE plpgsql AS $$
+    BEGIN
+      UPDATE attendees SET id = id WHERE event_id = NEW.id;
+      RETURN NULL;
+    END
+    $$`,
+    `CREATE TRIGGER events_touch_attendees AFTER UPDATE OF is_public ON events
+      FOR EACH ROW WHEN (OLD.is_public IS DISTINCT FROM NEW.is_public)
+      EXECUTE FUNCTION events_touch_attendees()`,
+  ),
 });

@@ -196,6 +196,11 @@ layer(TestLayer, { excludeTestServices: true })("Sync", (it) => {
       assert.deepStrictEqual(pulled.deleted, [id]);
       yield* member.pull;
       assert.isTrue(member.rows.has(id));
+
+      // Public again: back for the visitor.
+      yield* sql`UPDATE events SET is_public = true WHERE id = ${event}`;
+      yield* visitor.pull;
+      assert.isTrue(visitor.rows.has(id));
     }),
   );
 

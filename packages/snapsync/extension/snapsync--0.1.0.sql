@@ -6,7 +6,8 @@
 -- which transactions it had seen. The next pull returns what was written or
 -- deleted by transactions that snapshot hadn't seen, so transactions
 -- committing out of order, or running long, are never missed (timestamps
--- and sequences can't promise that).
+-- and sequences can't promise that). Pulls come in pages, in the order of
+-- (transaction id, key); a token can point into the middle of one.
 --
 -- A token that can't be pulled from is answered with everything, to start
 -- over: when tombstones it needed were pruned, when the table was truncated,
@@ -38,7 +39,7 @@ CREATE TABLE snapsync.tombstones (
   xid xid8 NOT NULL DEFAULT pg_current_xact_id(),
   deleted_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX tombstones_relation_xid_idx ON snapsync.tombstones (relation, xid);
+CREATE INDEX tombstones_relation_xid_idx ON snapsync.tombstones (relation, xid, key);
 CREATE INDEX tombstones_relation_key_idx ON snapsync.tombstones (relation, key);
 CREATE INDEX tombstones_deleted_at_idx ON snapsync.tombstones (deleted_at);
 
@@ -125,8 +126,9 @@ BEGIN
   IF token IS NULL THEN
     RETURN 'missing';
   END IF;
+  -- Optionally followed by "/<xid>/<key>": where a page ended.
   parts := regexp_match(token,
-    '^1/(-?\d+/\d+)/(\d{1,9})/(\d+:\d+:(?:\d+(?:,\d+)*)?)$');
+    '^1/(-?\d+/\d+)/(\d{1,9})/(\d+:\d+:(?:\d+(?:,\d+)*)?)(?:/\d+/.*)?$');
   IF parts IS NULL THEN
     RETURN 'malformed';
   END IF;
@@ -169,25 +171,154 @@ LANGUAGE sql IMMUTABLE PARALLEL SAFE
 RETURN since IS NULL
   OR (xid >= pg_snapshot_xmin(since) AND NOT pg_visible_in_snapshot(xid, since));
 
--- Keys of rows of `relation` deleted since `since`; none for a first pull.
--- Each reader sees only tombstones of tables they may read (a policy below).
+-- Keys of rows of `relation` deleted since `since`, and not back since; none
+-- for a first pull. Each reader sees only tombstones of tables they may read
+-- (a policy below).
 CREATE FUNCTION snapsync.deleted(relation regclass, since pg_snapshot)
 RETURNS SETOF text
-LANGUAGE sql STABLE PARALLEL SAFE
+LANGUAGE plpgsql STABLE
+SET search_path = pg_catalog
 AS $$
-  SELECT t.key FROM snapsync.tombstones t
-  WHERE t.relation = $1
-    AND $2 IS NOT NULL
-    AND t.xid >= pg_snapshot_xmin($2)
-    AND NOT pg_visible_in_snapshot(t.xid, $2)
+DECLARE
+  tracked record;
+  key_type text;
+BEGIN
+  -- Nothing of tables the reader may not read.
+  IF since IS NULL OR NOT has_table_privilege(relation, 'SELECT') THEN
+    RETURN;
+  END IF;
+  SELECT t.key_column INTO tracked FROM snapsync.tables t
+  WHERE t.relation = deleted.relation;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'snapsync: % is not tracked', relation;
+  END IF;
+  SELECT format_type(a.atttypid, a.atttypmod) INTO key_type
+  FROM pg_attribute a
+  WHERE a.attrelid = deleted.relation AND a.attname = tracked.key_column;
+  RETURN QUERY EXECUTE format($query$
+    SELECT t.key FROM snapsync.tombstones t
+    WHERE t.relation = %1$L::regclass
+      AND t.xid >= pg_snapshot_xmin($1)
+      AND NOT pg_visible_in_snapshot(t.xid, $1)
+      AND NOT EXISTS (SELECT FROM %1$s r WHERE r.%2$I = t.key::%3$s)
+  $query$, relation, tracked.key_column, key_type)
+  USING since;
+END
+$$;
+
+-- One page of what changed in `relation` since `token`: the keys of at most
+-- `size` changed rows and deleted ones, in the order of (xid, key), and the
+-- token to pull from next. `more`: pull again with it right away. `complete`:
+-- the token couldn't be pulled from, so this starts over with every row,
+-- and the pages up to the last without `more` replace the client's copy.
+--
+-- Run it in a REPEATABLE READ transaction, and read the rows for the keys
+-- in the same one. A token after a full page holds a snapshot of what's
+-- been pulled: every transaction below the page's last that this one saw,
+-- and what the previous token had seen; and where in the last transaction's
+-- rows the page ended. Transactions running now stay unseen, so their rows
+-- come when they commit, however late. A row may come twice; none is missed.
+CREATE FUNCTION snapsync.changes(relation regclass, token text, size integer DEFAULT 1000)
+RETURNS TABLE (changed text[], deleted text[], next_token text, complete boolean, more boolean)
+LANGUAGE plpgsql STABLE
+SET search_path = pg_catalog
+AS $$
+DECLARE
+  tracked record;
+  key_type text;
+  status snapsync.token_status;
+  base pg_snapshot;
+  at_xid xid8;
+  at_key text;
+  parts text[];
+  keys text[];
+  xids xid8[];
+  gone boolean[];
+  count integer;
+  last_xid xid8;
+  xip xid8[];
+  xmax xid8;
+BEGIN
+  IF size < 1 THEN
+    RAISE EXCEPTION 'snapsync: pages need room for at least one change';
+  END IF;
+  SELECT t.key_column, t.xid_column, t.generation INTO tracked
+  FROM snapsync.tables t WHERE t.relation = changes.relation;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'snapsync: % is not tracked', relation;
+  END IF;
+  SELECT format_type(a.atttypid, a.atttypmod) INTO key_type
+  FROM pg_attribute a
+  WHERE a.attrelid = changes.relation AND a.attname = tracked.key_column;
+
+  status := snapsync.status(token, relation);
+  IF status = 'current' THEN
+    parts := regexp_match(token, '^(?:[^/]*/){4}([^/]+)(?:/(\d+)/(.*))?$');
+    base := parts[1]::pg_snapshot;
+    at_xid := parts[2]::xid8;
+    at_key := parts[3];
+  END IF;
+
+  -- One more than fits, to know whether there's more.
+  EXECUTE format($query$
+    SELECT array_agg(k::text ORDER BY x, k), array_agg(x ORDER BY x, k),
+      array_agg(gone ORDER BY x, k), count(*)
+    FROM (
+      (SELECT %2$I AS k, %3$I AS x, false AS gone FROM %1$s
+       WHERE snapsync.unseen(%3$I, $1)
+         AND ($2 IS NULL OR %3$I <> $2 OR %2$I > $3::%4$s)
+       ORDER BY %3$I, %2$I LIMIT $4)
+      UNION ALL
+      (SELECT t.key::%4$s, t.xid, true FROM snapsync.tombstones t
+       WHERE t.relation = %1$L::regclass
+         AND snapsync.unseen(t.xid, $1)
+         AND ($2 IS NULL OR t.xid <> $2 OR t.key::%4$s > $3::%4$s)
+         -- Back since: not deleted (see snapsync.revive()).
+         AND NOT EXISTS (SELECT FROM %1$s r WHERE r.%2$I = t.key::%4$s)
+       ORDER BY t.xid, t.key::%4$s LIMIT $4)
+      ORDER BY x, k LIMIT $4
+    ) page
+  $query$, relation, tracked.key_column, tracked.xid_column, key_type)
+  INTO keys, xids, gone, count
+  USING base, at_xid, at_key, size + 1;
+
+  complete := status <> 'current';
+  more := count > size;
+  changed := ARRAY(
+    SELECT keys[i] FROM generate_subscripts(keys, 1) i
+    WHERE i <= size AND NOT gone[i] ORDER BY i);
+  deleted := ARRAY(
+    SELECT keys[i] FROM generate_subscripts(keys, 1) i
+    WHERE i <= size AND gone[i] ORDER BY i);
+
+  IF NOT more THEN
+    next_token := snapsync.token(relation);
+    RETURN NEXT;
+    RETURN;
+  END IF;
+  last_xid := xids[size];
+  -- Seen now: transactions below the last that this snapshot sees, and
+  -- above it, those the base had seen.
+  xip := ARRAY(
+    SELECT x FROM pg_snapshot_xip(pg_current_snapshot()) x WHERE x < last_xid
+    UNION
+    SELECT x FROM pg_snapshot_xip(base) x WHERE x >= last_xid
+    ORDER BY 1);
+  xmax := CASE WHEN base IS NULL THEN last_xid
+    ELSE greatest(last_xid, pg_snapshot_xmax(base)) END;
+  next_token := '1/' || snapsync.origin() || '/' || tracked.generation || '/'
+    || coalesce((SELECT min(x) FROM unnest(xip) x), xmax) || ':' || xmax || ':'
+    || array_to_string(xip, ',') || '/' || last_xid || '/' || keys[size];
+  RETURN NEXT;
+END
 $$;
 
 -- ---------------------------------------------------------------------------
 -- Tracking
 
--- Stamps rows with the transaction writing them. A row inserted with the key
--- of a deleted one is no longer deleted; a row whose key changed leaves a
--- tombstone for the old key. Arguments: the xid column, the key column.
+-- Stamps rows with the transaction writing them; a row whose key changed
+-- leaves a tombstone for the old key. Arguments: the xid column, the key
+-- column.
 CREATE FUNCTION snapsync.stamp() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog
@@ -196,18 +327,33 @@ DECLARE
   new_key text;
   old_key text;
 BEGIN
-  EXECUTE format('SELECT ($1).%I::text', TG_ARGV[1]) USING NEW INTO new_key;
-  IF TG_OP = 'INSERT' THEN
-    DELETE FROM snapsync.tombstones WHERE relation = TG_RELID AND key = new_key;
-  ELSE
+  IF TG_OP = 'UPDATE' THEN
+    EXECUTE format('SELECT ($1).%I::text', TG_ARGV[1]) USING NEW INTO new_key;
     EXECUTE format('SELECT ($1).%I::text', TG_ARGV[1]) USING OLD INTO old_key;
     IF old_key IS DISTINCT FROM new_key THEN
       INSERT INTO snapsync.tombstones (relation, key) VALUES (TG_RELID, old_key);
-      DELETE FROM snapsync.tombstones WHERE relation = TG_RELID AND key = new_key;
     END IF;
   END IF;
   NEW := jsonb_populate_record(NEW, jsonb_build_object(TG_ARGV[0], pg_current_xact_id()));
   RETURN NEW;
+END
+$$;
+
+-- A row inserted with the key of a deleted one (or given it) is no longer
+-- deleted. After the write, as an insert waits for a delete of the same key
+-- to commit, and then sees its tombstone. (A writer that still can't, in a
+-- REPEATABLE READ transaction, leaves one behind; pulls skip tombstones of
+-- keys that are there.) Argument: the key column.
+CREATE FUNCTION snapsync.revive() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog
+AS $$
+DECLARE
+  new_key text;
+BEGIN
+  EXECUTE format('SELECT ($1).%I::text', TG_ARGV[0]) USING NEW INTO new_key;
+  DELETE FROM snapsync.tombstones WHERE relation = TG_RELID AND key = new_key;
+  RETURN NULL;
 END
 $$;
 
@@ -265,8 +411,10 @@ BEGIN
       'ALTER TABLE %s ADD COLUMN %I xid8 NOT NULL DEFAULT pg_current_xact_id()',
       relation, xid_column);
   END IF;
-  EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (%I)',
-    left(table_name || '_' || xid_column || '_snapsync_idx', 63), relation, xid_column);
+  -- Pages go by (xid, key).
+  EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (%I, %I)',
+    left(table_name || '_' || xid_column || '_snapsync_idx', 63), relation,
+    xid_column, key_column);
   EXECUTE format(
     'CREATE TRIGGER snapsync_stamp BEFORE INSERT OR UPDATE ON %s
        FOR EACH ROW EXECUTE FUNCTION snapsync.stamp(%L, %L)',
@@ -275,6 +423,15 @@ BEGIN
     'CREATE TRIGGER snapsync_bury AFTER DELETE ON %s
        FOR EACH ROW EXECUTE FUNCTION snapsync.bury(%L)',
     relation, key_column);
+  EXECUTE format(
+    'CREATE TRIGGER snapsync_revive AFTER INSERT ON %s
+       FOR EACH ROW EXECUTE FUNCTION snapsync.revive(%L)',
+    relation, key_column);
+  EXECUTE format(
+    'CREATE TRIGGER snapsync_revive_key AFTER UPDATE OF %I ON %s
+       FOR EACH ROW WHEN (OLD.%I IS DISTINCT FROM NEW.%I)
+       EXECUTE FUNCTION snapsync.revive(%L)',
+    key_column, relation, key_column, key_column, key_column);
   EXECUTE format(
     'CREATE TRIGGER snapsync_truncated AFTER TRUNCATE ON %s
        FOR EACH STATEMENT EXECUTE FUNCTION snapsync.truncated()',
@@ -293,6 +450,8 @@ AS $$
 BEGIN
   EXECUTE format('DROP TRIGGER IF EXISTS snapsync_stamp ON %s', relation);
   EXECUTE format('DROP TRIGGER IF EXISTS snapsync_bury ON %s', relation);
+  EXECUTE format('DROP TRIGGER IF EXISTS snapsync_revive ON %s', relation);
+  EXECUTE format('DROP TRIGGER IF EXISTS snapsync_revive_key ON %s', relation);
   EXECUTE format('DROP TRIGGER IF EXISTS snapsync_truncated ON %s', relation);
   DELETE FROM snapsync.tombstones t WHERE t.relation = untrack.relation;
   DELETE FROM snapsync.tables t WHERE t.relation = untrack.relation;

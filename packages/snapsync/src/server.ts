@@ -1,40 +1,36 @@
 import { Duration, Effect, Layer, Schedule } from "effect";
-import { SqlClient, type SqlError, type Statement } from "effect/sql";
+import { SqlClient, type SqlError } from "effect/sql";
 import type { Pulled, Token } from "./schema.ts";
 
-// Pulling from tables tracked by the snapsync extension, and keeping it
-// well. Needs `CREATE EXTENSION snapsync` and `snapsync.track()` for each
+// Pulling from tables tracked by the snapsync extension, a page at a time,
+// and keeping it well. Needs `CREATE EXTENSION snapsync` and `snapsync.track()` for each
 // table (see the README).
 
-/**
- * Whether the row whose transaction id is in `column` is new to the client:
- * a condition for a query's WHERE. Always true on a pull that starts over.
- */
-export type Unseen = (column: string) => Statement.Fragment;
-
-/** What a pull's query found. */
-export interface Changes<Row> {
-  /** Changed rows the reader may see. */
-  readonly rows: ReadonlyArray<Row>;
-  /**
-   * Keys of changed rows the reader may not see (anymore): pulled as
-   * deleted, so they leave the reader's copy.
-   */
-  readonly hidden?: ReadonlyArray<string>;
-}
+/** How many changes a page holds, unless told otherwise. */
+export const defaultPageSize = 1000;
 
 /**
- * Pulls what changed in `table` since `since`: the rows `select` finds with
- * the `unseen` condition, the keys deleted, and the token to pull from next.
- * All of it in one snapshot, so nothing is missed between pulls, however
- * transactions interleave or commit. Without a token, or with one that
- * can't be pulled from, everything (`complete`).
+ * Pulls a page of what changed in `table` since `since`: the rows changed
+ * that the reader may see (`load`), the keys deleted, and the token to pull
+ * from next. With `more`, pull again from it right away. All of it in one
+ * snapshot, so nothing is missed between pulls, however transactions
+ * interleave or commit. Without a token, or with one that can't be pulled
+ * from, it starts over with every row (`complete`).
  */
 export const pull = <Row, E, R>(options: {
-  /** The tracked table the rows are from, e.g. "attendees". */
+  /** The tracked table, e.g. "attendees". */
   readonly table: string;
   readonly since: Token | undefined;
-  readonly select: (unseen: Unseen) => Effect.Effect<Changes<Row>, E, R>;
+  /**
+   * The rows with these keys that the reader may see. Changed rows left
+   * out are pulled as deleted, so they leave the reader's copy.
+   */
+  readonly load: (
+    keys: ReadonlyArray<string>,
+  ) => Effect.Effect<ReadonlyArray<Row>, E, R>;
+  readonly getKey: (row: Row) => string;
+  /** At most this many changes; defaults to `defaultPageSize`. */
+  readonly pageSize?: number;
 }): Effect.Effect<
   Pulled<Row>,
   E | SqlError.SqlError,
@@ -43,46 +39,88 @@ export const pull = <Row, E, R>(options: {
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     return yield* Effect.gen(function* () {
+      // One snapshot for the page: its keys, rows and the next token.
       yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY`;
-      const [check] = yield* sql<{ since: string | null }>`
-        SELECT snapsync.since(${options.since ?? null}, ${options.table}::regclass)::text AS since
+      const [page] = yield* sql<{
+        changed: ReadonlyArray<string>;
+        deleted: ReadonlyArray<string>;
+        next_token: string;
+        complete: boolean;
+        more: boolean;
+      }>`
+        SELECT changed, deleted, next_token, complete, more
+        FROM snapsync.changes(${options.table}::regclass,
+          ${options.since ?? null}, ${options.pageSize ?? defaultPageSize})
       `;
-      const since = check?.since ?? null;
-      // The snapshot as a value, so snapsync.unseen() is inlined and the
-      // index on the xid column used.
-      const unseen: Unseen = (column) =>
-        since === null
-          ? sql`true`
-          : sql`snapsync.unseen(${sql.literal(column)}, ${since}::pg_snapshot)`;
-      const changes = yield* options.select(unseen);
-      const deleted =
-        since === null
-          ? []
-          : yield* sql<{ key: string }>`
-              SELECT key FROM snapsync.deleted(${options.table}::regclass, ${since}::pg_snapshot) AS key
-            `;
-      const [current] = yield* sql<{ token: string }>`
-        SELECT snapsync.token(${options.table}::regclass) AS token
-      `;
-      if (current === undefined) return yield* Effect.die("No token");
+      if (page === undefined) return yield* Effect.die("No page");
+      const rows =
+        page.changed.length === 0 ? [] : yield* options.load(page.changed);
+      const loaded = new Set(rows.map(options.getKey));
       return {
-        rows: changes.rows,
+        rows,
         deleted: [
-          ...deleted.map((row) => row.key),
-          // A copy starting over has nothing to remove them from.
-          ...(since === null ? [] : (changes.hidden ?? [])),
+          ...page.deleted,
+          // Changed, but not the reader's to see (anymore).
+          ...page.changed.filter((key) => !loaded.has(key)),
         ],
-        complete: since === null,
-        token: current.token,
+        complete: page.complete,
+        more: page.more,
+        token: page.next_token,
       };
     }).pipe(sql.withTransaction);
   });
 
 /**
- * Keeps snapsync well while the layer is up: first, after a restore into
- * another cluster or database, stamps every tracked row anew (clients start
- * over), then forgets tombstones older than `retention` every `every`.
+ * After a restore into another cluster or database, stamps every tracked
+ * row anew, so clients start over (see `snapsync.ensure_current()`). Run it
+ * when connecting, before serving pulls. Returns whether it had to.
+ */
+export const ensureCurrent: Effect.Effect<
+  boolean,
+  SqlError.SqlError,
+  SqlClient.SqlClient
+> = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+  const [check] = yield* sql<{ restamped: boolean }>`
+    SELECT snapsync.ensure_current() AS restamped
+  `;
+  const restamped = check?.restamped ?? false;
+  if (restamped) {
+    yield* Effect.logWarning(
+      "snapsync: restored from elsewhere; every tracked row is new to clients",
+    );
+  }
+  return restamped;
+});
+
+/** How long tombstones are kept, unless told otherwise. */
+export const defaultRetention: Duration.Input = "30 days";
+
+/**
+ * Forgets tombstones older than `retention` (see `snapsync.prune()`).
  * Clients that last pulled before the newest one forgotten start over.
+ * Returns how many were forgotten. Run it once across instances, e.g. as a
+ * cluster cron job; `maintain()` runs it in every instance.
+ */
+export const prune = (
+  retention: Duration.Input = defaultRetention,
+): Effect.Effect<number, SqlError.SqlError, SqlClient.SqlClient> =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const [row] = yield* sql<{ forgotten: string }>`
+      SELECT snapsync.prune(${`${Duration.toMillis(Duration.fromInputUnsafe(retention))} milliseconds`}::interval) AS forgotten
+    `;
+    const forgotten = Number(row?.forgotten ?? 0);
+    if (forgotten > 0) {
+      yield* Effect.logInfo(`snapsync: forgot ${forgotten} tombstones`);
+    }
+    return forgotten;
+  });
+
+/**
+ * Keeps snapsync well while the layer is up, in this instance: first
+ * `ensureCurrent`, then `prune` every `every`. With several instances,
+ * prefer running `prune` once across them.
  */
 export const maintain = (
   options: {
@@ -92,31 +130,11 @@ export const maintain = (
 ) =>
   Layer.effectDiscard(
     Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient;
-      const [check] = yield* sql<{ restamped: boolean }>`
-        SELECT snapsync.ensure_current() AS restamped
-      `;
-      if (check?.restamped) {
-        yield* Effect.logWarning(
-          "snapsync: restored from elsewhere; every tracked row is new to clients",
-        );
-      }
-      const retention = Duration.fromInputUnsafe(
-        options.retention ?? "30 days",
-      );
-      const prune = sql<{ forgotten: string }>`
-        SELECT snapsync.prune(${`${Duration.toMillis(retention)} milliseconds`}::interval) AS forgotten
-      `.pipe(
-        Effect.tap(([row]) =>
-          row !== undefined && Number(row.forgotten) > 0
-            ? Effect.logInfo(`snapsync: forgot ${row.forgotten} tombstones`)
-            : Effect.void,
-        ),
+      yield* ensureCurrent;
+      yield* prune(options.retention).pipe(
         Effect.catchCause((cause) =>
           Effect.logWarning("snapsync: pruning failed", cause),
         ),
-      );
-      yield* prune.pipe(
         Effect.repeat(Schedule.spaced(options.every ?? "1 hour")),
         Effect.forkScoped,
       );

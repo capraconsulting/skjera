@@ -2,7 +2,8 @@ import { BasicIndex, createCollection } from "@tanstack/db";
 import type { Pulled, Token } from "./schema.ts";
 
 // A TanStack DB collection holding a copy of a table the server pulls from
-// with snapsync. For browsers.
+// with snapsync. Made for browsers; runs elsewhere too, without pausing
+// while hidden.
 
 /**
  * Sends one change to the server, rejecting if it's refused. `metadata` is
@@ -17,8 +18,8 @@ export const defaultPollEveryMs = 5_000;
  * A collection holding a copy of a table. It pulls every row once, then
  * what changed since the previous pull: every `pollEveryMs` while the page
  * is visible, as soon as it's visible or online again, and on `refresh`.
- * Pulls run one at a time, each from where the last ended; a pull that
- * starts over replaces the copy.
+ * Pulls run one at a time, each from where the last ended, a page at a
+ * time; one that starts over replaces the copy when all of it is there.
  *
  * Changes made to the collection show at once. `write` sends them to the
  * server, then a pull brings them back, so the rows pulled already have the
@@ -70,26 +71,73 @@ export const syncedTable = <Row extends object>(options: {
       sync: ({ begin, write, commit, markReady, markError, truncate }) => {
         let since: Token | undefined;
         let stopped = false;
-        const known = new Set<string>();
+        // Keys in the copy, to write rows as inserts or updates.
+        let known = new Set<string>();
 
-        const pull = async () => {
-          const pulled = await options.pull(since);
-          if (stopped) return;
-          begin();
-          if (pulled.complete) {
-            truncate();
-            known.clear();
-          }
+        /** Writes a page into the open transaction, keeping `keys`. */
+        const writePage = (pulled: Pulled<Row>, keys: Set<string>) => {
           for (const row of pulled.rows) {
             const key = options.getKey(row);
-            write({ type: known.has(key) ? "update" : "insert", value: row });
-            known.add(key);
+            write({ type: keys.has(key) ? "update" : "insert", value: row });
+            keys.add(key);
           }
           for (const key of pulled.deleted) {
-            if (known.delete(key)) write({ type: "delete", key });
+            if (keys.delete(key)) write({ type: "delete", key });
           }
-          commit();
-          since = pulled.token;
+        };
+
+        /**
+         * Pulls until there's no more. Pages of changes apply as they come,
+         * each in a transaction of its own. Starting over, as TanStack DB's
+         * Electric collection does: one transaction truncates and takes
+         * every page, and commits after the last, so the copy is replaced
+         * at once and never half there; cut off, it's cancelled. The token
+         * moves on only with what was applied, so an interrupted pull picks
+         * up where that left off.
+         */
+        const pull = async () => {
+          let token = since;
+          // Starting over: the keys of the new copy, its transaction open.
+          let fresh: Set<string> | null = null;
+          const cancel = () => {
+            if (fresh === null) return;
+            fresh = null;
+            const cancelled = new AbortController();
+            cancelled.abort();
+            void Promise.resolve(commit(cancelled.signal)).catch(() => {});
+          };
+          try {
+            for (;;) {
+              const pulled = await options.pull(token);
+              if (stopped) {
+                cancel();
+                return;
+              }
+              if (pulled.complete) {
+                if (fresh === null) begin();
+                truncate();
+                fresh = new Set();
+              }
+              if (fresh === null) {
+                begin();
+                writePage(pulled, known);
+                commit();
+                since = pulled.token;
+              } else {
+                writePage(pulled, fresh);
+              }
+              token = pulled.token;
+              if (!pulled.more) break;
+            }
+          } catch (error) {
+            cancel();
+            throw error;
+          }
+          if (fresh !== null) {
+            commit();
+            known = fresh;
+            since = token;
+          }
         };
 
         let inFlight = 1;
@@ -106,9 +154,14 @@ export const syncedTable = <Row extends object>(options: {
           });
         };
 
-        // A poll skips while a pull is running rather than queue up.
+        // A poll skips while a pull is running rather than queue up, and
+        // in browsers, while the page is hidden.
+        const browser = typeof document !== "undefined";
         const poll = () => {
-          if (inFlight === 0 && document.visibilityState === "visible") {
+          if (
+            inFlight === 0 &&
+            (!browser || document.visibilityState === "visible")
+          ) {
             void refresh();
           }
         };
@@ -116,13 +169,17 @@ export const syncedTable = <Row extends object>(options: {
           poll,
           options.pollEveryMs ?? defaultPollEveryMs,
         );
-        document.addEventListener("visibilitychange", poll);
-        window.addEventListener("online", poll);
+        if (browser) {
+          document.addEventListener("visibilitychange", poll);
+          window.addEventListener("online", poll);
+        }
         return () => {
           stopped = true;
           clearInterval(timer);
-          document.removeEventListener("visibilitychange", poll);
-          window.removeEventListener("online", poll);
+          if (browser) {
+            document.removeEventListener("visibilitychange", poll);
+            window.removeEventListener("online", poll);
+          }
           refresh = () => Promise.resolve();
         };
       },

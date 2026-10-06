@@ -3,7 +3,7 @@
 // Stateless: sessions and documents live in Postgres, images in S3, so any number of
 // instances can run side by side.
 import { createServer } from "node:http";
-import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
+import { NodeCrypto, NodeHttpServer, NodeRuntime } from "@effect/platform-node";
 import * as Documents from "@skjera/documents";
 import * as OAuth from "@skjera/oauth";
 import { Config, Effect, Layer, Option } from "effect";
@@ -226,6 +226,7 @@ HttpRouter.serve(Routes).pipe(
     KeyValueStore.layerSql({ table: "oauth_sessions" }),
   ]),
   Layer.provideMerge(Documents.layer),
+  Layer.provide(NodeCrypto.layer),
   Layer.provide(Documents.Images.Images.layer),
   Layer.launch,
   NodeRuntime.runMain,

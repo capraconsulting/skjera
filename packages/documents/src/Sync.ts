@@ -1,6 +1,5 @@
 import type { Identity } from "@skjera/oauth/api";
 import type { Pulled, Token } from "@skjera/snapsync/schema";
-import type { Changes, Unseen } from "@skjera/snapsync/server";
 import * as Snapsync from "@skjera/snapsync/server";
 import { Context, Effect, Layer, Option } from "effect";
 import { SqlClient } from "effect/sql";
@@ -66,16 +65,18 @@ export class Sync extends Context.Service<
       const sql = yield* SqlClient.SqlClient;
 
       /**
-       * Pulls `table`'s changes since a token (see @skjera/snapsync). The
-       * rows found are those the reader may see; `hidden` the keys of those
-       * they may not.
+       * Pulls a page of `table`'s changes since a token (see
+       * @skjera/snapsync). `load` gives the changed rows the reader may
+       * see; those it leaves out leave the reader's copy.
        */
-      const pull = <Row>(
+      const pull = <Row extends { readonly id: string }>(
         table: string,
         since: Token | undefined,
-        select: (unseen: Unseen) => Effect.Effect<Changes<Row>, unknown>,
+        load: (
+          keys: ReadonlyArray<string>,
+        ) => Effect.Effect<ReadonlyArray<Row>, unknown>,
       ) =>
-        Snapsync.pull({ table, since, select }).pipe(
+        Snapsync.pull({ table, since, load, getKey: (row) => row.id }).pipe(
           Effect.provideService(SqlClient.SqlClient, sql),
           Effect.orDie,
         );
@@ -83,41 +84,35 @@ export class Sync extends Context.Service<
       const teams = Effect.fn("Sync.teams")(function* (
         since: Token | undefined,
       ) {
-        return yield* pull("teams", since, (unseen) =>
+        return yield* pull("teams", since, (keys) =>
           sql<{ id: TeamId; name: string; created_at: Date }>`
-            SELECT id, name, created_at FROM teams WHERE ${unseen("xid")}
+            SELECT id, name, created_at FROM teams WHERE id = ANY(${keys}::uuid[])
           `.pipe(
-            Effect.map((rows) => ({
-              rows: rows.map((row) =>
+            Effect.map((rows) =>
+              rows.map((row) =>
                 TeamRow.make({
                   id: row.id,
                   name: row.name,
                   createdAt: row.created_at,
                 }),
               ),
-              hidden: [],
-            })),
+            ),
           ),
         );
       });
 
       const tags = Effect.fn("Sync.tags")(function* (since: Token | undefined) {
-        return yield* pull("tags", since, (unseen) =>
+        return yield* pull("tags", since, (keys) =>
           sql<{ id: string; name: string }>`
-            SELECT id, name FROM tags WHERE ${unseen("xid")}
-          `.pipe(
-            Effect.map((rows) => ({
-              rows: rows.map((row) => TagRow.make(row)),
-              hidden: [],
-            })),
-          ),
+            SELECT id, name FROM tags WHERE id = ANY(${keys}::uuid[])
+          `.pipe(Effect.map((rows) => rows.map((row) => TagRow.make(row)))),
         );
       });
 
       const documents = Effect.fn("Sync.documents")(function* (
         since: Token | undefined,
       ) {
-        return yield* pull("documents", since, (unseen) =>
+        return yield* pull("documents", since, (keys) =>
           sql<{
             id: DocumentId;
             type: ContentTypeName;
@@ -131,10 +126,10 @@ export class Sync extends Context.Service<
           }>`
             SELECT id, type, team_id, title, starts_at, time_zone,
               draft_heads, created_at, updated_at
-            FROM documents WHERE ${unseen("xid")}
+            FROM documents WHERE id = ANY(${keys}::uuid[])
           `.pipe(
-            Effect.map((rows) => ({
-              rows: rows.map((row) =>
+            Effect.map((rows) =>
+              rows.map((row) =>
                 DocumentRow.make({
                   id: row.id,
                   type: row.type,
@@ -147,8 +142,7 @@ export class Sync extends Context.Service<
                   updatedAt: row.updated_at,
                 }),
               ),
-              hidden: [],
-            })),
+            ),
           ),
         );
       });
@@ -157,7 +151,7 @@ export class Sync extends Context.Service<
         since: Token | undefined,
         audience: Audience,
       ) {
-        return yield* pull("events", since, (unseen) =>
+        return yield* pull("events", since, (keys) =>
           sql<{
             id: DocumentId;
             title: string;
@@ -183,10 +177,10 @@ export class Sync extends Context.Service<
               allow_guests, ask_dietary, food, food_deadline, questions, tags,
               published_heads, published_at,
               first_published_at, is_public OR ${audience === "members"} AS visible
-            FROM events WHERE ${unseen("xid")}
+            FROM events WHERE id = ANY(${keys}::uuid[])
           `.pipe(
-            Effect.map((rows) => ({
-              rows: rows
+            Effect.map((rows) =>
+              rows
                 .filter((row) => row.visible)
                 .map((row) =>
                   EventRow.make({
@@ -210,8 +204,7 @@ export class Sync extends Context.Service<
                     firstPublishedAt: row.first_published_at,
                   }),
                 ),
-              hidden: rows.filter((row) => !row.visible).map((row) => row.id),
-            })),
+            ),
           ),
         );
       });
@@ -229,7 +222,7 @@ export class Sync extends Context.Service<
           onNone: () => null,
           onSome: (user) => user.subject,
         });
-        return yield* pull("attendees", since, (unseen) =>
+        return yield* pull("attendees", since, (keys) =>
           sql<{
             id: string;
             event_id: DocumentId;
@@ -249,12 +242,10 @@ export class Sync extends Context.Service<
                 AS mine,
               e.is_public OR ${member} AS visible
             FROM attendees a JOIN events e ON e.id = a.event_id
-            WHERE ${unseen("a.xid")}
-              -- Whether anyone else may see them follows their event.
-              OR (NOT ${member} AND ${unseen("e.xid")})
+            WHERE a.id = ANY(${keys}::uuid[])
           `.pipe(
-            Effect.map((rows) => ({
-              rows: rows
+            Effect.map((rows) =>
+              rows
                 .filter((row) => row.visible)
                 .map((row) =>
                   AttendeeRow.make({
@@ -274,8 +265,7 @@ export class Sync extends Context.Service<
                       : null,
                   }),
                 ),
-              hidden: rows.filter((row) => !row.visible).map((row) => row.id),
-            })),
+            ),
           ),
         );
       });

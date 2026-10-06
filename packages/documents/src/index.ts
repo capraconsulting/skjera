@@ -1,6 +1,7 @@
 import * as Snapsync from "@skjera/snapsync/server";
 import { Layer } from "effect";
 import { Attendance } from "./Attendance.ts";
+import * as Cluster from "./Cluster.ts";
 import * as Database from "./Database.ts";
 import { DocumentEvents } from "./DocumentEvents.ts";
 import { Documents } from "./Documents.ts";
@@ -9,6 +10,7 @@ import { Sync } from "./Sync.ts";
 import { Teams } from "./Teams.ts";
 
 export * from "./Attendance.ts";
+export * as Cluster from "./Cluster.ts";
 export * from "./ContentTypes.ts";
 export * as Database from "./Database.ts";
 export * from "./DocumentEvents.ts";
@@ -29,7 +31,8 @@ export * from "./TeamsApi.ts";
 
 /**
  * Teams, documents, their change events, attendance and syncing them, on the
- * database at `DATABASE_URL`, with syncing kept well (see snapsync).
+ * database at `DATABASE_URL`, with the cluster running their background
+ * work. Needs `Crypto`.
  */
 export const layer = Layer.mergeAll(
   Documents.layer,
@@ -38,6 +41,7 @@ export const layer = Layer.mergeAll(
   Attendance.layer,
   Presence.layer,
   Sync.layer,
-  // After a restore, clients start over; old tombstones are forgotten.
-  Snapsync.maintain(),
-).pipe(Layer.provideMerge(Database.layer));
+  // After a restore, clients start over: before serving pulls.
+  Layer.effectDiscard(Snapsync.ensureCurrent),
+  Cluster.jobs,
+).pipe(Layer.provideMerge(Cluster.layer), Layer.provideMerge(Database.layer));

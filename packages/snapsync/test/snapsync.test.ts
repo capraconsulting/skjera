@@ -11,6 +11,9 @@ interface Item {
   readonly name: string;
 }
 
+const getKey = (item: Item) => item.id;
+const ids = (items: ReadonlyArray<Item>) => items.map((item) => item.id);
+
 let tables = 0;
 /** A new tracked table of items, with some in it. */
 const itemsTable = (rows = 0) =>
@@ -23,14 +26,16 @@ const itemsTable = (rows = 0) =>
       SELECT 'item-' || n, 'Item ' || n FROM generate_series(1, ${rows}) AS n
     `;
     yield* sql`SELECT snapsync.track(${table})`;
-    const pull = (since: Token | undefined) =>
+    const pull = (since: Token | undefined, pageSize?: number) =>
       Server.pull({
         table,
         since,
-        select: (unseen) =>
+        getKey,
+        load: (keys) =>
           sql<Item>`
-            SELECT id, name FROM ${sql(table)} WHERE ${unseen("xid")} ORDER BY id
-          `.pipe(Effect.map((rows) => ({ rows }))),
+            SELECT id, name FROM ${sql(table)} WHERE id = ANY(${keys}) ORDER BY id
+          `,
+        ...(pageSize === undefined ? {} : { pageSize }),
       });
     const all = sql<Item>`SELECT id, name FROM ${sql(table)} ORDER BY id`;
     /** What snapsync.status() says of a token for this table. */
@@ -49,9 +54,6 @@ const itemsTable = (rows = 0) =>
       });
     return { table, pull, all, status, tokenAt };
   });
-
-const getKey = (item: Item) => item.id;
-const ids = (items: ReadonlyArray<Item>) => items.map((item) => item.id);
 
 // Real clock: these tests talk to a real database.
 layer(TestDatabase, { excludeTestServices: true })("snapsync", (it) => {
@@ -106,6 +108,113 @@ layer(TestDatabase, { excludeTestServices: true })("snapsync", (it) => {
       yield* Fiber.join(slow);
       const after = yield* pull(before.token);
       assert.deepStrictEqual(ids(after.rows), ["slow"]);
+    }),
+  );
+
+  it.effect("pulls in pages; starting over, all pages replace the copy", () =>
+    Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      const { table, pull, all } = yield* itemsTable(25);
+      const first = yield* pull(undefined, 10);
+      assert.deepStrictEqual(
+        [first.complete, first.more, first.rows.length],
+        [true, true, 10],
+      );
+      const copy = replica({ getKey, pull: (since) => pull(since, 10) });
+      yield* copy.pull;
+      assert.deepStrictEqual(copy.stats(), { pulls: 1, pages: 3, restarts: 0 });
+      assert.strictEqual(copy.rows.size, 25);
+
+      // Changes come in pages too.
+      yield* sql`UPDATE ${sql(table)} SET name = 'Changed' WHERE id <= 'item-20'`;
+      yield* sql`DELETE FROM ${sql(table)} WHERE id = 'item-21'`;
+      yield* copy.pull;
+      assert.deepStrictEqual(copy.stats(), { pulls: 2, pages: 5, restarts: 0 });
+      assert.deepStrictEqual(
+        differences({ table: yield* all, copy: copy.rows, getKey }),
+        { missing: [], extra: [], changed: [] },
+      );
+    }),
+  );
+
+  it.effect("pages on through changes made between pages", () =>
+    Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      const { table, pull, all } = yield* itemsTable();
+      // A long transaction writes first, and commits only after the first
+      // page: its id is below those of the page.
+      const wrote = yield* Deferred.make<void>();
+      const commit = yield* Deferred.make<void>();
+      const slow = yield* Effect.gen(function* () {
+        yield* sql`INSERT INTO ${sql(table)} (id, name) VALUES ('slow', 'Slow')`;
+        yield* Deferred.succeed(wrote, undefined);
+        yield* Deferred.await(commit);
+      }).pipe(sql.withTransaction, Effect.forkChild);
+      yield* Deferred.await(wrote);
+      // Each in a transaction of its own, so pages end mid-way through ids.
+      for (let n = 1; n <= 12; n++) {
+        yield* sql`INSERT INTO ${sql(table)} (id, name) VALUES (${`item-${n}`}, 'New')`;
+      }
+
+      const page = yield* pull(undefined, 5);
+      assert.isTrue(page.more);
+      yield* Deferred.succeed(commit, undefined);
+      yield* Fiber.join(slow);
+      // Already pulled, not yet pulled, and new.
+      yield* sql`UPDATE ${sql(table)} SET name = 'Changed' WHERE id = ${page.rows[0]?.id ?? ""}`;
+      yield* sql`DELETE FROM ${sql(table)} WHERE id = 'item-12'`;
+      yield* sql`INSERT INTO ${sql(table)} (id, name) VALUES ('later', 'Later')`;
+
+      const copy = new Map(page.rows.map((row) => [row.id, row]));
+      let token = page.token;
+      for (let more: boolean = page.more; more; ) {
+        const next = yield* pull(token, 5);
+        assert.isFalse(next.complete);
+        for (const row of next.rows) copy.set(row.id, row);
+        for (const key of next.deleted) copy.delete(key);
+        token = next.token;
+        more = next.more;
+      }
+      assert.deepStrictEqual(differences({ table: yield* all, copy, getKey }), {
+        missing: [],
+        extra: [],
+        changed: [],
+      });
+      assert.isTrue(copy.has("slow"));
+    }),
+  );
+
+  it.effect("keeps a key deleted and inserted again at once", () =>
+    Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      const { table, pull } = yield* itemsTable(1);
+      const start = yield* pull(undefined);
+      // One deletes it and holds on; meanwhile another inserts it again,
+      // waiting for the first to commit.
+      const deleted = yield* Deferred.make<void>();
+      const commit = yield* Deferred.make<void>();
+      const deleting = yield* Effect.gen(function* () {
+        yield* sql`DELETE FROM ${sql(table)} WHERE id = 'item-1'`;
+        yield* Deferred.succeed(deleted, undefined);
+        yield* Deferred.await(commit);
+      }).pipe(sql.withTransaction, Effect.forkChild);
+      yield* Deferred.await(deleted);
+      const inserting = yield* sql`
+        INSERT INTO ${sql(table)} (id, name) VALUES ('item-1', 'Again')
+        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name
+      `.pipe(Effect.forkChild);
+      yield* Effect.sleep("100 millis");
+      yield* Deferred.succeed(commit, undefined);
+      yield* Fiber.join(deleting);
+      yield* Fiber.join(inserting);
+
+      const copy = replica({ getKey, pull });
+      yield* copy.pull;
+      const after = yield* pull(start.token);
+      assert.deepStrictEqual(
+        [after.rows, after.deleted],
+        [[{ id: "item-1", name: "Again" }], []],
+      );
     }),
   );
 
@@ -280,7 +389,11 @@ layer(TestDatabase, { excludeTestServices: true })("snapsync", (it) => {
       Effect.gen(function* () {
         const sql = yield* SqlClient.SqlClient;
         const { table, pull, all } = yield* itemsTable(50);
-        const copies = [replica({ getKey, pull }), replica({ getKey, pull })];
+        // One copy pulling in small pages, so pages end mid-transaction.
+        const copies = [
+          replica({ getKey, pull }),
+          replica({ getKey, pull: (since) => pull(since, 7) }),
+        ];
         yield* Effect.forEach(copies, (copy) => copy.pull);
 
         // Mostly a few hot rows; some new ones and some deleted.

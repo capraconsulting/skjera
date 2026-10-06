@@ -13,27 +13,46 @@ export const replica = <Row, E, R>(options: {
   readonly pull: (since: Token | undefined) => Effect.Effect<Pulled<Row>, E, R>;
 }) => {
   const rows = new Map<string, Row>();
-  let token: Token | undefined;
+  let since: Token | undefined;
   let pulls = 0;
+  let pages = 0;
   let restarts = 0;
   return {
     /** The copy, by key. */
     rows: rows as ReadonlyMap<string, Row>,
-    /** Pulls what changed and applies it, as a client does. */
+    /**
+     * Pulls until there's no more, as a client does: pages of changes
+     * apply as they come; starting over, all pages replace the copy at once.
+     */
     pull: Effect.gen(function* () {
-      const pulled = yield* options.pull(token);
-      if (pulled.complete) {
-        rows.clear();
-        if (pulls > 0) restarts++;
+      let token = since;
+      let fresh: Map<string, Row> | null = null;
+      for (;;) {
+        const pulled = yield* options.pull(token);
+        pages++;
+        if (pulled.complete) {
+          fresh = new Map();
+          if (pulls > 0) restarts++;
+        }
+        const into = fresh ?? rows;
+        for (const row of pulled.rows) into.set(options.getKey(row), row);
+        for (const key of pulled.deleted) into.delete(key);
+        if (fresh === null) since = pulled.token;
+        token = pulled.token;
+        if (!pulled.more) break;
       }
-      for (const row of pulled.rows) rows.set(options.getKey(row), row);
-      for (const key of pulled.deleted) rows.delete(key);
-      token = pulled.token;
+      if (fresh !== null) {
+        rows.clear();
+        for (const [key, row] of fresh) rows.set(key, row);
+        since = token;
+      }
       pulls++;
-      return pulled;
     }),
-    /** How many pulls so far, and how many of the later ones started over. */
-    stats: () => ({ pulls, restarts }),
+    /**
+     * Pulls so far, the pages they took, and how many of the later pulls
+     * started over.
+     */
+    stats: () => ({ pulls, pages, restarts }),
   };
 };
 

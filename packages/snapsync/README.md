@@ -55,23 +55,35 @@ SELECT snapsync.track('tags', 'name', 'xid');  -- or name them
 ```
 
 `track()` adds the xid column (unless it exists) with an index, and triggers
-that stamp rows and bury deleted ones. Keys are compared as text.
+that stamp rows and bury deleted ones. A key inserted again is no longer
+deleted: its tombstone goes once the insert commits, and pulls skip
+tombstones of keys that are there (a writer deleting and another inserting
+the same key at once can leave one behind). Keys are compared as text.
 
 ## Pull
 
-A pull runs in one `REPEATABLE READ` transaction: the token's snapshot, the
-rows, the tombstones and the new token all see the same transactions.
+Pulls come in pages: at most `size` changes, rows and deletes together, in
+the order of (transaction id, key). Run each in one `REPEATABLE READ`
+transaction, and read the rows for the page's keys in the same one:
 
 ```sql
--- null: start over and pull everything (see "Starting over").
-SELECT snapsync.since($token, 'attendees')::text;              -- $since
-SELECT * FROM attendees WHERE snapsync.unseen(xid, $since::pg_snapshot);
-SELECT key FROM snapsync.deleted('attendees', $since::pg_snapshot) AS key;
-SELECT snapsync.token('attendees');                              -- the next token
+SELECT changed, deleted, next_token, complete, more
+FROM snapsync.changes('attendees', $token, 1000);
+SELECT * FROM attendees WHERE id = ANY($changed::uuid[]);  -- and may the reader see them
 ```
 
-Pass `$since` as a value, not as `snapsync.since(...)` inline: that way
-`unseen()` is inlined and the index used.
+- `changed`: keys of rows written since; `deleted`: keys of rows deleted.
+- `next_token`: to pull from next; with `more`, right away.
+- `complete`: the token couldn't be pulled from, so this starts over with
+  every row (see "Starting over"); the pages up to the last without `more`
+  replace the copy.
+
+A token after a full page holds a snapshot of what's been pulled: every
+transaction below the page's last that the pull saw, and what the previous
+token had seen; and where in the last transaction's rows the page ended.
+Transactions still running stay unseen, so their rows come when they
+commit, however late (Cognite's `xip_list`), and what was seen is never
+forgotten (their `xid_next`). A row may come twice; none is missed.
 
 With Effect:
 
@@ -82,21 +94,24 @@ const pull = (since: Token | undefined) =>
   Snapsync.pull({
     table: "attendees",
     since,
-    select: (unseen) =>
+    getKey: (row) => row.id,
+    // The changed rows the reader may see. Those left out are pulled as
+    // deleted, so they leave the reader's copy.
+    load: (keys) =>
       sql<Row>`SELECT ... FROM attendees a JOIN events e ON ...
-               WHERE ${unseen("a.xid")} OR ${unseen("e.xid")}`.pipe(
-        Effect.map((rows) => ({
-          rows: rows.filter(mayRead),
-          // Changed rows the reader may not see (anymore) leave their copy.
-          hidden: rows.filter((row) => !mayRead(row)).map((row) => row.id),
-        })),
-      ),
+               WHERE a.id = ANY(${keys}::uuid[]) AND (e.is_public OR ${member})`,
   });
 ```
 
-Who may see which rows is up to the query: `hidden` keys are pulled as
-deleted. `snapsync.deleted()` only shows a role the tombstones of tables it
-may `SELECT` from (row-level security).
+Pages go by the pulled table's own transaction ids. When whether a reader
+may see a row depends on another table (attendees on their event), make
+changes there touch the rows: `UPDATE attendees SET id = id WHERE
+event_id = ...` stamps them anew.
+
+`snapsync.deleted()` only shows a role the tombstones of tables it may
+`SELECT` from (row-level security). Lower down, `snapsync.since(token,
+table)` and `snapsync.unseen(xid, since)` give the snapshot and the
+condition for queries of your own.
 
 ## Copies in TanStack DB
 
@@ -113,8 +128,15 @@ export const attendees = syncedTable({
 ```
 
 It pulls every row once, then what changed: every 5 seconds while the page
-is visible, when it's visible or online again, and after each write. Writes
-show at once and are undone if the server refuses them.
+is visible, when it's visible or online again, and after each write. Each
+pull goes on while there's `more`. Pages of changes apply as they come,
+each in a sync transaction of its own. A pull starting over does as
+TanStack DB's Electric collection does on a refetch: one sync transaction
+truncates and takes every page, and commits after the last, so the copy is
+replaced at once and never half there (the old copy shows until then); cut
+off, the transaction is cancelled. The token moves on only with what was applied, so a pull
+cut off mid-way picks up where that left off. Writes show at once and are
+undone if the server refuses them.
 
 ## Starting over
 
@@ -166,14 +188,14 @@ differences({ table: yield* all, copy: copy.rows, getKey });
 
 `concurrentWriters` runs transactions at once, each pausing a random while
 before committing, so they commit out of order; some roll back. Point `write`
-at a few hot rows often. The package's tests run against the Postgres in
+at a few hot rows often, and pull with small pages too, so pages end in the
+middle of transactions. The package's tests run against the Postgres in
 the repository's `compose.yml` (`pnpm test`).
 
 ## Not (yet)
 
-- **Batches**: a pull returns everything changed since, and a first pull the
-  whole table. For large tables, page by `(xid, key)` as txid-syncing does.
-- **One token per table**: a pull joining tables checks each table's xid
-  with the same snapshot, but only the pulled table's truncates and pruning
-  restart its clients.
 - **Composite keys**: one key column per table.
+- **Showing a start-over early**: until its last page, a copy starting over
+  is held in its open sync transaction, beside the old copy (as Electric's
+  default mode does). Electric's `progressive` mode loads what queries need
+  first; there's nothing like it here.

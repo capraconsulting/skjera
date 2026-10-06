@@ -14,17 +14,22 @@ export type Token = typeof Token.Type;
 
 /** What a pull returns, with rows of type `Row`. */
 export interface Pulled<Row> {
-  /** The rows changed since the token pulled with, or all of them. */
+  /** Rows changed since the token pulled with (or all, starting over). */
   readonly rows: ReadonlyArray<Row>;
   /** Keys of the rows deleted since (or that the reader may no longer see). */
   readonly deleted: ReadonlyArray<string>;
   /**
-   * `rows` are all there is: start over from them rather than apply them
-   * to a copy. On a first pull, and whenever the token can't be pulled
-   * from (see `snapsync.status()` in the extension).
+   * Starting over: these rows, and those of the pages after it up to the
+   * last (without `more`), replace the copy. On a first pull, and whenever
+   * the token can't be pulled from (see `snapsync.status()`).
    */
   readonly complete: boolean;
-  /** To pull from next time. */
+  /**
+   * There's more already: pull again with `token` right away. A copy
+   * starting over has all of it only after the last page.
+   */
+  readonly more: boolean;
+  /** To pull from next. */
   readonly token: Token;
 }
 
@@ -34,5 +39,6 @@ export const Pulled = <Row extends Schema.Top>(row: Row) =>
     rows: Schema.Array(row),
     deleted: Schema.Array(Schema.String),
     complete: Schema.Boolean,
+    more: Schema.Boolean,
     token: Token,
   });
