@@ -27,7 +27,7 @@ const replica = <Row extends { readonly id: string }>(
       if (pulled.complete) rows.clear();
       for (const row of pulled.rows) rows.set(row.id, row);
       for (const id of pulled.deleted) rows.delete(id);
-      since = pulled.snapshot;
+      since = pulled.token;
       return pulled;
     }),
   };

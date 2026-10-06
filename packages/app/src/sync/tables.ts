@@ -8,13 +8,12 @@ import {
   type EventRow,
   type GuestDetails,
   PublicSyncApi,
-  type Snapshot,
   SyncApi,
   type TagRow,
   type TeamRow,
   TeamsApi,
 } from "@skjera/documents/api";
-import { BasicIndex, createCollection } from "@tanstack/react-db";
+import { syncedTable } from "@skjera/snapsync/client";
 import { Effect } from "effect";
 import { FetchHttpClient } from "effect/http";
 import { HttpApi, HttpApiClient } from "effect/http-api";
@@ -38,141 +37,6 @@ const request = <A, E>(
   Effect.runPromise(
     makeClient.pipe(Effect.flatMap(f), Effect.provide(FetchHttpClient.layer)),
   );
-
-interface Pulled<Row> {
-  readonly rows: ReadonlyArray<Row>;
-  readonly deleted: ReadonlyArray<string>;
-  readonly complete: boolean;
-  readonly snapshot: Snapshot;
-}
-
-/** How often to pull what changed, while the page is visible. */
-const pollEveryMs = 5_000;
-
-/**
- * Sends a change to a row to the server; rejects if it's refused.
- * `metadata` is what the change was made with, for what isn't in the row.
- */
-type Write<Row> = (row: Row, metadata: unknown) => Promise<void>;
-
-/**
- * A collection holding a copy of a server table. It pulls every row once,
- * then what changed since the previous pull (see Sync.ts on the server):
- * every few seconds while the page is visible, as soon as it's visible or
- * online again, and on `refresh`. Pulls run one at a time, each from where
- * the last ended.
- *
- * Changes made to the collection show at once. `write` sends them to the
- * server, then a pull brings them back, so the rows pulled already have the
- * change when it stops being shown on its own. A refused change is undone.
- */
-const serverTable = <Row extends object>(options: {
-  readonly id: string;
-  readonly getKey: (row: Row) => string;
-  readonly pull: (since: Snapshot | undefined) => Promise<Pulled<Row>>;
-  readonly write?: {
-    readonly insert?: Write<Row>;
-    readonly update?: Write<Row>;
-    readonly delete?: Write<Row>;
-  };
-}) => {
-  let refresh = () => Promise.resolve();
-
-  /** Writes each change in a transaction, in order, then pulls. */
-  const persist =
-    (send: Write<Row>) =>
-    async ({
-      transaction,
-    }: {
-      readonly transaction: {
-        readonly mutations: ReadonlyArray<{
-          readonly modified: Row;
-          readonly metadata: unknown;
-        }>;
-      };
-    }) => {
-      for (const mutation of transaction.mutations) {
-        await send(mutation.modified, mutation.metadata);
-      }
-      await refresh();
-    };
-  const { insert, update, delete: remove } = options.write ?? {};
-
-  const collection = createCollection<Row, string>({
-    id: options.id,
-    getKey: options.getKey,
-    ...(insert === undefined ? {} : { onInsert: persist(insert) }),
-    ...(update === undefined ? {} : { onUpdate: persist(update) }),
-    ...(remove === undefined ? {} : { onDelete: persist(remove) }),
-    // Joins and filters look rows up by their fields.
-    autoIndex: "eager",
-    defaultIndexType: BasicIndex,
-    sync: {
-      sync: ({ begin, write, commit, markReady, markError, truncate }) => {
-        let since: Snapshot | undefined;
-        let stopped = false;
-        const known = new Set<string>();
-
-        const pull = async () => {
-          const pulled = await options.pull(since);
-          if (stopped) return;
-          begin();
-          if (pulled.complete) {
-            truncate();
-            known.clear();
-          }
-          for (const row of pulled.rows) {
-            const key = options.getKey(row);
-            write({ type: known.has(key) ? "update" : "insert", value: row });
-            known.add(key);
-          }
-          for (const key of pulled.deleted) {
-            if (known.delete(key)) write({ type: "delete", key });
-          }
-          commit();
-          since = pulled.snapshot;
-        };
-
-        let inFlight = 1;
-        let pulls = pull().finally(() => inFlight--);
-        pulls.then(markReady, markError);
-        refresh = () => {
-          inFlight++;
-          pulls = pulls
-            .catch(() => undefined)
-            .then(pull)
-            .finally(() => inFlight--);
-          return pulls.catch((error: unknown) => {
-            console.warn(`Couldn't refresh ${options.id}`, error);
-          });
-        };
-
-        // A poll skips while a pull is running rather than queue up.
-        const poll = () => {
-          if (inFlight === 0 && document.visibilityState === "visible") {
-            void refresh();
-          }
-        };
-        const timer = setInterval(poll, pollEveryMs);
-        document.addEventListener("visibilitychange", poll);
-        window.addEventListener("online", poll);
-        return () => {
-          stopped = true;
-          clearInterval(timer);
-          document.removeEventListener("visibilitychange", poll);
-          window.removeEventListener("online", poll);
-          refresh = () => Promise.resolve();
-        };
-      },
-    },
-  });
-
-  return {
-    collection,
-    /** Pulls what changed, e.g. after a write. */
-    refresh: () => refresh(),
-  };
-};
 
 /** Runs a write over the studio's API, failing with a message for people. */
 const sendRequest = <E extends { readonly _tag: string }>(
@@ -204,7 +68,7 @@ const failureMessage = (failure: { readonly _tag: string }) =>
       : "Something went wrong";
 
 /** Tags published events have had: suggestions when tagging. */
-export const tags = serverTable({
+export const tags = syncedTable({
   id: "tags",
   getKey: (tag: TagRow) => tag.id,
   pull: (since) =>
@@ -213,7 +77,7 @@ export const tags = serverTable({
     ),
 });
 
-export const teams = serverTable({
+export const teams = syncedTable({
   id: "teams",
   getKey: (team: TeamRow) => team.id,
   pull: (since) =>
@@ -237,7 +101,7 @@ export const teams = serverTable({
   },
 });
 
-export const documents = serverTable({
+export const documents = syncedTable({
   id: "documents",
   getKey: (document: DocumentRow) => document.id,
   pull: (since) =>
@@ -281,7 +145,7 @@ export const publishDraft = (id: DocumentId, heads: ReadonlyArray<string>) =>
   );
 
 /** Published events: every one for members, the public ones for anyone. */
-export const events = serverTable({
+export const events = syncedTable({
   id: "events",
   getKey: (event: EventRow) => event.id,
   pull: (since) =>
@@ -294,7 +158,7 @@ export const events = serverTable({
  * Signups: for signed-in users all of them, with who signed up; for anyone
  * else those of public events, to count.
  */
-export const attendees = serverTable({
+export const attendees = syncedTable({
   id: "attendees",
   getKey: (attendee: AttendeeRow) => attendee.id,
   pull: (since) =>

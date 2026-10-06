@@ -1,4 +1,7 @@
 import type { Identity } from "@skjera/oauth/api";
+import type { Pulled, Token } from "@skjera/snapsync/schema";
+import type { Changes, Unseen } from "@skjera/snapsync/server";
+import * as Snapsync from "@skjera/snapsync/server";
 import { Context, Effect, Layer, Option } from "effect";
 import { SqlClient } from "effect/sql";
 import type { ContentTypeName } from "./ContentTypes.ts";
@@ -17,24 +20,18 @@ import {
   AttendeeRow,
   DocumentRow,
   EventRow,
-  type Snapshot,
   TagRow,
   TeamRow,
 } from "./SyncApi.ts";
 
-export interface Pull<Row> {
-  readonly rows: ReadonlyArray<Row>;
-  readonly deleted: ReadonlyArray<string>;
-  readonly complete: boolean;
-  readonly snapshot: Snapshot;
-}
+export type Pull<Row> = Pulled<Row>;
 
 /**
- * Pulls for clients keeping copies of tables. Every synced row records the
- * transaction that last wrote it, and deleted rows leave tombstones (see the
- * 0004_sync migration). A pull returns what the snapshot of the previous one
- * hadn't seen, however transactions interleaved or in which order they
- * committed, so repeating pulls never misses or loses a change.
+ * Pulls for clients keeping copies of tables, with snapsync: every synced
+ * row records the transaction that last wrote it, and deleted rows leave
+ * tombstones (see the 0015_snapsync migration). A pull returns what the
+ * previous one hadn't seen, however transactions interleaved or in which
+ * order they committed, so repeating pulls never misses or loses a change.
  *
  * Some tables only show some rows to some people. A row that changed and
  * isn't theirs to see anymore is pulled as deleted, so it leaves their copy.
@@ -42,17 +39,15 @@ export interface Pull<Row> {
 export class Sync extends Context.Service<
   Sync,
   {
-    readonly teams: (
-      since: Snapshot | undefined,
-    ) => Effect.Effect<Pull<TeamRow>>;
+    readonly teams: (since: Token | undefined) => Effect.Effect<Pull<TeamRow>>;
     readonly documents: (
-      since: Snapshot | undefined,
+      since: Token | undefined,
     ) => Effect.Effect<Pull<DocumentRow>>;
     /** Tags published events have had, to suggest. */
-    readonly tags: (since: Snapshot | undefined) => Effect.Effect<Pull<TagRow>>;
+    readonly tags: (since: Token | undefined) => Effect.Effect<Pull<TagRow>>;
     /** Published events: all of them for members, public ones for anyone. */
     readonly events: (
-      since: Snapshot | undefined,
+      since: Token | undefined,
       audience: Audience,
     ) => Effect.Effect<Pull<EventRow>>;
     /**
@@ -60,7 +55,7 @@ export class Sync extends Context.Service<
      * anyone else, those of public events, without who they are.
      */
     readonly attendees: (
-      since: Snapshot | undefined,
+      since: Token | undefined,
       viewer: Option.Option<Identity>,
     ) => Effect.Effect<Pull<AttendeeRow>>;
   }
@@ -71,68 +66,26 @@ export class Sync extends Context.Service<
       const sql = yield* SqlClient.SqlClient;
 
       /**
-       * Rows written by transactions `since` hadn't seen; all without it.
-       * `xid` names the column holding the writing transaction.
-       */
-      const unseen = (since: Snapshot | undefined, xid = "xid") =>
-        since === undefined
-          ? sql`true`
-          : sql`${sql.literal(xid)} >= pg_snapshot_xmin(${since}::pg_snapshot)
-              AND NOT pg_visible_in_snapshot(${sql.literal(xid)}, ${since}::pg_snapshot)`;
-
-      /**
-       * `rows` are the changed rows the reader may see, `hidden` the ids of
-       * those they may not.
+       * Pulls `table`'s changes since a token (see @skjera/snapsync). The
+       * rows found are those the reader may see; `hidden` the keys of those
+       * they may not.
        */
       const pull = <Row>(
         table: string,
-        since: Snapshot | undefined,
-        rows: Effect.Effect<
-          {
-            readonly rows: ReadonlyArray<Row>;
-            readonly hidden: ReadonlyArray<string>;
-          },
-          unknown
-        >,
+        since: Token | undefined,
+        select: (unseen: Unseen) => Effect.Effect<Changes<Row>, unknown>,
       ) =>
-        Effect.gen(function* () {
-          // One snapshot for the whole pull: the rows, the tombstones and
-          // the snapshot returned all see the same transactions.
-          yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`;
-          const changed = yield* rows;
-          const deleted =
-            since === undefined
-              ? []
-              : yield* sql<{ id: string }>`
-                  SELECT id FROM sync_deletes
-                  WHERE table_name = ${table} AND ${unseen(since)}
-                `;
-          const [current] = yield* sql<{ snapshot: Snapshot }>`
-            SELECT pg_current_snapshot()::text AS snapshot
-          `;
-          if (current === undefined) {
-            return yield* Effect.die("No snapshot");
-          }
-          return {
-            rows: changed.rows,
-            deleted: [
-              ...deleted.map((row) => row.id),
-              // A first pull has nothing to remove them from.
-              ...(since === undefined ? [] : changed.hidden),
-            ],
-            complete: since === undefined,
-            snapshot: current.snapshot,
-          };
-        }).pipe(sql.withTransaction, Effect.orDie);
+        Snapsync.pull({ table, since, select }).pipe(
+          Effect.provideService(SqlClient.SqlClient, sql),
+          Effect.orDie,
+        );
 
       const teams = Effect.fn("Sync.teams")(function* (
-        since: Snapshot | undefined,
+        since: Token | undefined,
       ) {
-        return yield* pull(
-          "teams",
-          since,
+        return yield* pull("teams", since, (unseen) =>
           sql<{ id: TeamId; name: string; created_at: Date }>`
-            SELECT id, name, created_at FROM teams WHERE ${unseen(since)}
+            SELECT id, name, created_at FROM teams WHERE ${unseen("xid")}
           `.pipe(
             Effect.map((rows) => ({
               rows: rows.map((row) =>
@@ -148,14 +101,10 @@ export class Sync extends Context.Service<
         );
       });
 
-      const tags = Effect.fn("Sync.tags")(function* (
-        since: Snapshot | undefined,
-      ) {
-        return yield* pull(
-          "tags",
-          since,
+      const tags = Effect.fn("Sync.tags")(function* (since: Token | undefined) {
+        return yield* pull("tags", since, (unseen) =>
           sql<{ id: string; name: string }>`
-            SELECT id, name FROM tags WHERE ${unseen(since)}
+            SELECT id, name FROM tags WHERE ${unseen("xid")}
           `.pipe(
             Effect.map((rows) => ({
               rows: rows.map((row) => TagRow.make(row)),
@@ -166,11 +115,9 @@ export class Sync extends Context.Service<
       });
 
       const documents = Effect.fn("Sync.documents")(function* (
-        since: Snapshot | undefined,
+        since: Token | undefined,
       ) {
-        return yield* pull(
-          "documents",
-          since,
+        return yield* pull("documents", since, (unseen) =>
           sql<{
             id: DocumentId;
             type: ContentTypeName;
@@ -184,7 +131,7 @@ export class Sync extends Context.Service<
           }>`
             SELECT id, type, team_id, title, starts_at, time_zone,
               draft_heads, created_at, updated_at
-            FROM documents WHERE ${unseen(since)}
+            FROM documents WHERE ${unseen("xid")}
           `.pipe(
             Effect.map((rows) => ({
               rows: rows.map((row) =>
@@ -207,12 +154,10 @@ export class Sync extends Context.Service<
       });
 
       const events = Effect.fn("Sync.events")(function* (
-        since: Snapshot | undefined,
+        since: Token | undefined,
         audience: Audience,
       ) {
-        return yield* pull(
-          "events",
-          since,
+        return yield* pull("events", since, (unseen) =>
           sql<{
             id: DocumentId;
             title: string;
@@ -238,7 +183,7 @@ export class Sync extends Context.Service<
               allow_guests, ask_dietary, food, food_deadline, questions, tags,
               published_heads, published_at,
               first_published_at, is_public OR ${audience === "members"} AS visible
-            FROM events WHERE ${unseen(since)}
+            FROM events WHERE ${unseen("xid")}
           `.pipe(
             Effect.map((rows) => ({
               rows: rows
@@ -272,7 +217,7 @@ export class Sync extends Context.Service<
       });
 
       const attendees = Effect.fn("Sync.attendees")(function* (
-        since: Snapshot | undefined,
+        since: Token | undefined,
         viewer: Option.Option<Identity>,
       ) {
         const member = Option.isSome(viewer);
@@ -284,9 +229,7 @@ export class Sync extends Context.Service<
           onNone: () => null,
           onSome: (user) => user.subject,
         });
-        return yield* pull(
-          "attendees",
-          since,
+        return yield* pull("attendees", since, (unseen) =>
           sql<{
             id: string;
             event_id: DocumentId;
@@ -306,9 +249,9 @@ export class Sync extends Context.Service<
                 AS mine,
               e.is_public OR ${member} AS visible
             FROM attendees a JOIN events e ON e.id = a.event_id
-            WHERE ${unseen(since, "a.xid")}
+            WHERE ${unseen("a.xid")}
               -- Whether anyone else may see them follows their event.
-              OR (NOT ${member} AND ${unseen(since, "e.xid")})
+              OR (NOT ${member} AND ${unseen("e.xid")})
           `.pipe(
             Effect.map((rows) => ({
               rows: rows

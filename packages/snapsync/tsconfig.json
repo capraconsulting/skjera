@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // The client module runs in browsers.
+    "lib": ["es2024", "dom"]
+  },
+  "include": ["src", "test", "*.config.ts"]
+}

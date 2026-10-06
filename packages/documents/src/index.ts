@@ -1,3 +1,4 @@
+import * as Snapsync from "@skjera/snapsync/server";
 import { Layer } from "effect";
 import { Attendance } from "./Attendance.ts";
 import * as Database from "./Database.ts";
@@ -28,7 +29,7 @@ export * from "./TeamsApi.ts";
 
 /**
  * Teams, documents, their change events, attendance and syncing them, on the
- * database at `DATABASE_URL`.
+ * database at `DATABASE_URL`, with syncing kept well (see snapsync).
  */
 export const layer = Layer.mergeAll(
   Documents.layer,
@@ -37,4 +38,6 @@ export const layer = Layer.mergeAll(
   Attendance.layer,
   Presence.layer,
   Sync.layer,
+  // After a restore, clients start over; old tombstones are forgotten.
+  Snapsync.maintain(),
 ).pipe(Layer.provideMerge(Database.layer));

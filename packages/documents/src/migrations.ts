@@ -462,4 +462,21 @@ export const migrations = Migrator.fromRecord({
       RETURNING e.*
     $$`,
   ),
+  "0015_snapsync": statements(
+    // Syncing moves to the snapsync extension (packages/snapsync), which
+    // also prunes tombstones and starts clients over after a restore. Its
+    // tokens differ from the snapshots before: every client starts over.
+    `CREATE EXTENSION snapsync`,
+    ...["teams", "documents", "events", "attendees", "tags"].flatMap(
+      (table) => [
+        `DROP TRIGGER ${table}_sync_touch ON ${table}`,
+        `DROP TRIGGER ${table}_sync_tombstone ON ${table}`,
+        `ALTER TABLE ${table} DROP COLUMN xid`,
+        `SELECT snapsync.track('${table}')`,
+      ],
+    ),
+    `DROP TABLE sync_deletes`,
+    `DROP FUNCTION sync_touch()`,
+    `DROP FUNCTION sync_tombstone()`,
+  ),
 });

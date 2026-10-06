@@ -1,4 +1,5 @@
 import { Authentication } from "@skjera/oauth/api";
+import { Pulled, Token } from "@skjera/snapsync/schema";
 import { Schema } from "effect";
 import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
 import { ContentTypeName } from "./ContentTypes.ts";
@@ -13,30 +14,8 @@ import {
 } from "./Model.ts";
 
 // Clients keep copies of tables. A pull returns the rows that changed since
-// the snapshot of the previous pull, which rows were deleted, and the
-// snapshot to pull from next time.
-
-/**
- * A Postgres snapshot, "xmin:xmax:xip,...": which transactions a pull had
- * seen. Opaque to clients, except for telling whether it includes a given
- * transaction.
- */
-export const Snapshot = Schema.String.check(
-  Schema.isPattern(/^\d+:\d+:(\d+(,\d+)*)?$/),
-);
-export type Snapshot = typeof Snapshot.Type;
-
-/** What changed, as rows of type `Row`. */
-export const Pulled = <Row extends Schema.Top>(row: Row) =>
-  Schema.Struct({
-    /** The rows changed since, or every row when `complete`. */
-    rows: Schema.Array(row),
-    /** Ids of the rows deleted since. */
-    deleted: Schema.Array(Schema.String),
-    /** Everything there is: start over from `rows`, not from a copy. */
-    complete: Schema.Boolean,
-    snapshot: Snapshot,
-  });
+// the token of the previous pull, which rows were deleted, and the token to
+// pull from next time (see @skjera/snapsync).
 
 export const TeamRow = Schema.Struct({
   id: TeamId,
@@ -131,7 +110,7 @@ export const AttendeeRow = Schema.Struct({
 });
 export type AttendeeRow = typeof AttendeeRow.Type;
 
-const since = { since: Schema.optionalKey(Snapshot) };
+const since = { since: Schema.optionalKey(Token) };
 
 /** Pulls for the studio's tables; signed-in users see all of their rows. */
 export class SyncApi extends HttpApiGroup.make("sync")

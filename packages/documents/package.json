@@ -15,6 +15,7 @@
     "@automerge/automerge": "catalog:",
     "@effect/sql-pg": "catalog:",
     "@skjera/oauth": "workspace:*",
+    "@skjera/snapsync": "workspace:*",
     "aws4fetch": "catalog:",
     "bs58check": "catalog:",
     "cbor-x": "catalog:",

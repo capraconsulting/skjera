@@ -1,0 +1,33 @@
+{
+  "name": "@skjera/snapsync",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Keep copies of Postgres tables up to date by pulling what changed since a snapshot: a pure-SQL extension, an Effect server module, and a TanStack DB collection.",
+  "type": "module",
+  "exports": {
+    "./schema": "./src/schema.ts",
+    "./server": "./src/server.ts",
+    "./client": "./src/client.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "files": [
+    "extension",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "typecheck": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@tanstack/db": "catalog:",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@effect/sql-pg": "catalog:",
+    "@effect/vitest": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
