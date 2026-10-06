@@ -78,6 +78,22 @@ export function EditorFooter(props: {
     props.onPublish();
   };
 
+  // Deleting an event people signed up for cancels it: say so first.
+  const remove = () => {
+    const cancels =
+      publication !== undefined &&
+      publication.endsAt.getTime() > Date.now() &&
+      signedUp > 0;
+    const question = cancels
+      ? `Delete this event? It's taken off the site, and ${
+          signedUp === 1
+            ? "the person signed up is"
+            : `the ${signedUp} people signed up are`
+        } emailed that it's cancelled.`
+      : "Delete this event? It is also taken off the site.";
+    if (window.confirm(question)) props.onDelete();
+  };
+
   return (
     <footer className={styles.footer}>
       <div className={styles.bar}>
@@ -107,7 +123,7 @@ export function EditorFooter(props: {
           )}
         </p>
         <div className={styles.actions}>
-          <Button variant="danger" onClick={props.onDelete}>
+          <Button variant="danger" onClick={remove}>
             Delete
           </Button>
           <Button

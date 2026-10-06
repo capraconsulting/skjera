@@ -188,7 +188,11 @@ const DocumentsHandlers = HttpApiBuilder.group(Api, "documents", (handlers) =>
           );
         }),
       )
-      .handle("delete", ({ params }) => documents.delete(params.id));
+      .handle("delete", ({ params }) =>
+        Effect.gen(function* () {
+          return yield* documents.delete(params.id, yield* OAuth.CurrentUser);
+        }),
+      );
   }),
 );
 

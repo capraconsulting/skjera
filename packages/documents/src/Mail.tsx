@@ -8,6 +8,7 @@ import { SqlClient } from "effect/sql";
 import type { ReactElement } from "react";
 import { Attendance } from "./Attendance.ts";
 import { invitation, parseAddress } from "./Calendar.ts";
+import { EventCancelled } from "./emails/EventCancelled.tsx";
 import { EventChanged } from "./emails/EventChanged.tsx";
 import { formatAt, formatWhen } from "./emails/format.ts";
 import { Reminder } from "./emails/Reminder.tsx";
@@ -15,8 +16,8 @@ import { SignedUp } from "./emails/SignedUp.tsx";
 import { SignupCancelled } from "./emails/SignupCancelled.tsx";
 import { Notifications, Recipient, Times } from "./Notifications.ts";
 
-// Emails about an event to its attendees. Signing up, cancelling and moving
-// the event tell `Notifications`, in their transaction; on the server, that
+// Emails about an event to its attendees. Signing up, cancelling, and
+// moving or deleting the event tell `Notifications`, in their transaction; on the server, that
 // leaves a message for the event's mailer (a cluster entity, one per event,
 // so its emails go out in order), kept in the database and deduplicated, so
 // each email is sent once it's committed, and once only. Reminders are sent
@@ -30,6 +31,7 @@ const Send = Rpc.make("Send", {
       "signedUp",
       "signupCancelled",
       "eventChanged",
+      "eventCancelled",
       "reminder",
     ]),
     attendee: Recipient,
@@ -69,6 +71,12 @@ export const layerNotifications = Layer.effect(
           attendee,
           previously,
         }),
+      eventCancelled: ({ event, attendee }) =>
+        send(event, {
+          key: `eventCancelled/${attendee.id}`,
+          kind: "eventCancelled",
+          attendee,
+        }),
     });
   }),
 );
@@ -90,6 +98,7 @@ interface EventRow {
   readonly food_deadline: Date | null;
   readonly published_at: Date;
   readonly first_published_at: Date;
+  readonly deleted: boolean;
 }
 
 /** Sends the event's emails, as its mailer gets them. */
@@ -113,11 +122,17 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
           Effect.gen(function* () {
             const [event] = yield* sql<EventRow>`
             SELECT title, starts_at, ends_at, signup_deadline, time_zone,
-              ask_dietary, food_deadline, published_at, first_published_at
+              ask_dietary, food_deadline, published_at, first_published_at,
+              deleted_at IS NOT NULL AS deleted
             FROM events WHERE id = ${eventId}
           `.pipe(Effect.orDie);
-            // Deleted (or unpublished) meanwhile: nothing to tell.
-            if (event === undefined) return;
+            // Deleted meanwhile: nothing more to tell than that.
+            if (
+              event === undefined ||
+              (event.deleted && payload.kind !== "eventCancelled")
+            ) {
+              return;
+            }
 
             const url = new URL(`/events/${eventId}`, site.url).href;
             const when = formatWhen(
@@ -126,7 +141,10 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
               event.time_zone,
             );
             const { attendee } = payload;
-            const calendar = (method: "REQUEST" | "CANCEL") => ({
+            const calendar = (
+              method: "REQUEST" | "CANCEL",
+              cancelled = false,
+            ) => ({
               method,
               content: invitation({
                 method,
@@ -136,6 +154,7 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                   startsAt: event.starts_at,
                   endsAt: event.ends_at,
                   url,
+                  cancelled,
                   // Newer with each republish.
                   sequence: Math.floor(
                     (event.published_at.getTime() -
@@ -227,6 +246,19 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                     ),
                     calendar: calendar("REQUEST"),
                   };
+                case "eventCancelled":
+                  return {
+                    subject: `Cancelled: ${event.title}`,
+                    body: (
+                      <EventCancelled
+                        siteName={site.name}
+                        name={attendee.name}
+                        title={event.title}
+                        when={when}
+                      />
+                    ),
+                    calendar: calendar("CANCEL", true),
+                  };
                 case "reminder":
                   // Already in their calendar: no invitation.
                   return {
@@ -292,7 +324,7 @@ export const sendReminders = Effect.gen(function* () {
       SELECT a.id, a.name, a.email, a.user_issuer IS NULL AS guest,
         e.id AS event_id, e.starts_at
       FROM events e JOIN attendees a ON a.event_id = e.id
-      WHERE e.send_reminders AND a.email IS NOT NULL
+      WHERE e.send_reminders AND e.deleted_at IS NULL AND a.email IS NOT NULL
         AND e.starts_at > now() AND e.starts_at <= now() + interval '1 day'
         AND a.created_at < e.starts_at - interval '1 day'
     `;

@@ -54,7 +54,8 @@ export class Teams extends Context.Service<
       const get = Effect.fn("Teams.get")(function* (id: TeamId) {
         const [row] = yield* sql<Row>`
           SELECT id, name, created_at,
-          (SELECT count(*)::int FROM documents WHERE team_id = teams.id) AS document_count
+          (SELECT count(*)::int FROM documents
+            WHERE team_id = teams.id AND deleted_at IS NULL) AS document_count
           FROM teams WHERE id = ${id}
         `.pipe(Effect.orDie);
         if (row === undefined) {
@@ -95,7 +96,8 @@ export class Teams extends Context.Service<
             ${creator.issuer}, ${creator.subject})
           ON CONFLICT (id) DO NOTHING
           RETURNING id, name, created_at,
-          (SELECT count(*)::int FROM documents WHERE team_id = teams.id) AS document_count
+          (SELECT count(*)::int FROM documents
+            WHERE team_id = teams.id AND deleted_at IS NULL) AS document_count
         `.pipe(Effect.catchIf(SqlError.isSqlError, nameTaken(trimmed)));
         if (row !== undefined) return toTeam(row);
         // Created before, by an earlier try.
@@ -111,7 +113,8 @@ export class Teams extends Context.Service<
         const [row] = yield* sql<Row>`
           UPDATE teams SET name = ${trimmed} WHERE id = ${id}
           RETURNING id, name, created_at,
-          (SELECT count(*)::int FROM documents WHERE team_id = teams.id) AS document_count
+          (SELECT count(*)::int FROM documents
+            WHERE team_id = teams.id AND deleted_at IS NULL) AS document_count
         `.pipe(Effect.catchIf(SqlError.isSqlError, nameTaken(trimmed)));
         if (row === undefined) {
           return yield* new TeamNotFound({ id });
@@ -120,9 +123,14 @@ export class Teams extends Context.Service<
       });
 
       const deleteTeam = Effect.fn("Teams.delete")(function* (id: TeamId) {
-        const deleted = yield* sql`
-          DELETE FROM teams WHERE id = ${id} RETURNING id
-        `.pipe(
+        const deleted = yield* Effect.gen(function* () {
+          // Its deleted documents go with it; others keep it.
+          yield* sql`
+            DELETE FROM documents WHERE team_id = ${id} AND deleted_at IS NOT NULL
+          `;
+          return yield* sql`DELETE FROM teams WHERE id = ${id} RETURNING id`;
+        }).pipe(
+          sql.withTransaction,
           // Documents still reference the team (restrict_violation, or
           // foreign_key_violation for a NO ACTION reference).
           Effect.catchIf(SqlError.isSqlError, (error) =>

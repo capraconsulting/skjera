@@ -1,7 +1,11 @@
 import { assert, describe, it } from "@effect/vitest";
 import { invitation, parseAddress } from "../src/Calendar.ts";
 
-const invite = (method: "REQUEST" | "CANCEL", sequence = 0) =>
+const invite = (
+  method: "REQUEST" | "CANCEL",
+  sequence = 0,
+  cancelled = false,
+) =>
   invitation({
     method,
     event: {
@@ -11,6 +15,7 @@ const invite = (method: "REQUEST" | "CANCEL", sequence = 0) =>
       endsAt: new Date("2036-10-15T21:00+02:00"),
       url: "https://skjera.test/events/launch",
       sequence,
+      cancelled,
     },
     attendee: { name: "Gina", email: "gina@example.org" },
     organizer: { name: "Skjera", email: "events@skjera.test" },
@@ -41,6 +46,14 @@ describe("Calendar", () => {
     assert.include(ics, "METHOD:CANCEL");
     assert.include(ics, "UID:launch@skjera.test");
     assert.include(ics, "SEQUENCE:4");
+    // For the attendee only: the event goes on.
+    assert.notInclude(ics, "STATUS:CANCELLED");
+  });
+
+  it("cancels the event for everyone", () => {
+    const ics = invite("CANCEL", 5, true);
+    assert.include(ics, "METHOD:CANCEL");
+    assert.include(ics, "STATUS:CANCELLED");
   });
 
   it("reads who emails come from", () => {

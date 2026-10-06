@@ -207,6 +207,39 @@ layer(TestLayer, { excludeTestServices: true })("Mail", (it) => {
     }),
   );
 
+  it.effect("tells attendees a deleted event is cancelled, and no more", () =>
+    Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      const notifications = yield* Notifications;
+      const event = yield* publishedEvent();
+      yield* sql`UPDATE events SET deleted_at = now() WHERE id = ${event}`;
+      const run = crypto.randomUUID();
+      const attendee = (who: string) => ({
+        id: crypto.randomUUID(),
+        name: who,
+        email: `${who}-${run}@example.org`,
+        guest: true,
+      });
+      yield* notifications.eventCancelled({
+        event,
+        attendee: attendee("gina"),
+      });
+      // Anything else about it, sent late, isn't.
+      yield* notifications.signedUp({ event, attendee: attendee("late") });
+
+      const [cancelled] = yield* emailsTo(`gina-${run}@example.org`, 1);
+      const message = cancelled?.message;
+      assert.strictEqual(message?.subject, "Cancelled: Launch");
+      assert.include(message?.text ?? "", "is cancelled");
+      // No link: there's nothing to see or change.
+      assert.notInclude(message?.text ?? "", "?guest=");
+      assert.strictEqual(message?.calendar?.method, "CANCEL");
+      assert.include(message?.calendar?.content ?? "", "STATUS:CANCELLED");
+      yield* Effect.sleep("300 millis");
+      assert.deepStrictEqual(outbox.to(`late-${run}@example.org`), []);
+    }),
+  );
+
   it.effect("reminds those who signed up before the day before", () =>
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;

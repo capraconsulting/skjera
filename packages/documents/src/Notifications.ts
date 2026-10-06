@@ -2,8 +2,8 @@ import { Context, Effect, Layer, Ref, Schema } from "effect";
 import type { DocumentId } from "./Model.ts";
 
 // What attendees are told of, by email (see Mail.tsx): signing up and
-// cancelling tell it, and so does republishing an event at a new time, in
-// their transaction.
+// cancelling tell it, and so do republishing an event at a new time and
+// deleting it, in their transaction.
 
 /** Who an email is to. */
 export const Recipient = Schema.Struct({
@@ -35,7 +35,9 @@ export interface ChangeNotice extends Notice {
 }
 
 export type Kept =
-  | (Notice & { readonly kind: "signedUp" | "signupCancelled" })
+  | (Notice & {
+      readonly kind: "signedUp" | "signupCancelled" | "eventCancelled";
+    })
   | (ChangeNotice & { readonly kind: "eventChanged" });
 
 /** The notices `Notifications.layerTest` kept. */
@@ -57,6 +59,8 @@ export class Notifications extends Context.Service<
     readonly signupCancelled: (notice: Notice) => Effect.Effect<void>;
     /** The event moved: it starts or ends at another time. */
     readonly eventChanged: (notice: ChangeNotice) => Effect.Effect<void>;
+    /** The event was deleted before it was over: it won't happen. */
+    readonly eventCancelled: (notice: Notice) => Effect.Effect<void>;
   }
 >()("@skjera/documents/Notifications") {
   /** Notices kept, for tests: `NoticesKept` has them, oldest first. */
@@ -71,6 +75,7 @@ export class Notifications extends Context.Service<
         signupCancelled: (notice) =>
           keep({ kind: "signupCancelled", ...notice }),
         eventChanged: (notice) => keep({ kind: "eventChanged", ...notice }),
+        eventCancelled: (notice) => keep({ kind: "eventCancelled", ...notice }),
       };
     }),
   ).pipe(Layer.provideMerge(NoticesKept.layer));

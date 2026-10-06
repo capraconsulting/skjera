@@ -2,6 +2,7 @@ import ical, {
   ICalAttendeeRole,
   ICalAttendeeStatus,
   ICalCalendarMethod,
+  ICalEventStatus,
 } from "ical-generator";
 
 // Calendar invitations (iCalendar, RFC 5545/5546) for an event's
@@ -19,6 +20,8 @@ export interface InvitationEvent {
    * from when it was published.
    */
   readonly sequence: number;
+  /** It won't happen: for everyone, not just this attendee. */
+  readonly cancelled?: boolean;
 }
 
 export interface Person {
@@ -52,6 +55,7 @@ export const invitation = (options: {
     // The same for every version, so calendars update the one they have.
     id: `${event.id}@${site.host}`,
     sequence: event.sequence,
+    ...(event.cancelled ? { status: ICalEventStatus.CANCELLED } : {}),
     // UTC: needs no time zone definitions; calendars show it in theirs.
     start: event.startsAt,
     end: event.endsAt,

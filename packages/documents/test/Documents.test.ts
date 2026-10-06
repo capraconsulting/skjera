@@ -744,14 +744,14 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       );
       yield* documents.publish(id, heads, alice);
 
-      yield* documents.delete(id);
+      yield* documents.delete(id, alice);
       assert.strictEqual(
         (yield* Effect.flip(documents.get(id)))._tag,
         "DocumentNotFound",
       );
       assert.isUndefined(yield* publishedAs(id, "members"));
       assert.strictEqual(
-        (yield* Effect.flip(documents.delete(id)))._tag,
+        (yield* Effect.flip(documents.delete(id, alice)))._tag,
         "DocumentNotFound",
       );
     }),
@@ -826,7 +826,9 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       assert.strictEqual((yield* teams.get(team.id)).documentCount, 1);
       const notEmpty = yield* Effect.flip(teams.delete(team.id));
       assert.strictEqual(notEmpty._tag, "TeamNotEmpty");
-      yield* documents.delete(event);
+      // Deleted, it's kept, but doesn't count: the team goes, and it too.
+      yield* documents.delete(event, alice);
+      assert.strictEqual((yield* teams.get(team.id)).documentCount, 0);
       yield* teams.delete(team.id);
       const gone = yield* Effect.flip(teams.get(team.id));
       assert.strictEqual(gone._tag, "TeamNotFound");
@@ -960,6 +962,88 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         },
       });
       assert.strictEqual(yield* reminds(older), true);
+    }),
+  );
+
+  it.effect("keeps a deleted event, telling attendees it's cancelled", () =>
+    Effect.gen(function* () {
+      const documents = yield* Documents;
+      const attendance = yield* Attendance;
+      const sql = yield* SqlClient.SqlClient;
+      const kept = yield* NoticesKept;
+      const cancellations = (event: DocumentId) =>
+        Ref.get(kept).pipe(
+          Effect.map((all) =>
+            all.filter(
+              (notice) =>
+                notice.kind === "eventCancelled" && notice.event === event,
+            ),
+          ),
+        );
+      const id = yield* publishedEvent({ public: true, guests: true });
+      const carol = new Identity({
+        issuer: "https://idp.example",
+        subject: "carol",
+        email: "carol@example.com",
+        name: "Carol",
+      });
+      yield* attendance.attend(id, carol);
+      yield* attendance.attend(id, bob); // No email to tell.
+      const token = yield* attendance.attendAsGuest(id, {
+        name: "Gina",
+        email: "gina@example.org",
+      });
+
+      yield* documents.delete(id, bob);
+      assert.deepStrictEqual(
+        (yield* cancellations(id)).map((notice) => notice.attendee.name).sort(),
+        ["Carol", "Gina"],
+      );
+      // Kept, marked deleted, with who did it.
+      const [row] = yield* sql<{
+        deleted: boolean;
+        deleted_by_subject: string;
+        signups: number;
+      }>`
+        SELECT d.deleted_at IS NOT NULL AND e.deleted_at IS NOT NULL AS deleted,
+          d.deleted_by_subject,
+          (SELECT count(*)::int FROM attendees WHERE event_id = d.id) AS signups
+        FROM documents d JOIN events e ON e.id = d.id WHERE d.id = ${id}
+      `;
+      assert.deepStrictEqual(row, {
+        deleted: true,
+        deleted_by_subject: "bob",
+        signups: 3,
+      });
+      // Otherwise gone: from the studio, the site and signing up.
+      assert.isUndefined(yield* syncedDocument(id));
+      assert.isUndefined(yield* publishedAs(id, "members"));
+      assert.deepStrictEqual(yield* organizerView(id), []);
+      assert.strictEqual(
+        (yield* Effect.flip(attendance.attend(id, alice)))._tag,
+        "EventNotFound",
+      );
+      assert.strictEqual(
+        (yield* Effect.flip(attendance.leaveAsGuest(id, token)))._tag,
+        "SignupNotFound",
+      );
+
+      // An event that's over just goes.
+      const past = yield* publishedEvent({
+        public: true,
+        guests: true,
+        edit: (event) =>
+          setTimes(event, {
+            start: "2020-10-15T18:00+02:00[Europe/Oslo]",
+            end: "2020-10-15T21:00+02:00[Europe/Oslo]",
+          }),
+      });
+      yield* sql`
+        INSERT INTO attendees (event_id, name, email, cancel_token_hash)
+        VALUES (${past}, 'Gina', 'gina@example.org', ${crypto.randomUUID()})
+      `;
+      yield* documents.delete(past, alice);
+      assert.deepStrictEqual(yield* cancellations(past), []);
     }),
   );
 

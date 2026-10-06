@@ -91,8 +91,15 @@ export class Documents extends Context.Service<
       heads: Heads,
       user: Identity,
     ) => Effect.Effect<Publication, DocumentNotFound | PublishRejected>;
-    /** Deletes the document, its published version included. */
-    readonly delete: (id: DocumentId) => Effect.Effect<void, DocumentNotFound>;
+    /**
+     * Deletes the document, taking its published version off the site. It's
+     * kept, marked deleted. An event's attendees are told it's cancelled,
+     * unless it's over.
+     */
+    readonly delete: (
+      id: DocumentId,
+      user: Identity,
+    ) => Effect.Effect<void, DocumentNotFound>;
   }
 >()("@skjera/documents/Documents") {
   static readonly layer = Layer.effect(
@@ -137,7 +144,7 @@ export class Documents extends Context.Service<
           draft: Uint8Array;
         }>`
           SELECT type, team_id, automerge_heads(draft) AS heads, draft::bytea AS draft
-          FROM documents WHERE id = ${id}
+          FROM documents WHERE id = ${id} AND deleted_at IS NULL
         `.pipe(Effect.orDie);
         if (row === undefined) {
           return yield* new DocumentNotFound({ id });
@@ -153,7 +160,7 @@ export class Documents extends Context.Service<
 
       const typeOf = Effect.fnUntraced(function* (id: DocumentId) {
         const [row] = yield* sql<{ type: ContentTypeName }>`
-          SELECT type FROM documents WHERE id = ${id}
+          SELECT type FROM documents WHERE id = ${id} AND deleted_at IS NULL
         `.pipe(Effect.orDie);
         if (row === undefined) {
           return yield* new DocumentNotFound({ id });
@@ -181,7 +188,7 @@ export class Documents extends Context.Service<
         const [row] = yield* sql<{ changes: Uint8Array; heads: Heads }>`
           SELECT automerge_changes_bytes(draft, ${heads}::text[]) AS changes,
             automerge_heads(draft) AS heads
-          FROM documents WHERE id = ${id}
+          FROM documents WHERE id = ${id} AND deleted_at IS NULL
         `.pipe(Effect.orDie);
         if (row === undefined) {
           return yield* new DocumentNotFound({ id });
@@ -213,7 +220,7 @@ export class Documents extends Context.Service<
           }>`
             SELECT type, automerge_contains(draft, ${bytes}::bytea) AS known,
               automerge_heads(draft) AS heads
-            FROM documents WHERE id = ${id} FOR UPDATE
+            FROM documents WHERE id = ${id} AND deleted_at IS NULL FOR UPDATE
           `;
           if (current === undefined) {
             return yield* new DocumentNotFound({ id });
@@ -355,12 +362,33 @@ export class Documents extends Context.Service<
 
       const deleteDocument = Effect.fn("Documents.delete")(function* (
         id: DocumentId,
+        user: Identity,
       ) {
-        // The published version and actor records go with it (ON DELETE CASCADE).
-        const deleted = yield* sql`
-          DELETE FROM documents WHERE id = ${id} RETURNING id
-        `.pipe(Effect.orDie);
-        if (deleted.length === 0) {
+        const found = yield* Effect.gen(function* () {
+          const deleted = yield* sql`
+            UPDATE documents SET deleted_at = now(),
+              deleted_by_issuer = ${user.issuer}, deleted_by_subject = ${user.subject}
+            WHERE id = ${id} AND deleted_at IS NULL
+            RETURNING id
+          `;
+          if (deleted.length === 0) return false;
+          const [event] = yield* sql<{ upcoming: boolean }>`
+            UPDATE events SET deleted_at = now() WHERE id = ${id}
+            RETURNING ends_at > now() AS upcoming
+          `;
+          // Signed up for what won't happen now: cancelled, in calendars too.
+          if (event?.upcoming) {
+            const signups = yield* sql<Signup>`
+              SELECT id, name, email, user_issuer IS NULL AS guest
+              FROM attendees WHERE event_id = ${id}
+            `;
+            yield* tell(signups, (attendee) =>
+              notifications.eventCancelled({ event: id, attendee }),
+            );
+          }
+          return true;
+        }).pipe(sql.withTransaction, Effect.orDie);
+        if (!found) {
           return yield* new DocumentNotFound({ id });
         }
       });

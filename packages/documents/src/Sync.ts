@@ -126,7 +126,8 @@ export class Sync extends Context.Service<
           }>`
             SELECT id, type, team_id, title, starts_at, time_zone,
               draft_heads, created_at, updated_at
-            FROM documents WHERE id = ANY(${keys}::uuid[])
+            FROM documents
+            WHERE id = ANY(${keys}::uuid[]) AND deleted_at IS NULL
           `.pipe(
             Effect.map((rows) =>
               rows.map((row) =>
@@ -176,7 +177,8 @@ export class Sync extends Context.Service<
             SELECT id, title, starts_at, ends_at, signup_deadline, time_zone, body, cover, is_public,
               allow_guests, ask_dietary, food, food_deadline, questions, tags,
               published_heads, published_at,
-              first_published_at, is_public OR ${audience === "members"} AS visible
+              first_published_at,
+              (is_public OR ${audience === "members"}) AND deleted_at IS NULL AS visible
             FROM events WHERE id = ANY(${keys}::uuid[])
           `.pipe(
             Effect.map((rows) =>
@@ -240,7 +242,7 @@ export class Sync extends Context.Service<
               a.user_issuer IS NULL AS guest,
               coalesce(a.user_issuer = ${issuer} AND a.user_subject = ${subject}, false)
                 AS mine,
-              e.is_public OR ${member} AS visible
+              (e.is_public OR ${member}) AND e.deleted_at IS NULL AS visible
             FROM attendees a JOIN events e ON e.id = a.event_id
             WHERE a.id = ANY(${keys}::uuid[])
           `.pipe(

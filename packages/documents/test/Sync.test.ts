@@ -234,7 +234,7 @@ layer(TestLayer, { excludeTestServices: true })("Sync", (it) => {
       );
       assert.strictEqual(row?.teamId, team.id);
 
-      yield* documents.delete(id);
+      yield* documents.delete(id, alice);
       const pulled = yield* copy.pull;
       assert.deepStrictEqual(pulled.deleted, [id]);
       assert.isFalse(copy.rows.has(id));

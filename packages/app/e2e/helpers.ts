@@ -124,10 +124,18 @@ export const deleteTeam = async (page: Page, id: string) => {
 
 /**
  * Deletes the event open in the editor, and checks it's gone from the studio
- * and the site, and clears the emails about it (they link to it). Tests end
- * with this, so they leave no events, or emails, behind.
+ * and the site. Its attendees are emailed that it's cancelled: once they
+ * are, the emails about it are cleared (they link to it). Tests end with
+ * this, so they leave no events, or emails, behind.
  */
 export const deleteEvent = async (page: Page, id: string) => {
+  const eventTitle = (await title(page).textContent()) ?? "";
+  // Who's signed up now: freshly pulled, as someone may just have left.
+  await page.reload();
+  const heading = page
+    .getByRole("region", { name: "Attendees" })
+    .getByRole("heading", { name: /^Attendees \(\d+\)$/ });
+  const signedUp = Number(/\d+/.exec((await heading.textContent()) ?? "")?.[0]);
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Delete", exact: true }).click();
   // Back on the event's team, without the event.
@@ -136,6 +144,23 @@ export const deleteEvent = async (page: Page, id: string) => {
 
   await page.goto(`/events/${id}`);
   await expect(page.getByText("isn't published")).toBeVisible();
+  // (Titles are unique: see publishedEvent. Mailpit matches subjects by
+  // what they contain, "Signup cancelled: …" too.)
+  const subject = `Cancelled: ${eventTitle}`;
+  const cancelled = async () => {
+    const { messages } = (await mailpit(
+      `/search?query=${encodeURIComponent(`subject:"${subject}"`)}`,
+    )) as { messages: ReadonlyArray<MailpitSummary> };
+    return messages.filter((message) => message.Subject === subject);
+  };
+  if (signedUp > 0) {
+    await expect.poll(async () => (await cancelled()).length).toBe(signedUp);
+    await mailpit("/messages", {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ IDs: (await cancelled()).map((each) => each.ID) }),
+    });
+  }
   await deleteEmailsAbout(id);
 };
 
@@ -277,5 +302,11 @@ export const emailTo = async (address: string, subject: string) => {
 /** Clears the emails about the event `id` out of Mailpit. */
 const deleteEmailsAbout = (id: string) =>
   mailpit(`/search?query=${encodeURIComponent(`"${id}"`)}`, {
+    method: "DELETE",
+  });
+
+/** Clears the emails to `address` out of Mailpit. */
+export const deleteEmailsTo = (address: string) =>
+  mailpit(`/search?query=${encodeURIComponent(`to:"${address}"`)}`, {
     method: "DELETE",
   });

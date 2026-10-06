@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { expect, type Page, test } from "@playwright/test";
 import {
+  deleteEmailsTo,
   deleteEvent,
   deleteTeam,
   emailTo,
@@ -63,6 +64,8 @@ test("members attend and change their mind", async ({ browser }) => {
     .getByRole("button", { name: "Cancel attendance" })
     .click();
   await expect(attendance(bob)).toContainText("Nobody has signed up yet.");
+  // Saved: the organizer sees it.
+  await expect(attendees(alice)).toContainText("Nobody has signed up yet.");
 
   await deleteEvent(alice, event.id);
   await deleteTeam(alice, team);
@@ -218,6 +221,44 @@ test("moving an event emails who signed up, once the organizer agrees", async ({
   await deleteTeam(alice, team);
 });
 
+test("deleting an event emails who signed up that it's cancelled", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await newTeam(alice, uniqueTeamName("Cancelled"));
+  const event = await publishedEvent(alice, { public: true, guests: true });
+  const address = `gina-${crypto.randomUUID()}@example.org`;
+
+  const guest = await visitor(browser);
+  await guest.goto(`/events/${event.id}`);
+  const box = attendance(guest);
+  await box.getByRole("textbox", { name: "Your name" }).fill("Gina");
+  await box.getByRole("textbox", { name: "Your email" }).fill(address);
+  await box.getByRole("button", { name: "Sign up" }).click();
+  await expect(box).toContainText("You're signed up.");
+  await expect(attendees(alice)).toContainText("Gina");
+
+  const asked: Array<string> = [];
+  alice.once("dialog", (dialog) => {
+    asked.push(dialog.message());
+    return dialog.accept();
+  });
+  await alice.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(alice).toHaveURL(/\/studio\/teams\/[0-9a-f-]+$/);
+  expect(asked).toEqual([
+    "Delete this event? It's taken off the site, and the person signed up is emailed that it's cancelled.",
+  ]);
+
+  const cancelled = await emailTo(address, `Cancelled: ${event.title}`);
+  expect(cancelled.raw).toMatch(/Content-Type: text\/calendar;.*method=CANCEL/);
+  expect(cancelled.raw).toContain("STATUS:CANCELLED");
+  await guest.reload();
+  await expect(guest.getByText("isn't published")).toBeVisible();
+
+  await deleteEmailsTo(address);
+  await deleteTeam(alice, team);
+});
+
 test("everyone gives dietary preferences when the event asks", async ({
   browser,
 }) => {
@@ -261,6 +302,8 @@ test("everyone gives dietary preferences when the event asks", async ({
 
   await box.getByRole("button", { name: "Cancel my signup" }).click();
   await expect(box.getByRole("button", { name: "Sign up" })).toBeVisible();
+  // Saved: the organizer sees it.
+  await expect(attendees(alice)).not.toContainText("Gina");
   await deleteEvent(alice, event.id);
   await deleteTeam(alice, team);
 });

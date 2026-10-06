@@ -58,10 +58,8 @@ function EventSession({ id }: { readonly id: DocumentId }) {
     return <PanePlaceholder>{session.error ?? "Loading…"}</PanePlaceholder>;
   }
 
+  // Asked first, by the footer.
   const remove = () => {
-    if (!window.confirm("Delete this event? It is also taken off the site.")) {
-      return;
-    }
     documents.collection.delete(id);
     navigate(`/studio/teams/${teamId}`);
   };

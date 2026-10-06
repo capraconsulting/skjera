@@ -549,4 +549,24 @@ export const migrations = Migrator.fromRecord({
       RETURNING e.*
     $$`,
   ),
+  "0018_soft_delete": statements(
+    // Deleting a document keeps it, and its published version and signups,
+    // marked deleted: everything else treats it as gone. (A published
+    // event's attendees are told it's cancelled.)
+    `ALTER TABLE documents
+      ADD COLUMN deleted_at timestamptz,
+      ADD COLUMN deleted_by_issuer text,
+      ADD COLUMN deleted_by_subject text`,
+    `ALTER TABLE events ADD COLUMN deleted_at timestamptz`,
+    // Publishing sets the publish times, not other changes to the row.
+    `DROP TRIGGER events_publish_times ON events`,
+    `CREATE TRIGGER events_publish_times BEFORE INSERT OR UPDATE OF published_heads ON events
+      FOR EACH ROW EXECUTE FUNCTION set_publish_times()`,
+    // Signups leave readers' copies with their event.
+    `DROP TRIGGER events_touch_attendees ON events`,
+    `CREATE TRIGGER events_touch_attendees AFTER UPDATE OF is_public, deleted_at ON events
+      FOR EACH ROW WHEN (OLD.is_public IS DISTINCT FROM NEW.is_public
+        OR OLD.deleted_at IS DISTINCT FROM NEW.deleted_at)
+      EXECUTE FUNCTION events_touch_attendees()`,
+  ),
 });

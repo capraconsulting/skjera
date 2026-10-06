@@ -184,6 +184,7 @@ export class Attendance extends Context.Service<
             coalesce(signup_deadline, starts_at) > now() AS open
           FROM events
           WHERE id = ${event} AND (is_public OR ${audience === "members"})
+            AND deleted_at IS NULL
         `.pipe(Effect.orDie);
         if (row === undefined) {
           return yield* new EventNotFound({ id: event });
@@ -304,6 +305,7 @@ export class Attendance extends Context.Service<
           SELECT coalesce(e.signup_deadline, e.starts_at) > now() AS open
           FROM attendees a JOIN events e ON e.id = a.event_id
           WHERE a.event_id = ${event} AND a.cancel_token_hash = ${hash(cancelToken)}
+            AND e.deleted_at IS NULL
         `.pipe(Effect.orDie);
         if (found === undefined) return yield* new SignupNotFound({});
         if (!found.open) return yield* closed;
