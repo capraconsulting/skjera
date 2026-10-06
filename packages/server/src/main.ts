@@ -5,6 +5,7 @@
 import { createServer } from "node:http";
 import { NodeCrypto, NodeHttpServer, NodeRuntime } from "@effect/platform-node";
 import * as Documents from "@skjera/documents";
+import * as Email from "@skjera/email";
 import * as OAuth from "@skjera/oauth";
 import { Config, Effect, Layer, Option } from "effect";
 import {
@@ -227,6 +228,8 @@ HttpRouter.serve(Routes).pipe(
   ]),
   Layer.provideMerge(Documents.layer),
   Layer.provide(NodeCrypto.layer),
+  // SES, or SMTP (Mailpit in development): see EMAIL_TRANSPORT.
+  Layer.provide(Email.layerConfig),
   Layer.provide(Documents.Images.Images.layer),
   Layer.launch,
   NodeRuntime.runMain,

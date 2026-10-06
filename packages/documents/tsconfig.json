@@ -1,4 +1,8 @@
 {
   "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Email templates are React components.
+    "jsx": "react-jsx"
+  },
   "include": ["src", "test", "*.config.ts"]
 }

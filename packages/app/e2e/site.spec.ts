@@ -95,7 +95,7 @@ test("the site shows what was published, and only that", async ({
   await body(alice).press("Enter");
   await body(alice).pressSequentially("Bring friends");
   for (const _ of "friends") await body(alice).press("Shift+ArrowLeft");
-  await alice.getByRole("button", { name: "Link" }).click();
+  await alice.getByRole("button", { name: "Link", exact: true }).click();
   await alice
     .getByRole("textbox", { name: "Link address" })
     .fill("https://example.com/friends");

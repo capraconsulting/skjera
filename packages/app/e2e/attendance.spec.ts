@@ -3,6 +3,7 @@ import { expect, type Page, test } from "@playwright/test";
 import {
   deleteEvent,
   deleteTeam,
+  emailTo,
   eventPath,
   newTeam,
   publishedEvent,
@@ -128,32 +129,32 @@ test("guests sign up with their name and email", async ({ browser }) => {
   await deleteTeam(alice, team);
 });
 
-test("a guest's link brings their signup to another browser", async ({
+test("a guest's email brings their signup to another browser", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
   const team = await newTeam(alice, uniqueTeamName("Links"));
   const event = await publishedEvent(alice, { public: true, guests: true });
+  const address = `gina-${crypto.randomUUID()}@example.org`;
 
   const first = await visitor(browser);
   await first.goto(`/events/${event.id}`);
   const box = attendance(first);
   await box.getByRole("textbox", { name: "Your name" }).fill("Gina");
-  await box
-    .getByRole("textbox", { name: "Your email" })
-    .fill("gina@example.org");
+  await box.getByRole("textbox", { name: "Your email" }).fill(address);
   await box.getByRole("button", { name: "Sign up" }).click();
   await expect(box).toContainText("You're signed up.");
-  // What the email will carry.
-  const signup = await first.evaluate(
-    (id) => JSON.parse(localStorage.getItem(`skjera-signup-${id}`) ?? "{}"),
-    event.id,
-  );
+
+  // The email, with an invitation for their calendar and their own link.
+  const signedUp = await emailTo(address, `You're signed up: ${event.title}`);
+  expect(signedUp.raw).toMatch(/Content-Type: text\/calendar;.*method=REQUEST/);
+  const link = signedUp.text.match(
+    new RegExp(`http\\S*/events/${event.id}\\?guest=\\S+`),
+  )?.[0];
+  expect(link).toBeDefined();
 
   const second = await visitor(browser);
-  await second.goto(
-    `/events/${event.id}?guest=${signup.id}&token=${signup.cancelToken}`,
-  );
+  await second.goto(link ?? "");
   // Remembered, and out of the address.
   await expect(second).toHaveURL(new RegExp(`/events/${event.id}$`));
   const there = attendance(second);
@@ -161,6 +162,8 @@ test("a guest's link brings their signup to another browser", async ({
   await there.getByRole("button", { name: "Cancel my signup" }).click();
   await expect(there.getByRole("button", { name: "Sign up" })).toBeVisible();
   await expect(attendees(alice)).toContainText("Nobody has signed up yet.");
+  const cancelled = await emailTo(address, `Signup cancelled: ${event.title}`);
+  expect(cancelled.raw).toMatch(/Content-Type: text\/calendar;.*method=CANCEL/);
 
   await deleteEvent(alice, event.id);
   await deleteTeam(alice, team);

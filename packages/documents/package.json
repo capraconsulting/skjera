@@ -14,18 +14,23 @@
   "dependencies": {
     "@automerge/automerge": "catalog:",
     "@effect/sql-pg": "catalog:",
+    "@skjera/email": "workspace:*",
     "@skjera/oauth": "workspace:*",
     "@skjera/snapsync": "workspace:*",
     "aws4fetch": "catalog:",
     "bs58check": "catalog:",
     "cbor-x": "catalog:",
     "effect": "catalog:",
+    "ical-generator": "catalog:",
+    "react": "catalog:",
+    "react-email": "catalog:",
     "temporal-polyfill": "catalog:"
   },
   "devDependencies": {
     "@effect/platform-node": "catalog:",
     "@effect/vitest": "catalog:",
     "@types/node": "catalog:",
+    "@types/react": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

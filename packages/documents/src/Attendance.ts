@@ -11,6 +11,38 @@ import type {
   GuestDetails,
   Question,
 } from "./Model.ts";
+import { Notifications } from "./Notifications.ts";
+
+/** A signup, as notices tell of it. */
+interface Signup {
+  readonly id: string;
+  readonly name: string;
+  readonly email: string | null;
+  readonly guest: boolean;
+}
+
+/** Tells of signups that have an email address to tell. */
+const tell = (
+  notice: Notifications["Service"]["signedUp"],
+  event: DocumentId,
+  signups: ReadonlyArray<Signup>,
+) =>
+  Effect.forEach(
+    signups,
+    (signup) =>
+      signup.email === null
+        ? Effect.void
+        : notice({
+            event,
+            attendee: {
+              id: signup.id,
+              name: signup.name,
+              email: signup.email,
+              guest: signup.guest,
+            },
+          }),
+    { discard: true },
+  );
 
 /** What someone signing up tells, besides who they are. */
 export interface SignupDetails {
@@ -152,6 +184,7 @@ export class Attendance extends Context.Service<
     Attendance,
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
+      const notifications = yield* Notifications;
       const secret = yield* Config.Redacted("SIGNING_SECRET");
       const guestToken = (attendee: string) =>
         createHmac("sha256", Redacted.value(secret))
@@ -216,14 +249,18 @@ export class Attendance extends Context.Service<
         const dietary = yield* dietaryFor(askDietary, details.dietary);
         const answers = yield* answersFor(questions, details.answers);
         const id = details.id;
-        // Already signed up, or a retry: nothing to do.
-        yield* sql`
-          INSERT INTO attendees (id, event_id, user_issuer, user_subject, name, email, dietary, answers)
-          VALUES (coalesce(${id ?? null}::uuid, uuidv7()), ${event}, ${user.issuer},
-            ${user.subject}, ${user.name ?? user.email ?? user.subject},
-            ${user.email ?? null}, ${dietary}, ${JSON.stringify(answers)}::jsonb)
-          ON CONFLICT DO NOTHING
-        `.pipe(Effect.orDie);
+        yield* Effect.gen(function* () {
+          // Already signed up, or a retry: nothing to do, or tell.
+          const inserted = yield* sql<Signup>`
+            INSERT INTO attendees (id, event_id, user_issuer, user_subject, name, email, dietary, answers)
+            VALUES (coalesce(${id ?? null}::uuid, uuidv7()), ${event}, ${user.issuer},
+              ${user.subject}, ${user.name ?? user.email ?? user.subject},
+              ${user.email ?? null}, ${dietary}, ${JSON.stringify(answers)}::jsonb)
+            ON CONFLICT DO NOTHING
+            RETURNING id, name, email, false AS guest
+          `;
+          yield* tell(notifications.signedUp, event, inserted);
+        }).pipe(sql.withTransaction, Effect.orDie);
       });
 
       const leave = Effect.fn("Attendance.leave")(function* (
@@ -231,11 +268,15 @@ export class Attendance extends Context.Service<
         user: Identity,
       ) {
         yield* rules(event, "members");
-        yield* sql`
-          DELETE FROM attendees
-          WHERE event_id = ${event}
-            AND user_issuer = ${user.issuer} AND user_subject = ${user.subject}
-        `.pipe(Effect.orDie);
+        yield* Effect.gen(function* () {
+          const deleted = yield* sql<Signup>`
+            DELETE FROM attendees
+            WHERE event_id = ${event}
+              AND user_issuer = ${user.issuer} AND user_subject = ${user.subject}
+            RETURNING id, name, email, false AS guest
+          `;
+          yield* tell(notifications.signupCancelled, event, deleted);
+        }).pipe(sql.withTransaction, Effect.orDie);
       });
 
       const attendAsGuest = Effect.fn("Attendance.attendAsGuest")(function* (
@@ -257,11 +298,16 @@ export class Attendance extends Context.Service<
         const id = details.id;
         const attendee = id ?? crypto.randomUUID();
         const token = guestToken(attendee);
-        yield* sql`
-          INSERT INTO attendees (id, event_id, name, email, dietary, answers, cancel_token_hash)
-          VALUES (${attendee}::uuid, ${event}, ${guest.name.trim()},
-            ${guest.email.trim()}, ${dietary}, ${JSON.stringify(answers)}::jsonb, ${hash(token)})
-        `.pipe(
+        yield* Effect.gen(function* () {
+          const inserted = yield* sql<Signup>`
+            INSERT INTO attendees (id, event_id, name, email, dietary, answers, cancel_token_hash)
+            VALUES (${attendee}::uuid, ${event}, ${guest.name.trim()},
+              ${guest.email.trim()}, ${dietary}, ${JSON.stringify(answers)}::jsonb, ${hash(token)})
+            RETURNING id, name, email, true AS guest
+          `;
+          yield* tell(notifications.signedUp, event, inserted);
+        }).pipe(
+          sql.withTransaction,
           Effect.catchIf(SqlError.isSqlError, (error) =>
             pgCode(error) === "23505"
               ? Effect.fail(
@@ -286,10 +332,14 @@ export class Attendance extends Context.Service<
         `.pipe(Effect.orDie);
         if (found === undefined) return yield* new SignupNotFound({});
         if (!found.open) return yield* closed;
-        yield* sql`
-          DELETE FROM attendees
-          WHERE event_id = ${event} AND cancel_token_hash = ${hash(cancelToken)}
-        `.pipe(Effect.orDie);
+        yield* Effect.gen(function* () {
+          const deleted = yield* sql<Signup>`
+            DELETE FROM attendees
+            WHERE event_id = ${event} AND cancel_token_hash = ${hash(cancelToken)}
+            RETURNING id, name, email, true AS guest
+          `;
+          yield* tell(notifications.signupCancelled, event, deleted);
+        }).pipe(sql.withTransaction, Effect.orDie);
       });
 
       const change = Effect.fn("Attendance.change")(function* (

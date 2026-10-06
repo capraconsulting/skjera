@@ -124,7 +124,8 @@ export const deleteTeam = async (page: Page, id: string) => {
 
 /**
  * Deletes the event open in the editor, and checks it's gone from the studio
- * and the site. Tests end with this, so they leave no events behind.
+ * and the site, and clears the emails about it (they link to it). Tests end
+ * with this, so they leave no events, or emails, behind.
  */
 export const deleteEvent = async (page: Page, id: string) => {
   page.once("dialog", (dialog) => dialog.accept());
@@ -135,6 +136,7 @@ export const deleteEvent = async (page: Page, id: string) => {
 
   await page.goto(`/events/${id}`);
   await expect(page.getByText("isn't published")).toBeVisible();
+  await deleteEmailsAbout(id);
 };
 
 /**
@@ -235,3 +237,45 @@ export const publishedEvent = async (
   await expect(page.getByTestId("status")).toContainText("Published");
   return { id, title: eventTitle };
 };
+
+/** Mailpit's API (compose.yml): where the server's emails go in development. */
+const mailpit = async (path: string, init?: RequestInit) => {
+  const response = await fetch(`http://localhost:8025/api/v1${path}`, init);
+  if (!response.ok) throw new Error(`Mailpit: ${response.status} ${path}`);
+  return response.headers.get("content-type")?.includes("json")
+    ? response.json()
+    : response.text();
+};
+
+interface MailpitSummary {
+  readonly ID: string;
+  readonly Subject: string;
+}
+
+/** The email to `address` with `subject`, once it has come: its text and MIME. */
+export const emailTo = async (address: string, subject: string) => {
+  let found: MailpitSummary | undefined;
+  await expect
+    .poll(
+      async () => {
+        const { messages } = (await mailpit(
+          `/search?query=${encodeURIComponent(`to:"${address}"`)}`,
+        )) as { messages: ReadonlyArray<MailpitSummary> };
+        found = messages.find((message) => message.Subject === subject);
+        return found !== undefined;
+      },
+      { message: `an email to ${address}: ${subject}` },
+    )
+    .toBe(true);
+  const { Text } = (await mailpit(`/message/${found?.ID}`)) as {
+    readonly Text: string;
+  };
+  const raw = (await mailpit(`/message/${found?.ID}/raw`)) as string;
+  return { text: Text, raw };
+};
+
+/** Clears the emails about the event `id` out of Mailpit. */
+const deleteEmailsAbout = (id: string) =>
+  mailpit(`/search?query=${encodeURIComponent(`"${id}"`)}`, {
+    method: "DELETE",
+  });

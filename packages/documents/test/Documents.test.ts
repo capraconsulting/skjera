@@ -8,6 +8,7 @@ import type { EventContent } from "../src/ContentTypes.ts";
 import { DocumentEvents } from "../src/DocumentEvents.ts";
 import { Documents } from "../src/Documents.ts";
 import type { Answers, Audience, DocumentId, TeamId } from "../src/Model.ts";
+import { Notifications } from "../src/Notifications.ts";
 import { Presence } from "../src/Presence.ts";
 import { Sync } from "../src/Sync.ts";
 import { Teams } from "../src/Teams.ts";
@@ -23,7 +24,10 @@ const TestLayer = Layer.mergeAll(
   Teams.layer,
   Attendance.layer,
   Presence.layer,
-).pipe(Layer.provideMerge(TestDatabase));
+).pipe(
+  Layer.provideMerge(Notifications.layerTest),
+  Layer.provideMerge(TestDatabase),
+);
 
 /** The published version of an event, as `audience` would pull it. */
 const publishedAs = (id: DocumentId, audience: Audience) =>

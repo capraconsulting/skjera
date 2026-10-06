@@ -1,4 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Email templates (in @skjera/documents) are React components, to
+    // typecheck. (tsx, which runs the server, only applies this to src: the
+    // templates name their JSX runtime themselves.)
+    "jsx": "react-jsx"
+  },
   "include": ["src"]
 }
