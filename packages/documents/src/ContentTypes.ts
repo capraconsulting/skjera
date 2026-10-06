@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 import { Temporal } from "temporal-polyfill";
-import { Cover, Question, ZonedDateTime } from "./Model.ts";
+import { Cover, Question, Tag, ZonedDateTime } from "./Model.ts";
 
 // Content types are safe to share with the editor. A draft must always match
 // its type's schema exactly: changes that would add unknown fields or change
@@ -38,6 +38,11 @@ export const EventContent = Schema.Struct({
   foodDeadline: Schema.NullOr(ZonedDateTime),
   /** Asked of everyone signing up. */
   questions: Schema.Array(Question),
+  /**
+   * What the event is about, to find it by. Two people adding the same tag
+   * at once leaves it twice: it counts once, ignoring case.
+   */
+  tags: Schema.Array(Tag),
 });
 export type EventContent = typeof EventContent.Type;
 
@@ -62,6 +67,7 @@ export const contentTypes = {
       food: "",
       foodDeadline: null,
       questions: [],
+      tags: [],
     } satisfies EventContent,
     toPublish: [
       { label: "a title", met: (event) => event.title.trim() !== "" },

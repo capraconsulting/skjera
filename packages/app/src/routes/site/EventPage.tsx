@@ -3,6 +3,7 @@ import { eq, useLiveQuery } from "@tanstack/react-db";
 import {
   data,
   isRouteErrorResponse,
+  Link,
   type LoaderFunctionArgs,
   useLoaderData,
   useRouteError,
@@ -77,6 +78,15 @@ export function EventPage() {
           </>
         )}
       </p>
+      {event.tags.length === 0 ? null : (
+        <ul className={styles.tags} aria-label="Tags">
+          {event.tags.map((tag) => (
+            <li key={tag.toLowerCase()}>
+              <Link to={`/?tag=${encodeURIComponent(tag)}`}>{tag}</Link>
+            </li>
+          ))}
+        </ul>
+      )}
       {event.askDietary && event.food.trim() !== "" ? (
         <p className={styles.food}>
           <span className={styles.foodLabel}>Food</span> {event.food}

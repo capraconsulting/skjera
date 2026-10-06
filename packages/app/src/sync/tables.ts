@@ -10,6 +10,7 @@ import {
   PublicSyncApi,
   type Snapshot,
   SyncApi,
+  type TagRow,
   type TeamRow,
   TeamsApi,
 } from "@skjera/documents/api";
@@ -201,6 +202,16 @@ const failureMessage = (failure: { readonly _tag: string }) =>
     : "message" in failure && typeof failure.message === "string"
       ? failure.message
       : "Something went wrong";
+
+/** Tags published events have had: suggestions when tagging. */
+export const tags = serverTable({
+  id: "tags",
+  getKey: (tag: TagRow) => tag.id,
+  pull: (since) =>
+    request((client) =>
+      client.sync.tags({ query: since === undefined ? {} : { since } }),
+    ),
+});
 
 export const teams = serverTable({
   id: "teams",

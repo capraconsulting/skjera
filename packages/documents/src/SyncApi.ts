@@ -45,6 +45,13 @@ export const TeamRow = Schema.Struct({
 });
 export type TeamRow = typeof TeamRow.Type;
 
+/** A tag some published event has had: suggestions for tagging. */
+export const TagRow = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
+});
+export type TagRow = typeof TagRow.Type;
+
 /**
  * A document without its content, which is synced separately, but with what
  * lists of documents show from it.
@@ -88,6 +95,8 @@ export const EventRow = Schema.Struct({
   foodDeadline: Schema.NullOr(Schema.Date),
   /** Asked of everyone signing up. */
   questions: Schema.Array(Question),
+  /** Without duplicates. */
+  tags: Schema.Array(Schema.String),
   /** The version of the draft that was published. */
   publishedHeads: Heads,
   publishedAt: Schema.Date,
@@ -134,6 +143,10 @@ export class SyncApi extends HttpApiGroup.make("sync")
     HttpApiEndpoint.get("documents", "/api/sync/documents", {
       query: since,
       success: Pulled(DocumentRow),
+    }),
+    HttpApiEndpoint.get("tags", "/api/sync/tags", {
+      query: since,
+      success: Pulled(TagRow),
     }),
   )
   .middleware(Authentication) {}

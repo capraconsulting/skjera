@@ -18,6 +18,7 @@ import {
   DocumentRow,
   EventRow,
   type Snapshot,
+  TagRow,
   TeamRow,
 } from "./SyncApi.ts";
 
@@ -47,6 +48,8 @@ export class Sync extends Context.Service<
     readonly documents: (
       since: Snapshot | undefined,
     ) => Effect.Effect<Pull<DocumentRow>>;
+    /** Tags published events have had, to suggest. */
+    readonly tags: (since: Snapshot | undefined) => Effect.Effect<Pull<TagRow>>;
     /** Published events: all of them for members, public ones for anyone. */
     readonly events: (
       since: Snapshot | undefined,
@@ -145,6 +148,23 @@ export class Sync extends Context.Service<
         );
       });
 
+      const tags = Effect.fn("Sync.tags")(function* (
+        since: Snapshot | undefined,
+      ) {
+        return yield* pull(
+          "tags",
+          since,
+          sql<{ id: string; name: string }>`
+            SELECT id, name FROM tags WHERE ${unseen(since)}
+          `.pipe(
+            Effect.map((rows) => ({
+              rows: rows.map((row) => TagRow.make(row)),
+              hidden: [],
+            })),
+          ),
+        );
+      });
+
       const documents = Effect.fn("Sync.documents")(function* (
         since: Snapshot | undefined,
       ) {
@@ -208,13 +228,14 @@ export class Sync extends Context.Service<
             food: string;
             food_deadline: Date | null;
             questions: ReadonlyArray<Question>;
+            tags: ReadonlyArray<string>;
             published_heads: Heads;
             published_at: Date;
             first_published_at: Date;
             visible: boolean;
           }>`
             SELECT id, title, starts_at, ends_at, signup_deadline, time_zone, body, cover, is_public,
-              allow_guests, ask_dietary, food, food_deadline, questions,
+              allow_guests, ask_dietary, food, food_deadline, questions, tags,
               published_heads, published_at,
               first_published_at, is_public OR ${audience === "members"} AS visible
             FROM events WHERE ${unseen(since)}
@@ -238,6 +259,7 @@ export class Sync extends Context.Service<
                     food: row.food,
                     foodDeadline: row.food_deadline,
                     questions: row.questions,
+                    tags: row.tags,
                     publishedHeads: row.published_heads,
                     publishedAt: row.published_at,
                     firstPublishedAt: row.first_published_at,
@@ -315,7 +337,7 @@ export class Sync extends Context.Service<
         );
       });
 
-      return Sync.of({ teams, documents, events, attendees });
+      return Sync.of({ teams, documents, tags, events, attendees });
     }),
   );
 }

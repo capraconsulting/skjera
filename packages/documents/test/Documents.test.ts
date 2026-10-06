@@ -114,6 +114,11 @@ const publishedEvent = Effect.fn(function* (settings: {
   return id;
 });
 
+/** Adds tags as the editor does. */
+const addTags = (event: EventContent, ...tags: ReadonlyArray<string>) => {
+  (event as unknown as { tags: Array<string> }).tags.push(...tags);
+};
+
 /** Sets the questions as the editor does: ids and types immutable. */
 const setQuestions = (
   event: EventContent,
@@ -208,6 +213,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         food: "",
         foodDeadline: null,
         questions: [],
+        tags: [],
       });
       assert.deepStrictEqual(
         snapshot.heads,
@@ -258,6 +264,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
           food: "",
           foodDeadline: null,
           questions: [],
+          tags: [],
         });
         assert.deepStrictEqual(
           [...A.getHeads(editor.doc())].sort(),
@@ -1227,6 +1234,51 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
           ],
         ],
       );
+    }),
+  );
+
+  it.effect("publishes tags once each, and collects them to suggest", () =>
+    Effect.gen(function* () {
+      const sync = yield* Sync;
+      const name = `Tag ${crypto.randomUUID().slice(0, 8)}`;
+      const id = yield* publishedEvent({
+        public: true,
+        guests: false,
+        edit: (event) => {
+          // As two people adding the same tag at once leave it.
+          addTags(event, name, "Workshop", name.toUpperCase(), name);
+        },
+      });
+      assert.deepStrictEqual((yield* publishedAs(id, "anyone"))?.tags, [
+        name,
+        "Workshop",
+      ]);
+
+      // Published again, or by another event in other letters: still once.
+      yield* publishedEvent({
+        public: false,
+        guests: false,
+        edit: (event) => addTags(event, name.toLowerCase()),
+      });
+      const suggested = (yield* sync.tags(undefined)).rows
+        .map((row) => row.name)
+        .filter((tag) => tag.toLowerCase() === name.toLowerCase());
+      assert.deepStrictEqual(suggested, [name]);
+
+      // Tags are trimmed, and short.
+      const documents = yield* Documents;
+      const draft = yield* documents.create("event", yield* newTeam, alice);
+      for (const tag of [" Padded", "", "x".repeat(41)]) {
+        const editor = yield* openEditor(draft);
+        const error = yield* Effect.flip(
+          documents.applyChanges(
+            draft,
+            [editor.edit((event) => addTags(event, tag))],
+            alice,
+          ),
+        );
+        assert.strictEqual(error._tag, "InvalidContent", tag);
+      }
     }),
   );
 

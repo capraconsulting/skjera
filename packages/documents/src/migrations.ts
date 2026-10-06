@@ -392,4 +392,74 @@ export const migrations = Migrator.fromRecord({
     // When the signup's answers or dietary preferences last changed.
     `ALTER TABLE attendees ADD COLUMN changed_at timestamptz NOT NULL DEFAULT now()`,
   ),
+  "0014_tags": statements(
+    `ALTER TABLE events ADD COLUMN tags text[] NOT NULL DEFAULT '{}'`,
+    // Every tag published events have had, once, ignoring case: only to
+    // suggest when tagging. Kept by publishing (below); never removed.
+    `CREATE TABLE tags (
+      id uuid PRIMARY KEY DEFAULT uuidv7(),
+      name text NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now()
+    )`,
+    `CREATE UNIQUE INDEX tags_name_key ON tags (lower(name))`,
+    ...syncTable("tags"),
+    `CREATE FUNCTION events_collect_tags() RETURNS trigger LANGUAGE plpgsql AS $$
+    BEGIN
+      INSERT INTO tags (name)
+        SELECT DISTINCT ON (lower(tag)) tag FROM unnest(NEW.tags) AS tag
+        ON CONFLICT (lower(name)) DO NOTHING;
+      RETURN NULL;
+    END
+    $$`,
+    `CREATE TRIGGER events_collect_tags AFTER INSERT OR UPDATE OF tags ON events
+      FOR EACH ROW EXECUTE FUNCTION events_collect_tags()`,
+    `CREATE OR REPLACE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
+      RETURNS SETOF events LANGUAGE sql AS $$
+      INSERT INTO events AS e
+        (id, title, starts_at, ends_at, signup_deadline, time_zone, body, cover,
+         is_public, allow_guests, ask_dietary, food, food_deadline, questions, tags,
+         published_heads, published_by_issuer, published_by_subject)
+      SELECT d.id, c.content->>'title',
+        zoned_instant(c.content->>'start'), zoned_instant(c.content->>'end'),
+        zoned_instant(c.content->>'deadline'), zoned_zone(c.content->>'start'),
+        automerge_spans(d.draft, '{body}', heads), c.content->'cover',
+        (c.content->>'public')::boolean,
+        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
+        (c.content->>'dietary')::boolean,
+        c.content->>'food', zoned_instant(c.content->>'foodDeadline'),
+        c.content->'questions',
+        -- Each once, ignoring case, as first written.
+        ARRAY(
+          SELECT tag FROM (
+            SELECT DISTINCT ON (lower(tag)) tag, n
+            FROM jsonb_array_elements_text(c.content->'tags') WITH ORDINALITY AS t(tag, n)
+            ORDER BY lower(tag), n
+          ) firsts ORDER BY n
+        ),
+        -- Sorted like automerge_heads(), so the two can be compared.
+        ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
+      FROM documents d
+      CROSS JOIN LATERAL (SELECT automerge_to_jsonb(d.draft, heads) AS content OFFSET 0) c
+      WHERE d.id = document_id AND d.type = 'event'
+      ON CONFLICT (id) DO UPDATE SET
+        title = EXCLUDED.title,
+        starts_at = EXCLUDED.starts_at,
+        ends_at = EXCLUDED.ends_at,
+        signup_deadline = EXCLUDED.signup_deadline,
+        time_zone = EXCLUDED.time_zone,
+        body = EXCLUDED.body,
+        cover = EXCLUDED.cover,
+        is_public = EXCLUDED.is_public,
+        allow_guests = EXCLUDED.allow_guests,
+        ask_dietary = EXCLUDED.ask_dietary,
+        food = EXCLUDED.food,
+        food_deadline = EXCLUDED.food_deadline,
+        questions = EXCLUDED.questions,
+        tags = EXCLUDED.tags,
+        published_heads = EXCLUDED.published_heads,
+        published_by_issuer = EXCLUDED.published_by_issuer,
+        published_by_subject = EXCLUDED.published_by_subject
+      RETURNING e.*
+    $$`,
+  ),
 });

@@ -89,6 +89,16 @@ export const GuestDetails = Schema.Struct({
 });
 export type GuestDetails = typeof GuestDetails.Type;
 
+/** A tag on an event, e.g. "Workshop": trimmed, at most 40 characters. */
+export const Tag = Schema.String.check(
+  Schema.makeFilter(
+    (tag: string) =>
+      (tag.trim() === tag && tag !== "" && tag.length <= 40) ||
+      "Expected a tag of 1 to 40 characters, without spaces around it",
+  ),
+);
+export type Tag = typeof Tag.Type;
+
 /**
  * A question asked of everyone signing up. "text" takes a written answer,
  * "checkbox" a tick (the text is its label, e.g. "I'll bring a friend"),

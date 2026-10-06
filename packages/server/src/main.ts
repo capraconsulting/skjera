@@ -116,7 +116,8 @@ const SyncHandlers = HttpApiBuilder.group(Api, "sync", (handlers) =>
     const sync = yield* Documents.Sync;
     return handlers
       .handle("teams", ({ query }) => sync.teams(query.since))
-      .handle("documents", ({ query }) => sync.documents(query.since));
+      .handle("documents", ({ query }) => sync.documents(query.since))
+      .handle("tags", ({ query }) => sync.tags(query.since));
   }),
 );
 

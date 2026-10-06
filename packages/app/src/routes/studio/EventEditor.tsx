@@ -10,6 +10,7 @@ import { CheckboxField, useBooleanField } from "../../editor/CheckboxField.tsx";
 import { CoverField } from "../../editor/CoverField.tsx";
 import { EventTimes, FoodDeadline } from "../../editor/DateTimeField.tsx";
 import { QuestionsField } from "../../editor/QuestionsField.tsx";
+import { TagsField } from "../../editor/TagsField.tsx";
 import { TextEditor } from "../../editor/TextEditor.tsx";
 import {
   type DraftPresence,
@@ -100,6 +101,7 @@ function EventSession({ id }: { readonly id: DocumentId }) {
           <CoverField handle={handle} presence={session.presence} />
         </Field>
         <EventTimes handle={handle} />
+        <TagsField handle={handle} />
         <Field label="Visibility">
           <CheckboxField
             handle={handle}
