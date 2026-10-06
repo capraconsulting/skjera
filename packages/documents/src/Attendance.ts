@@ -1,6 +1,6 @@
-import { createHash, createHmac } from "node:crypto";
+import { createHash, createHmac, randomBytes } from "node:crypto";
 import type { Identity } from "@skjera/oauth/api";
-import { Config, Context, Effect, Layer, Redacted } from "effect";
+import { Config, Context, Effect, Layer, Option, Redacted } from "effect";
 import { SqlClient, SqlError } from "effect/sql";
 import { EventNotFound, SignupNotFound, SignupRejected } from "./errors.ts";
 import type {
@@ -148,13 +148,31 @@ export class Attendance extends Context.Service<
     readonly guestToken: (attendee: string) => string;
   }
 >()("@skjera/documents/Attendance") {
-  /** Guests' tokens are signed with `SIGNING_SECRET`. */
+  /**
+   * Guests' tokens are signed with `SIGNING_SECRET`. Without it, with a
+   * secret made up at start, and a warning: links sent before a restart
+   * stop working (tokens guests' browsers keep don't).
+   */
   static readonly layer = Layer.effect(
     Attendance,
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
       const notifications = yield* Notifications;
-      const secret = yield* Config.Redacted("SIGNING_SECRET");
+      const secret = yield* Config.Redacted("SIGNING_SECRET").pipe(
+        Config.option,
+        Effect.flatMap(
+          Option.match({
+            onSome: Effect.succeed,
+            onNone: () =>
+              Effect.as(
+                Effect.logWarning(
+                  "SIGNING_SECRET not set: guests' links in emails stop working on restart",
+                ),
+                Redacted.make(randomBytes(32).toString("base64url")),
+              ),
+          }),
+        ),
+      );
       const guestToken = (attendee: string) =>
         createHmac("sha256", Redacted.value(secret))
           .update(`guest-signup/${attendee}`)

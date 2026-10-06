@@ -1,7 +1,7 @@
 /** @jsxRuntime automatic @jsxImportSource react */
 import { Email, EmailRejected, retryTransient } from "@skjera/email";
 import { renderEmail } from "@skjera/email/react";
-import { Config, Cron, Effect, Layer, Schema } from "effect";
+import { Config, Cron, Effect, Layer, Option, Schema } from "effect";
 import { ClusterCron, ClusterSchema, Entity } from "effect/cluster";
 import { Rpc } from "effect/rpc";
 import { SqlClient } from "effect/sql";
@@ -101,9 +101,27 @@ interface EventRow {
   readonly deleted: boolean;
 }
 
-/** Sends the event's emails, as its mailer gets them. */
+/**
+ * Sends the event's emails, as its mailer gets them. Without `SITE_URL` and
+ * `EMAIL_FROM`, with a warning, it drops them: they'd have no links, or
+ * sender.
+ */
 export const layerMailer = Layer.unwrap(
-  Effect.map(SiteConfig, (site) => mailer(site)),
+  Effect.gen(function* () {
+    const site = yield* Config.option(SiteConfig);
+    if (Option.isSome(site)) return mailer(site.value);
+    yield* Effect.logWarning(
+      "SITE_URL or EMAIL_FROM not set: attendees aren't emailed",
+    );
+    return EventMail.toLayer(
+      EventMail.of({
+        Send: ({ payload }) =>
+          Effect.logInfo("Email not sent (SITE_URL or EMAIL_FROM not set)", {
+            kind: payload.kind,
+          }),
+      }),
+    );
+  }),
 );
 
 const mailer = (site: Config.Success<typeof SiteConfig>) =>

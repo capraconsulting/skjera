@@ -1,10 +1,11 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { assert, describe, it } from "@effect/vitest";
-import { Effect, Exit, Redacted } from "effect";
+import { ConfigProvider, Effect, Exit, Layer, Redacted } from "effect";
 import { simpleParser } from "mailparser";
 import { Body, Button, Heading, Html, Text } from "react-email";
 import {
+  Email,
   EmailRejected,
   EmailThrottled,
   EmailUnavailable,
@@ -12,6 +13,7 @@ import {
   retryTransient,
   toMime,
 } from "../src/Email.ts";
+import { layerConfig } from "../src/index.ts";
 import { renderEmail } from "../src/react.ts";
 import { makeSes } from "../src/ses.ts";
 import { makeSmtp } from "../src/smtp.ts";
@@ -308,6 +310,24 @@ describe("EmailTest", () => {
         .pipe(retryTransient({ base: "10 millis" }), Effect.exit);
       assert.isTrue(Exit.isFailure(refused));
       assert.strictEqual(outbox.sent().length, 1);
+    }),
+  );
+});
+
+describe("layerConfig", () => {
+  const configured = (env: Record<string, string>) =>
+    layerConfig.pipe(
+      Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(env))),
+    );
+
+  it.effect("logs emails, not sends them, when none is configured", () =>
+    Effect.gen(function* () {
+      for (const env of [{}, { EMAIL_TRANSPORT: "smtp" }]) {
+        const sent = yield* Effect.gen(function* () {
+          return yield* (yield* Email).send(message("Launch"));
+        }).pipe(Effect.provide(configured(env)));
+        assert.strictEqual(sent.id, "log-1");
+      }
     }),
   );
 });
