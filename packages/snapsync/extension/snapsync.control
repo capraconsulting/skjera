@@ -4,4 +4,4 @@ comment = 'Pull what changed in tables since a snapshot, to keep copies of them'
 default_version = '0.1.0'
 relocatable = false
 schema = snapsync
-superuser = true
+superuser = false

@@ -1,3 +1,4 @@
+import * as Snapsync from "@skjera/snapsync/server";
 import { Effect } from "effect";
 import { Migrator, SqlClient } from "effect/sql";
 
@@ -462,22 +463,25 @@ export const migrations = Migrator.fromRecord({
       RETURNING e.*
     $$`,
   ),
-  "0015_snapsync": statements(
-    // Syncing moves to the snapsync extension (packages/snapsync), which
-    // also prunes tombstones and starts clients over after a restore. Its
-    // tokens differ from the snapshots before: every client starts over.
-    `CREATE EXTENSION snapsync`,
-    ...["teams", "documents", "events", "attendees", "tags"].flatMap(
-      (table) => [
-        `DROP TRIGGER ${table}_sync_touch ON ${table}`,
-        `DROP TRIGGER ${table}_sync_tombstone ON ${table}`,
-        `ALTER TABLE ${table} DROP COLUMN xid`,
-        `SELECT snapsync.track('${table}')`,
-      ],
+  "0015_snapsync": Effect.andThen(
+    // Syncing moves to snapsync (packages/snapsync), which also prunes
+    // tombstones and starts clients over after a restore. Its tokens differ
+    // from the snapshots before: every client starts over. Installed by
+    // the app, not as an extension, so the database needs nothing of ours.
+    Snapsync.install,
+    statements(
+      ...["teams", "documents", "events", "attendees", "tags"].flatMap(
+        (table) => [
+          `DROP TRIGGER ${table}_sync_touch ON ${table}`,
+          `DROP TRIGGER ${table}_sync_tombstone ON ${table}`,
+          `ALTER TABLE ${table} DROP COLUMN xid`,
+          `SELECT snapsync.track('${table}')`,
+        ],
+      ),
+      `DROP TABLE sync_deletes`,
+      `DROP FUNCTION sync_touch()`,
+      `DROP FUNCTION sync_tombstone()`,
     ),
-    `DROP TABLE sync_deletes`,
-    `DROP FUNCTION sync_touch()`,
-    `DROP FUNCTION sync_tombstone()`,
   ),
   "0016_attendees_follow_events": statements(
     // Pulls page by each table's own transaction ids, so attendees change

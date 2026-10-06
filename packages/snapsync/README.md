@@ -31,9 +31,18 @@ This follows Cognite's
 "[Flexible change data capture with Postgres](https://vimeo.com/747697698)",
 with Postgres 13+'s `xid8` and `pg_snapshot` in place of `txid_*`.
 
-## Install the extension
+## Install
 
-PostgreSQL 14 or later. Copy `extension/*` into the server's extension
+PostgreSQL 14 or later. Either from the app, with no files on the database
+server and no superuser: once per database, e.g. in a migration,
+
+```ts
+import { install } from "@skjera/snapsync/server";
+
+yield* install; // the extension's script, in a schema "snapsync"
+```
+
+or as an extension: copy `extension/*` into the server's extension
 directory (`$(pg_config --sharedir)/extension`), or on PostgreSQL 18, point
 `extension_control_path` at a directory holding them in an `extension/`
 subdirectory, e.g. in Docker Compose:
@@ -46,10 +55,15 @@ postgres:
     - ./node_modules/@skjera/snapsync/extension:/opt/snapsync/extension:ro
 ```
 
-Then, as a superuser (the owner of the tables, typically):
+Then:
 
 ```sql
 CREATE EXTENSION snapsync;
+```
+
+Either way, track tables as their owner:
+
+```sql
 SELECT snapsync.track('attendees');            -- key column "id", xid column "xid"
 SELECT snapsync.track('tags', 'name', 'xid');  -- or name them
 ```

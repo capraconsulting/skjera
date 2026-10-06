@@ -1,10 +1,36 @@
+import { readFileSync } from "node:fs";
 import { Duration, Effect, Layer, Schedule } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
 import type { Pulled, Token } from "./schema.ts";
 
-// Pulling from tables tracked by the snapsync extension, a page at a time,
-// and keeping it well. Needs `CREATE EXTENSION snapsync` and `snapsync.track()` for each
-// table (see the README).
+// Pulling from tables tracked by snapsync, a page at a time, and keeping it
+// well. Needs snapsync installed (`install`, or `CREATE EXTENSION snapsync`)
+// and `snapsync.track()` for each table (see the README).
+
+/** The version `install` installs. */
+export const version = "0.1.0";
+
+/**
+ * Installs snapsync without the extension: the extension's script, run as
+ * is in a schema of its own, by whoever runs it (no superuser needed). So
+ * the database server needs no files of ours: for when it's run elsewhere.
+ * Once per database, e.g. in a migration.
+ */
+export const install = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+  const script = readFileSync(
+    new URL(`../extension/snapsync--${version}.sql`, import.meta.url),
+    "utf8",
+  )
+    // Only for CREATE EXTENSION: refusing to run otherwise, and keeping
+    // the tables in dumps, as they are anyway when not an extension's.
+    .replace(/^\\echo .*$/m, "")
+    .replace(/^SELECT pg_catalog\.pg_extension_config_dump\(.*$/gm, "");
+  // One statement per query here, but EXECUTE runs a script.
+  yield* sql.unsafe(
+    `DO $install$ BEGIN EXECUTE $script$CREATE SCHEMA snapsync;\n${script}$script$; END $install$`,
+  );
+});
 
 /** How many changes a page holds, unless told otherwise. */
 export const defaultPageSize = 1000;

@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { PgClient } from "@effect/sql-pg";
 import { Effect, Layer, Redacted } from "effect";
 import { SqlClient } from "effect/sql";
+import { install } from "../src/server.ts";
 
 const serverUrl =
   process.env.DATABASE_URL ?? "postgres://skjera:skjera@localhost:5433/skjera";
@@ -28,10 +29,8 @@ export const TestDatabase = Layer.unwrap(
     url.pathname = `/${name}`;
     const client = PgClient.layer({ url: Redacted.make(url.href) });
     return Layer.effectDiscard(
-      Effect.gen(function* () {
-        const sql = yield* SqlClient.SqlClient;
-        yield* sql`CREATE EXTENSION snapsync`;
-      }),
+      // Installed as the app does, not as an extension.
+      install,
     ).pipe(Layer.provideMerge(client));
   }).pipe(Effect.orDie),
 );

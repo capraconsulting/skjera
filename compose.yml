@@ -18,14 +18,10 @@ services:
       - default_toast_compression=lz4
       - -c
       - pg_automerge.max_load_memory=1GB
-      # snapsync is pure SQL: its files are mounted, not built in.
-      - -c
-      - extension_control_path=$$system:/opt/snapsync
     ports:
       - "127.0.0.1:5433:5432"
     volumes:
       - postgres:/var/lib/postgresql
-      - ./packages/snapsync/extension:/opt/snapsync/extension:ro
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "skjera", "-d", "skjera"]
       interval: 2s
