@@ -1,0 +1,10 @@
+# Only sources go in: dependencies are installed, and the app built, inside.
+**/node_modules
+**/dist
+**/.turbo
+**/test-results
+**/playwright-report
+.git
+.hooks
+mise.local.toml
+mprocs.log

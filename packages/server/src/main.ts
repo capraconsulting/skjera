@@ -13,6 +13,7 @@ import {
   HttpRouter,
   HttpServerRequest,
   HttpServerResponse,
+  HttpStaticServer,
 } from "effect/http";
 import {
   HttpApi,
@@ -21,6 +22,7 @@ import {
   HttpApiGroup,
 } from "effect/http-api";
 import { KeyValueStore } from "effect/persistence";
+import { SqlClient } from "effect/sql";
 
 class Api extends HttpApi.make("skjera")
   .add(
@@ -196,6 +198,47 @@ const DocumentsHandlers = HttpApiBuilder.group(Api, "documents", (handlers) =>
   }),
 );
 
+/**
+ * The built app (packages/app) from `STATIC_DIR`, in production; Vite
+ * serves it in development. Paths that aren't files are the app's, which
+ * it routes in the browser.
+ */
+const App = Layer.unwrap(
+  Effect.gen(function* () {
+    const root = yield* Config.option(Config.String("STATIC_DIR"));
+    if (Option.isNone(root)) return Layer.empty;
+    return Layer.mergeAll(
+      // Named by their content, so they never change.
+      HttpStaticServer.layer({
+        root: `${root.value}/assets`,
+        prefix: "/assets",
+        cacheControl: "public, max-age=31536000, immutable",
+      }),
+      HttpStaticServer.layer({
+        root: root.value,
+        spa: true,
+        cacheControl: "no-cache",
+      }),
+    );
+  }),
+);
+
+/** Ready to serve: the database answers. (`/health`: the process does.) */
+const ready = HttpRouter.add(
+  "GET",
+  "/health/ready",
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`SELECT 1`;
+    return HttpServerResponse.text("ok");
+  }).pipe(
+    Effect.timeout("2 seconds"),
+    Effect.catch(() =>
+      Effect.succeed(HttpServerResponse.text("unavailable", { status: 503 })),
+    ),
+  ),
+);
+
 const Routes = Layer.mergeAll(
   HttpApiBuilder.layer(Api).pipe(
     Layer.provide([
@@ -211,6 +254,8 @@ const Routes = Layer.mergeAll(
   Documents.DraftSync.layerHttp({ path: Documents.draftSyncPath }),
   Documents.Images.layerHttp,
   HttpRouter.add("GET", "/health", HttpServerResponse.text("ok")),
+  ready,
+  App,
 ).pipe(Layer.provideMerge(OAuth.routes));
 
 const Server = Layer.unwrap(
