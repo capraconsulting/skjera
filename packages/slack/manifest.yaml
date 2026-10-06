@@ -1,0 +1,27 @@
+# A Slack app for Skjera: create it from this manifest in your workspace
+# (api.slack.com/apps → Create New App → From a manifest), install it, and
+# set SLACK_BOT_TOKEN to its Bot User OAuth Token ("xoxb-…"). Rename it at
+# will. Receiving events and interactivity (buttons) come later, with the
+# request URLs they need.
+display_information:
+  name: Skjera
+  description: Announces events, and keeps the announcements up to date.
+features:
+  bot_user:
+    display_name: Skjera
+    always_online: false
+oauth_config:
+  scopes:
+    bot:
+      # Post, edit and delete announcements in channels it's been invited to.
+      - chat:write
+      # List channels, to pick where events are announced.
+      - channels:read
+      - groups:read
+      # Match Slack users to members, by email.
+      - users:read
+      - users:read.email
+settings:
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false
