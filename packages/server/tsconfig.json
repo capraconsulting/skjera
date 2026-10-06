@@ -6,5 +6,5 @@
     // templates name their JSX runtime themselves.)
     "jsx": "react-jsx"
   },
-  "include": ["src"]
+  "include": ["src", "build.ts"]
 }
