@@ -15,6 +15,12 @@ S3_REGION = "us-east-1"
 S3_BUCKET = "skjera-images"
 S3_ACCESS_KEY_ID = "skjera"
 S3_SECRET_ACCESS_KEY = "skjera-dev-secret"
+# Where the site is, what it's called, and who emails come from.
+SITE_URL = "http://localhost:5173"
+SITE_NAME = "Skjera"
+EMAIL_FROM = "Skjera <events@skjera.localhost>"
+# Signs what's put in links, e.g. guests' links to their signups.
+SIGNING_SECRET = "skjera-dev-signing-secret"
 EMAIL_TRANSPORT = "smtp"
 EMAIL_SMTP_URL = "smtp://localhost:1025"
 

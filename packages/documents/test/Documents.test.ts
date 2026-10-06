@@ -910,6 +910,24 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
     }),
   );
 
+  it.effect("gives guests a token that emails sent later can carry", () =>
+    Effect.gen(function* () {
+      const attendance = yield* Attendance;
+      const id = yield* publishedEvent({ public: true, guests: true });
+      const signup = crypto.randomUUID();
+      const token = yield* attendance.attendAsGuest(
+        id,
+        { name: "Gina", email: "gina@example.org" },
+        { id: signup },
+      );
+      // The same, made again from the signup alone; another's differs.
+      assert.strictEqual(attendance.guestToken(signup), token);
+      assert.notStrictEqual(attendance.guestToken(crypto.randomUUID()), token);
+      yield* attendance.leaveAsGuest(id, attendance.guestToken(signup));
+      assert.deepStrictEqual(yield* organizerView(id), []);
+    }),
+  );
+
   it.effect("lets guests sign up where allowed, once per email", () =>
     Effect.gen(function* () {
       const attendance = yield* Attendance;

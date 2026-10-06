@@ -9,6 +9,8 @@
     "EMAIL_*",
     "AWS_*",
     "SES_*",
+    "SITE_*",
+    "SIGNING_SECRET",
     "CI"
   ],
   "tasks": {

@@ -1,6 +1,6 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import type { Identity } from "@skjera/oauth/api";
-import { Context, Effect, Layer } from "effect";
+import { Config, Context, Effect, Layer, Redacted } from "effect";
 import { SqlClient, SqlError } from "effect/sql";
 import { EventNotFound, SignupNotFound, SignupRejected } from "./errors.ts";
 import type {
@@ -139,12 +139,24 @@ export class Attendance extends Context.Service<
     ) => Effect.Effect<void, EventNotFound | SignupNotFound | SignupRejected>;
     /** Takes someone off an event, as its organizers: any time. */
     readonly remove: (attendee: string) => Effect.Effect<void, SignupNotFound>;
+    /**
+     * The token a guest changes and cancels their signup with: derived from
+     * it, so it can be put in emails sent later, though only its hash is
+     * stored.
+     */
+    readonly guestToken: (attendee: string) => string;
   }
 >()("@skjera/documents/Attendance") {
+  /** Guests' tokens are signed with `SIGNING_SECRET`. */
   static readonly layer = Layer.effect(
     Attendance,
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
+      const secret = yield* Config.Redacted("SIGNING_SECRET");
+      const guestToken = (attendee: string) =>
+        createHmac("sha256", Redacted.value(secret))
+          .update(`guest-signup/${attendee}`)
+          .digest("base64url");
 
       const closed = new SignupRejected({
         message: "Sign-up for this event has closed",
@@ -243,10 +255,11 @@ export class Attendance extends Context.Service<
         const dietary = yield* dietaryFor(askDietary, details.dietary);
         const answers = yield* answersFor(questions, details.answers);
         const id = details.id;
-        const token = randomBytes(32).toString("base64url");
+        const attendee = id ?? crypto.randomUUID();
+        const token = guestToken(attendee);
         yield* sql`
           INSERT INTO attendees (id, event_id, name, email, dietary, answers, cancel_token_hash)
-          VALUES (coalesce(${id ?? null}::uuid, uuidv7()), ${event}, ${guest.name.trim()},
+          VALUES (${attendee}::uuid, ${event}, ${guest.name.trim()},
             ${guest.email.trim()}, ${dietary}, ${JSON.stringify(answers)}::jsonb, ${hash(token)})
         `.pipe(
           Effect.catchIf(SqlError.isSqlError, (error) =>
@@ -322,6 +335,7 @@ export class Attendance extends Context.Service<
         leaveAsGuest,
         change,
         remove,
+        guestToken,
       });
     }),
   );

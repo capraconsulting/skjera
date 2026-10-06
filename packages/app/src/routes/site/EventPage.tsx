@@ -5,20 +5,31 @@ import {
   isRouteErrorResponse,
   Link,
   type LoaderFunctionArgs,
+  redirect,
   useLoaderData,
   useRouteError,
   useRouteLoaderData,
 } from "react-router";
 import { Badge } from "../../components/Badge.tsx";
 import { RichText } from "../../components/RichText.tsx";
+import { rememberGuestSignup } from "../../site/guestSignups.ts";
 import { attendees, events } from "../../sync/tables.ts";
 import { formatEventTimes } from "../../time.ts";
 import { Attend } from "./Attend.tsx";
 import styles from "./EventPage.module.css";
 import type { siteLoader } from "./SiteLayout.tsx";
 
-export const eventLoader = async ({ params }: LoaderFunctionArgs) => {
+export const eventLoader = async ({ params, request }: LoaderFunctionArgs) => {
   const id = params.id as DocumentId;
+  // A guest's link to their signup, from an email: remembered here, so
+  // they can change or cancel it, then out of the address.
+  const url = new URL(request.url);
+  const guest = url.searchParams.get("guest");
+  const token = url.searchParams.get("token");
+  if (guest !== null && token !== null) {
+    rememberGuestSignup(id, { id: guest, cancelToken: token });
+    throw redirect(url.pathname);
+  }
   await Promise.all([
     events.collection.preload(),
     attendees.collection.preload(),

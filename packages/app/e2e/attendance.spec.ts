@@ -128,6 +128,44 @@ test("guests sign up with their name and email", async ({ browser }) => {
   await deleteTeam(alice, team);
 });
 
+test("a guest's link brings their signup to another browser", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await newTeam(alice, uniqueTeamName("Links"));
+  const event = await publishedEvent(alice, { public: true, guests: true });
+
+  const first = await visitor(browser);
+  await first.goto(`/events/${event.id}`);
+  const box = attendance(first);
+  await box.getByRole("textbox", { name: "Your name" }).fill("Gina");
+  await box
+    .getByRole("textbox", { name: "Your email" })
+    .fill("gina@example.org");
+  await box.getByRole("button", { name: "Sign up" }).click();
+  await expect(box).toContainText("You're signed up.");
+  // What the email will carry.
+  const signup = await first.evaluate(
+    (id) => JSON.parse(localStorage.getItem(`skjera-signup-${id}`) ?? "{}"),
+    event.id,
+  );
+
+  const second = await visitor(browser);
+  await second.goto(
+    `/events/${event.id}?guest=${signup.id}&token=${signup.cancelToken}`,
+  );
+  // Remembered, and out of the address.
+  await expect(second).toHaveURL(new RegExp(`/events/${event.id}$`));
+  const there = attendance(second);
+  await expect(there).toContainText("You're signed up.");
+  await there.getByRole("button", { name: "Cancel my signup" }).click();
+  await expect(there.getByRole("button", { name: "Sign up" })).toBeVisible();
+  await expect(attendees(alice)).toContainText("Nobody has signed up yet.");
+
+  await deleteEvent(alice, event.id);
+  await deleteTeam(alice, team);
+});
+
 test("everyone gives dietary preferences when the event asks", async ({
   browser,
 }) => {
