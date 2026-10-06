@@ -218,6 +218,56 @@ layer(TestDatabase, { excludeTestServices: true })("snapsync", (it) => {
     }),
   );
 
+  it.effect("keeps a key a REPEATABLE READ writer inserts again", () =>
+    Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      const { table, pull } = yield* itemsTable(1);
+      const copy = replica({ getKey, pull });
+      yield* copy.pull;
+      // The inserting writer's snapshot is from before the delete commits,
+      // so even after waiting for it, it can't see the tombstone to clear.
+      const deleted = yield* Deferred.make<void>();
+      const commit = yield* Deferred.make<void>();
+      const snapshotTaken = yield* Deferred.make<void>();
+      const deleting = yield* Effect.gen(function* () {
+        yield* sql`DELETE FROM ${sql(table)} WHERE id = 'item-1'`;
+        yield* Deferred.succeed(deleted, undefined);
+        yield* Deferred.await(commit);
+      }).pipe(sql.withTransaction, Effect.forkChild);
+      yield* Deferred.await(deleted);
+      const inserting = yield* Effect.gen(function* () {
+        yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`;
+        yield* sql`SELECT 1`;
+        yield* Deferred.succeed(snapshotTaken, undefined);
+        yield* sql`
+          INSERT INTO ${sql(table)} (id, name) VALUES ('item-1', 'Again')
+          ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name
+        `;
+      }).pipe(sql.withTransaction, Effect.forkChild);
+      yield* Deferred.await(snapshotTaken);
+      yield* Effect.sleep("100 millis");
+      yield* Deferred.succeed(commit, undefined);
+      yield* Fiber.join(deleting);
+      yield* Fiber.join(inserting);
+
+      // The tombstone stays behind; pulls skip it, as the key is there.
+      const [lingering] = yield* sql<{ count: string }>`
+        SELECT count(*) FROM snapsync.tombstones
+        WHERE relation = ${table}::regclass AND key = 'item-1'
+      `;
+      assert.strictEqual(Number(lingering?.count), 1);
+      yield* copy.pull;
+      assert.deepStrictEqual(copy.rows.get("item-1"), {
+        id: "item-1",
+        name: "Again",
+      });
+      // Deleted for real later, it goes.
+      yield* sql`DELETE FROM ${sql(table)} WHERE id = 'item-1'`;
+      yield* copy.pull;
+      assert.isFalse(copy.rows.has("item-1"));
+    }),
+  );
+
   it.effect("keeps keys reused or changed straight", () =>
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
@@ -382,6 +432,72 @@ layer(TestDatabase, { excludeTestServices: true })("snapsync", (it) => {
       assert.include(text, "Index Cond: (xid >=");
     }),
   );
+
+  for (const isolation of ["read committed", "repeatable read"] as const) {
+    it.effect(
+      `keeps copies the same as keys are deleted and inserted again (${isolation})`,
+      () =>
+        Effect.gen(function* () {
+          const sql = yield* SqlClient.SqlClient;
+          const { table, pull, all } = yield* itemsTable(3);
+          const copies = [
+            replica({ getKey, pull }),
+            replica({ getKey, pull: (since) => pull(since, 2) }),
+          ];
+          // One that's away meanwhile, and catches up at the end.
+          const behind = replica({ getKey, pull });
+          yield* Effect.forEach([...copies, behind], (copy) => copy.pull);
+
+          // Three keys, deleted and inserted again by overlapping writers.
+          const write = Effect.gen(function* () {
+            const id = `item-${yield* Random.nextIntBetween(1, 4)}`;
+            if ((yield* Random.next) < 0.5) {
+              yield* sql`DELETE FROM ${sql(table)} WHERE id = ${id}`;
+            } else {
+              yield* sql`
+                INSERT INTO ${sql(table)} (id, name) VALUES (${id}, ${`Written ${yield* Random.next}`})
+                ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name
+              `;
+            }
+          });
+          const writing = yield* concurrentWriters({
+            writers: 10,
+            transactions: 30,
+            write,
+            isolation,
+            rollbackRate: 0,
+          }).pipe(Effect.forkChild);
+          const pulling = yield* Effect.forEach(
+            copies,
+            (copy) => copy.pull.pipe(Effect.delay("2 millis"), Effect.forever),
+            { concurrency: "unbounded", discard: true },
+          ).pipe(Effect.forkChild);
+          const committed = yield* Fiber.join(writing);
+          yield* Fiber.interrupt(pulling);
+          assert.isAbove(committed, 50, "enough writers got through");
+
+          const now = yield* all;
+          for (const copy of [...copies, behind]) {
+            yield* copy.pull;
+            assert.deepStrictEqual(
+              differences({ table: now, copy: copy.rows, getKey }),
+              { missing: [], extra: [], changed: [] },
+            );
+          }
+          // Writers that see what committed before them (READ COMMITTED)
+          // leave no tombstone of a key that's there.
+          if (isolation === "read committed") {
+            const [left] = yield* sql<{ count: string }>`
+              SELECT count(*) FROM snapsync.tombstones t
+              JOIN ${sql(table)} r ON r.id = t.key
+              WHERE t.relation = ${table}::regclass
+            `;
+            assert.strictEqual(Number(left?.count), 0);
+          }
+        }),
+      { timeout: 60_000 },
+    );
+  }
 
   it.effect(
     "keeps copies the same as the table under out-of-order writes",

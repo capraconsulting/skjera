@@ -188,8 +188,10 @@ differences({ table: yield* all, copy: copy.rows, getKey });
 
 `concurrentWriters` runs transactions at once, each pausing a random while
 before committing, so they commit out of order; some roll back. Point `write`
-at a few hot rows often, and pull with small pages too, so pages end in the
-middle of transactions. The package's tests run against the Postgres in
+at a few hot rows often, delete and insert them again, and pull with small
+pages too, so pages end in the middle of transactions. Run it with
+`isolation: "repeatable read"` as well, and keep one copy that only catches
+up at the end: races that leave stale tombstones show there. The package's tests run against the Postgres in
 the repository's `compose.yml` (`pnpm test`).
 
 ## Not (yet)

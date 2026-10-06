@@ -1,5 +1,5 @@
 import { Data, Effect, Random } from "effect";
-import { SqlClient } from "effect/sql";
+import { SqlClient, SqlError } from "effect/sql";
 import type { Pulled, Token } from "./schema.ts";
 
 // Testing pulls the way they fail: with writes committing out of order while
@@ -58,12 +58,21 @@ export const replica = <Row, E, R>(options: {
 
 class RolledBack extends Data.TaggedError("RolledBack")<{}> {}
 
+/** Postgres refusing a transaction a writer would retry: serialization, deadlock. */
+const refused = (error: SqlError.SqlError) => {
+  const code = (error.reason as { cause?: { code?: string } }).cause?.code;
+  return code === "40001" || code === "40P01";
+};
+
 /**
  * Writes the way that trips up syncing by timestamps or sequences: `writers`
  * transactions at a time, each doing `write`, then waiting up to `pauseMs`
  * before committing, so they commit in another order than they started.
  * One in `1 / rollbackRate` rolls back instead. Point `write` at a few hot
- * rows often, so concurrent transactions change the same ones.
+ * rows often, so concurrent transactions change the same ones. With
+ * `isolation: "repeatable read"`, writers see one snapshot throughout; those
+ * Postgres refuses (serialization failures, deadlocks) count as rolled back.
+ * Returns how many transactions committed.
  */
 export const concurrentWriters = <E, R>(options: {
   readonly writers: number;
@@ -72,10 +81,15 @@ export const concurrentWriters = <E, R>(options: {
   readonly write: Effect.Effect<void, E, R>;
   readonly pauseMs?: number;
   readonly rollbackRate?: number;
+  readonly isolation?: "read committed" | "repeatable read";
 }) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
+    let committed = 0;
     const transaction = Effect.gen(function* () {
+      if (options.isolation === "repeatable read") {
+        yield* sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`;
+      }
       yield* options.write;
       yield* Effect.sleep(yield* Random.nextBetween(0, options.pauseMs ?? 20));
       if ((yield* Random.next) < (options.rollbackRate ?? 0.1)) {
@@ -83,13 +97,24 @@ export const concurrentWriters = <E, R>(options: {
       }
     }).pipe(
       sql.withTransaction,
+      Effect.andThen(
+        Effect.sync(() => {
+          committed++;
+        }),
+      ),
       Effect.catchTag("RolledBack", () => Effect.void),
+      Effect.catchIf(
+        (error): error is SqlError.SqlError =>
+          SqlError.isSqlError(error) && refused(error),
+        () => Effect.void,
+      ),
     );
     yield* Effect.forEach(
       Array.from({ length: options.writers }),
       () => Effect.repeat(transaction, { times: options.transactions - 1 }),
       { concurrency: "unbounded", discard: true },
     );
+    return committed;
   });
 
 /**
