@@ -1,7 +1,16 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "agentGuidance": false,
-  "globalPassThroughEnv": ["DATABASE_URL", "OAUTH_*", "AUTH_*", "S3_*", "CI"],
+  "globalPassThroughEnv": [
+    "DATABASE_URL",
+    "OAUTH_*",
+    "AUTH_*",
+    "S3_*",
+    "EMAIL_*",
+    "AWS_*",
+    "SES_*",
+    "CI"
+  ],
   "tasks": {
     "build": {
       "outputs": ["dist/**"]

@@ -56,7 +56,7 @@ export const replica = <Row, E, R>(options: {
   };
 };
 
-class RolledBack extends Data.TaggedError("RolledBack")<{}> {}
+class RolledBack extends Data.TaggedError("RolledBack") {}
 
 /** Postgres refusing a transaction a writer would retry: serialization, deadlock. */
 const refused = (error: SqlError.SqlError) => {
