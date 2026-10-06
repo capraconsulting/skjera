@@ -21,6 +21,13 @@ import {
   Publication,
   type TeamId,
 } from "./Model.ts";
+import { Notifications, type Signup, tell } from "./Notifications.ts";
+
+/** When an event is, as published. */
+interface EventTimes {
+  readonly starts_at: Date;
+  readonly ends_at: Date;
+}
 
 export interface DocumentSnapshot {
   readonly id: DocumentId;
@@ -92,6 +99,7 @@ export class Documents extends Context.Service<
     Documents,
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
+      const notifications = yield* Notifications;
 
       const create = Effect.fn("Documents.create")(function* (
         type: ContentTypeName,
@@ -272,10 +280,42 @@ export class Documents extends Context.Service<
 
       const publishers = {
         event: (id: DocumentId, heads: Heads, user: Identity) =>
-          sql<PublicationRow>`
-            SELECT published_heads, published_at, first_published_at
-            FROM publish_event(${id}, ${heads}::text[], ${user.issuer}, ${user.subject})
-          `,
+          Effect.gen(function* () {
+            const [before] = yield* sql<EventTimes>`
+              SELECT starts_at, ends_at FROM events WHERE id = ${id} FOR UPDATE
+            `;
+            const rows = yield* sql<PublicationRow & EventTimes>`
+              SELECT published_heads, published_at, first_published_at,
+                starts_at, ends_at
+              FROM publish_event(${id}, ${heads}::text[], ${user.issuer}, ${user.subject})
+            `;
+            const [after] = rows;
+            // Moved: its attendees are told, and get the new time for their
+            // calendars.
+            if (
+              before !== undefined &&
+              after !== undefined &&
+              (before.starts_at.getTime() !== after.starts_at.getTime() ||
+                before.ends_at.getTime() !== after.ends_at.getTime())
+            ) {
+              const signups = yield* sql<Signup>`
+                SELECT id, name, email, user_issuer IS NULL AS guest
+                FROM attendees WHERE event_id = ${id}
+              `;
+              yield* tell(signups, (attendee) =>
+                notifications.eventChanged({
+                  event: id,
+                  attendee,
+                  version: String(after.published_at.getTime()),
+                  previously: {
+                    startsAt: before.starts_at.toISOString(),
+                    endsAt: before.ends_at.toISOString(),
+                  },
+                }),
+              );
+            }
+            return rows;
+          }).pipe(sql.withTransaction),
       } satisfies Record<ContentTypeName, unknown>;
 
       const unknownVersion = (error: SqlError.SqlError) =>

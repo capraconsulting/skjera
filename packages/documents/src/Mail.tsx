@@ -7,18 +7,15 @@ import { Rpc } from "effect/rpc";
 import { SqlClient } from "effect/sql";
 import { Attendance } from "./Attendance.ts";
 import { invitation, parseAddress } from "./Calendar.ts";
+import { EventChanged } from "./emails/EventChanged.tsx";
 import { formatAt, formatWhen } from "./emails/format.ts";
 import { SignedUp } from "./emails/SignedUp.tsx";
 import { SignupCancelled } from "./emails/SignupCancelled.tsx";
-import {
-  type Kind,
-  type Notice,
-  Notifications,
-  Recipient,
-} from "./Notifications.ts";
+import { Notifications, Recipient, Times } from "./Notifications.ts";
 
-// Emails about an event to its attendees. Signing up and cancelling tell
-// `Notifications`, in their transaction; on the server, that leaves a
+// Emails about an event to its attendees. Signing up, cancelling and moving
+// the event tell `Notifications`, in their transaction; on the server, that
+// leaves a
 // message for the event's mailer (a cluster entity, one per event, so its
 // emails go out in order), kept in the database and deduplicated, so each
 // email is sent once it's committed, and once only.
@@ -27,8 +24,10 @@ const Send = Rpc.make("Send", {
   payload: {
     /** Each email once: what it's about, e.g. "signedUp/<signup>". */
     key: Schema.String,
-    kind: Schema.Literals(["signedUp", "signupCancelled"]),
+    kind: Schema.Literals(["signedUp", "signupCancelled", "eventChanged"]),
     attendee: Recipient,
+    /** When the event was, before it moved. */
+    previously: Schema.optional(Times),
   },
   primaryKey: ({ key }) => key,
 }).annotate(ClusterSchema.Persisted, true);
@@ -41,21 +40,29 @@ export const layerNotifications = Layer.effect(
   Notifications,
   Effect.gen(function* () {
     const mailer = yield* EventMail.client;
-    const send = (kind: Kind) => (notice: Notice) =>
-      mailer(notice.event)
-        .Send(
-          {
-            key: `${kind}/${notice.attendee.id}`,
-            kind,
-            attendee: notice.attendee,
-          },
-          { discard: true },
-        )
-        .pipe(Effect.orDie);
-    return {
-      signedUp: send("signedUp"),
-      signupCancelled: send("signupCancelled"),
-    };
+    const send = (event: string, payload: typeof Send.payloadSchema.Type) =>
+      mailer(event).Send(payload, { discard: true }).pipe(Effect.orDie);
+    return Notifications.of({
+      signedUp: ({ event, attendee }) =>
+        send(event, {
+          key: `signedUp/${attendee.id}`,
+          kind: "signedUp",
+          attendee,
+        }),
+      signupCancelled: ({ event, attendee }) =>
+        send(event, {
+          key: `signupCancelled/${attendee.id}`,
+          kind: "signupCancelled",
+          attendee,
+        }),
+      eventChanged: ({ event, attendee, version, previously }) =>
+        send(event, {
+          key: `eventChanged/${version}/${attendee.id}`,
+          kind: "eventChanged",
+          attendee,
+          previously,
+        }),
+    });
   }),
 );
 
@@ -135,6 +142,11 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
               }),
             });
 
+            const guestLink = attendee.guest
+              ? {
+                  guestLink: `${url}?guest=${attendee.id}&token=${attendance.guestToken(attendee.id)}`,
+                }
+              : {};
             const message =
               payload.kind === "signedUp"
                 ? {
@@ -146,11 +158,7 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                         title={event.title}
                         when={when}
                         url={url}
-                        {...(attendee.guest
-                          ? {
-                              guestLink: `${url}?guest=${attendee.id}&token=${attendance.guestToken(attendee.id)}`,
-                            }
-                          : {})}
+                        {...guestLink}
                         closes={formatAt(
                           event.signup_deadline ?? event.starts_at,
                           event.time_zone,
@@ -169,19 +177,43 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                     ),
                     calendar: calendar("REQUEST"),
                   }
-                : {
-                    subject: `Signup cancelled: ${event.title}`,
-                    rendered: yield* renderEmail(
-                      <SignupCancelled
-                        siteName={site.name}
-                        name={attendee.name}
-                        title={event.title}
-                        when={when}
-                        url={url}
-                      />,
-                    ),
-                    calendar: calendar("CANCEL"),
-                  };
+                : payload.kind === "eventChanged"
+                  ? {
+                      subject: `New time: ${event.title}`,
+                      rendered: yield* renderEmail(
+                        <EventChanged
+                          siteName={site.name}
+                          name={attendee.name}
+                          title={event.title}
+                          when={when}
+                          previously={
+                            payload.previously === undefined
+                              ? ""
+                              : formatWhen(
+                                  new Date(payload.previously.startsAt),
+                                  new Date(payload.previously.endsAt),
+                                  event.time_zone,
+                                )
+                          }
+                          url={url}
+                          {...guestLink}
+                        />,
+                      ),
+                      calendar: calendar("REQUEST"),
+                    }
+                  : {
+                      subject: `Signup cancelled: ${event.title}`,
+                      rendered: yield* renderEmail(
+                        <SignupCancelled
+                          siteName={site.name}
+                          name={attendee.name}
+                          title={event.title}
+                          when={when}
+                          url={url}
+                        />,
+                      ),
+                      calendar: calendar("CANCEL"),
+                    };
 
             yield* email
               .send({

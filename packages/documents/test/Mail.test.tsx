@@ -10,6 +10,7 @@ import { Attendance } from "../src/Attendance.ts";
 import { Documents } from "../src/Documents.ts";
 import * as Mail from "../src/Mail.tsx";
 import type { DocumentId } from "../src/Model.ts";
+import { Notifications } from "../src/Notifications.ts";
 import { Teams } from "../src/Teams.ts";
 import { TestDatabase } from "./TestDatabase.ts";
 
@@ -152,6 +153,46 @@ layer(TestLayer, { excludeTestServices: true })("Mail", (it) => {
       yield* attendance.leave(event, member);
       const [, cancelled] = yield* emailsTo(member.email ?? "", 2);
       assert.strictEqual(cancelled?.message.calendar?.method, "CANCEL");
+    }),
+  );
+
+  it.effect("tells attendees the new time when the event moves", () =>
+    Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      const notifications = yield* Notifications;
+      const event = yield* publishedEvent();
+      // Republished a day later.
+      yield* sql`
+        UPDATE events SET starts_at = '2036-10-16T18:00+02',
+          ends_at = '2036-10-16T21:00+02'
+        WHERE id = ${event}
+      `;
+      const signup = crypto.randomUUID();
+      const address = `gina-${signup}@example.org`;
+      const notice = {
+        event,
+        attendee: { id: signup, name: "Gina", email: address, guest: true },
+        version: "1",
+        previously: {
+          startsAt: "2036-10-15T16:00:00.000Z",
+          endsAt: "2036-10-15T19:00:00.000Z",
+        },
+      };
+      yield* notifications.eventChanged(notice);
+      // Told once of each change, however often it's said.
+      yield* notifications.eventChanged(notice);
+
+      const [moved] = yield* emailsTo(address, 1);
+      const message = moved?.message;
+      assert.strictEqual(message?.subject, "New time: Launch");
+      assert.match(message?.text ?? "", /It's now Thursday, October 16, 2036/);
+      assert.match(message?.text ?? "", /It was Wednesday, October 15, 2036/);
+      assert.include(message?.text ?? "", `?guest=${signup}&token=`);
+      assert.strictEqual(message?.calendar?.method, "REQUEST");
+      const invitation = message?.calendar?.content ?? "";
+      assert.include(invitation, "DTSTART:20361016T160000Z");
+      yield* Effect.sleep("300 millis");
+      assert.strictEqual(outbox.to(address).length, 1);
     }),
   );
 

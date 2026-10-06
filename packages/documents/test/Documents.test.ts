@@ -1,14 +1,14 @@
 import * as A from "@automerge/automerge";
 import { assert, layer } from "@effect/vitest";
 import { Identity } from "@skjera/oauth/api";
-import { Effect, Exit, Fiber, Layer, Option, Stream } from "effect";
+import { Effect, Exit, Fiber, Layer, Option, Ref, Stream } from "effect";
 import { SqlClient } from "effect/sql";
 import { Attendance } from "../src/Attendance.ts";
 import type { EventContent } from "../src/ContentTypes.ts";
 import { DocumentEvents } from "../src/DocumentEvents.ts";
 import { Documents } from "../src/Documents.ts";
 import type { Answers, Audience, DocumentId, TeamId } from "../src/Model.ts";
-import { Notifications } from "../src/Notifications.ts";
+import { NoticesKept, Notifications } from "../src/Notifications.ts";
 import { Presence } from "../src/Presence.ts";
 import { Sync } from "../src/Sync.ts";
 import { Teams } from "../src/Teams.ts";
@@ -929,6 +929,66 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       assert.notStrictEqual(attendance.guestToken(crypto.randomUUID()), token);
       yield* attendance.leaveAsGuest(id, attendance.guestToken(signup));
       assert.deepStrictEqual(yield* organizerView(id), []);
+    }),
+  );
+
+  it.effect("tells attendees when a republish moves the event", () =>
+    Effect.gen(function* () {
+      const documents = yield* Documents;
+      const attendance = yield* Attendance;
+      const kept = yield* NoticesKept;
+      const id = yield* publishedEvent({ public: true, guests: true });
+      const carol = new Identity({
+        issuer: "https://idp.example",
+        subject: "carol",
+        email: "carol@example.com",
+        name: "Carol",
+      });
+      yield* attendance.attend(id, carol);
+      yield* attendance.attend(id, bob); // No email to tell.
+      yield* attendance.attendAsGuest(id, {
+        name: "Gina",
+        email: "gina@example.org",
+      });
+      const changes = Ref.get(kept).pipe(
+        Effect.map((all) =>
+          all.filter((notice) => notice.kind === "eventChanged"),
+        ),
+      );
+      const editor = yield* openEditor(id);
+      const republish = (edit: (event: EventContent) => void) =>
+        documents
+          .applyChanges(id, [editor.edit(edit)], alice)
+          .pipe(Effect.flatMap((heads) => documents.publish(id, heads, alice)));
+
+      // Anything but its time: nobody is told.
+      yield* republish((event) => A.updateText(event, ["title"], "Meetup!"));
+      assert.deepStrictEqual(yield* changes, []);
+
+      // A day later: everyone with an email is, once each.
+      const moved = yield* republish((event) =>
+        setTimes(event, {
+          start: "2036-10-16T18:00+02:00[Europe/Oslo]",
+          end: "2036-10-16T21:00+02:00[Europe/Oslo]",
+        }),
+      );
+      const told = yield* changes;
+      assert.deepStrictEqual(
+        told.map((notice) => notice.attendee.name).sort(),
+        ["Carol", "Gina"],
+      );
+      for (const notice of told) {
+        assert.strictEqual(notice.event, id);
+        assert.strictEqual(notice.version, String(moved.publishedAt.getTime()));
+        assert.deepStrictEqual(notice.previously, {
+          startsAt: "2036-10-15T16:00:00.000Z",
+          endsAt: "2036-10-15T19:00:00.000Z",
+        });
+      }
+      assert.isTrue(
+        told.some((notice) => notice.attendee.guest),
+        "the guest's notice says so, for their link",
+      );
     }),
   );
 

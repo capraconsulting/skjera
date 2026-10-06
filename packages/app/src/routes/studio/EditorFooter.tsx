@@ -4,8 +4,9 @@ import type { DocumentId, EventContent } from "@skjera/documents/api";
 import { eq, useLiveQuery } from "@tanstack/react-db";
 import { useSyncExternalStore } from "react";
 import { Link } from "react-router";
+import { Temporal } from "temporal-polyfill";
 import { Button } from "../../components/Button.tsx";
-import { events } from "../../sync/tables.ts";
+import { attendees, events } from "../../sync/tables.ts";
 import { timeAgo } from "../../time.ts";
 import styles from "./EditorFooter.module.css";
 
@@ -46,6 +47,36 @@ export function EditorFooter(props: {
     publication !== undefined &&
     !props.saving &&
     [...publication.publishedHeads].sort().join(",") === version;
+  const signedUp = useLiveQuery(
+    (q) =>
+      q
+        .from({ attendee: attendees.collection })
+        .where(({ attendee }) => eq(attendee.eventId, id)),
+    [id],
+  ).data.length;
+
+  // Moving an event people signed up for emails them: say so first.
+  const publish = () => {
+    const draft = props.handle.doc();
+    const moved =
+      publication !== undefined &&
+      (!sameInstant(draft.start, publication.startsAt) ||
+        !sameInstant(draft.end, publication.endsAt));
+    if (
+      moved &&
+      signedUp > 0 &&
+      !window.confirm(
+        `Publish the new time? ${
+          signedUp === 1
+            ? "The person signed up is"
+            : `The ${signedUp} people signed up are`
+        } emailed about it.`,
+      )
+    ) {
+      return;
+    }
+    props.onPublish();
+  };
 
   return (
     <footer className={styles.footer}>
@@ -82,7 +113,7 @@ export function EditorFooter(props: {
           <Button
             variant="primary"
             className={styles.publish}
-            onClick={props.onPublish}
+            onClick={publish}
             disabled={props.publishing || upToDate}
           >
             {props.publishing
@@ -96,3 +127,9 @@ export function EditorFooter(props: {
     </footer>
   );
 }
+
+/** Whether a draft's time is when it was published (`at`). */
+const sameInstant = (time: unknown, at: Date) =>
+  time === null ||
+  time === undefined ||
+  Temporal.ZonedDateTime.from(String(time)).epochMilliseconds === at.getTime();

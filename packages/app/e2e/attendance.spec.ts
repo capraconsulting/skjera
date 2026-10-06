@@ -169,6 +169,51 @@ test("a guest's email brings their signup to another browser", async ({
   await deleteTeam(alice, team);
 });
 
+test("moving an event emails who signed up, once the organizer agrees", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await newTeam(alice, uniqueTeamName("Moved"));
+  const event = await publishedEvent(alice, { public: true, guests: true });
+  const address = `gina-${crypto.randomUUID()}@example.org`;
+
+  const guest = await visitor(browser);
+  await guest.goto(`/events/${event.id}`);
+  const box = attendance(guest);
+  await box.getByRole("textbox", { name: "Your name" }).fill("Gina");
+  await box.getByRole("textbox", { name: "Your email" }).fill(address);
+  await box.getByRole("button", { name: "Sign up" }).click();
+  await expect(box).toContainText("You're signed up.");
+  await expect(attendees(alice)).toContainText("Gina");
+
+  // An hour later.
+  await alice.getByLabel("Start time").fill("19:00");
+  await expect(alice.getByTestId("status")).toContainText("Saved");
+  const publish = alice.getByRole("button", { name: "Publish" });
+  const asked: Array<string> = [];
+  alice.once("dialog", (dialog) => {
+    asked.push(dialog.message());
+    return dialog.dismiss();
+  });
+  await publish.click();
+  expect(asked).toEqual([
+    "Publish the new time? The person signed up is emailed about it.",
+  ]);
+  // Not published, then.
+  await expect(publish).toBeEnabled();
+
+  alice.once("dialog", (dialog) => dialog.accept());
+  await publish.click();
+  await expect(alice.getByTestId("status")).toContainText("Published");
+  const moved = await emailTo(address, `New time: ${event.title}`);
+  expect(moved.text).toMatch(/It's now .* 7:00/);
+  expect(moved.text).toMatch(/It was .* 6:00/);
+  expect(moved.raw).toMatch(/Content-Type: text\/calendar;.*method=REQUEST/);
+
+  await deleteEvent(alice, event.id);
+  await deleteTeam(alice, team);
+});
+
 test("everyone gives dietary preferences when the event asks", async ({
   browser,
 }) => {

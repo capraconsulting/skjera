@@ -10,6 +10,7 @@ import { Documents } from "../src/Documents.ts";
 import { repoIdOf, serve } from "../src/DraftSync.ts";
 import { isSyncRefused } from "../src/DraftSyncProtocol.ts";
 import type { DocumentId } from "../src/Model.ts";
+import { Notifications } from "../src/Notifications.ts";
 import { Presence } from "../src/Presence.ts";
 import { Teams } from "../src/Teams.ts";
 import { TestDatabase } from "./TestDatabase.ts";
@@ -21,7 +22,10 @@ const TestLayer = Layer.mergeAll(
   DocumentEvents.layer,
   Presence.layer,
   Teams.layer,
-).pipe(Layer.provideMerge(TestDatabase));
+).pipe(
+  Layer.provideMerge(Notifications.layerTest),
+  Layer.provideMerge(TestDatabase),
+);
 
 type Message = {
   readonly type: string;

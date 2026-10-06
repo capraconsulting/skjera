@@ -11,38 +11,7 @@ import type {
   GuestDetails,
   Question,
 } from "./Model.ts";
-import { Notifications } from "./Notifications.ts";
-
-/** A signup, as notices tell of it. */
-interface Signup {
-  readonly id: string;
-  readonly name: string;
-  readonly email: string | null;
-  readonly guest: boolean;
-}
-
-/** Tells of signups that have an email address to tell. */
-const tell = (
-  notice: Notifications["Service"]["signedUp"],
-  event: DocumentId,
-  signups: ReadonlyArray<Signup>,
-) =>
-  Effect.forEach(
-    signups,
-    (signup) =>
-      signup.email === null
-        ? Effect.void
-        : notice({
-            event,
-            attendee: {
-              id: signup.id,
-              name: signup.name,
-              email: signup.email,
-              guest: signup.guest,
-            },
-          }),
-    { discard: true },
-  );
+import { Notifications, type Signup, tell } from "./Notifications.ts";
 
 /** What someone signing up tells, besides who they are. */
 export interface SignupDetails {
@@ -259,7 +228,9 @@ export class Attendance extends Context.Service<
             ON CONFLICT DO NOTHING
             RETURNING id, name, email, false AS guest
           `;
-          yield* tell(notifications.signedUp, event, inserted);
+          yield* tell(inserted, (attendee) =>
+            notifications.signedUp({ event, attendee }),
+          );
         }).pipe(sql.withTransaction, Effect.orDie);
       });
 
@@ -275,7 +246,9 @@ export class Attendance extends Context.Service<
               AND user_issuer = ${user.issuer} AND user_subject = ${user.subject}
             RETURNING id, name, email, false AS guest
           `;
-          yield* tell(notifications.signupCancelled, event, deleted);
+          yield* tell(deleted, (attendee) =>
+            notifications.signupCancelled({ event, attendee }),
+          );
         }).pipe(sql.withTransaction, Effect.orDie);
       });
 
@@ -305,7 +278,9 @@ export class Attendance extends Context.Service<
               ${guest.email.trim()}, ${dietary}, ${JSON.stringify(answers)}::jsonb, ${hash(token)})
             RETURNING id, name, email, true AS guest
           `;
-          yield* tell(notifications.signedUp, event, inserted);
+          yield* tell(inserted, (attendee) =>
+            notifications.signedUp({ event, attendee }),
+          );
         }).pipe(
           sql.withTransaction,
           Effect.catchIf(SqlError.isSqlError, (error) =>
@@ -338,7 +313,9 @@ export class Attendance extends Context.Service<
             WHERE event_id = ${event} AND cancel_token_hash = ${hash(cancelToken)}
             RETURNING id, name, email, true AS guest
           `;
-          yield* tell(notifications.signupCancelled, event, deleted);
+          yield* tell(deleted, (attendee) =>
+            notifications.signupCancelled({ event, attendee }),
+          );
         }).pipe(sql.withTransaction, Effect.orDie);
       });
 
