@@ -34,8 +34,6 @@ export interface ChangeNotice extends Notice {
   readonly previously: Times;
 }
 
-export type Kind = "signedUp" | "signupCancelled" | "eventChanged";
-
 export type Kept =
   | (Notice & { readonly kind: "signedUp" | "signupCancelled" })
   | (ChangeNotice & { readonly kind: "eventChanged" });

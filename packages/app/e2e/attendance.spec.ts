@@ -186,6 +186,10 @@ test("moving an event emails who signed up, once the organizer agrees", async ({
   await expect(box).toContainText("You're signed up.");
   await expect(attendees(alice)).toContainText("Gina");
 
+  // Reminded the day before, unless turned off.
+  await expect(
+    alice.getByRole("checkbox", { name: /Remind attendees/ }),
+  ).toBeChecked();
   // An hour later.
   await alice.getByLabel("Start time").fill("19:00");
   await expect(alice.getByTestId("status")).toContainText("Saved");

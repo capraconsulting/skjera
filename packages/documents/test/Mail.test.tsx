@@ -47,19 +47,30 @@ const alice = new Identity({
 });
 
 let teams = 0;
-/** A published event, from 18:00 to 21:00 in Oslo, open to guests. */
-const publishedEvent = (options: { readonly dietary?: boolean } = {}) =>
+/**
+ * A published event open to guests: from 18:00 to 21:00 in Oslo on the 15th
+ * of October 2036, or for three hours from `startsAt`.
+ */
+const publishedEvent = (
+  options: {
+    readonly dietary?: boolean;
+    readonly startsAt?: Date;
+    readonly reminders?: boolean;
+  } = {},
+) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const team = yield* (yield* Teams).create(`Mail ${++teams}`, alice);
     const id = yield* (yield* Documents).create("event", team.id, alice);
+    const startsAt = options.startsAt ?? new Date("2036-10-15T18:00+02:00");
+    const endsAt = new Date(startsAt.getTime() + 3 * 60 * 60 * 1000);
     yield* sql`
       INSERT INTO events (id, title, starts_at, ends_at, time_zone, body, is_public,
-        allow_guests, ask_dietary, published_heads,
+        allow_guests, ask_dietary, send_reminders, published_heads,
         published_by_issuer, published_by_subject)
-      VALUES (${id}, 'Launch', '2036-10-15T18:00+02', '2036-10-15T21:00+02',
+      VALUES (${id}, 'Launch', ${startsAt}, ${endsAt},
         'Europe/Oslo', '[]', true, true, ${options.dietary ?? false},
-        '{}', 'test', 'test')
+        ${options.reminders ?? true}, '{}', 'test', 'test')
     `;
     return id as DocumentId;
   }).pipe(Effect.orDie);
@@ -193,6 +204,60 @@ layer(TestLayer, { excludeTestServices: true })("Mail", (it) => {
       assert.include(invitation, "DTSTART:20361016T160000Z");
       yield* Effect.sleep("300 millis");
       assert.strictEqual(outbox.to(address).length, 1);
+    }),
+  );
+
+  it.effect("reminds those who signed up before the day before", () =>
+    Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      const attendance = yield* Attendance;
+      const tomorrow = new Date(Date.now() + 12 * 60 * 60 * 1000);
+      const event = yield* publishedEvent({ startsAt: tomorrow });
+      const quiet = yield* publishedEvent({
+        startsAt: tomorrow,
+        reminders: false,
+      });
+      const later = yield* publishedEvent({
+        startsAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+      });
+      const run = crypto.randomUUID();
+      const signUp = (event: DocumentId, who: string) =>
+        attendance.attendAsGuest(event, {
+          name: who,
+          email: `${who}-${run}@example.org`,
+        });
+      yield* signUp(event, "early");
+      yield* signUp(event, "late");
+      yield* signUp(quiet, "quiet");
+      yield* signUp(later, "later");
+      // Signed up last week, all but one.
+      yield* sql`
+        UPDATE attendees SET created_at = now() - interval '7 days'
+        WHERE email IN (${`early-${run}@example.org`},
+          ${`quiet-${run}@example.org`}, ${`later-${run}@example.org`})
+      `;
+
+      const reminded = (who: string) =>
+        outbox
+          .to(`${who}-${run}@example.org`)
+          .filter((sent) => sent.message.subject === "Reminder: Launch");
+      // Hourly: the next hour's run sends nothing new.
+      yield* Mail.sendReminders;
+      yield* Mail.sendReminders;
+      const [reminder] = yield* emailsTo(`early-${run}@example.org`, 2).pipe(
+        Effect.map(() => reminded("early")),
+      );
+      assert.include(
+        reminder?.message.text ?? "",
+        "A reminder: you're signed up",
+      );
+      // Already in their calendar.
+      assert.isUndefined(reminder?.message.calendar);
+      yield* Effect.sleep("300 millis");
+      assert.strictEqual(reminded("early").length, 1);
+      assert.deepStrictEqual(reminded("late"), []);
+      assert.deepStrictEqual(reminded("quiet"), []);
+      assert.deepStrictEqual(reminded("later"), []);
     }),
   );
 

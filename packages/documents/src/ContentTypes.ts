@@ -43,6 +43,11 @@ export const EventContent = Schema.Struct({
    * at once leaves it twice: it counts once, ignoring case.
    */
   tags: Schema.Array(Tag),
+  /**
+   * Everyone signed up is reminded by email the day before. Missing (in
+   * drafts from before there was a choice): on.
+   */
+  reminders: Schema.optionalKey(Schema.Boolean),
 });
 export type EventContent = typeof EventContent.Type;
 
@@ -68,6 +73,7 @@ export const contentTypes = {
       foodDeadline: null,
       questions: [],
       tags: [],
+      reminders: true,
     } satisfies EventContent,
     toPublish: [
       { label: "a title", met: (event) => event.title.trim() !== "" },

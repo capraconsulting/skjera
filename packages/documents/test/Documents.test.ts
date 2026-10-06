@@ -218,6 +218,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         foodDeadline: null,
         questions: [],
         tags: [],
+        reminders: true,
       });
       assert.deepStrictEqual(
         snapshot.heads,
@@ -269,6 +270,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
           foodDeadline: null,
           questions: [],
           tags: [],
+          reminders: true,
         });
         assert.deepStrictEqual(
           [...A.getHeads(editor.doc())].sort(),
@@ -929,6 +931,35 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       assert.notStrictEqual(attendance.guestToken(crypto.randomUUID()), token);
       yield* attendance.leaveAsGuest(id, attendance.guestToken(signup));
       assert.deepStrictEqual(yield* organizerView(id), []);
+    }),
+  );
+
+  it.effect("publishes whether attendees are reminded: yes, unless not", () =>
+    Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      const reminds = (id: DocumentId) =>
+        sql<{ send_reminders: boolean }>`
+          SELECT send_reminders FROM events WHERE id = ${id}
+        `.pipe(Effect.map(([row]) => row?.send_reminders));
+      const fresh = yield* publishedEvent({ public: false, guests: false });
+      assert.strictEqual(yield* reminds(fresh), true);
+      const off = yield* publishedEvent({
+        public: false,
+        guests: false,
+        edit: (event) => {
+          (event as { reminders: boolean }).reminders = false;
+        },
+      });
+      assert.strictEqual(yield* reminds(off), false);
+      // Drafts from before there was a choice.
+      const older = yield* publishedEvent({
+        public: false,
+        guests: false,
+        edit: (event) => {
+          delete (event as { reminders?: boolean }).reminders;
+        },
+      });
+      assert.strictEqual(yield* reminds(older), true);
     }),
   );
 

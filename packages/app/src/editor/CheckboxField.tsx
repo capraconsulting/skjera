@@ -3,7 +3,15 @@ import type { EventContent } from "@skjera/documents/api";
 import { useSyncExternalStore } from "react";
 import styles from "./CheckboxField.module.css";
 
-type BooleanField = "public" | "guests" | "dietary";
+type BooleanField = "public" | "guests" | "dietary" | "reminders";
+
+/** What a field means when a draft doesn't have it (yet). */
+const unset: Record<BooleanField, boolean> = {
+  public: false,
+  guests: false,
+  dietary: false,
+  reminders: true,
+};
 
 /** The current value of a true/false field, following changes from anyone. */
 export const useBooleanField = (
@@ -15,7 +23,7 @@ export const useBooleanField = (
       handle.on("change", onChange);
       return () => handle.off("change", onChange);
     },
-    () => handle.doc()[field] === true,
+    () => (handle.doc()[field] ?? unset[field]) === true,
   );
 
 /**

@@ -111,6 +111,14 @@ function EventSession({ id }: { readonly id: DocumentId }) {
           />
           <GuestsCheckbox handle={handle} />
         </Field>
+        <Field label="Emails">
+          <CheckboxField
+            handle={handle}
+            field="reminders"
+            label="Remind attendees"
+            hint="Everyone signed up gets an email the day before."
+          />
+        </Field>
         <Field label="Food">
           <CheckboxField
             handle={handle}

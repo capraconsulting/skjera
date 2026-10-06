@@ -47,6 +47,7 @@ export const layer = Layer.mergeAll(
   Layer.effectDiscard(Snapsync.ensureCurrent),
   Cluster.jobs,
   Mail.layerMailer,
+  Mail.reminders,
 ).pipe(
   Layer.provideMerge(Attendance.layer),
   Layer.provideMerge(Mail.layerNotifications),

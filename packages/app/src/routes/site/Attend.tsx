@@ -57,6 +57,8 @@ export function Attend(props: {
   // Changing one's answers.
   const [editing, setEditing] = useState(false);
   const mine = signups.find((signup) => signup.mine);
+  // What this member last gave, here: their row has it only once synced.
+  const [given, setGiven] = useState<Given | null>(null);
   const closesAt = event.signupDeadline ?? event.startsAt;
   const closed = useHasPassed(closesAt);
   // After the food deadline, people can still come; they're not asked.
@@ -89,6 +91,7 @@ export function Attend(props: {
           }
         : {}),
     };
+    if (!asGuest) setGiven(signup);
     settle(
       attendees.collection.insert(
         {
@@ -123,7 +126,10 @@ export function Attend(props: {
     settle(transaction);
     // Kept open when refused, with what they wrote, to fix it.
     transaction.isPersisted.promise.then(
-      () => setEditing(false),
+      () => {
+        setEditing(false);
+        if (id === mine?.id) setGiven(changed);
+      },
       () => {},
     );
   };
@@ -214,17 +220,21 @@ export function Attend(props: {
         <p className={styles.count}>{count}</p>
         {closes}
         {mine !== undefined ? (
-          signedUp(mine.id, "You're attending.", {
-            ...(mine.details?.dietary == null
-              ? {}
-              : { dietary: mine.details.dietary }),
-            answers: Object.fromEntries(
-              (mine.details?.answers ?? []).map((answer) => [
-                answer.id,
-                answer.value,
-              ]),
-            ),
-          })
+          signedUp(
+            mine.id,
+            "You're attending.",
+            given ?? {
+              ...(mine.details?.dietary == null
+                ? {}
+                : { dietary: mine.details.dietary }),
+              answers: Object.fromEntries(
+                (mine.details?.answers ?? []).map((answer) => [
+                  answer.id,
+                  answer.value,
+                ]),
+              ),
+            },
+          )
         ) : (
           <form
             className={styles.form}

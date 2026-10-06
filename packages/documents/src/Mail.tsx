@@ -1,30 +1,37 @@
 /** @jsxRuntime automatic @jsxImportSource react */
 import { Email, EmailRejected, retryTransient } from "@skjera/email";
 import { renderEmail } from "@skjera/email/react";
-import { Config, Effect, Layer, Schema } from "effect";
-import { ClusterSchema, Entity } from "effect/cluster";
+import { Config, Cron, Effect, Layer, Schema } from "effect";
+import { ClusterCron, ClusterSchema, Entity } from "effect/cluster";
 import { Rpc } from "effect/rpc";
 import { SqlClient } from "effect/sql";
+import type { ReactElement } from "react";
 import { Attendance } from "./Attendance.ts";
 import { invitation, parseAddress } from "./Calendar.ts";
 import { EventChanged } from "./emails/EventChanged.tsx";
 import { formatAt, formatWhen } from "./emails/format.ts";
+import { Reminder } from "./emails/Reminder.tsx";
 import { SignedUp } from "./emails/SignedUp.tsx";
 import { SignupCancelled } from "./emails/SignupCancelled.tsx";
 import { Notifications, Recipient, Times } from "./Notifications.ts";
 
 // Emails about an event to its attendees. Signing up, cancelling and moving
 // the event tell `Notifications`, in their transaction; on the server, that
-// leaves a
-// message for the event's mailer (a cluster entity, one per event, so its
-// emails go out in order), kept in the database and deduplicated, so each
-// email is sent once it's committed, and once only.
+// leaves a message for the event's mailer (a cluster entity, one per event,
+// so its emails go out in order), kept in the database and deduplicated, so
+// each email is sent once it's committed, and once only. Reminders are sent
+// the same way, by an hourly job.
 
 const Send = Rpc.make("Send", {
   payload: {
     /** Each email once: what it's about, e.g. "signedUp/<signup>". */
     key: Schema.String,
-    kind: Schema.Literals(["signedUp", "signupCancelled", "eventChanged"]),
+    kind: Schema.Literals([
+      "signedUp",
+      "signupCancelled",
+      "eventChanged",
+      "reminder",
+    ]),
     attendee: Recipient,
     /** When the event was, before it moved. */
     previously: Schema.optional(Times),
@@ -147,11 +154,16 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                   guestLink: `${url}?guest=${attendee.id}&token=${attendance.guestToken(attendee.id)}`,
                 }
               : {};
-            const message =
-              payload.kind === "signedUp"
-                ? {
+            const message = ((): {
+              readonly subject: string;
+              readonly body: ReactElement;
+              readonly calendar?: ReturnType<typeof calendar>;
+            } => {
+              switch (payload.kind) {
+                case "signedUp":
+                  return {
                     subject: `You're signed up: ${event.title}`,
-                    rendered: yield* renderEmail(
+                    body: (
                       <SignedUp
                         siteName={site.name}
                         name={attendee.name}
@@ -173,56 +185,77 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                               ),
                             }
                           : {})}
-                      />,
+                      />
                     ),
                     calendar: calendar("REQUEST"),
-                  }
-                : payload.kind === "eventChanged"
-                  ? {
-                      subject: `New time: ${event.title}`,
-                      rendered: yield* renderEmail(
-                        <EventChanged
-                          siteName={site.name}
-                          name={attendee.name}
-                          title={event.title}
-                          when={when}
-                          previously={
-                            payload.previously === undefined
-                              ? ""
-                              : formatWhen(
-                                  new Date(payload.previously.startsAt),
-                                  new Date(payload.previously.endsAt),
-                                  event.time_zone,
-                                )
-                          }
-                          url={url}
-                          {...guestLink}
-                        />,
-                      ),
-                      calendar: calendar("REQUEST"),
-                    }
-                  : {
-                      subject: `Signup cancelled: ${event.title}`,
-                      rendered: yield* renderEmail(
-                        <SignupCancelled
-                          siteName={site.name}
-                          name={attendee.name}
-                          title={event.title}
-                          when={when}
-                          url={url}
-                        />,
-                      ),
-                      calendar: calendar("CANCEL"),
-                    };
+                  };
+                case "signupCancelled":
+                  return {
+                    subject: `Signup cancelled: ${event.title}`,
+                    body: (
+                      <SignupCancelled
+                        siteName={site.name}
+                        name={attendee.name}
+                        title={event.title}
+                        when={when}
+                        url={url}
+                      />
+                    ),
+                    calendar: calendar("CANCEL"),
+                  };
+                case "eventChanged":
+                  return {
+                    subject: `New time: ${event.title}`,
+                    body: (
+                      <EventChanged
+                        siteName={site.name}
+                        name={attendee.name}
+                        title={event.title}
+                        when={when}
+                        previously={
+                          payload.previously === undefined
+                            ? ""
+                            : formatWhen(
+                                new Date(payload.previously.startsAt),
+                                new Date(payload.previously.endsAt),
+                                event.time_zone,
+                              )
+                        }
+                        url={url}
+                        {...guestLink}
+                      />
+                    ),
+                    calendar: calendar("REQUEST"),
+                  };
+                case "reminder":
+                  // Already in their calendar: no invitation.
+                  return {
+                    subject: `Reminder: ${event.title}`,
+                    body: (
+                      <Reminder
+                        siteName={site.name}
+                        name={attendee.name}
+                        title={event.title}
+                        when={when}
+                        url={url}
+                        {...guestLink}
+                      />
+                    ),
+                  };
+              }
+            })();
+            const rendered = yield* renderEmail(message.body);
 
             yield* email
               .send({
                 from: site.from,
                 to: { name: attendee.name, address: attendee.email },
                 subject: message.subject,
-                html: message.rendered.html,
-                text: message.rendered.text,
-                calendar: message.calendar,
+                html: rendered.html,
+                text: rendered.text,
+                ...(message.calendar === undefined
+                  ? {}
+                  : { calendar: message.calendar }),
               })
               .pipe(
                 retryTransient({ times: 8 }),
@@ -243,3 +276,44 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
       });
     }),
   );
+
+/**
+ * Reminds attendees of events starting within a day, hourly, through each
+ * event's mailer: once for each time the event starts (so moving it reminds
+ * them again), and not those who signed up within the day, as their
+ * signup's email just told them.
+ */
+export const sendReminders = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+  const mailer = yield* EventMail.client;
+  const due = yield* sql<
+    Recipient & { readonly event_id: string; readonly starts_at: Date }
+  >`
+      SELECT a.id, a.name, a.email, a.user_issuer IS NULL AS guest,
+        e.id AS event_id, e.starts_at
+      FROM events e JOIN attendees a ON a.event_id = e.id
+      WHERE e.send_reminders AND a.email IS NOT NULL
+        AND e.starts_at > now() AND e.starts_at <= now() + interval '1 day'
+        AND a.created_at < e.starts_at - interval '1 day'
+    `;
+  yield* Effect.forEach(
+    due,
+    ({ event_id, starts_at, ...attendee }) =>
+      mailer(event_id).Send(
+        {
+          key: `reminder/${starts_at.getTime()}/${attendee.id}`,
+          kind: "reminder",
+          attendee,
+        },
+        { discard: true },
+      ),
+    { discard: true },
+  );
+}).pipe(Effect.orDie);
+
+/** `sendReminders`, hourly, in one instance. */
+export const reminders = ClusterCron.make({
+  name: "event-reminders",
+  cron: Cron.parseUnsafe("0 * * * *"),
+  execute: sendReminders,
+});
