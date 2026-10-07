@@ -1,27 +1,56 @@
+/* A pill like "Log in" beside it: globe, language, chevron. */
 .picker {
-  min-height: 2.25rem;
-  padding: 0 0.75rem;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-pill);
-  background: var(--color-surface);
-  color: var(--color-text-muted);
-  font: inherit;
-  font-size: 0.8125rem;
-}
-
-.picker:hover {
-  border-color: var(--color-text);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
   color: var(--color-text);
 }
 
-.picker:focus {
+.select {
+  appearance: none;
+  min-height: 2.25rem;
+  padding: 0 2rem 0 2.25rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.select:hover {
+  border-color: var(--color-text);
+}
+
+.select:focus-visible {
   border-color: var(--color-focus);
   outline: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-focus) 25%, transparent);
 }
 
+.globe,
+.chevron {
+  position: absolute;
+  pointer-events: none;
+}
+
+.globe {
+  left: 0.875rem;
+}
+
+.chevron {
+  right: 0.75rem;
+}
+
+/* Phones: the language alone, to keep the header on one line. */
 @media (max-width: 40rem) {
-  .picker {
-    padding-inline: 0.5rem;
+  .globe {
+    display: none;
+  }
+
+  .select {
+    padding-left: 0.875rem;
   }
 }
