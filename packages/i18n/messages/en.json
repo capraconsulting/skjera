@@ -49,10 +49,10 @@
   "site_nothing_published": "Nothing has been published yet.",
   "site_filter_by_tag": "Filter by tag",
   "site_filter_all": "All",
-  "site_upcoming": "Upcoming and ongoing",
+  "site_upcoming": "Upcoming events",
   "site_nothing_upcoming": "Nothing coming up right now.",
   "site_nothing_upcoming_tagged": "Nothing tagged “{tag}” coming up.",
-  "site_past": "Past",
+  "site_past": "Past events",
   "site_happening_now": "Happening now",
   "site_tags": "Tags",
   "site_food": "Food",
@@ -271,5 +271,10 @@
   "problem_mixed_time_zones": "The times have to be in the same time zone",
   "problem_unknown_version": "Unknown version",
   "problem_team_name_length": "A team name needs 1 to 100 characters",
-  "problem_team_name_taken": "There is already a team called {name}"
+  "problem_team_name_taken": "There is already a team called {name}",
+  "site_signed_up": "You're signed up",
+  "site_today_at": "Today at {time}",
+  "site_open_to_all": "Open to all",
+  "site_show_more": "Show more events",
+  "site_all_events": "All events"
 }

@@ -19,6 +19,8 @@ const pills = (page: Page) =>
 
 /** Publishes the open event, public. */
 const publish = async (page: Page) => {
+  // Done tagging: the suggestions close.
+  await tagInput(page).press("Escape");
   await page.getByRole("checkbox", { name: /Public event/ }).check();
   await expect(page.getByTestId("status")).toContainText("Saved");
   await page.getByRole("button", { name: "Publish" }).click();
@@ -72,8 +74,8 @@ test("events are tagged, and the site groups and filters them", async ({
   // The site: upcoming first, then past; filters only for active events.
   const reader = await visitor(browser);
   await reader.goto("/");
-  const upcoming = reader.getByRole("region", { name: "Upcoming and ongoing" });
-  const pastEvents = reader.getByRole("region", { name: "Past" });
+  const upcoming = reader.getByRole("region", { name: "Upcoming events" });
+  const pastEvents = reader.getByRole("region", { name: "Past events" });
   await expect(upcoming.getByRole("link", { name: comingTitle })).toBeVisible();
   await expect(pastEvents.getByRole("link", { name: pastTitle })).toBeVisible();
   const filters = reader.getByRole("navigation", { name: "Filter by tag" });

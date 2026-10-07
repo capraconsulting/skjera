@@ -195,15 +195,6 @@ test("an event's cover image is shown on the site", async ({ browser }) => {
   await expect(
     reader.getByRole("img", { name: "A full room" }),
   ).toHaveAttribute("src", cover ?? "");
-  // The front page shows it too, next to the title.
-  await reader.goto("/");
-  await expect(
-    reader
-      .getByRole("article")
-      .filter({ hasText: event.title })
-      .locator(`img[src="${cover}"]`),
-  ).toBeVisible();
-
   // Taken off again.
   await alice.getByRole("button", { name: "Remove cover image" }).click();
   await expect(preview).toHaveCount(0);

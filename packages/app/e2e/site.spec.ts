@@ -18,7 +18,9 @@ import {
 test("visitors can read the site but not the studio", async ({ browser }) => {
   const page = await visitor(browser);
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Events" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Upcoming events" }),
+  ).toBeVisible();
   await expect(page.getByRole("link", { name: "Log in" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Studio" })).toHaveCount(0);
 
@@ -51,18 +53,18 @@ test("the theme follows the system until the user picks one", async ({
   await page.goto("/");
   const root = page.locator("html");
   // Dark from the system, without an explicit choice.
-  await expect(root).toHaveCSS("background-color", "rgb(17, 20, 24)");
+  await expect(root).toHaveCSS("background-color", "rgb(9, 9, 11)");
   await expect(root).not.toHaveAttribute("data-theme");
 
   await page.getByRole("button", { name: "Switch to light mode" }).click();
   await expect(root).toHaveAttribute("data-theme", "light");
-  await expect(root).toHaveCSS("background-color", "rgb(246, 247, 249)");
+  await expect(root).toHaveCSS("background-color", "rgb(255, 255, 255)");
 
   // The choice is remembered.
   await page.reload();
   await expect(root).toHaveAttribute("data-theme", "light");
   await page.getByRole("button", { name: "Switch to dark mode" }).click();
-  await expect(root).toHaveCSS("background-color", "rgb(17, 20, 24)");
+  await expect(root).toHaveCSS("background-color", "rgb(9, 9, 11)");
 });
 
 test("the site shows what was published, and only that", async ({
@@ -113,9 +115,10 @@ test("the site shows what was published, and only that", async ({
   await reader.getByRole("link", { name: headline }).click();
   await expect(reader).toHaveURL(new RegExp(`/events/${id}$`));
   await expect(reader.getByRole("heading", { name: headline })).toBeVisible();
-  const when = reader.getByRole("article").locator("time").first();
-  await expect(when).toContainText(date);
-  await expect(when).toContainText(/6:00\s*–\s*8:00\s*PM$/);
+  // The day, then the hours, in the event's zone.
+  const times = reader.getByRole("article").locator("time");
+  await expect(times.nth(0)).toContainText(date);
+  await expect(times.nth(1)).toHaveText(/^6:00\s*–\s*8:00\s*PM$/);
   const content = reader.getByTestId("event-body");
   await expect(
     content.getByRole("heading", { name: "Agenda", level: 2 }),
@@ -195,9 +198,9 @@ test("sign-up closes at the deadline, in the event's time zone", async ({
   await alice.getByRole("button", { name: "Publish" }).click();
   await expect(alice.getByTestId("status")).toContainText("Published");
   await reader.reload();
-  await expect(
-    reader.getByRole("article").locator("time").first(),
-  ).toContainText(/6:00\s*–\s*8:00\s*PM \(ET\)$/);
+  await expect(reader.getByRole("article").locator("time").nth(1)).toHaveText(
+    /^6:00\s*–\s*8:00\s*PM \(ET\)$/,
+  );
 
   // A deadline that has passed closes it.
   await alice.getByRole("button", { name: "Deadline date" }).click();

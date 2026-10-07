@@ -1,26 +1,26 @@
-import type { EventRow, RichText } from "@skjera/documents/api";
+import type { EventRow } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { getLocale } from "@skjera/i18n/runtime";
 import { useLiveQuery } from "@tanstack/react-db";
+import { ArrowDown, ArrowRight } from "lucide-react";
 import { useQueryState } from "nuqs";
 import { useEffect, useId, useState } from "react";
 import { Link } from "react-router";
 import { Badge } from "../../components/Badge.tsx";
-import { plainText } from "../../components/RichText.tsx";
-import { events as eventsTable } from "../../sync/tables.ts";
+import { Button } from "../../components/Button.tsx";
+import { guestSignup } from "../../site/guestSignups.ts";
+import { attendees, events as eventsTable } from "../../sync/tables.ts";
 import { sameTag, uniqueTags } from "../../tags.ts";
-import { formatEventTimes } from "../../time.ts";
+import { formatClockIn, formatDayIn, sameDayIn } from "../../time.ts";
 import styles from "./Home.module.css";
 
-/** Waits for the copy of the published events. */
+/** Waits for the copies of the published events and signups. */
 export const homeLoader = async () => {
-  await eventsTable.collection.preload();
+  await Promise.all([
+    eventsTable.collection.preload(),
+    attendees.collection.preload(),
+  ]);
   return null;
-};
-
-const excerpt = (body: RichText) => {
-  const text = plainText(body);
-  return text.length > 200 ? `${text.slice(0, 200).trimEnd()}…` : text;
 };
 
 /** The time now, a minute at a time: when events start and end. */
@@ -33,11 +33,31 @@ const useNow = () => {
   return now;
 };
 
+/** The events signed up for here: as a member, or as a guest. */
+const useSignedUp = () => {
+  const signups = useLiveQuery((q) =>
+    q.from({ attendee: attendees.collection }),
+  ).data;
+  return new Set(
+    signups
+      .filter(
+        (signup) =>
+          signup.mine || guestSignup(signup.eventId)?.id === signup.id,
+      )
+      .map((signup) => signup.eventId),
+  );
+};
+
+/** Past events, a page at a time. */
+const pastPage = 6;
+
 export function Home() {
   const events = useLiveQuery((q) =>
     q.from({ event: eventsTable.collection }),
   ).data;
   const now = useNow();
+  const signedUp = useSignedUp();
+  const [pastShown, setPastShown] = useState(pastPage);
   // The tag picked, in the URL as ?tag=, to share or come back to.
   const [picked, setPicked] = useQueryState("tag");
 
@@ -62,122 +82,155 @@ export function Home() {
     .filter((event) => event.endsAt <= now)
     .toSorted((a, b) => b.startsAt.getTime() - a.startsAt.getTime());
 
-  if (events.length === 0) {
-    return (
-      <div className={styles.home}>
-        <h1 className={styles.heading}>{m.site_events()}</h1>
-        <p className={styles.empty}>{m.site_nothing_published()}</p>
-      </div>
+  const upcomingId = useId();
+  const pastId = useId();
+
+  const filters =
+    tags.length === 0 && tag === null ? null : (
+      <nav className={styles.filters} aria-label={m.site_filter_by_tag()}>
+        <button
+          type="button"
+          className={styles.filter}
+          aria-pressed={tag === null}
+          onClick={() => pick(null)}
+        >
+          {m.site_filter_all()}
+        </button>
+        {(tag === null || tags.some((each) => sameTag(each, tag))
+          ? tags
+          : [...tags, tag]
+        ).map((each) => (
+          <button
+            key={each.toLowerCase()}
+            type="button"
+            className={styles.filter}
+            aria-pressed={tag !== null && sameTag(each, tag)}
+            onClick={() =>
+              pick(tag !== null && sameTag(each, tag) ? null : each)
+            }
+          >
+            #{each}
+          </button>
+        ))}
+      </nav>
     );
-  }
 
   return (
     <div className={styles.home}>
-      <h1 className={styles.heading}>{m.site_events()}</h1>
-      {tags.length === 0 && tag === null ? null : (
-        <nav className={styles.filters} aria-label={m.site_filter_by_tag()}>
-          <button
-            type="button"
-            className={styles.filter}
-            aria-pressed={tag === null}
-            onClick={() => pick(null)}
-          >
-            {m.site_filter_all()}
-          </button>
-          {(tag === null || tags.some((each) => sameTag(each, tag))
-            ? tags
-            : [...tags, tag]
-          ).map((each) => (
-            <button
-              key={each.toLowerCase()}
-              type="button"
-              className={styles.filter}
-              aria-pressed={tag !== null && sameTag(each, tag)}
-              onClick={() =>
-                pick(tag !== null && sameTag(each, tag) ? null : each)
-              }
-            >
-              {each}
-            </button>
-          ))}
-        </nav>
-      )}
-      <Section
-        title={m.site_upcoming()}
-        events={upcoming}
-        now={now}
-        empty={
-          tag === null
-            ? m.site_nothing_upcoming()
-            : m.site_nothing_upcoming_tagged({ tag })
-        }
-      />
+      <section className={styles.section} aria-labelledby={upcomingId}>
+        <div className={styles.headingRow}>
+          <h1 id={upcomingId} className={styles.heading}>
+            {m.site_upcoming()}
+          </h1>
+          {filters}
+        </div>
+        {events.length === 0 ? (
+          <p className={styles.empty}>{m.site_nothing_published()}</p>
+        ) : upcoming.length === 0 ? (
+          <p className={styles.empty}>
+            {tag === null
+              ? m.site_nothing_upcoming()
+              : m.site_nothing_upcoming_tagged({ tag })}
+          </p>
+        ) : (
+          <ul className={styles.rows}>
+            {upcoming.map((event) => (
+              <li key={event.id}>
+                <Row
+                  event={event}
+                  now={now}
+                  signedUp={signedUp.has(event.id)}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
       {past.length === 0 ? null : (
-        <Section title={m.site_past()} events={past} now={now} empty="" />
+        <section className={styles.section} aria-labelledby={pastId}>
+          <h2 id={pastId} className={styles.heading}>
+            {m.site_past()}
+          </h2>
+          <ul className={styles.cards}>
+            {past.slice(0, pastShown).map((event) => (
+              <li key={event.id}>
+                <Card event={event} />
+              </li>
+            ))}
+          </ul>
+          {past.length > pastShown ? (
+            <Button
+              className={styles.more}
+              onClick={() => setPastShown((count) => count + pastPage)}
+            >
+              {m.site_show_more()}
+              <ArrowDown size={18} strokeWidth={1.5} aria-hidden="true" />
+            </Button>
+          ) : null}
+        </section>
       )}
     </div>
   );
 }
 
-function Section(props: {
-  readonly title: string;
-  readonly events: ReadonlyArray<EventRow>;
+/** An event coming up, or going on: a row with what to know at a glance. */
+function Row(props: {
+  readonly event: EventRow;
   readonly now: Date;
-  readonly empty: string;
+  readonly signedUp: boolean;
 }) {
-  const headingId = useId();
-  return (
-    <section className={styles.section} aria-labelledby={headingId}>
-      <h2 id={headingId} className={styles.sectionHeading}>
-        {props.title}
-      </h2>
-      {props.events.length === 0 ? (
-        <p className={styles.empty}>{props.empty}</p>
-      ) : (
-        <div className={styles.list}>
-          {props.events.map((event) => (
-            <Teaser key={event.id} event={event} now={props.now} />
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function Teaser(props: { readonly event: EventRow; readonly now: Date }) {
   const { event, now } = props;
   const ongoing = event.startsAt <= now && now < event.endsAt;
   return (
-    <article className={styles.teaser}>
-      {event.cover === null ? null : (
-        // Decorative here: the title next to it says what it is.
-        <img
-          className={styles.cover}
-          src={event.cover.src}
-          alt=""
-          loading="lazy"
-        />
-      )}
-      <time className={styles.date} dateTime={event.startsAt.toISOString()}>
-        {formatEventTimes(event.startsAt, event.endsAt, event.timeZone)}
-      </time>
-      <h3>
-        <Link to={`/events/${event.id}`}>{event.title}</Link>
-      </h3>
-      <div className={styles.badges}>
+    <Link to={`/events/${event.id}`} className={styles.row}>
+      <span className={styles.rowTitle}>{event.title}</span>
+      <span className={styles.rowBadges}>
         {ongoing ? (
           <Badge tone="success">{m.site_happening_now()}</Badge>
         ) : null}
-        {event.isPublic ? null : (
-          <Badge tone="neutral">{m.common_members_only()}</Badge>
-        )}
+        <Badge tone="neutral">
+          {event.isPublic ? m.site_open_to_all() : m.common_members_only()}
+        </Badge>
         {event.tags.map((tag) => (
-          <span key={tag.toLowerCase()} className={styles.tag}>
-            {tag}
-          </span>
+          <Badge key={tag.toLowerCase()} tone="neutral">
+            #{tag}
+          </Badge>
         ))}
-      </div>
-      <p className={styles.excerpt}>{excerpt(event.body)}</p>
-    </article>
+        <Badge tone="neutral">
+          <time dateTime={event.startsAt.toISOString()}>
+            {sameDayIn(event.startsAt, now, event.timeZone)
+              ? m.site_today_at({
+                  time: formatClockIn(event.startsAt, event.timeZone),
+                })
+              : formatDayIn(event.startsAt, event.timeZone)}
+          </time>
+        </Badge>
+        {props.signedUp ? (
+          <Badge tone="highlight">{m.site_signed_up()}</Badge>
+        ) : null}
+      </span>
+      <ArrowRight
+        className={styles.rowArrow}
+        size={20}
+        strokeWidth={1.5}
+        aria-hidden="true"
+      />
+    </Link>
+  );
+}
+
+/** An event that's over: its picture and its title. */
+function Card(props: { readonly event: EventRow }) {
+  const { event } = props;
+  return (
+    <Link to={`/events/${event.id}`} className={styles.card}>
+      <span className={styles.cardImage}>
+        {event.cover === null ? null : (
+          // Decorative here: the title under it says what it is.
+          <img src={event.cover.src} alt="" loading="lazy" />
+        )}
+      </span>
+      <span className={styles.cardTitle}>{event.title}</span>
+    </Link>
   );
 }

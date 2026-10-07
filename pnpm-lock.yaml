@@ -194,6 +194,9 @@ catalogs:
     '@effect/vitest':
       specifier: 4.0.0
       version: 4.0.0
+    '@fontsource-variable/inter':
+      specifier: 5.3.0
+      version: 5.3.0
     '@inlang/paraglide-js':
       specifier: 2.26.0
       version: 2.26.0
@@ -254,6 +257,9 @@ catalogs:
     ical-generator:
       specifier: 11.1.2
       version: 11.1.2
+    lucide-react:
+      specifier: 1.52.0
+      version: 1.52.0
     mailparser:
       specifier: 3.9.36
       version: 3.9.36
@@ -331,6 +337,9 @@ importers:
       '@daypicker/react':
         specifier: ^10.0.2
         version: 10.0.2(@types/react@19.3.0)(react@19.3.0)
+      '@fontsource-variable/inter':
+        specifier: 'catalog:'
+        version: 5.3.0
       '@skjera/documents':
         specifier: workspace:*
         version: link:../documents
@@ -352,6 +361,9 @@ importers:
       effect:
         specifier: 'catalog:'
         version: 4.0.0
+      lucide-react:
+        specifier: 'catalog:'
+        version: 1.52.0(@types/react@19.3.0)(react@19.3.0)
       nuqs:
         specifier: 'catalog:'
         version: 2.10.1(react-router@8.4.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)
@@ -1146,6 +1158,9 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@fontsource-variable/inter@5.3.0':
+    resolution: {integrity: sha512-OupL48va4JNofb97w6NYeF9S7W/kHNKM0Er8Dem5nqi4jeOLrVJDoE8tZEpnMJmtkvNbB1EIPPwHcdkF6b1oUA==}
 
   '@inlang/paraglide-js@2.26.0':
     resolution: {integrity: sha512-6k0WNzf941zTWtIbTHRP/Oq3Xg8LExUzpK1mteZ6HJAgRvIP8njh5tPtS4kO+mY/V+pQn88m16LEgLlWL7VteQ==}
@@ -2254,6 +2269,15 @@ packages:
     resolution: {integrity: sha512-U4N8FgzmWxc8k1VH8Kr6lQg18U7Fjvby6wXHVRX/ZZ7IwWbRMgrRbP0Wrb5q5NVinryp4SQampHKdvtecItxUg==}
     engines: {node: 20 || >=22}
 
+  lucide-react@1.52.0:
+    resolution: {integrity: sha512-TUgPtl5ZI9WgxOcbu4ckaC5B3l1qxPQrCMgb6OfUB9owx/OvSJfcf93SMgUWAxRw5/1XDfh9uI5F5iNGXCcGDQ==}
+    peerDependencies:
+      '@types/react': '*'
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+
   magic-string@1.4.2:
     resolution: {integrity: sha512-vG+rjFRj1PqdIBozIxAGMjPlOhaVe+GXpbttY/iSK7rGcJRMlwNJO7dcUwmUqkymsFLJiNGI06t4D7Fr7yRC9g==}
 
@@ -3342,6 +3366,8 @@ snapshots:
   '@esbuild/win32-x64@0.28.2':
     optional: true
 
+  '@fontsource-variable/inter@5.3.0': {}
+
   '@inlang/paraglide-js@2.26.0(typescript@7.0.2)(vite@8.3.1(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.6.1)(tsx@4.23.15))':
     dependencies:
       '@inlang/recommend-sherlock': 0.2.1
@@ -4226,6 +4252,12 @@ snapshots:
       js-tokens: 4.0.0
 
   lru-cache@11.5.3: {}
+
+  lucide-react@1.52.0(@types/react@19.3.0)(react@19.3.0):
+    dependencies:
+      react: 19.3.0
+    optionalDependencies:
+      '@types/react': 19.3.0
 
   magic-string@1.4.2:
     dependencies:

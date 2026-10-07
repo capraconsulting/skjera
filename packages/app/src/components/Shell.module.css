@@ -1,9 +1,6 @@
+/* The site: a tall, open header above a wide column, as on the old site. */
 .header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface);
+  border-bottom: 1px solid transparent;
 }
 
 .bar {
@@ -11,9 +8,14 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  max-width: var(--content-width);
-  margin: 0 auto;
-  padding: 0.5rem 1.5rem;
+  min-height: 6.25rem;
+  padding: 0.5rem 1rem 0;
+}
+
+@media (min-width: 64rem) {
+  .bar {
+    padding-inline: 5rem;
+  }
 }
 
 .nav,
@@ -24,15 +26,17 @@
 }
 
 .actions {
-  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
   font-size: 0.875rem;
 }
 
 .brand {
-  font-size: 1.125rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
   color: var(--color-text);
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   text-decoration: none;
 }
 
@@ -43,41 +47,83 @@
   text-decoration: none;
 }
 
-.nav a:not(.brand):hover {
-  color: var(--color-text);
-}
-
-.main {
-  max-width: var(--content-width);
-  margin: 0 auto;
-  padding: 2rem 1.5rem 4rem;
-}
-
+.nav a:not(.brand):hover,
 .nav a[aria-current="page"] {
   color: var(--color-text);
 }
 
-.actions a {
-  color: var(--color-text-muted);
+/* Links among the actions look like the buttons beside them. */
+.actions > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+  padding: 0 1.125rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  color: var(--color-text);
   font-weight: 500;
   text-decoration: none;
 }
 
-.actions a:hover {
-  color: var(--color-text);
+.actions > a:hover {
+  border-color: var(--color-text);
 }
 
+.main {
+  box-sizing: border-box;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+}
+
+@media (min-width: 40rem) {
+  .main {
+    padding-inline: 3rem;
+  }
+}
+
+/* The studio: an app, filling the window under a compact bar. */
 .filled {
   display: flex;
   flex-direction: column;
   height: 100dvh;
 }
 
+.filled .header {
+  border-bottom-color: var(--color-border);
+}
+
 .filled .bar {
-  max-width: none;
+  min-height: 3.5rem;
+  padding: 0.5rem 1.5rem;
+}
+
+.filled .brand {
+  font-size: 1.125rem;
 }
 
 .fill {
   flex: 1;
   min-height: 0;
+}
+
+/* Phones: the header on one line. */
+@media (max-width: 40rem) {
+  .bar {
+    gap: 0.5rem;
+  }
+
+  .brand {
+    font-size: 1.375rem;
+  }
+
+  .actions {
+    flex-wrap: nowrap;
+    gap: 0.375rem;
+  }
+
+  .actions > a {
+    padding-inline: 0.75rem;
+  }
 }

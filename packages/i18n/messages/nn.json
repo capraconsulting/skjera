@@ -49,10 +49,10 @@
   "site_nothing_published": "Ingenting er publisert enno.",
   "site_filter_by_tag": "Filtrer etter emneknagg",
   "site_filter_all": "Alle",
-  "site_upcoming": "Komande og pågåande",
+  "site_upcoming": "Komande arrangement",
   "site_nothing_upcoming": "Ingenting på programmet akkurat no.",
   "site_nothing_upcoming_tagged": "Ingenting merka «{tag}» på programmet.",
-  "site_past": "Tidlegare",
+  "site_past": "Tidlegare arrangement",
   "site_happening_now": "Pågår no",
   "site_tags": "Emneknaggar",
   "site_food": "Mat",
@@ -271,5 +271,10 @@
   "problem_mixed_time_zones": "Tidspunkta må vere i same tidssone",
   "problem_unknown_version": "Ukjend versjon",
   "problem_team_name_length": "Namnet på eit team må ha 1 til 100 teikn",
-  "problem_team_name_taken": "Det finst allereie eit team som heiter {name}"
+  "problem_team_name_taken": "Det finst allereie eit team som heiter {name}",
+  "site_signed_up": "Du er påmeld",
+  "site_today_at": "I dag kl. {time}",
+  "site_open_to_all": "Ope for alle",
+  "site_show_more": "Sjå fleire arrangement",
+  "site_all_events": "Alle arrangement"
 }

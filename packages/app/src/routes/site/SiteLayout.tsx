@@ -1,4 +1,5 @@
 import { m } from "@skjera/i18n/messages";
+import { LogIn } from "lucide-react";
 import { Link, Outlet, useLoaderData } from "react-router";
 import { Shell } from "../../components/Shell.tsx";
 import { SignedIn } from "../../components/SignedIn.tsx";
@@ -13,7 +14,10 @@ export function SiteLayout() {
     <Shell
       actions={
         me === null ? (
-          <a href={loginUrl("/studio")}>{m.common_log_in()}</a>
+          <a href={loginUrl("/studio")}>
+            {m.common_log_in()}
+            <LogIn size={16} strokeWidth={1.5} aria-hidden="true" />
+          </a>
         ) : (
           <>
             <Link to="/studio">{m.common_studio()}</Link>

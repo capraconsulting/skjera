@@ -40,8 +40,8 @@ export const siteName = () => site.name;
 /** The languages, each named in itself. */
 export const languages: ReadonlyArray<{ locale: Locale; name: string }> = [
   { locale: "en", name: "English" },
-  { locale: "nb", name: "Norsk bokmål" },
-  { locale: "nn", name: "Norsk nynorsk" },
+  { locale: "nb", name: "Bokmål" },
+  { locale: "nn", name: "Nynorsk" },
 ];
 
 export { getLocale, setLocale };

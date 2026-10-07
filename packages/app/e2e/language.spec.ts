@@ -21,9 +21,7 @@ test("visitors pick their language, and get emails in it", async ({
   const nora = await visitor(browser);
   await nora.goto(`/events/${event.id}`);
   await expect(nora.locator("html")).toHaveAttribute("lang", "en");
-  await nora
-    .getByRole("combobox", { name: "Language" })
-    .selectOption("Norsk bokmål");
+  await nora.getByRole("combobox", { name: "Language" }).selectOption("Bokmål");
   // The page comes back in it, dates too; the event as it was written.
   await expect(nora.locator("html")).toHaveAttribute("lang", "nb");
   const box = nora.getByRole("region", { name: "Påmelding" });
@@ -43,7 +41,7 @@ test("visitors pick their language, and get emails in it", async ({
   await other.goto(`/events/${event.id}`);
   await other
     .getByRole("combobox", { name: "Language" })
-    .selectOption("Norsk bokmål");
+    .selectOption("Bokmål");
   const form = other.getByRole("region", { name: "Påmelding" });
   await form.getByRole("textbox", { name: "Navnet ditt" }).fill("Nora");
   await form.getByRole("textbox", { name: "E-postadressen din" }).fill(address);
@@ -69,7 +67,7 @@ test("the studio speaks Nynorsk too", async ({ browser }) => {
 
   await alice
     .getByRole("combobox", { name: "Language" })
-    .selectOption("Norsk nynorsk");
+    .selectOption("Nynorsk");
   await expect(alice.locator("html")).toHaveAttribute("lang", "nn");
   await expect(alice.getByRole("textbox", { name: "Tittel" })).toHaveText(
     event.title,

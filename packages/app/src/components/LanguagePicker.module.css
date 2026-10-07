@@ -1,8 +1,8 @@
 .picker {
-  min-height: 2rem;
-  padding: 0 0.5rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  min-height: 2.25rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
   background: var(--color-surface);
   color: var(--color-text-muted);
   font: inherit;
@@ -10,6 +10,7 @@
 }
 
 .picker:hover {
+  border-color: var(--color-text);
   color: var(--color-text);
 }
 
@@ -17,4 +18,10 @@
   border-color: var(--color-focus);
   outline: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-focus) 25%, transparent);
+}
+
+@media (max-width: 40rem) {
+  .picker {
+    padding-inline: 0.5rem;
+  }
 }

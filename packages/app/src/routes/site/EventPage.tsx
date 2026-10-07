@@ -2,6 +2,15 @@ import type { DocumentId } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { eq, useLiveQuery } from "@tanstack/react-db";
 import {
+  ArrowLeft,
+  CalendarDays,
+  Clock,
+  Globe,
+  Lock,
+  Users,
+  UtensilsCrossed,
+} from "lucide-react";
+import {
   data,
   isRouteErrorResponse,
   Link,
@@ -11,11 +20,10 @@ import {
   useRouteError,
   useRouteLoaderData,
 } from "react-router";
-import { Badge } from "../../components/Badge.tsx";
 import { RichText } from "../../components/RichText.tsx";
 import { rememberGuestSignup } from "../../site/guestSignups.ts";
 import { attendees, events } from "../../sync/tables.ts";
-import { formatEventTimes } from "../../time.ts";
+import { formatDaysIn, formatHoursIn } from "../../time.ts";
 import { Attend } from "./Attend.tsx";
 import styles from "./EventPage.module.css";
 import type { siteLoader } from "./SiteLayout.tsx";
@@ -71,25 +79,10 @@ export function EventPage() {
   }
   return (
     <article className={styles.event}>
-      {event.cover === null ? null : (
-        <img
-          className={styles.cover}
-          src={event.cover.src}
-          alt={event.cover.alt}
-        />
-      )}
-      <h1 className={styles.title}>{event.title}</h1>
-      <p className={styles.date}>
-        <time dateTime={event.startsAt.toISOString()}>
-          {formatEventTimes(event.startsAt, event.endsAt, event.timeZone)}
-        </time>
-        {event.isPublic ? null : (
-          <>
-            {" "}
-            <Badge tone="neutral">{m.common_members_only()}</Badge>
-          </>
-        )}
-      </p>
+      <Link to="/" className={styles.back}>
+        <ArrowLeft size={18} strokeWidth={2} aria-hidden="true" />
+        {m.site_all_events()}
+      </Link>
       {event.tags.length === 0 ? null : (
         <ul className={styles.tags} aria-label={m.site_tags()}>
           {event.tags.map((tag) => (
@@ -99,11 +92,49 @@ export function EventPage() {
           ))}
         </ul>
       )}
-      {event.askDietary && event.food.trim() !== "" ? (
-        <p className={styles.food}>
-          <span className={styles.foodLabel}>{m.site_food()}</span> {event.food}
-        </p>
-      ) : null}
+      <h1 className={styles.title}>{event.title}</h1>
+      <div className={styles.overview}>
+        <ul className={styles.info}>
+          <li>
+            <CalendarDays {...icon} />
+            <time dateTime={event.startsAt.toISOString()}>
+              {formatDaysIn(event.startsAt, event.endsAt, event.timeZone)}
+            </time>
+          </li>
+          <li>
+            <Clock {...icon} />
+            <time dateTime={event.startsAt.toISOString()}>
+              {formatHoursIn(event.startsAt, event.endsAt, event.timeZone)}
+            </time>
+          </li>
+          {event.askDietary && event.food.trim() !== "" ? (
+            <li>
+              <UtensilsCrossed {...icon} />
+              <span>
+                <span className={styles.label}>{m.site_food()}:</span>{" "}
+                {event.food}
+              </span>
+            </li>
+          ) : null}
+          {signups.length === 0 ? null : (
+            <li>
+              <Users {...icon} />
+              {m.attend_count({ count: signups.length })}
+            </li>
+          )}
+          <li>
+            {event.isPublic ? <Globe {...icon} /> : <Lock {...icon} />}
+            {event.isPublic ? m.site_open_to_all() : m.common_members_only()}
+          </li>
+        </ul>
+        {event.cover === null ? null : (
+          <img
+            className={styles.cover}
+            src={event.cover.src}
+            alt={event.cover.alt}
+          />
+        )}
+      </div>
       <div className={styles.body} data-testid="event-body">
         <RichText spans={event.body} />
       </div>
@@ -115,6 +146,14 @@ export function EventPage() {
     </article>
   );
 }
+
+/** The info box's icons. */
+const icon = {
+  size: 18,
+  strokeWidth: 1.5,
+  "aria-hidden": true,
+  className: styles.icon,
+} as const;
 
 export function EventError() {
   const error = useRouteError();

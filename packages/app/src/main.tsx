@@ -24,6 +24,7 @@ import {
   teamLoader,
 } from "./routes/studio/Team.tsx";
 import { NoTeamSelected, Teams, teamsLoader } from "./routes/studio/Teams.tsx";
+import "@fontsource-variable/inter";
 import "./global.css";
 
 // The slim build loads Automerge's WebAssembly explicitly, so Vite needs no

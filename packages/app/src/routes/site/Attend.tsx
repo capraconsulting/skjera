@@ -162,6 +162,7 @@ export function Attend(props: {
   if (closed) {
     return (
       <section className={styles.box} aria-label={m.attend_region()}>
+        <h2 className={styles.heading}>{m.attend_region()}</h2>
         <p className={styles.count}>{count}</p>
         {mine !== undefined || guest !== null ? (
           <p className={styles.status}>
@@ -227,6 +228,7 @@ export function Attend(props: {
   if (props.signedIn) {
     return (
       <section className={styles.box} aria-label={m.attend_region()}>
+        <h2 className={styles.heading}>{m.attend_region()}</h2>
         <p className={styles.count}>{count}</p>
         {closes}
         {mine !== undefined ? (
@@ -266,6 +268,7 @@ export function Attend(props: {
   if (!event.allowGuests) {
     return (
       <section className={styles.box} aria-label={m.attend_region()}>
+        <h2 className={styles.heading}>{m.attend_region()}</h2>
         <p className={styles.count}>{count}</p>
         {closes}
         <p className={styles.row}>
@@ -279,6 +282,7 @@ export function Attend(props: {
 
   return (
     <section className={styles.box} aria-label={m.attend_region()}>
+      <h2 className={styles.heading}>{m.attend_region()}</h2>
       <p className={styles.count}>{count}</p>
       {closes}
       {guest === null ? (

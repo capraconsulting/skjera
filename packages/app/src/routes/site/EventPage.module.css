@@ -1,75 +1,145 @@
+/* An event, as on the old site: back link, tags, a big title, then what
+   to know beside the picture, then what it's about and signing up. */
 .event {
-  max-width: 42rem;
-  margin: 0 auto;
+  padding-bottom: 2rem;
 }
 
-.title {
-  margin: 0 0 0.75rem;
-  font-family: var(--font-serif);
-  font-size: 2.5rem;
-  line-height: 1.15;
-  letter-spacing: -0.01em;
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 2.25rem;
+  color: var(--color-text);
+  font-weight: 700;
+  text-decoration: none;
 }
 
-.date {
-  margin: 0 0 2.5rem;
-  color: var(--color-link);
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.body {
-  font-size: 1.125rem;
-  line-height: 1.75;
-}
-
-.missing {
-  max-width: 42rem;
-  margin: 0 auto;
-  color: var(--color-text-muted);
-}
-
-.cover {
-  display: block;
-  width: 100%;
-  max-height: 24rem;
-  margin-bottom: 2rem;
-  border-radius: var(--radius-large);
-  object-fit: cover;
-}
-
-.food {
-  margin: -1.5rem 0 2rem;
-}
-
-.foodLabel {
-  margin-right: 0.25rem;
-  color: var(--color-text-muted);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+.back:hover {
+  text-decoration: underline;
 }
 
 .tags {
   display: flex;
   flex-wrap: wrap;
   gap: 0.375rem;
-  margin: -1.5rem 0 2rem;
+  margin: 0 0 1rem;
   padding: 0;
   list-style: none;
 }
 
 .tags a {
-  display: inline-block;
-  padding: 0.0625rem 0.625rem;
-  border-radius: 999px;
-  background: var(--color-surface-muted);
-  color: var(--color-text-muted);
-  font-size: 0.875rem;
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding: 0 0.625rem;
+  border: 1px solid var(--color-text);
+  border-radius: var(--radius-pill);
+  color: var(--color-text);
+  font-size: 0.75rem;
+  font-weight: 500;
   text-decoration: none;
 }
 
 .tags a:hover {
-  color: var(--color-text);
+  background: var(--color-surface-muted);
+}
+
+.title {
+  margin: 0 0 1.5rem;
+  font-size: 1.875rem;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  overflow-wrap: break-word;
+}
+
+@media (min-width: 40rem) {
+  .title {
+    font-size: 3rem;
+  }
+}
+
+.overview {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (min-width: 40rem) {
+  .overview {
+    flex-direction: row;
+  }
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
+  font-size: 0.875rem;
+  font-weight: 300;
+  list-style: none;
+}
+
+@media (min-width: 40rem) {
+  .info {
+    flex: 0 0 40%;
+    box-sizing: border-box;
+    min-height: 15rem;
+    padding: 1.5rem;
+    font-size: 1rem;
+  }
+}
+
+.info li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.icon {
+  flex: none;
+}
+
+.label {
+  font-weight: 500;
+}
+
+.cover {
+  display: block;
+  width: 100%;
+  max-height: 22rem;
+  border-radius: var(--radius-large);
+  object-fit: cover;
+}
+
+@media (min-width: 40rem) {
+  .cover {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+    height: 15rem;
+  }
+}
+
+.body {
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+@media (min-width: 40rem) {
+  .body {
+    width: 60%;
+  }
+}
+
+.missing {
+  color: var(--color-text-muted);
+  font-size: 1.25rem;
+  font-weight: 300;
 }

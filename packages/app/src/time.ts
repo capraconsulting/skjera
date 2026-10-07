@@ -79,3 +79,62 @@ export const formatDateIn = (at: Date, timeZone: string): string =>
     year: "numeric",
     timeZone,
   });
+
+/** "15 November 2026", the day it is in the given zone. */
+export const formatDayIn = (at: Date, timeZone: string): string =>
+  at.toLocaleDateString(getLocale(), {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone,
+  });
+
+/** "18:00", or "6:00 PM", on the clock in the given zone. */
+export const formatClockIn = (at: Date, timeZone: string): string =>
+  at.toLocaleTimeString(getLocale(), {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone,
+  });
+
+/** Whether `a` and `b` are on the same day in the given zone. */
+export const sameDayIn = (a: Date, b: Date, timeZone: string): boolean => {
+  const day = (at: Date) => at.toLocaleDateString("en-CA", { timeZone });
+  return day(a) === day(b);
+};
+
+/**
+ * The day an event is, in its zone: "Thursday 15 October 2026", or
+ * "15–16 October 2026" when it runs over more than one.
+ */
+export const formatDaysIn = (
+  startsAt: Date,
+  endsAt: Date,
+  timeZone: string,
+): string =>
+  sameDayIn(startsAt, endsAt, timeZone)
+    ? startsAt.toLocaleDateString(getLocale(), {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        timeZone,
+      })
+    : new Intl.DateTimeFormat(getLocale(), {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        timeZone,
+      }).formatRange(startsAt, endsAt);
+
+/** "6:00 – 9:00 PM", in its zone, saying which when the viewer is elsewhere. */
+export const formatHoursIn = (
+  startsAt: Date,
+  endsAt: Date,
+  timeZone: string,
+): string =>
+  new Intl.DateTimeFormat(getLocale(), {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone,
+  }).formatRange(startsAt, endsAt) + zoneNote(timeZone, startsAt);

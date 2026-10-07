@@ -18,40 +18,43 @@
 }
 
 :root {
+  /* Inter, bundled (see main.tsx). */
   --font-sans:
-    "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-serif: Charter, "Iowan Old Style", Georgia, serif;
+    "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", Roboto,
+    sans-serif;
 
-  --color-bg: light-dark(#f6f7f9, #111418);
-  --color-surface: light-dark(#ffffff, #191d23);
-  --color-surface-muted: light-dark(#f0f2f5, #20252c);
-  --color-border: light-dark(#dfe3e8, #2c323b);
-  --color-border-strong: light-dark(#c3cad3, #3b434e);
-  --color-text: light-dark(#1b1f24, #e6e9ed);
-  --color-text-muted: light-dark(#5d6773, #9aa4b0);
-  --color-link: light-dark(#2257d6, #7fa6ff);
-  --color-focus: light-dark(#2f6bff, #6b95ff);
-  --color-primary: light-dark(#1f8a4c, #2ea463);
-  --color-primary-hover: light-dark(#19743f, #37b86f);
-  --color-primary-text: #ffffff;
+  /* Black and white, with greys between: colour comes from the photos. */
+  --color-bg: light-dark(#ffffff, #09090b);
+  --color-surface: light-dark(#ffffff, #18181b);
+  --color-surface-muted: light-dark(#f4f4f5, #27272a);
+  --color-border: light-dark(#e4e4e7, #27272a);
+  --color-border-strong: light-dark(#a1a1aa, #52525b);
+  --color-text: light-dark(#09090b, #fafafa);
+  --color-text-muted: light-dark(#52525b, #a1a1aa);
+  --color-link: light-dark(#1b64f2, #7aa7ff);
+  --color-focus: light-dark(#1b64f2, #7aa7ff);
+  --color-primary: light-dark(#18181b, #fafafa);
+  --color-primary-hover: light-dark(#3f3f46, #d4d4d8);
+  --color-primary-text: light-dark(#ffffff, #09090b);
+  /* What stands out: "you're signed up". */
+  --color-highlight: #ffeb4d;
+  --color-highlight-text: #09090b;
   --color-danger: light-dark(#c8323b, #f0737a);
   --color-danger-soft: light-dark(#fbe9ea, #3a1f22);
-  --color-success: light-dark(#1f8a4c, #4cc684);
-  --color-success-soft: light-dark(#e3f4ea, #173325);
-  --color-warning: light-dark(#a8660a, #e3a44a);
-  --color-warning-soft: light-dark(#fdf1dc, #372a15);
-  --color-neutral-soft: light-dark(#eceff3, #262c34);
-  --color-selected: color-mix(
-    in srgb,
-    var(--color-focus) 12%,
-    var(--color-surface)
-  );
-  --color-shadow: light-dark(rgb(16 24 40 / 8%), rgb(0 0 0 / 40%));
+  --color-success: light-dark(#15803d, #4ade80);
+  --color-success-soft: light-dark(#dcfce7, #14281c);
+  --color-warning: light-dark(#a16207, #facc15);
+  --color-warning-soft: light-dark(#fef9c3, #332b0b);
+  --color-neutral-soft: light-dark(#f4f4f5, #27272a);
+  --color-selected: light-dark(#f4f4f5, #27272a);
+  --color-shadow: light-dark(rgb(9 9 11 / 8%), rgb(0 0 0 / 50%));
 
-  --radius: 6px;
-  --radius-large: 10px;
+  --radius: 8px;
+  --radius-large: 12px;
+  --radius-image: 16px;
+  --radius-pill: 999px;
   --shadow: 0 1px 3px var(--color-shadow);
-  --content-width: 64rem;
+  --content-width: 75rem;
 
   font-family: var(--font-sans);
   font-size: 16px;
