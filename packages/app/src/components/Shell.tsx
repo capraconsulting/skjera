@@ -7,7 +7,8 @@ import { ThemeToggle } from "./ThemeToggle.tsx";
 
 /**
  * Page frame: the site's name (always to its front page) and any links on
- * the left; actions, the language and the theme toggle on the right.
+ * the left; the language, the theme toggle and the actions (logging in, or
+ * the user's menu) on the right.
  */
 export function Shell(props: {
   readonly links?: ReactNode;
@@ -27,9 +28,10 @@ export function Shell(props: {
             {props.links}
           </nav>
           <div className={styles.actions}>
-            {props.actions}
             <LanguagePicker />
             <ThemeToggle />
+            {/* Logging in, or who's in: rightmost, where people look. */}
+            {props.actions}
           </div>
         </div>
       </header>
