@@ -16,6 +16,7 @@ const backend = {
   proxy: {
     "/auth": "http://localhost:3000",
     "/api": "http://localhost:3000",
+    "/site-assets": "http://localhost:3000",
     "/automerge": { target: "ws://localhost:3000", ws: true },
   },
 };

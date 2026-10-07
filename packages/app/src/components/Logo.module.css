@@ -1,0 +1,44 @@
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.image,
+.light,
+.dark {
+  display: block;
+  height: 2.75rem;
+  width: auto;
+}
+
+@media (min-width: 40rem) {
+  .image,
+  .light,
+  .dark {
+    height: 3.25rem;
+  }
+}
+
+/* The theme's version: the picked theme, else the system's. */
+.dark {
+  display: none;
+}
+
+:root[data-theme="dark"] .light {
+  display: none;
+}
+
+:root[data-theme="dark"] .dark {
+  display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .light {
+    display: none;
+  }
+
+  :root:not([data-theme="light"]) .dark {
+    display: block;
+  }
+}

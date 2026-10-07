@@ -1,5 +1,5 @@
 import { baseLocale, locales } from "@skjera/i18n/runtime";
-import { Config, Schema } from "effect";
+import { Config, Option, Schema } from "effect";
 import { Temporal } from "temporal-polyfill";
 
 // Document identity and publish state, shared by the server and the editor.
@@ -80,15 +80,107 @@ export const SiteLocale = Config.Literals(locales, "SITE_LOCALE").pipe(
   Config.withDefault(baseLocale),
 );
 
-/** What the site is called (`SITE_NAME`) and its language: `/api/site`. */
-export const Site = Schema.Struct({ name: Schema.String, locale: Locale });
+/** An image in a light and, optionally, a dark version: URLs. */
+const Picture = Schema.Struct({
+  src: Schema.String,
+  darkSrc: Schema.optionalKey(Schema.String),
+});
+
+/** The site's logo: beside its name, unless the logo has the name in it. */
+export const SiteLogo = Schema.Struct({
+  ...Picture.fields,
+  includesName: Schema.Boolean,
+});
+
+/** A link in the footer: words, or a logo (with them as its description). */
+export const FooterLink = Schema.Struct({
+  label: Schema.String,
+  href: Schema.String,
+  logo: Schema.optionalKey(Picture),
+});
+
+/** The footer, from `SITE_FOOTER` (JSON): a line of text, and links. */
+export const SiteFooter = Schema.Struct({
+  text: Schema.optionalKey(Schema.String),
+  links: Schema.optionalKey(Schema.Array(FooterLink)),
+});
+export type SiteFooter = typeof SiteFooter.Type;
+
+/**
+ * Who answers for the personal data kept (`SITE_OPERATOR`, else the site's
+ * name) and how to reach them (`SITE_CONTACT_EMAIL`), for the privacy page;
+ * or a policy elsewhere (`SITE_PRIVACY_URL`), linked instead.
+ */
+export const SitePrivacy = Schema.Struct({
+  operator: Schema.String,
+  contact: Schema.optionalKey(Schema.String),
+  url: Schema.optionalKey(Schema.String),
+});
+
+/**
+ * The site as the app shows it, from configuration: what it's called
+ * (`SITE_NAME`), its language, logo, footer and privacy: `/api/site`.
+ */
+export const Site = Schema.Struct({
+  name: Schema.String,
+  locale: Locale,
+  logo: Schema.optionalKey(SiteLogo),
+  footer: Schema.optionalKey(SiteFooter),
+  privacy: SitePrivacy,
+});
 export type Site = typeof Site.Type;
+
+const optional = (config: Config.Config<string>) =>
+  Config.option(config).pipe(
+    Config.map((value) => Option.getOrUndefined(value)),
+  );
+
+/** Only what's there: no keys for what isn't. */
+const defined = <A extends object>(fields: A) =>
+  Object.fromEntries(
+    Object.entries(fields).filter(([, value]) => value !== undefined),
+  ) as { [K in keyof A]: Exclude<A[K], undefined> };
 
 export const SiteConfig = Config.all({
   name: Config.String("SITE_NAME").pipe(Config.withDefault("Skjera")),
   locale: SiteLocale,
-});
-
+  logo: optional(Config.String("SITE_LOGO")),
+  logoDark: optional(Config.String("SITE_LOGO_DARK")),
+  logoIncludesName: Config.Boolean("SITE_LOGO_INCLUDES_NAME").pipe(
+    Config.withDefault(false),
+  ),
+  footer: Config.option(
+    Config.schema(Schema.fromJsonString(SiteFooter), "SITE_FOOTER"),
+  ),
+  operator: optional(Config.String("SITE_OPERATOR")),
+  contact: optional(Config.String("SITE_CONTACT_EMAIL")),
+  privacyUrl: optional(Config.String("SITE_PRIVACY_URL")),
+}).pipe(
+  Config.map(
+    (config): Site => ({
+      name: config.name,
+      locale: config.locale,
+      ...(config.logo === undefined
+        ? {}
+        : {
+            logo: defined({
+              src: config.logo,
+              darkSrc: config.logoDark,
+              includesName: config.logoIncludesName,
+            }),
+          }),
+      ...Option.match(config.footer, {
+        onNone: () => ({}),
+        onSome: (footer) => ({ footer }),
+      }),
+      privacy: defined({
+        operator: config.operator ?? config.name,
+        contact: config.contact,
+        url: config.privacyUrl,
+      }),
+    }),
+  ),
+);
 export const GuestDetails = Schema.Struct({
   name: Schema.String.check(
     Schema.makeFilter(

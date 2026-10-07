@@ -269,3 +269,34 @@ test("the account menu leads to settings, and logs out", async ({
   await alice.getByRole("button", { name: "Log out" }).click();
   await expect(alice.getByRole("link", { name: "Log in" })).toBeVisible();
 });
+
+test("the site has its logo, its footer and a privacy page", async ({
+  browser,
+}) => {
+  // As configured in mise.toml: SITE_LOGO, SITE_FOOTER, SITE_OPERATOR, …
+  const page = await visitor(browser);
+  await page.goto("/");
+  const brand = page.getByRole("link", { name: "Skjera", exact: true });
+  await expect(brand.locator('img[src="/site-assets/logo.svg"]')).toBeVisible();
+  const footer = page.getByRole("contentinfo");
+  await expect(footer).toContainText("Events, together");
+  await expect(
+    footer.getByRole("link", { name: "Example Ltd" }),
+  ).toHaveAttribute("href", "https://example.com");
+
+  // Dark: the logo's dark version.
+  await page.getByRole("button", { name: "Switch to dark mode" }).click();
+  await expect(
+    brand.locator('img[src="/site-assets/logo-dark.svg"]'),
+  ).toBeVisible();
+  await expect(brand.locator('img[src="/site-assets/logo.svg"]')).toBeHidden();
+
+  await footer.getByRole("link", { name: "Privacy" }).click();
+  await expect(page).toHaveURL(/\/privacy$/);
+  const policy = page.getByRole("article");
+  await expect(policy.getByRole("heading", { name: "Privacy" })).toBeVisible();
+  await expect(policy).toContainText("Skjera runs Skjera");
+  await expect(
+    policy.getByRole("link", { name: "privacy@skjera.localhost" }),
+  ).toHaveAttribute("href", "mailto:privacy@skjera.localhost");
+});

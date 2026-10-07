@@ -7,8 +7,10 @@ import type {
 import { m } from "@skjera/i18n/messages";
 import { getLocale } from "@skjera/i18n/runtime";
 import { type FormEvent, useEffect, useState } from "react";
+import { Link } from "react-router";
 import { Button } from "../../components/Button.tsx";
 import { Input } from "../../components/Input.tsx";
+import { currentSite } from "../../i18n.ts";
 import { loginUrl } from "../../site/client.ts";
 import { guestSignup, rememberGuestSignup } from "../../site/guestSignups.ts";
 import {
@@ -315,12 +317,25 @@ export function Attend(props: {
               <a href={loginUrl(`/events/${event.id}`)}>{m.attend_log_in()}</a>
             </span>
           </div>
+          <p className={styles.privacy}>
+            <PrivacyLink />
+          </p>
         </form>
       ) : (
         signedUp(guest.id, m.attend_you_signed_up(), guest.given ?? {})
       )}
       {failure}
     </section>
+  );
+}
+
+/** Where guests read how their details are handled. */
+function PrivacyLink() {
+  const { url } = currentSite().privacy;
+  return url === undefined ? (
+    <Link to="/privacy">{m.attend_privacy_link()}</Link>
+  ) : (
+    <a href={url}>{m.attend_privacy_link()}</a>
   );
 }
 

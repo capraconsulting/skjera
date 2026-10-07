@@ -20,6 +20,26 @@ SITE_URL = "http://localhost:5173"
 SITE_NAME = "Skjera"
 # The language for those who haven't picked one: en, nb or nn.
 SITE_LOCALE = "en"
+# Branding, all optional. Files in SITE_ASSETS_DIR are served at /site-assets/.
+SITE_ASSETS_DIR = "{{config_root}}/dev/site-assets"
+SITE_LOGO = "/site-assets/logo.svg"
+SITE_LOGO_DARK = "/site-assets/logo-dark.svg"
+# A line of text and links (each with an optional logo), as JSON.
+SITE_FOOTER = """
+{
+  "text": "Skjera · Events, together · privacy@skjera.localhost",
+  "links": [
+    {
+      "label": "Example Ltd",
+      "href": "https://example.com",
+      "logo": { "src": "/site-assets/logo.svg", "darkSrc": "/site-assets/logo-dark.svg" }
+    }
+  ]
+}
+"""
+# For the privacy page: who answers for the data kept, and how to reach them.
+SITE_OPERATOR = "Skjera"
+SITE_CONTACT_EMAIL = "privacy@skjera.localhost"
 EMAIL_FROM = "Skjera <events@skjera.localhost>"
 # Signs what's put in links, e.g. guests' links to their signups.
 SIGNING_SECRET = "skjera-dev-signing-secret"

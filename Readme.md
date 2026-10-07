@@ -24,6 +24,13 @@ docker build -t skjera .
 
 It's configured by environment variables, as in [mise.toml](mise.toml). Needed: `DATABASE_URL` (Postgres 18 with pg_automerge; migrations run at start), `OAUTH_*` (an OIDC provider), `S3_*` (image storage), `SITE_URL`, `SITE_NAME`, `SITE_LOCALE` (the language for those who haven't picked one: `en`, `nb` or `nn`), `EMAIL_FROM`, `SIGNING_SECRET` (any long random string, the same across restarts) and `EMAIL_TRANSPORT=ses` (with `AWS_REGION` and AWS credentials) or `smtp` (with `EMAIL_SMTP_URL`). The server starts without the email settings and the secret, warning that emails aren't sent.
 
+Branding, all optional:
+
+- `SITE_LOGO`, and `SITE_LOGO_DARK` for the dark theme: image URLs (animated WebP works). Shown beside the site's name, or instead of it with `SITE_LOGO_INCLUDES_NAME=true`.
+- `SITE_FOOTER`: JSON, `{ "text": "…", "links": [{ "label": "…", "href": "…", "logo": { "src": "…", "darkSrc": "…" } }] }`. The footer always links to privacy.
+- `SITE_OPERATOR` (who answers for the personal data kept; the site's name if not set) and `SITE_CONTACT_EMAIL`, for the built-in privacy page at `/privacy`; or `SITE_PRIVACY_URL` to link a policy elsewhere instead.
+- `SITE_ASSETS_DIR`: a directory served at `/site-assets/`, e.g. a ConfigMap mounted into the pod, so the logo can be `/site-assets/logo.webp`. In development, `dev/site-assets`.
+
 In Kubernetes:
 
 - Liveness: `GET /health`. Readiness: `GET /health/ready`, which checks the database.

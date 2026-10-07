@@ -94,3 +94,12 @@
   margin-bottom: 0.25rem;
   padding: 0;
 }
+
+.privacy {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.privacy a {
+  color: var(--color-text-muted);
+}

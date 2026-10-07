@@ -113,6 +113,10 @@
   font-size: 1.125rem;
 }
 
+.filled .brand img {
+  height: 2rem;
+}
+
 .fill {
   flex: 1;
   min-height: 0;

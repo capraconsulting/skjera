@@ -208,7 +208,7 @@ test("an event's cover image is shown on the site", async ({ browser }) => {
   await expect(
     reader.getByRole("heading", { name: event.title }),
   ).toBeVisible();
-  await expect(reader.locator("img")).toHaveCount(0);
+  await expect(reader.getByRole("article").locator("img")).toHaveCount(0);
 
   await deleteEvent(alice, event.id);
   await deleteTeam(alice, team);

@@ -225,7 +225,24 @@ const App = Layer.unwrap(
   }),
 );
 
-/** The site's name and language, for the app (see Documents.Site). */
+/**
+ * The site's own files, e.g. its logo, from `SITE_ASSETS_DIR`: so they can be
+ * mounted beside the image (a ConfigMap) instead of hosted elsewhere.
+ */
+const SiteAssets = Layer.unwrap(
+  Effect.gen(function* () {
+    const root = yield* Config.option(Config.String("SITE_ASSETS_DIR"));
+    return Option.isNone(root)
+      ? Layer.empty
+      : HttpStaticServer.layer({
+          root: root.value,
+          prefix: "/site-assets",
+          cacheControl: "public, max-age=300",
+        });
+  }),
+);
+
+/** The site's name, language, logo, footer and privacy, for the app. */
 const site = Layer.unwrap(
   Effect.map(Documents.SiteConfig, (config) =>
     HttpRouter.add(
@@ -269,6 +286,7 @@ const Routes = Layer.mergeAll(
   HttpRouter.add("GET", "/health", HttpServerResponse.text("ok")),
   ready,
   site,
+  SiteAssets,
   App,
 ).pipe(Layer.provideMerge(OAuth.routes));
 

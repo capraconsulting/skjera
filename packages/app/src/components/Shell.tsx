@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
-import { siteName } from "../i18n.ts";
+import { currentSite } from "../i18n.ts";
+import { Footer } from "./Footer.tsx";
 import { LanguagePicker } from "./LanguagePicker.tsx";
+import { Logo } from "./Logo.tsx";
 import styles from "./Shell.module.css";
 import { ThemeToggle } from "./ThemeToggle.tsx";
 
@@ -23,7 +25,7 @@ export function Shell(props: {
         <div className={styles.bar}>
           <nav className={styles.nav}>
             <Link to="/" className={styles.brand}>
-              {siteName()}
+              <Logo site={currentSite()} />
             </Link>
             {props.links}
           </nav>
@@ -38,6 +40,8 @@ export function Shell(props: {
       <main className={props.fill ? styles.fill : styles.main}>
         {props.children}
       </main>
+      {/* The site's; the studio fills the window. */}
+      {props.fill ? null : <Footer />}
     </div>
   );
 }

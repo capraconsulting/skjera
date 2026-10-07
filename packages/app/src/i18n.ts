@@ -12,7 +12,11 @@ import {
 // (SITE_LOCALE, from /api/site), else English. Picking one reloads the page
 // in it. Event content is in whatever language it was written in.
 
-let site: Site = { name: "Skjera", locale: baseLocale };
+let site: Site = {
+  name: "Skjera",
+  locale: baseLocale,
+  privacy: { operator: "Skjera" },
+};
 
 defineCustomClientStrategy("custom-site", {
   getLocale: () => site.locale,
@@ -36,6 +40,9 @@ export const loadSite = async () => {
 
 /** What the site is called: SITE_NAME. */
 export const siteName = () => site.name;
+
+/** The site as configured: its name, logo, footer and privacy. */
+export const currentSite = () => site;
 
 /** The languages, each named in itself. */
 export const languages: ReadonlyArray<{ locale: Locale; name: string }> = [
