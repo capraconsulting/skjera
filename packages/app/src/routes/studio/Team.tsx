@@ -1,4 +1,5 @@
 import type { DocumentId, TeamId } from "@skjera/documents/api";
+import { m } from "@skjera/i18n/messages";
 import { eq, useLiveQuery } from "@tanstack/react-db";
 import { useState } from "react";
 import {
@@ -90,16 +91,16 @@ export function Team() {
   return (
     <>
       <Pane
-        title="Events"
-        label="Events"
+        title={m.site_events()}
+        label={m.site_events()}
         actions={
           <Button variant="primary" disabled={creating} onClick={newEvent}>
-            New event
+            {m.studio_new_event()}
           </Button>
         }
       >
         {rows.length === 0 ? (
-          <p className={styles.empty}>No events yet.</p>
+          <p className={styles.empty}>{m.studio_no_events()}</p>
         ) : (
           <ul className={styles.list}>
             {rows.map((event) => (
@@ -131,21 +132,23 @@ function EventItem(props: {
     >
       <span className={styles.heading}>
         {title === "" ? (
-          <span className={`${styles.title} ${styles.untitled}`}>Untitled</span>
+          <span className={`${styles.title} ${styles.untitled}`}>
+            {m.studio_untitled()}
+          </span>
         ) : (
           <span className={styles.title}>{title}</span>
         )}
       </span>
       <span className={styles.meta}>
         {event.startsAt == null || event.timeZone == null
-          ? "No date"
+          ? m.studio_no_date()
           : formatDateIn(event.startsAt, event.timeZone)}
         {event.publishedHeads === undefined ? (
-          <Badge tone="neutral">Draft</Badge>
+          <Badge tone="neutral">{m.studio_draft()}</Badge>
         ) : event.publishedHeads.join() !== event.draftHeads.join() ? (
-          <Badge tone="warning">Changed</Badge>
+          <Badge tone="warning">{m.studio_changed()}</Badge>
         ) : (
-          <Badge tone="success">Published</Badge>
+          <Badge tone="success">{m.studio_published()}</Badge>
         )}
       </span>
     </NavLink>
@@ -158,12 +161,12 @@ export function TeamError() {
   return (
     <PanePlaceholder span={2}>
       {isRouteErrorResponse(error) && error.status === 404
-        ? "This team doesn't exist anymore."
-        : "Something went wrong."}
+        ? m.studio_team_gone()
+        : m.common_something_wrong()}
     </PanePlaceholder>
   );
 }
 
 export function NoEventSelected() {
-  return <PanePlaceholder>Pick an event, or create a new one.</PanePlaceholder>;
+  return <PanePlaceholder>{m.studio_pick_event()}</PanePlaceholder>;
 }

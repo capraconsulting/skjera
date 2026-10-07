@@ -1,6 +1,7 @@
 import * as A from "@automerge/automerge/slim";
 import type { DocHandle } from "@automerge/automerge-repo/slim";
 import type { EventContent } from "@skjera/documents/api";
+import { m } from "@skjera/i18n/messages";
 import { useLiveQuery } from "@tanstack/react-db";
 import { useCombobox } from "downshift";
 import { useMemo, useState, useSyncExternalStore } from "react";
@@ -128,17 +129,17 @@ export function TagsField(props: { readonly handle: DocHandle<EventContent> }) {
     <div className={fieldStyles.field}>
       {/* biome-ignore lint/a11y/noLabelWithoutControl: Downshift ties it to the input. */}
       <label className={fieldStyles.label} {...getLabelProps()}>
-        Tags
+        {m.site_tags()}
       </label>
       {tags.length === 0 ? null : (
-        <ul className={styles.tags} aria-label="Tags on this event">
+        <ul className={styles.tags} aria-label={m.editor_tags_on_event()}>
           {tags.map((tag) => (
             <li key={tag.toLowerCase()} className={styles.pill}>
               {tag}
               <button
                 type="button"
                 className={styles.remove}
-                aria-label={`Remove tag ${tag}`}
+                aria-label={m.editor_remove_tag({ tag })}
                 onClick={() => remove(tag)}
               >
                 ×
@@ -150,7 +151,7 @@ export function TagsField(props: { readonly handle: DocHandle<EventContent> }) {
       <div className={styles.combobox}>
         <input
           className={inputStyles.input}
-          placeholder="Add a tag, e.g. Workshop"
+          placeholder={m.editor_tag_placeholder()}
           maxLength={40}
           {...getInputProps({ onFocus: () => openMenu() })}
         />

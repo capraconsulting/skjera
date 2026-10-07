@@ -1,8 +1,13 @@
 import * as A from "@automerge/automerge/slim";
 import type { DocHandle } from "@automerge/automerge-repo/slim";
 import { DayPicker } from "@daypicker/react";
+import { enUS } from "@daypicker/react/locale/en-US";
+import { nb } from "@daypicker/react/locale/nb";
+import { nn } from "@daypicker/react/locale/nn";
 import dayPicker from "@daypicker/react/style.module.css";
 import type { EventContent } from "@skjera/documents/api";
+import { m } from "@skjera/i18n/messages";
+import { getLocale } from "@skjera/i18n/runtime";
 import { useId, useMemo, useRef, useSyncExternalStore } from "react";
 import { Temporal } from "temporal-polyfill";
 import { Button } from "../components/Button.tsx";
@@ -12,6 +17,9 @@ import { Input } from "../components/Input.tsx";
 import { placeUnder } from "../components/popover.ts";
 import { localTimeZone } from "../time.ts";
 import styles from "./DateTimeField.module.css";
+
+/** The calendar's month and day names, in the interface's language. */
+const dayPickerLocales = { en: enUS, nb, nn };
 
 // An event's times. Each is a zoned time, "2026-10-15T18:00+02:00[Europe/
 // Oslo]", stored as an Automerge ImmutableString: set as a whole, so
@@ -96,18 +104,18 @@ export function EventTimes(props: {
   const startDate = times.start?.toPlainDate();
   return (
     <>
-      <Field label="Starts">
+      <Field label={m.editor_starts()}>
         <DateTimeField
-          label="Start"
+          labels={{ date: m.editor_start_date(), time: m.editor_start_time() }}
           value={times.start}
           timeZone={timeZone}
           defaultTime={Temporal.PlainTime.from("17:00")}
           onChange={(time) => set("start", time)}
         />
       </Field>
-      <Field label="Ends">
+      <Field label={m.editor_ends()}>
         <DateTimeField
-          label="End"
+          labels={{ date: m.editor_end_date(), time: m.editor_end_time() }}
           value={times.end}
           timeZone={timeZone}
           defaultTime={
@@ -118,9 +126,13 @@ export function EventTimes(props: {
           onChange={(time) => set("end", time)}
         />
       </Field>
-      <Field label="Sign-up deadline">
+      <Field label={m.editor_deadline()}>
         <DateTimeField
-          label="Deadline"
+          labels={{
+            date: m.editor_deadline_date(),
+            time: m.editor_deadline_time(),
+            clear: m.editor_deadline_clear(),
+          }}
           value={times.deadline}
           timeZone={timeZone}
           defaultTime={Temporal.PlainTime.from("12:00")}
@@ -130,12 +142,9 @@ export function EventTimes(props: {
           onChange={(time) => set("deadline", time)}
           clearable
         />
-        <p className={styles.hint}>
-          Signing up and cancelling close then. Without a deadline, they close
-          when the event starts.
-        </p>
+        <p className={styles.hint}>{m.editor_deadline_hint()}</p>
       </Field>
-      <Field label="Time zone">
+      <Field label={m.editor_time_zone()}>
         <TimeZoneSelect value={timeZone} onChange={setZone} />
       </Field>
     </>
@@ -151,7 +160,11 @@ export function FoodDeadline(props: {
   return (
     <>
       <DateTimeField
-        label="Food deadline"
+        labels={{
+          date: m.editor_food_deadline_date(),
+          time: m.editor_food_deadline_time(),
+          clear: m.editor_food_deadline_clear(),
+        }}
         value={times.foodDeadline}
         timeZone={timeZone}
         defaultTime={Temporal.PlainTime.from("12:00")}
@@ -159,10 +172,7 @@ export function FoodDeadline(props: {
         onChange={(time) => set("foodDeadline", time)}
         clearable
       />
-      <p className={styles.hint}>
-        Dietary preferences are asked until then; people can still sign up
-        after. Without one, until sign-up closes.
-      </p>
+      <p className={styles.hint}>{m.editor_food_deadline_hint()}</p>
     </>
   );
 }
@@ -171,7 +181,12 @@ const today = () => Temporal.Now.plainDateISO();
 
 /** A day and a time on the clock, in `timeZone`. */
 function DateTimeField(props: {
-  readonly label: string;
+  /** Its parts' names, e.g. "Start date", "Start time". */
+  readonly labels: {
+    readonly date: string;
+    readonly time: string;
+    readonly clear?: string;
+  };
   readonly value: Temporal.ZonedDateTime | null;
   readonly timeZone: string;
   /** The time a newly picked day gets. */
@@ -201,12 +216,12 @@ function DateTimeField(props: {
         type="button"
         popoverTarget={popoverId}
         className={styles.trigger}
-        aria-label={`${props.label} date`}
+        aria-label={props.labels.date}
       >
         {shown === undefined ? (
-          <span className={styles.placeholder}>Pick a date</span>
+          <span className={styles.placeholder}>{m.editor_pick_date()}</span>
         ) : (
-          shown.toLocaleDateString(undefined, {
+          shown.toLocaleDateString(getLocale(), {
             weekday: "long",
             day: "numeric",
             month: "long",
@@ -217,7 +232,7 @@ function DateTimeField(props: {
       </button>
       <Input
         type="time"
-        aria-label={`${props.label} time`}
+        aria-label={props.labels.time}
         className={styles.time}
         value={value?.toPlainTime().toString({ smallestUnit: "minute" }) ?? ""}
         onChange={(event) => {
@@ -233,9 +248,9 @@ function DateTimeField(props: {
         <Button
           variant="ghost"
           onClick={() => props.onChange(null)}
-          aria-label={`Clear ${props.label.toLowerCase()}`}
+          aria-label={props.labels.clear}
         >
-          Clear
+          {m.editor_clear()}
         </Button>
       ) : null}
       <div
@@ -249,6 +264,7 @@ function DateTimeField(props: {
         }}
       >
         <DayPicker
+          locale={dayPickerLocales[getLocale()]}
           mode="single"
           selected={shown}
           {...(shown === undefined ? {} : { defaultMonth: shown })}
@@ -287,7 +303,7 @@ function TimeZoneSelect(props: {
   }, [props.value]);
   return (
     <select
-      aria-label="Time zone"
+      aria-label={m.editor_time_zone()}
       className={`${inputStyles.input} ${styles.zone}`}
       value={props.value}
       onChange={(event) => props.onChange(event.currentTarget.value)}

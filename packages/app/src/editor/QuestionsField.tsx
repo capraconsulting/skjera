@@ -1,6 +1,7 @@
 import * as A from "@automerge/automerge/slim";
 import type { DocHandle } from "@automerge/automerge-repo/slim";
 import type { EventContent, Question } from "@skjera/documents/api";
+import { m } from "@skjera/i18n/messages";
 import { useMemo, useSyncExternalStore } from "react";
 import { Button } from "../components/Button.tsx";
 import inputStyles from "../components/Input.module.css";
@@ -14,10 +15,10 @@ import styles from "./QuestionsField.module.css";
 
 type QuestionType = Question["type"];
 
-const typeLabels: Record<QuestionType, string> = {
-  text: "Written answer",
-  checkbox: "Checkbox",
-  choice: "One of several",
+const typeLabels: Record<QuestionType, () => string> = {
+  text: m.editor_q_written,
+  checkbox: m.editor_q_checkbox,
+  choice: m.editor_q_choice,
 };
 
 type Draft = {
@@ -110,18 +111,16 @@ export function QuestionsField(props: {
   return (
     <div className={styles.questions}>
       {questions.length === 0 ? (
-        <p className={styles.empty}>
-          Ask everyone signing up, e.g. where they heard of the event.
-        </p>
+        <p className={styles.empty}>{m.editor_q_empty()}</p>
       ) : (
         <ol className={styles.list}>
           {questions.map((question, index) => {
-            const name = `Question ${index + 1}`;
+            const n = index + 1;
             return (
               <li key={question.id} className={styles.question}>
                 <div className={styles.row}>
                   <select
-                    aria-label={`${name} type`}
+                    aria-label={m.editor_q_type({ n })}
                     className={inputStyles.input}
                     value={question.type}
                     onChange={(event) =>
@@ -133,7 +132,7 @@ export function QuestionsField(props: {
                   >
                     {Object.entries(typeLabels).map(([type, label]) => (
                       <option key={type} value={type}>
-                        {label}
+                        {label()}
                       </option>
                     ))}
                   </select>
@@ -150,13 +149,13 @@ export function QuestionsField(props: {
                       }}
                     />
                     {question.type === "checkbox"
-                      ? "Must be ticked"
-                      : "Required"}
+                      ? m.editor_q_must_tick()
+                      : m.editor_q_required()}
                   </label>
                   <span className={styles.actions}>
                     <Button
                       variant="ghost"
-                      aria-label={`Move ${name.toLowerCase()} up`}
+                      aria-label={m.editor_q_up({ n })}
                       disabled={index === 0}
                       onClick={() => move(question.id, -1)}
                     >
@@ -164,7 +163,7 @@ export function QuestionsField(props: {
                     </Button>
                     <Button
                       variant="ghost"
-                      aria-label={`Move ${name.toLowerCase()} down`}
+                      aria-label={m.editor_q_down({ n })}
                       disabled={index === questions.length - 1}
                       onClick={() => move(question.id, 1)}
                     >
@@ -172,24 +171,24 @@ export function QuestionsField(props: {
                     </Button>
                     <Button
                       variant="ghost"
-                      aria-label={`Remove ${name.toLowerCase()}`}
+                      aria-label={m.editor_q_remove({ n })}
                       onClick={() =>
                         change(question.id, (draft, at) => {
                           draft.questions.splice(at, 1);
                         })
                       }
                     >
-                      Remove
+                      {m.common_remove()}
                     </Button>
                   </span>
                 </div>
                 <Input
-                  aria-label={name}
+                  aria-label={m.editor_q_name({ n })}
                   className={inputStyles.input}
                   placeholder={
                     question.type === "checkbox"
-                      ? "What ticking it says, e.g. “I'll bring a friend”"
-                      : "The question, e.g. “Where did you hear of it?”"
+                      ? m.editor_q_tick_placeholder()
+                      : m.editor_q_placeholder()
                   }
                   value={question.text}
                   onChange={(event) => {
@@ -201,7 +200,7 @@ export function QuestionsField(props: {
                 />
                 {question.type !== "choice" ? null : (
                   <Options
-                    name={name}
+                    n={n}
                     question={question}
                     change={(edit) => change(question.id, edit)}
                   />
@@ -212,7 +211,7 @@ export function QuestionsField(props: {
         </ol>
       )}
       <div>
-        <Button onClick={add}>Add question</Button>
+        <Button onClick={add}>{m.editor_q_add()}</Button>
       </div>
     </div>
   );
@@ -220,11 +219,12 @@ export function QuestionsField(props: {
 
 /** A choice question's options. */
 function Options(props: {
-  readonly name: string;
+  /** The question's number. */
+  readonly n: number;
   readonly question: Question;
   readonly change: (edit: (draft: Draft, index: number) => void) => void;
 }) {
-  const { name, question, change } = props;
+  const { n, question, change } = props;
 
   /** Changes the option with that id, if it's still there. */
   const changeOption = (
@@ -247,9 +247,9 @@ function Options(props: {
       {question.options.map((option, index) => (
         <li key={option.id} className={styles.option}>
           <Input
-            aria-label={`${name} option ${index + 1}`}
+            aria-label={m.editor_q_option({ n, option: index + 1 })}
             className={inputStyles.input}
-            placeholder={`Option ${index + 1}`}
+            placeholder={m.editor_q_option_placeholder({ option: index + 1 })}
             value={option.text}
             onChange={(event) => {
               const text = event.currentTarget.value;
@@ -269,13 +269,13 @@ function Options(props: {
           />
           <Button
             variant="ghost"
-            aria-label={`Remove ${name.toLowerCase()} option ${index + 1}`}
+            aria-label={m.editor_q_option_remove({ n, option: index + 1 })}
             disabled={question.options.length <= 2}
             onClick={() =>
               changeOption(option.id, (options, at) => options.splice(at, 1))
             }
           >
-            Remove
+            {m.common_remove()}
           </Button>
         </li>
       ))}
@@ -288,7 +288,7 @@ function Options(props: {
             })
           }
         >
-          Add option
+          {m.editor_q_option_add()}
         </Button>
       </li>
     </ul>

@@ -1,3 +1,4 @@
+import { m } from "@skjera/i18n/messages";
 import type { Command } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import { type FormEvent, type ReactNode, useState } from "react";
@@ -35,17 +36,17 @@ export function RichTextToolbar(props: {
     <div
       className={styles.toolbar}
       role="toolbar"
-      aria-label={`${props.label} formatting`}
+      aria-label={m.editor_formatting({ field: props.label })}
     >
       <Tool
-        label="Bold"
+        label={m.editor_bold()}
         active={tools.bold.active}
         onClick={() => run(tools.bold.run)}
       >
         <b>B</b>
       </Tool>
       <Tool
-        label="Italic"
+        label={m.editor_italic()}
         active={tools.italic.active}
         onClick={() => run(tools.italic.run)}
       >
@@ -53,21 +54,21 @@ export function RichTextToolbar(props: {
       </Tool>
       <span className={styles.separator} aria-hidden="true" />
       <Tool
-        label="Heading"
+        label={m.editor_heading()}
         active={tools.heading.active}
         onClick={() => run(tools.heading.run)}
       >
         H
       </Tool>
       <Tool
-        label="Bulleted list"
+        label={m.editor_bullets()}
         active={tools.bulletList.active}
         onClick={() => run(tools.bulletList.run)}
       >
         •
       </Tool>
       <Tool
-        label="Numbered list"
+        label={m.editor_numbers()}
         active={tools.orderedList.active}
         onClick={() => run(tools.orderedList.run)}
       >
@@ -75,12 +76,12 @@ export function RichTextToolbar(props: {
       </Tool>
       <span className={styles.separator} aria-hidden="true" />
       <Tool
-        label="Link"
+        label={m.editor_link()}
         active={tools.link.active}
         disabled={!tools.link.available}
         onClick={() => setLinking(true)}
       >
-        Link
+        {m.editor_link()}
       </Tool>
       <LinkDialog
         open={linking}
@@ -94,8 +95,8 @@ export function RichTextToolbar(props: {
           run(setLink(href));
         }}
       />
-      <Tool label="Image" onClick={() => setAddingImage(true)}>
-        Image
+      <Tool label={m.editor_image()} onClick={() => setAddingImage(true)}>
+        {m.editor_image()}
       </Tool>
       <ImageDialog
         open={addingImage}
@@ -109,8 +110,11 @@ export function RichTextToolbar(props: {
         }}
       />
       {tools.image === null ? null : (
-        <Tool label="Describe image" onClick={() => setDescribing(true)}>
-          Alt text
+        <Tool
+          label={m.editor_describe_image()}
+          onClick={() => setDescribing(true)}
+        >
+          {m.editor_alt_text()}
         </Tool>
       )}
       <DescribeImageDialog
@@ -169,7 +173,7 @@ function LinkDialog(props: {
     const value = String(new FormData(event.currentTarget).get("href") ?? "");
     const href = safeHref(value.trim());
     if (href === null) {
-      setError("Enter a web address, like https://example.com");
+      setError(m.editor_link_invalid());
       return;
     }
     setError(null);
@@ -179,7 +183,7 @@ function LinkDialog(props: {
   return (
     <Dialog
       open={props.open}
-      title={props.href === null ? "Add link" : "Edit link"}
+      title={props.href === null ? m.editor_add_link() : m.editor_edit_link()}
       onClose={() => {
         setError(null);
         props.onClose();
@@ -189,7 +193,7 @@ function LinkDialog(props: {
         <Input
           name="href"
           type="url"
-          aria-label="Link address"
+          aria-label={m.editor_link_address()}
           placeholder="https://"
           className={dialogStyles.input}
           defaultValue={props.href ?? ""}
@@ -204,12 +208,12 @@ function LinkDialog(props: {
         <div className={dialogStyles.actions}>
           {props.href === null ? null : (
             <Button variant="danger" onClick={() => props.onLink(null)}>
-              Remove link
+              {m.editor_remove_link()}
             </Button>
           )}
-          <Button onClick={props.onClose}>Cancel</Button>
+          <Button onClick={props.onClose}>{m.common_cancel()}</Button>
           <Button type="submit" variant="primary">
-            {props.href === null ? "Add link" : "Save link"}
+            {props.href === null ? m.editor_add_link() : m.editor_save_link()}
           </Button>
         </div>
       </form>
@@ -236,7 +240,7 @@ function ImageDialog(props: {
     const form = new FormData(event.currentTarget);
     const file = form.get("image");
     if (!(file instanceof File) || file.size === 0) {
-      setError("Pick an image");
+      setError(m.editor_pick_image());
       return;
     }
     setUploading(true);
@@ -252,21 +256,21 @@ function ImageDialog(props: {
   };
 
   return (
-    <Dialog open={props.open} title="Add image" onClose={close}>
+    <Dialog open={props.open} title={m.editor_add_image()} onClose={close}>
       <form onSubmit={submit}>
         <Input
           name="image"
           type="file"
           accept={acceptedImages}
-          aria-label="Image file"
+          aria-label={m.editor_image_file()}
           className={dialogStyles.input}
           required
           autoFocus
         />
         <Input
           name="alt"
-          aria-label="Description"
-          placeholder="Describe it for those who can't see it"
+          aria-label={m.editor_description()}
+          placeholder={m.editor_describe_placeholder()}
           className={`${dialogStyles.input} ${styles.description}`}
         />
         {error === null ? null : (
@@ -275,9 +279,9 @@ function ImageDialog(props: {
           </p>
         )}
         <div className={dialogStyles.actions}>
-          <Button onClick={close}>Cancel</Button>
+          <Button onClick={close}>{m.common_cancel()}</Button>
           <Button type="submit" variant="primary" disabled={uploading}>
-            {uploading ? "Uploading…" : "Add image"}
+            {uploading ? m.editor_uploading() : m.editor_add_image()}
           </Button>
         </div>
       </form>
@@ -298,20 +302,24 @@ function DescribeImageDialog(props: {
     props.onDescribe(String(alt ?? "").trim());
   };
   return (
-    <Dialog open={props.open} title="Describe image" onClose={props.onClose}>
+    <Dialog
+      open={props.open}
+      title={m.editor_describe_image()}
+      onClose={props.onClose}
+    >
       <form onSubmit={submit}>
         <Input
           name="alt"
-          aria-label="Description"
-          placeholder="Describe it for those who can't see it"
+          aria-label={m.editor_description()}
+          placeholder={m.editor_describe_placeholder()}
           className={dialogStyles.input}
           defaultValue={props.alt}
           autoFocus
         />
         <div className={dialogStyles.actions}>
-          <Button onClick={props.onClose}>Cancel</Button>
+          <Button onClick={props.onClose}>{m.common_cancel()}</Button>
           <Button type="submit" variant="primary">
-            Save
+            {m.common_save()}
           </Button>
         </div>
       </form>

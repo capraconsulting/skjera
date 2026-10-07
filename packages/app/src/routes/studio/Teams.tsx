@@ -1,4 +1,5 @@
 import type { TeamId } from "@skjera/documents/api";
+import { m } from "@skjera/i18n/messages";
 import { count, eq, lower, useLiveQuery } from "@tanstack/react-db";
 import { type FormEvent, useState } from "react";
 import { NavLink, Outlet, useNavigate, useParams } from "react-router";
@@ -58,10 +59,10 @@ export function Teams() {
   return (
     <div className={styles.columns}>
       <Pane
-        title="Teams"
-        label="Teams"
+        title={m.studio_teams()}
+        label={m.studio_teams()}
         actions={
-          <Dropdown label="Team list options">
+          <Dropdown label={m.studio_team_list_options()}>
             {(close) => (
               <DropdownItem
                 onClick={() => {
@@ -69,7 +70,7 @@ export function Teams() {
                   setDialog({ kind: "create" });
                 }}
               >
-                New team
+                {m.studio_new_team()}
               </DropdownItem>
             )}
           </Dropdown>
@@ -81,7 +82,7 @@ export function Teams() {
           </p>
         )}
         {all.length === 0 ? (
-          <p className={styles.empty}>No teams yet. Create the first one.</p>
+          <p className={styles.empty}>{m.studio_no_teams()}</p>
         ) : (
           <ul className={styles.list}>
             {all.map((team) => (
@@ -130,7 +131,7 @@ function TeamRow(props: {
         <span className={styles.name}>{team.name}</span>
       </NavLink>
       <span className={styles.menu}>
-        <Dropdown label={`Options for ${team.name}`}>
+        <Dropdown label={m.studio_team_options({ name: team.name })}>
           {(close) => (
             <>
               <DropdownItem
@@ -139,7 +140,7 @@ function TeamRow(props: {
                   props.onRename();
                 }}
               >
-                Rename team…
+                {m.studio_rename_team_menu()}
               </DropdownItem>
               <DropdownItem
                 danger
@@ -149,12 +150,10 @@ function TeamRow(props: {
                   deleteTeam();
                 }}
               >
-                Delete team
+                {m.studio_delete_team()}
               </DropdownItem>
               {team.documentCount > 0 ? (
-                <DropdownNote>
-                  Only teams without events can be deleted.
-                </DropdownNote>
+                <DropdownNote>{m.studio_only_empty_teams()}</DropdownNote>
               ) : null}
             </>
           )}
@@ -212,14 +211,14 @@ function TeamDialog(props: {
   return (
     <Dialog
       open={state !== null}
-      title={renaming === null ? "New team" : "Rename team"}
+      title={renaming === null ? m.studio_new_team() : m.studio_rename_team()}
       onClose={close}
     >
       <form onSubmit={submit}>
         <Input
           name="name"
-          aria-label="Team name"
-          placeholder="Team name"
+          aria-label={m.studio_team_name()}
+          placeholder={m.studio_team_name()}
           className={dialogStyles.input}
           defaultValue={renaming?.name ?? ""}
           required
@@ -232,9 +231,11 @@ function TeamDialog(props: {
           </p>
         )}
         <div className={dialogStyles.actions}>
-          <Button onClick={close}>Cancel</Button>
+          <Button onClick={close}>{m.common_cancel()}</Button>
           <Button type="submit" variant="primary" disabled={saving}>
-            {renaming === null ? "Create team" : "Rename team"}
+            {renaming === null
+              ? m.studio_create_team()
+              : m.studio_rename_team()}
           </Button>
         </div>
       </form>
@@ -243,9 +244,5 @@ function TeamDialog(props: {
 }
 
 export function NoTeamSelected() {
-  return (
-    <PanePlaceholder span={2}>
-      Pick a team to see its events, or create one.
-    </PanePlaceholder>
-  );
+  return <PanePlaceholder span={2}>{m.studio_pick_team()}</PanePlaceholder>;
 }

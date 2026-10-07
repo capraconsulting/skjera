@@ -1,6 +1,7 @@
 import * as A from "@automerge/automerge/slim";
 import type { DocHandle } from "@automerge/automerge-repo/slim";
 import type { EventContent } from "@skjera/documents/api";
+import { m } from "@skjera/i18n/messages";
 import {
   type ClipboardEvent,
   type DragEvent,
@@ -108,23 +109,23 @@ export function CoverField(props: {
       >
         {src === null ? (
           <p className={styles.empty}>
-            {uploading ? "Uploading…" : "Drop or paste an image here, or"}
+            {uploading ? m.editor_uploading() : m.editor_cover_drop()}
           </p>
         ) : (
           <img
             className={styles.preview}
             src={src}
-            alt="Cover"
+            alt={m.editor_cover_alt()}
             aria-busy={uploading}
           />
         )}
         <div className={styles.actions}>
           <Button onClick={() => picker.current?.click()} disabled={uploading}>
-            {src === null ? "Choose cover image" : "Replace cover image"}
+            {src === null ? m.editor_cover_choose() : m.editor_cover_replace()}
           </Button>
           {src === null ? null : (
             <Button variant="ghost" onClick={remove} disabled={uploading}>
-              Remove cover image
+              {m.editor_cover_remove()}
             </Button>
           )}
         </div>
@@ -132,7 +133,7 @@ export function CoverField(props: {
           ref={picker}
           type="file"
           accept={acceptedImages}
-          aria-label="Cover image file"
+          aria-label={m.editor_cover_file()}
           hidden
           onChange={(event) => {
             void use(event.currentTarget.files?.[0]);
@@ -151,12 +152,10 @@ export function CoverField(props: {
             key={objectId}
             handle={handle}
             path={altPath}
-            label="Cover description"
+            label={m.editor_cover_description()}
             presence={props.presence ?? null}
           />
-          <p className={styles.hint}>
-            Describe the image for those who can't see it.
-          </p>
+          <p className={styles.hint}>{m.editor_cover_hint()}</p>
         </>
       )}
     </div>

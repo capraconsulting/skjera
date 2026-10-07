@@ -1,3 +1,4 @@
+import { m } from "@skjera/i18n/messages";
 import type { Schema } from "prosemirror-model";
 import { NodeSelection, Plugin, PluginKey } from "prosemirror-state";
 import { Decoration, DecorationSet, type EditorView } from "prosemirror-view";
@@ -17,7 +18,7 @@ const key = new PluginKey<DecorationSet>("imageUploads");
 const placeholder = (className: string) => {
   const element = document.createElement("span");
   element.className = className;
-  element.textContent = "Uploading image…";
+  element.textContent = m.editor_uploading_image();
   element.setAttribute("role", "status");
   return element;
 };

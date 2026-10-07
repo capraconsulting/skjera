@@ -1,6 +1,8 @@
 import * as A from "@automerge/automerge/slim";
 import type { DocHandle } from "@automerge/automerge-repo/slim";
 import type { DocumentId, EventContent } from "@skjera/documents/api";
+import { m } from "@skjera/i18n/messages";
+import { getLocale } from "@skjera/i18n/runtime";
 import { eq, useLiveQuery } from "@tanstack/react-db";
 import { useSyncExternalStore } from "react";
 import { Link } from "react-router";
@@ -65,13 +67,7 @@ export function EditorFooter(props: {
     if (
       moved &&
       signedUp > 0 &&
-      !window.confirm(
-        `Publish the new time? ${
-          signedUp === 1
-            ? "The person signed up is"
-            : `The ${signedUp} people signed up are`
-        } emailed about it.`,
-      )
+      !window.confirm(m.studio_confirm_move({ count: signedUp }))
     ) {
       return;
     }
@@ -85,12 +81,8 @@ export function EditorFooter(props: {
       publication.endsAt.getTime() > Date.now() &&
       signedUp > 0;
     const question = cancels
-      ? `Delete this event? It's taken off the site, and ${
-          signedUp === 1
-            ? "the person signed up is"
-            : `the ${signedUp} people signed up are`
-        } emailed that it's cancelled.`
-      : "Delete this event? It is also taken off the site.";
+      ? m.studio_confirm_delete_cancels({ count: signedUp })
+      : m.studio_confirm_delete();
     if (window.confirm(question)) props.onDelete();
   };
 
@@ -104,27 +96,29 @@ export function EditorFooter(props: {
             }
             aria-hidden="true"
           />
-          <span>{props.saving ? "Saving…" : "Saved"}</span>
+          <span>{props.saving ? m.studio_saving() : m.studio_saved()}</span>
           <span className={styles.separator} aria-hidden="true">
             ·
           </span>
           {publication === undefined ? (
-            <span>Not published</span>
+            <span>{m.studio_not_published()}</span>
           ) : (
             <>
-              <span title={publication.publishedAt.toLocaleString()}>
-                Published {timeAgo(publication.publishedAt)}
+              <span title={publication.publishedAt.toLocaleString(getLocale())}>
+                {m.studio_published_ago({
+                  ago: timeAgo(publication.publishedAt),
+                })}
               </span>
               <span className={styles.separator} aria-hidden="true">
                 ·
               </span>
-              <Link to={`/events/${props.id}`}>View on site</Link>
+              <Link to={`/events/${props.id}`}>{m.studio_view_on_site()}</Link>
             </>
           )}
         </p>
         <div className={styles.actions}>
           <Button variant="danger" onClick={remove}>
-            Delete
+            {m.common_delete()}
           </Button>
           <Button
             variant="primary"
@@ -133,10 +127,10 @@ export function EditorFooter(props: {
             disabled={props.publishing || upToDate}
           >
             {props.publishing
-              ? "Publishing…"
+              ? m.studio_publishing()
               : upToDate
-                ? "Published"
-                : "Publish"}
+                ? m.studio_published()
+                : m.studio_publish()}
           </Button>
         </div>
       </div>

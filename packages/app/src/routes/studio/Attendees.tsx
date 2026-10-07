@@ -1,4 +1,5 @@
 import type { DocumentId } from "@skjera/documents/api";
+import { m } from "@skjera/i18n/messages";
 import { eq, useLiveQuery } from "@tanstack/react-db";
 import { useState } from "react";
 import { Badge } from "../../components/Badge.tsx";
@@ -34,7 +35,7 @@ export function Attendees(props: { readonly id: DocumentId }) {
   const [error, setError] = useState<string | null>(null);
 
   const remove = (attendee: string, name: string) => {
-    if (!window.confirm(`Take ${name} off this event?`)) return;
+    if (!window.confirm(m.studio_take_off({ name }))) return;
     setError(null);
     const removal: Removal = { asOrganizer: true };
     attendeesTable.collection
@@ -45,19 +46,23 @@ export function Attendees(props: { readonly id: DocumentId }) {
   const exportCsv = () =>
     download(
       attendeesCsv(event, attendees ?? []),
-      `${event?.title.trim() || "Event"} attendees.csv`,
+      m.studio_attendees_file({
+        title: event?.title.trim() || m.studio_event(),
+      }),
       "text/csv;charset=utf-8",
     );
 
   return (
-    <section className={styles.attendees} aria-label="Attendees">
+    <section className={styles.attendees} aria-label={m.studio_attendees()}>
       <div className={styles.header}>
         <h3 className={styles.heading}>
-          Attendees{attendees === null ? "" : ` (${attendees.length})`}
+          {attendees === null
+            ? m.studio_attendees()
+            : m.studio_attendees_count({ count: attendees.length })}
         </h3>
         {attendees === null || attendees.length === 0 ? null : (
           <Button variant="ghost" onClick={exportCsv}>
-            Download CSV
+            {m.studio_download_csv()}
           </Button>
         )}
       </div>
@@ -67,7 +72,7 @@ export function Attendees(props: { readonly id: DocumentId }) {
         </p>
       )}
       {attendees === null ? null : attendees.length === 0 ? (
-        <p className={styles.empty}>Nobody has signed up yet.</p>
+        <p className={styles.empty}>{m.attend_nobody()}</p>
       ) : (
         <ul className={styles.list}>
           {attendees.map(({ id, details: who }) =>
@@ -78,17 +83,21 @@ export function Attendees(props: { readonly id: DocumentId }) {
                 {who.email === null ? null : (
                   <span className={styles.email}>{who.email}</span>
                 )}
-                {who.guest ? <Badge tone="neutral">Guest</Badge> : null}
+                {who.guest ? (
+                  <Badge tone="neutral">{m.studio_guest()}</Badge>
+                ) : null}
                 <Button
                   variant="ghost"
                   className={styles.remove}
-                  aria-label={`Remove ${who.name}`}
+                  aria-label={m.studio_remove_name({ name: who.name })}
                   onClick={() => remove(id, who.name)}
                 >
-                  Remove
+                  {m.common_remove()}
                 </Button>
                 {who.dietary === null ? null : (
-                  <span className={styles.dietary}>Diet: {who.dietary}</span>
+                  <span className={styles.dietary}>
+                    {m.studio_diet({ dietary: who.dietary })}
+                  </span>
                 )}
                 {who.answers.length === 0 ? null : (
                   <dl className={styles.answers}>

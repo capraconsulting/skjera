@@ -1,3 +1,4 @@
+import { m } from "@skjera/i18n/messages";
 import { NavLink, Outlet, useLoaderData } from "react-router";
 import { Shell } from "../../components/Shell.tsx";
 import { SignedIn } from "../../components/SignedIn.tsx";
@@ -22,7 +23,7 @@ export function StudioLayout() {
   return (
     <Shell
       fill
-      links={<NavLink to="/studio/teams">Studio</NavLink>}
+      links={<NavLink to="/studio/teams">{m.common_studio()}</NavLink>}
       actions={<SignedIn me={me} />}
     >
       <Outlet />

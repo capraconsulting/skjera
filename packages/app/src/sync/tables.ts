@@ -14,6 +14,7 @@ import {
   type TeamRow,
   TeamsApi,
 } from "@skjera/documents/api";
+import { m } from "@skjera/i18n/messages";
 import { syncedTable } from "@skjera/snapsync/client";
 import { Effect } from "effect";
 import { FetchHttpClient } from "effect/http";
@@ -63,10 +64,10 @@ const sendPublic = <E extends { readonly _tag: string }>(
 
 const failureMessage = (failure: { readonly _tag: string }) =>
   failure._tag === "TeamNotEmpty"
-    ? "Only teams without events can be deleted."
+    ? m.studio_only_empty_teams()
     : "message" in failure && typeof failure.message === "string"
       ? failure.message
-      : "Something went wrong";
+      : m.common_something_wrong();
 
 /** Tags published events have had: suggestions when tagging. */
 export const tags = syncedTable({

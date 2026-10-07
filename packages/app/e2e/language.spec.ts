@@ -47,3 +47,31 @@ test("visitors pick their language, and get emails in it", async ({
   await deleteEvent(alice, event.id);
   await deleteTeam(alice, team);
 });
+
+test("the studio speaks Nynorsk too", async ({ browser }) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await newTeam(alice, uniqueTeamName("Nynorsk"));
+  const event = await publishedEvent(alice, { public: true });
+
+  await alice
+    .getByRole("combobox", { name: "Language" })
+    .selectOption("Norsk nynorsk");
+  await expect(alice.locator("html")).toHaveAttribute("lang", "nn");
+  await expect(alice.getByRole("textbox", { name: "Tittel" })).toHaveText(
+    event.title,
+  );
+  await expect(alice.getByTestId("status")).toContainText("Lagra");
+  await expect(alice.getByTestId("status")).toContainText("Publisert");
+  await expect(alice.getByRole("button", { name: "Slett" })).toBeVisible();
+  // The calendar, in it too.
+  await alice.getByRole("button", { name: "Startdato" }).click();
+  await expect(
+    alice.getByRole("button", { name: /neste månad/i }),
+  ).toBeVisible();
+  await alice.keyboard.press("Escape");
+
+  await alice.getByRole("combobox", { name: "Språk" }).selectOption("English");
+  await expect(alice.locator("html")).toHaveAttribute("lang", "en");
+  await deleteEvent(alice, event.id);
+  await deleteTeam(alice, team);
+});

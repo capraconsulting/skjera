@@ -11,6 +11,7 @@ import {
   serverStorageId,
   type TeamId,
 } from "@skjera/documents/api";
+import { m } from "@skjera/i18n/messages";
 import { eq } from "@tanstack/react-db";
 import { Effect, Fiber, Schedule } from "effect";
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -113,7 +114,9 @@ const session = (id: DocumentId, store: SessionStore) =>
     };
     const onRefused = ({ message }: { readonly message: unknown }) => {
       if (isSyncRefused(message)) {
-        store.set({ error: `Couldn't save your changes: ${message.message}` });
+        store.set({
+          error: m.studio_save_refused({ reason: message.message }),
+        });
       }
     };
     yield* Effect.acquireRelease(
@@ -140,10 +143,7 @@ const session = (id: DocumentId, store: SessionStore) =>
       Effect.retry({ schedule: Schedule.spaced("100 millis") }),
       Effect.timeoutOrElse({
         duration: saveTimeout,
-        orElse: () =>
-          Effect.fail(
-            new Error("Couldn't publish: your edits haven't been saved yet"),
-          ),
+        orElse: () => Effect.fail(new Error(m.studio_publish_unsaved())),
       }),
     );
 
@@ -162,7 +162,7 @@ const session = (id: DocumentId, store: SessionStore) =>
             error:
               "message" in error && typeof error.message === "string"
                 ? error.message
-                : "Publishing failed",
+                : m.studio_publish_failed(),
           }),
         ),
       ),
@@ -209,11 +209,11 @@ const runSession = (id: DocumentId, store: SessionStore) =>
   session(id, store).pipe(
     Effect.tap(() =>
       Effect.sync(() =>
-        store.set({ deleted: true, error: "This event was deleted" }),
+        store.set({ deleted: true, error: m.studio_event_deleted() }),
       ),
     ),
     Effect.catchTag("DocumentNotFound", () =>
-      Effect.sync(() => store.set({ error: "Document not found" })),
+      Effect.sync(() => store.set({ error: m.studio_document_missing() })),
     ),
   );
 

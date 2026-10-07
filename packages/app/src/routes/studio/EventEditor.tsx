@@ -1,5 +1,6 @@
 import type { DocHandle } from "@automerge/automerge-repo/slim";
 import type { DocumentId, EventContent } from "@skjera/documents/api";
+import { m } from "@skjera/i18n/messages";
 import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Avatars } from "../../components/Avatars.tsx";
@@ -49,13 +50,15 @@ function EventSession({ id }: { readonly id: DocumentId }) {
   if (session.deleted) {
     return (
       <PanePlaceholder>
-        <p role="alert">This event was deleted.</p>
+        <p role="alert">{m.studio_event_deleted()}</p>
       </PanePlaceholder>
     );
   }
 
   if (handle === null) {
-    return <PanePlaceholder>{session.error ?? "Loading…"}</PanePlaceholder>;
+    return (
+      <PanePlaceholder>{session.error ?? m.common_loading()}</PanePlaceholder>
+    );
   }
 
   // Asked first, by the footer.
@@ -66,8 +69,8 @@ function EventSession({ id }: { readonly id: DocumentId }) {
 
   return (
     <Pane
-      title="Event"
-      label="Editor"
+      title={m.studio_event()}
+      label={m.studio_editor()}
       actions={<Avatars entries={here} />}
       footer={
         <EditorFooter
@@ -86,54 +89,54 @@ function EventSession({ id }: { readonly id: DocumentId }) {
             {session.error}
           </p>
         )}
-        <Field label="Title">
+        <Field label={m.studio_title()}>
           <TextEditor
             handle={handle}
             path={titlePath}
-            label="Title"
+            label={m.studio_title()}
             large
             presence={session.presence}
           />
         </Field>
-        <Field label="Cover image">
+        <Field label={m.studio_cover_image()}>
           <CoverField handle={handle} presence={session.presence} />
         </Field>
         <EventTimes handle={handle} />
         <TagsField handle={handle} />
-        <Field label="Visibility">
+        <Field label={m.studio_visibility()}>
           <CheckboxField
             handle={handle}
             field="public"
-            label="Public event"
-            hint="Anyone can see it. Otherwise only signed-in users."
+            label={m.studio_public_event()}
+            hint={m.studio_public_hint()}
           />
           <GuestsCheckbox handle={handle} />
         </Field>
-        <Field label="Emails">
+        <Field label={m.studio_emails()}>
           <CheckboxField
             handle={handle}
             field="reminders"
-            label="Remind attendees"
-            hint="Everyone signed up gets an email the day before."
+            label={m.studio_remind()}
+            hint={m.studio_remind_hint()}
           />
         </Field>
-        <Field label="Food">
+        <Field label={m.site_food()}>
           <CheckboxField
             handle={handle}
             field="dietary"
-            label="Food is served"
-            hint="Everyone signing up, members and guests, says what they can't eat."
+            label={m.studio_food_served()}
+            hint={m.studio_food_hint()}
           />
           <FoodDetails handle={handle} presence={session.presence} />
         </Field>
-        <Field label="Questions">
+        <Field label={m.studio_questions()}>
           <QuestionsField handle={handle} />
         </Field>
-        <Field label="Body">
+        <Field label={m.studio_body()}>
           <TextEditor
             handle={handle}
             path={bodyPath}
-            label="Body"
+            label={m.studio_body()}
             rich
             presence={session.presence}
           />
@@ -156,7 +159,7 @@ function FoodDetails(props: {
       <TextEditor
         handle={props.handle}
         path={foodPath}
-        label="What's served"
+        label={m.studio_whats_served()}
         presence={props.presence}
       />
       <FoodDeadline handle={props.handle} />
@@ -171,12 +174,8 @@ function GuestsCheckbox(props: { readonly handle: DocHandle<EventContent> }) {
     <CheckboxField
       handle={props.handle}
       field="guests"
-      label="Guests can sign up"
-      hint={
-        isPublic
-          ? "People without an account can attend with their name and email."
-          : "Only public events can take guest signups."
-      }
+      label={m.studio_guests()}
+      hint={isPublic ? m.studio_guests_hint() : m.studio_guests_public_only()}
       disabled={!isPublic}
     />
   );

@@ -1,3 +1,5 @@
+import { m } from "@skjera/i18n/messages";
+import { getLocale } from "@skjera/i18n/runtime";
 import type { PresenceEntry } from "../presence/presence.ts";
 import styles from "./Avatars.module.css";
 
@@ -25,7 +27,11 @@ export function Avatars(props: {
   return (
     <ul
       className={styles.avatars}
-      aria-label={`Here: ${people.map((entry) => entry.user.name).join(", ")}`}
+      aria-label={m.studio_here({
+        names: new Intl.ListFormat(getLocale()).format(
+          people.map((entry) => entry.user.name),
+        ),
+      })}
     >
       {shown.map((entry) => (
         <li

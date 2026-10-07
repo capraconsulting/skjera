@@ -1,4 +1,5 @@
 import type { AttendeeRow, EventRow } from "@skjera/documents/api";
+import { m } from "@skjera/i18n/messages";
 import Papa from "papaparse";
 
 /**
@@ -27,7 +28,7 @@ export const attendeesCsv = (
       [
         details.name,
         details.email ?? "",
-        details.guest ? "Yes" : "No",
+        details.guest ? m.common_yes() : m.common_no(),
         signedUpAt.toISOString(),
         changedAt.toISOString(),
         details.dietary ?? "",
@@ -38,12 +39,12 @@ export const attendeesCsv = (
   return Papa.unparse(
     {
       fields: [
-        "Name",
-        "Email",
-        "Guest",
-        "Signed up",
-        "Changed",
-        "Dietary preferences",
+        m.csv_name(),
+        m.csv_email(),
+        m.csv_guest(),
+        m.csv_signed_up(),
+        m.csv_changed(),
+        m.csv_dietary(),
         ...columns.values(),
       ],
       data: rows,

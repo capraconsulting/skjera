@@ -1,4 +1,5 @@
 import { imagesPath, imageTypes, maxImageBytes } from "@skjera/documents/api";
+import { m } from "@skjera/i18n/messages";
 
 /** What the file picker offers. */
 export const acceptedImages = imageTypes.join(",");
@@ -9,24 +10,24 @@ export const acceptedImages = imageTypes.join(",");
  */
 export const uploadImage = async (file: File): Promise<string> => {
   if (!(imageTypes as ReadonlyArray<string>).includes(file.type)) {
-    throw new Error("Pick a PNG, JPEG, GIF, WebP or AVIF image");
+    throw new Error(m.editor_image_type());
   }
   if (file.size > maxImageBytes) {
-    throw new Error(`Images can be at most ${maxImageBytes / 1024 / 1024} MB`);
+    throw new Error(m.editor_image_size({ mb: maxImageBytes / 1024 / 1024 }));
   }
   const response = await fetch(imagesPath, {
     method: "POST",
     body: file,
     headers: { "Content-Type": file.type },
   }).catch(() => {
-    throw new Error("Couldn't upload the image. Are you online?");
+    throw new Error(m.editor_upload_offline());
   });
   const body = (await response.json().catch(() => ({}))) as {
     readonly url?: string;
     readonly message?: string;
   };
   if (!response.ok || body.url === undefined) {
-    throw new Error(body.message ?? "Couldn't upload the image");
+    throw new Error(body.message ?? m.editor_upload_failed());
   }
   return body.url;
 };
