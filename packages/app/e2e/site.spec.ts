@@ -170,14 +170,16 @@ test("the site follows publishing without reloading", async ({ browser }) => {
   const team = await newTeam(alice, uniqueTeamName("Live site"));
   const event = await publishedEvent(alice, { public: true });
   const link = reader.getByRole("link", { name: event.title });
-  await expect(link).toBeVisible();
+  // Visitors' pages pull every 5 seconds: a few pulls' time, when busy.
+  const pulled = { timeout: 20_000 };
+  await expect(link).toBeVisible(pulled);
 
   // Republished for members only: it leaves the visitor's page.
   await alice.getByRole("checkbox", { name: /Public event/ }).uncheck();
   await expect(alice.getByTestId("status")).toContainText("Saved");
   await alice.getByRole("button", { name: "Publish" }).click();
   await expect(alice.getByTestId("status")).toContainText("Published");
-  await expect(link).toHaveCount(0);
+  await expect(link).toHaveCount(0, pulled);
 
   await deleteEvent(alice, event.id);
   await deleteTeam(alice, team);

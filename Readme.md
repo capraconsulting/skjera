@@ -1,18 +1,48 @@
 # Skjera
 
-To work on Skjera you need [mise](https://mise.jdx.dev) and Docker installed. mise installs the right versions of Node and pnpm, and Docker runs the local services.
+Events for a company: a public site where people sign up (members with their login, guests with name and email), and a studio where organizers write events together and publish them. A rewrite of Skjer, whitelabel: the name, logo, footer and language come from configuration.
 
-The local Postgres is [pg_automerge](https://github.com/TheKnarf/pg-automerge)'s released image (Postgres 18 with the extension), pinned in [compose.yml](compose.yml). In Kubernetes, CloudNativePG can mount its extension image (`ghcr.io/theknarf/pg-automerge-cnpg`) instead.
+## Getting started
 
-Table syncing uses [snapsync](packages/snapsync), pure SQL in this repository, which the server's migrations install: Postgres needs nothing of ours beyond pg_automerge.
+You need [mise](https://mise.jdx.dev) and Docker. mise installs the right Node and pnpm, and holds the development configuration (`[env]` in [mise.toml](mise.toml): no secrets beyond local ones). Docker runs the local services, from images pinned by digest in [compose.yml](compose.yml).
 
 ```bash
 mise trust
 mise install
-mise run setup
+mise run setup   # dependencies, git hooks, Playwright's browser
+pnpm dev         # everything, in mprocs
 ```
 
-Then `pnpm dev` starts Postgres, Dex, the server and the app at http://localhost:5173. Log in as `alice@example.com` or `bob@example.com`, password `password`.
+Commands need mise's environment: [activate mise](https://mise.jdx.dev/getting-started.html#activate-mise) in your shell (or prefix them with `mise exec --`). After changing `mise.toml`, restart `pnpm dev`: running processes keep the environment they started with.
+
+`pnpm dev` starts Postgres, Dex (logins), RustFS (images), Mailpit (email), the server, the app and the message compiler:
+
+- The site and studio: http://localhost:5173. Log in as `alice@example.com` or `bob@example.com`, password `password` (`mallory@other.example` is outside the allowed domain, to try being refused).
+- Emails sent: http://localhost:8025 (Mailpit).
+
+The local Postgres is [pg_automerge](https://github.com/TheKnarf/pg-automerge)'s released image (Postgres 18 with the extension). Table syncing uses [snapsync](packages/snapsync), pure SQL in this repository, which the server's migrations install: Postgres needs nothing of ours beyond pg_automerge. Local data is test data: `docker compose down -v` starts it over.
+
+## Checks and tests
+
+```bash
+pnpm lint        # Biome
+pnpm typecheck
+pnpm test        # unit and integration tests, against the local Postgres and Mailpit
+pnpm test:e2e    # Playwright: the whole stack, started for you if it isn't running
+```
+
+The pre-commit hook (`.hooks/`, set by `mise run setup`) runs Biome on staged files, typechecks and the tests: Docker must be running, and mise active. There's no CI yet.
+
+## What's where
+
+- [packages/app](packages/app): the React app, site and studio, and the end-to-end tests.
+- [packages/server](packages/server): the HTTP server, putting the packages together; bundled for the image.
+- [packages/documents](packages/documents): events and teams, drafts (Automerge, in Postgres), publishing, signing up, sync, emails and their background work.
+- [packages/oauth](packages/oauth): logging in with OpenID Connect.
+- [packages/email](packages/email): sending email, through SES or SMTP.
+- [packages/i18n](packages/i18n): the interface's words in English, Bokmål and Nynorsk.
+- [packages/snapsync](packages/snapsync): syncing tables to the browser by polling.
+- [packages/slack](packages/slack): Slack's API, not wired in yet.
 
 ## Deploying
 
