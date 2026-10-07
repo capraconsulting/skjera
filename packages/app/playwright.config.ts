@@ -6,7 +6,8 @@ export default defineConfig({
   testDir: "e2e",
   forbidOnly: ci,
   retries: ci ? 2 : 0,
-  reporter: ci ? "github" : "list",
+  // In CI: annotations on the run, and a report to download when it fails.
+  reporter: ci ? [["github"], ["html", { open: "never" }]] : "list",
   // Full-stack tests: logins and syncs go through Dex, the server and Postgres.
   expect: { timeout: 10_000 },
   timeout: 60_000,
