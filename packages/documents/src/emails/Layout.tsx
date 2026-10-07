@@ -10,6 +10,7 @@ import {
   Section,
   Text,
 } from "react-email";
+import type { Locale } from "../Model.ts";
 
 // What every email is in: the site's name, the content, and why it came.
 
@@ -30,6 +31,7 @@ const card = {
 };
 
 export function Layout(props: {
+  readonly locale: Locale;
   readonly siteName: string;
   /** Shown in inboxes after the subject. */
   readonly preview: string;
@@ -38,7 +40,7 @@ export function Layout(props: {
   readonly children: ReactNode;
 }) {
   return (
-    <Html lang="en">
+    <Html lang={props.locale}>
       <Head />
       <Preview>{props.preview}</Preview>
       <Body style={body}>

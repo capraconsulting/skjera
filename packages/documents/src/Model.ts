@@ -1,4 +1,5 @@
-import { Schema } from "effect";
+import { baseLocale, locales } from "@skjera/i18n/runtime";
+import { Config, Schema } from "effect";
 import { Temporal } from "temporal-polyfill";
 
 // Document identity and publish state, shared by the server and the editor.
@@ -70,6 +71,15 @@ export class Publication extends Schema.Class<Publication>(
 export type Audience = "anyone" | "members";
 
 /** Signing up for an event without an account. */
+/** A language the interface and emails are in: "en", "nb" or "nn". */
+export const Locale = Schema.Literals(locales);
+export type Locale = typeof Locale.Type;
+
+/** The site's language, for those who didn't pick one: `SITE_LOCALE`. */
+export const SiteLocale = Config.Literals(locales, "SITE_LOCALE").pipe(
+  Config.withDefault(baseLocale),
+);
+
 export const GuestDetails = Schema.Struct({
   name: Schema.String.check(
     Schema.makeFilter(

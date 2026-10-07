@@ -306,7 +306,7 @@ export class Documents extends Context.Service<
                 before.ends_at.getTime() !== after.ends_at.getTime())
             ) {
               const signups = yield* sql<Signup>`
-                SELECT id, name, email, user_issuer IS NULL AS guest
+                SELECT id, name, email, user_issuer IS NULL AS guest, locale
                 FROM attendees WHERE event_id = ${id}
               `;
               yield* tell(signups, (attendee) =>
@@ -379,7 +379,7 @@ export class Documents extends Context.Service<
           // Signed up for what won't happen now: cancelled, in calendars too.
           if (event?.upcoming) {
             const signups = yield* sql<Signup>`
-              SELECT id, name, email, user_issuer IS NULL AS guest
+              SELECT id, name, email, user_issuer IS NULL AS guest, locale
               FROM attendees WHERE event_id = ${id}
             `;
             yield* tell(signups, (attendee) =>

@@ -9,6 +9,7 @@ import type {
   Audience,
   DocumentId,
   GuestDetails,
+  Locale,
   Question,
 } from "./Model.ts";
 import { Notifications, type Signup, tell } from "./Notifications.ts";
@@ -21,6 +22,8 @@ export interface SignupDetails {
   readonly answers?: Answers;
   /** The signup's id, picked by the client. */
   readonly id?: string;
+  /** The language they signed up in, for emails to them. */
+  readonly locale?: Locale;
 }
 
 /**
@@ -240,12 +243,13 @@ export class Attendance extends Context.Service<
         yield* Effect.gen(function* () {
           // Already signed up, or a retry: nothing to do, or tell.
           const inserted = yield* sql<Signup>`
-            INSERT INTO attendees (id, event_id, user_issuer, user_subject, name, email, dietary, answers)
+            INSERT INTO attendees (id, event_id, user_issuer, user_subject, name, email, dietary, answers, locale)
             VALUES (coalesce(${id ?? null}::uuid, uuidv7()), ${event}, ${user.issuer},
               ${user.subject}, ${user.name ?? user.email ?? user.subject},
-              ${user.email ?? null}, ${dietary}, ${JSON.stringify(answers)}::jsonb)
+              ${user.email ?? null}, ${dietary}, ${JSON.stringify(answers)}::jsonb,
+              ${details.locale ?? null})
             ON CONFLICT DO NOTHING
-            RETURNING id, name, email, false AS guest
+            RETURNING id, name, email, false AS guest, locale
           `;
           yield* tell(inserted, (attendee) =>
             notifications.signedUp({ event, attendee }),
@@ -263,7 +267,7 @@ export class Attendance extends Context.Service<
             DELETE FROM attendees
             WHERE event_id = ${event}
               AND user_issuer = ${user.issuer} AND user_subject = ${user.subject}
-            RETURNING id, name, email, false AS guest
+            RETURNING id, name, email, false AS guest, locale
           `;
           yield* tell(deleted, (attendee) =>
             notifications.signupCancelled({ event, attendee }),
@@ -292,10 +296,11 @@ export class Attendance extends Context.Service<
         const token = guestToken(attendee);
         yield* Effect.gen(function* () {
           const inserted = yield* sql<Signup>`
-            INSERT INTO attendees (id, event_id, name, email, dietary, answers, cancel_token_hash)
+            INSERT INTO attendees (id, event_id, name, email, dietary, answers, cancel_token_hash, locale)
             VALUES (${attendee}::uuid, ${event}, ${guest.name.trim()},
-              ${guest.email.trim()}, ${dietary}, ${JSON.stringify(answers)}::jsonb, ${hash(token)})
-            RETURNING id, name, email, true AS guest
+              ${guest.email.trim()}, ${dietary}, ${JSON.stringify(answers)}::jsonb, ${hash(token)},
+              ${details.locale ?? null})
+            RETURNING id, name, email, true AS guest, locale
           `;
           yield* tell(inserted, (attendee) =>
             notifications.signedUp({ event, attendee }),
@@ -331,7 +336,7 @@ export class Attendance extends Context.Service<
           const deleted = yield* sql<Signup>`
             DELETE FROM attendees
             WHERE event_id = ${event} AND cancel_token_hash = ${hash(cancelToken)}
-            RETURNING id, name, email, true AS guest
+            RETURNING id, name, email, true AS guest, locale
           `;
           yield* tell(deleted, (attendee) =>
             notifications.signupCancelled({ event, attendee }),

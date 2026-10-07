@@ -1,0 +1,25 @@
+{
+  "name": "@skjera/i18n",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The interface's words in each language (Paraglide JS): typed message functions for the app and the server's emails.",
+  "type": "module",
+  "exports": {
+    "./messages": "./src/paraglide/messages.js",
+    "./runtime": "./src/paraglide/runtime.js"
+  },
+  "scripts": {
+    "compile": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --emit-ts-declarations --strategy cookie custom-site baseLocale --silent",
+    "dev": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --emit-ts-declarations --strategy cookie custom-site baseLocale --watch",
+    "prepare": "pnpm compile",
+    "typecheck": "tsc",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@inlang/paraglide-js": "catalog:",
+    "@inlang/plugin-message-format": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

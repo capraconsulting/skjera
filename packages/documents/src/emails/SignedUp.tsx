@@ -1,10 +1,13 @@
 /** @jsxRuntime automatic @jsxImportSource react */
+import { m } from "@skjera/i18n/messages";
 import { Button, Heading, Text } from "react-email";
+import type { Locale } from "../Model.ts";
 import { button, Layout, paragraph } from "./Layout.tsx";
 
 // Sent when someone signs up, with the event as a calendar invitation.
 
 export interface SignedUpProps {
+  readonly locale: Locale;
   readonly siteName: string;
   readonly name: string;
   readonly title: string;
@@ -20,48 +23,55 @@ export interface SignedUpProps {
 }
 
 export function SignedUp(props: SignedUpProps) {
+  const { locale, title } = props;
   return (
     <Layout
+      locale={locale}
       siteName={props.siteName}
-      preview={`See you at ${props.title}`}
-      reason={`You signed up for ${props.title} on ${props.siteName}.`}
+      preview={m.email_signed_up_preview({ title }, { locale })}
+      reason={m.email_reason_signed_up(
+        { title, site: props.siteName },
+        { locale },
+      )}
     >
       <Heading as="h1" style={{ margin: "0 0 16px", fontSize: "22px" }}>
-        You're signed up
+        {m.email_signed_up_heading({}, { locale })}
       </Heading>
-      <Text style={paragraph}>Hi {props.name},</Text>
       <Text style={paragraph}>
-        You're signed up for <strong>{props.title}</strong>, {props.when}. It's
-        in the invitation attached, for your calendar.
+        {m.email_greeting({ name: props.name }, { locale })}
+      </Text>
+      <Text style={paragraph}>
+        {m.email_signed_up_body({ title, when: props.when }, { locale })}
       </Text>
       {props.dietaryBy === undefined ? null : (
         <Text style={paragraph}>
-          Food is served. You can change what you told us you can't eat until{" "}
-          {props.dietaryBy}.
+          {m.email_signed_up_food({ until: props.dietaryBy }, { locale })}
         </Text>
       )}
       <Text style={paragraph}>
         {props.guestLink === undefined
-          ? "Changed your mind? You can change or cancel your signup on the event's page"
-          : "Changed your mind? Your own link changes or cancels your signup"}{" "}
-        until {props.closes}.
+          ? m.email_signed_up_change_member({ until: props.closes }, { locale })
+          : m.email_signed_up_change_guest({ until: props.closes }, { locale })}
       </Text>
       <Button href={props.guestLink ?? props.url} style={button}>
-        {props.guestLink === undefined ? "See the event" : "Your signup"}
+        {props.guestLink === undefined
+          ? m.email_see_event({}, { locale })
+          : m.email_your_signup({}, { locale })}
       </Button>
     </Layout>
   );
 }
 
 SignedUp.PreviewProps = {
+  locale: "nb",
   siteName: "Skjera",
   name: "Gina",
   title: "Launch",
-  when: "Thursday, October 15, 2026, 6:00 – 9:00 PM (Central European Time)",
+  when: "torsdag 15. oktober 2026, 18:00–21:00 (sentraleuropeisk tid)",
   url: "http://localhost:5173/events/1",
   guestLink: "http://localhost:5173/events/1?guest=g&token=t",
-  closes: "Thursday, October 15, 2026 at 6:00 PM (Central European Time)",
-  dietaryBy: "Tuesday, October 13, 2026 at 12:00 PM (Central European Time)",
+  closes: "torsdag 15. oktober 2026 kl. 18:00 (sentraleuropeisk tid)",
+  dietaryBy: "tirsdag 13. oktober 2026 kl. 12:00 (sentraleuropeisk tid)",
 } satisfies SignedUpProps;
 
 export default SignedUp;

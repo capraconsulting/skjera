@@ -1,6 +1,7 @@
 /** @jsxRuntime automatic @jsxImportSource react */
 import { Email, EmailRejected, retryTransient } from "@skjera/email";
 import { renderEmail } from "@skjera/email/react";
+import { m } from "@skjera/i18n/messages";
 import { Config, Cron, Effect, Layer, Option, Schema } from "effect";
 import { ClusterCron, ClusterSchema, Entity } from "effect/cluster";
 import { Rpc } from "effect/rpc";
@@ -14,7 +15,14 @@ import { formatAt, formatWhen } from "./emails/format.ts";
 import { Reminder } from "./emails/Reminder.tsx";
 import { SignedUp } from "./emails/SignedUp.tsx";
 import { SignupCancelled } from "./emails/SignupCancelled.tsx";
-import { Notifications, Recipient, Times } from "./Notifications.ts";
+import { SiteLocale } from "./Model.ts";
+import {
+  Notifications,
+  Recipient,
+  type Signup,
+  Times,
+  tell,
+} from "./Notifications.ts";
 
 // Emails about an event to its attendees. Signing up, cancelling, and
 // moving or deleting the event tell `Notifications`, in their transaction; on the server, that
@@ -81,11 +89,15 @@ export const layerNotifications = Layer.effect(
   }),
 );
 
-/** Where the site is, what it's called, and who emails come from. */
+/**
+ * Where the site is, what it's called, who emails come from, and the
+ * language they're in for those who didn't say (`SITE_LOCALE`).
+ */
 const SiteConfig = Config.all({
   url: Config.String("SITE_URL"),
   name: Config.String("SITE_NAME").pipe(Config.withDefault("Skjera")),
   from: Config.String("EMAIL_FROM"),
+  locale: SiteLocale,
 });
 
 interface EventRow {
@@ -153,12 +165,15 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
             }
 
             const url = new URL(`/events/${eventId}`, site.url).href;
+            const { attendee } = payload;
+            // In the language they signed up in.
+            const locale = attendee.locale ?? site.locale;
             const when = formatWhen(
+              locale,
               event.starts_at,
               event.ends_at,
               event.time_zone,
             );
-            const { attendee } = payload;
             const calendar = (
               method: "REQUEST" | "CANCEL",
               cancelled = false,
@@ -199,9 +214,13 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
               switch (payload.kind) {
                 case "signedUp":
                   return {
-                    subject: `You're signed up: ${event.title}`,
+                    subject: m.email_signed_up_subject(
+                      { title: event.title },
+                      { locale },
+                    ),
                     body: (
                       <SignedUp
+                        locale={locale}
                         siteName={site.name}
                         name={attendee.name}
                         title={event.title}
@@ -209,12 +228,14 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                         url={url}
                         {...guestLink}
                         closes={formatAt(
+                          locale,
                           event.signup_deadline ?? event.starts_at,
                           event.time_zone,
                         )}
                         {...(event.ask_dietary
                           ? {
                               dietaryBy: formatAt(
+                                locale,
                                 event.food_deadline ??
                                   event.signup_deadline ??
                                   event.starts_at,
@@ -228,9 +249,13 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                   };
                 case "signupCancelled":
                   return {
-                    subject: `Signup cancelled: ${event.title}`,
+                    subject: m.email_left_subject(
+                      { title: event.title },
+                      { locale },
+                    ),
                     body: (
                       <SignupCancelled
+                        locale={locale}
                         siteName={site.name}
                         name={attendee.name}
                         title={event.title}
@@ -242,9 +267,13 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                   };
                 case "eventChanged":
                   return {
-                    subject: `New time: ${event.title}`,
+                    subject: m.email_moved_subject(
+                      { title: event.title },
+                      { locale },
+                    ),
                     body: (
                       <EventChanged
+                        locale={locale}
                         siteName={site.name}
                         name={attendee.name}
                         title={event.title}
@@ -253,6 +282,7 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                           payload.previously === undefined
                             ? ""
                             : formatWhen(
+                                locale,
                                 new Date(payload.previously.startsAt),
                                 new Date(payload.previously.endsAt),
                                 event.time_zone,
@@ -266,9 +296,13 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                   };
                 case "eventCancelled":
                   return {
-                    subject: `Cancelled: ${event.title}`,
+                    subject: m.email_cancelled_subject(
+                      { title: event.title },
+                      { locale },
+                    ),
                     body: (
                       <EventCancelled
+                        locale={locale}
                         siteName={site.name}
                         name={attendee.name}
                         title={event.title}
@@ -280,9 +314,13 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                 case "reminder":
                   // Already in their calendar: no invitation.
                   return {
-                    subject: `Reminder: ${event.title}`,
+                    subject: m.email_reminder_subject(
+                      { title: event.title },
+                      { locale },
+                    ),
                     body: (
                       <Reminder
+                        locale={locale}
                         siteName={site.name}
                         name={attendee.name}
                         title={event.title}
@@ -337,9 +375,9 @@ export const sendReminders = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   const mailer = yield* EventMail.client;
   const due = yield* sql<
-    Recipient & { readonly event_id: string; readonly starts_at: Date }
+    Signup & { readonly event_id: string; readonly starts_at: Date }
   >`
-      SELECT a.id, a.name, a.email, a.user_issuer IS NULL AS guest,
+      SELECT a.id, a.name, a.email, a.user_issuer IS NULL AS guest, a.locale,
         e.id AS event_id, e.starts_at
       FROM events e JOIN attendees a ON a.event_id = e.id
       WHERE e.send_reminders AND e.deleted_at IS NULL AND a.email IS NOT NULL
@@ -348,14 +386,18 @@ export const sendReminders = Effect.gen(function* () {
     `;
   yield* Effect.forEach(
     due,
-    ({ event_id, starts_at, ...attendee }) =>
-      mailer(event_id).Send(
-        {
-          key: `reminder/${starts_at.getTime()}/${attendee.id}`,
-          kind: "reminder",
-          attendee,
-        },
-        { discard: true },
+    ({ event_id, starts_at, ...signup }) =>
+      tell([signup], (attendee) =>
+        mailer(event_id)
+          .Send(
+            {
+              key: `reminder/${starts_at.getTime()}/${attendee.id}`,
+              kind: "reminder",
+              attendee,
+            },
+            { discard: true },
+          )
+          .pipe(Effect.orDie),
       ),
     { discard: true },
   );

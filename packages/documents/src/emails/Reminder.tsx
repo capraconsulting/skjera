@@ -1,11 +1,14 @@
 /** @jsxRuntime automatic @jsxImportSource react */
+import { m } from "@skjera/i18n/messages";
 import { Button, Heading, Text } from "react-email";
+import type { Locale } from "../Model.ts";
 import { button, Layout, paragraph } from "./Layout.tsx";
 
 // Sent the day before an event to everyone signed up, unless the event's
 // organizers turned reminders off.
 
 export interface ReminderProps {
+  readonly locale: Locale;
   readonly siteName: string;
   readonly name: string;
   readonly title: string;
@@ -17,37 +20,46 @@ export interface ReminderProps {
 }
 
 export function Reminder(props: ReminderProps) {
+  const { locale, title, when } = props;
   return (
     <Layout
+      locale={locale}
       siteName={props.siteName}
-      preview={`${props.title} is coming up: ${props.when}`}
-      reason={`You're signed up for ${props.title} on ${props.siteName}.`}
+      preview={m.email_reminder_preview({ title, when }, { locale })}
+      reason={m.email_reason_attending(
+        { title, site: props.siteName },
+        { locale },
+      )}
     >
       <Heading as="h1" style={{ margin: "0 0 16px", fontSize: "22px" }}>
-        See you soon
+        {m.email_reminder_heading({}, { locale })}
       </Heading>
-      <Text style={paragraph}>Hi {props.name},</Text>
       <Text style={paragraph}>
-        A reminder: you're signed up for <strong>{props.title}</strong>,{" "}
-        {props.when}.
+        {m.email_greeting({ name: props.name }, { locale })}
+      </Text>
+      <Text style={paragraph}>
+        {m.email_reminder_body({ title, when }, { locale })}
       </Text>
       <Text style={paragraph}>
         {props.guestLink === undefined
-          ? "Can't make it after all? You can cancel your signup on the event's page, so others can take your place."
-          : "Can't make it after all? Your own link cancels your signup, so others can take your place."}
+          ? m.email_reminder_cancel_member({}, { locale })
+          : m.email_reminder_cancel_guest({}, { locale })}
       </Text>
       <Button href={props.guestLink ?? props.url} style={button}>
-        {props.guestLink === undefined ? "See the event" : "Your signup"}
+        {props.guestLink === undefined
+          ? m.email_see_event({}, { locale })
+          : m.email_your_signup({}, { locale })}
       </Button>
     </Layout>
   );
 }
 
 Reminder.PreviewProps = {
+  locale: "nn",
   siteName: "Skjera",
   name: "Gina",
   title: "Launch",
-  when: "Thursday, October 15, 2026, 6:00 – 9:00 PM (Central European Time)",
+  when: "torsdag 15. oktober 2026, 18:00–21:00 (sentraleuropeisk tid)",
   url: "http://localhost:5173/events/1",
   guestLink: "http://localhost:5173/events/1?guest=g&token=t",
 } satisfies ReminderProps;

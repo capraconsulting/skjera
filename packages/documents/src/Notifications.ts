@@ -1,5 +1,5 @@
 import { Context, Effect, Layer, Ref, Schema } from "effect";
-import type { DocumentId } from "./Model.ts";
+import { type DocumentId, Locale } from "./Model.ts";
 
 // What attendees are told of, by email (see Mail.tsx): signing up and
 // cancelling tell it, and so do republishing an event at a new time and
@@ -13,6 +13,8 @@ export const Recipient = Schema.Struct({
   email: Schema.String,
   /** Signed up without an account: emails carry their link. */
   guest: Schema.Boolean,
+  /** The language they signed up in; else the site's. */
+  locale: Schema.optionalKey(Locale),
 });
 export type Recipient = typeof Recipient.Type;
 
@@ -87,6 +89,7 @@ export interface Signup {
   readonly name: string;
   readonly email: string | null;
   readonly guest: boolean;
+  readonly locale: Locale | null;
 }
 
 /** Tells `notice` of each signup that has an email address to tell. */
@@ -104,6 +107,7 @@ export const tell = (
             name: signup.name,
             email: signup.email,
             guest: signup.guest,
+            ...(signup.locale === null ? {} : { locale: signup.locale }),
           }),
     { discard: true },
   );

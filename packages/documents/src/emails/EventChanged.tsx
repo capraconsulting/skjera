@@ -1,11 +1,14 @@
 /** @jsxRuntime automatic @jsxImportSource react */
+import { m } from "@skjera/i18n/messages";
 import { Button, Heading, Text } from "react-email";
+import type { Locale } from "../Model.ts";
 import { button, Layout, paragraph } from "./Layout.tsx";
 
 // Sent to attendees when an event moves: it starts or ends at another time.
 // The invitation attached updates the one in their calendar.
 
 export interface EventChangedProps {
+  readonly locale: Locale;
   readonly siteName: string;
   readonly name: string;
   readonly title: string;
@@ -19,37 +22,45 @@ export interface EventChangedProps {
 }
 
 export function EventChanged(props: EventChangedProps) {
+  const { locale, title, when } = props;
   return (
     <Layout
+      locale={locale}
       siteName={props.siteName}
-      preview={`${props.title} is now ${props.when}`}
-      reason={`You're signed up for ${props.title} on ${props.siteName}.`}
+      preview={m.email_moved_preview({ title, when }, { locale })}
+      reason={m.email_reason_attending(
+        { title, site: props.siteName },
+        { locale },
+      )}
     >
       <Heading as="h1" style={{ margin: "0 0 16px", fontSize: "22px" }}>
-        New time
+        {m.email_moved_heading({}, { locale })}
       </Heading>
-      <Text style={paragraph}>Hi {props.name},</Text>
       <Text style={paragraph}>
-        <strong>{props.title}</strong>, which you're signed up for, has moved.
-        It's now {props.when}.
+        {m.email_greeting({ name: props.name }, { locale })}
       </Text>
       <Text style={paragraph}>
-        It was {props.previously}. The invitation attached updates it in your
-        calendar.
+        {m.email_moved_body({ title, when }, { locale })}
+      </Text>
+      <Text style={paragraph}>
+        {m.email_moved_was({ previously: props.previously }, { locale })}
       </Text>
       <Text style={paragraph}>
         {props.guestLink === undefined
-          ? "Can't make it now? You can cancel your signup on the event's page."
-          : "Can't make it now? Your own link cancels your signup."}
+          ? m.email_moved_cancel_member({}, { locale })
+          : m.email_moved_cancel_guest({}, { locale })}
       </Text>
       <Button href={props.guestLink ?? props.url} style={button}>
-        {props.guestLink === undefined ? "See the event" : "Your signup"}
+        {props.guestLink === undefined
+          ? m.email_see_event({}, { locale })
+          : m.email_your_signup({}, { locale })}
       </Button>
     </Layout>
   );
 }
 
 EventChanged.PreviewProps = {
+  locale: "en",
   siteName: "Skjera",
   name: "Gina",
   title: "Launch",

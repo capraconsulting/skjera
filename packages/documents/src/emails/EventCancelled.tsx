@@ -1,11 +1,14 @@
 /** @jsxRuntime automatic @jsxImportSource react */
+import { m } from "@skjera/i18n/messages";
 import { Heading, Text } from "react-email";
+import type { Locale } from "../Model.ts";
 import { Layout, paragraph } from "./Layout.tsx";
 
 // Sent to attendees when an event is deleted before it's over: it won't
 // happen. The cancellation attached takes it out of their calendar.
 
 export interface EventCancelledProps {
+  readonly locale: Locale;
   readonly siteName: string;
   readonly name: string;
   readonly title: string;
@@ -14,29 +17,36 @@ export interface EventCancelledProps {
 }
 
 export function EventCancelled(props: EventCancelledProps) {
+  const { locale, title } = props;
   return (
     <Layout
+      locale={locale}
       siteName={props.siteName}
-      preview={`${props.title} won't happen`}
-      reason={`You signed up for ${props.title} on ${props.siteName}.`}
+      preview={m.email_cancelled_preview({ title }, { locale })}
+      reason={m.email_reason_signed_up(
+        { title, site: props.siteName },
+        { locale },
+      )}
     >
       <Heading as="h1" style={{ margin: "0 0 16px", fontSize: "22px" }}>
-        Event cancelled
+        {m.email_cancelled_heading({}, { locale })}
       </Heading>
-      <Text style={paragraph}>Hi {props.name},</Text>
       <Text style={paragraph}>
-        <strong>{props.title}</strong>, {props.when}, which you signed up for,
-        is cancelled. The attached cancellation takes it out of your calendar.
+        {m.email_greeting({ name: props.name }, { locale })}
+      </Text>
+      <Text style={paragraph}>
+        {m.email_cancelled_body({ title, when: props.when }, { locale })}
       </Text>
     </Layout>
   );
 }
 
 EventCancelled.PreviewProps = {
+  locale: "nb",
   siteName: "Skjera",
   name: "Gina",
   title: "Launch",
-  when: "Thursday, October 15, 2026, 6:00 – 9:00 PM (Central European Time)",
+  when: "torsdag 15. oktober 2026, 18:00–21:00 (sentraleuropeisk tid)",
 } satisfies EventCancelledProps;
 
 export default EventCancelled;

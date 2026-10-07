@@ -15,6 +15,7 @@
     "@automerge/automerge": "catalog:",
     "@effect/sql-pg": "catalog:",
     "@skjera/email": "workspace:*",
+    "@skjera/i18n": "workspace:*",
     "@skjera/oauth": "workspace:*",
     "@skjera/snapsync": "workspace:*",
     "aws4fetch": "catalog:",

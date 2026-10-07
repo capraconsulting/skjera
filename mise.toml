@@ -18,6 +18,8 @@ S3_SECRET_ACCESS_KEY = "skjera-dev-secret"
 # Where the site is, what it's called, and who emails come from.
 SITE_URL = "http://localhost:5173"
 SITE_NAME = "Skjera"
+# The language for those who haven't picked one: en, nb or nn.
+SITE_LOCALE = "en"
 EMAIL_FROM = "Skjera <events@skjera.localhost>"
 # Signs what's put in links, e.g. guests' links to their signups.
 SIGNING_SECRET = "skjera-dev-signing-secret"

@@ -7,7 +7,13 @@ import {
   SignupNotFound,
   SignupRejected,
 } from "./errors.ts";
-import { Answers, DocumentId, GuestDetails, GuestSignup } from "./Model.ts";
+import {
+  Answers,
+  DocumentId,
+  GuestDetails,
+  GuestSignup,
+  Locale,
+} from "./Model.ts";
 
 // The site's API for signing up to published events. Public events are
 // there for anyone; with a session, members-only events too. The events
@@ -35,6 +41,8 @@ export class EventsApi extends HttpApiGroup.make("events").add(
       dietary: Schema.optionalKey(Schema.String),
       /** Answers to the event's questions, by question id. */
       answers: Schema.optionalKey(Answers),
+      /** The language they signed up in: emails to them are in it too. */
+      locale: Schema.optionalKey(Locale),
     }),
     success: Schema.NullOr(GuestSignup),
     error: [EventNotFound, SignInRequired, SignupRejected],

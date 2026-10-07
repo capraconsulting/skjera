@@ -17,6 +17,9 @@ procs:
     cmd: ["docker", "compose", "up", "mailpit"]
     stop:
       send-keys: ["<d>"]
+  # Recompiles the messages (packages/i18n) as they change.
+  i18n:
+    cmd: ["pnpm", "--filter", "@skjera/i18n", "dev"]
   server:
     cmd: ["pnpm", "--filter", "@skjera/server", "dev"]
   app:

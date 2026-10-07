@@ -14,11 +14,20 @@
     "CI"
   ],
   "tasks": {
+    "compile": {
+      "inputs": ["project.inlang/**", "messages/**"],
+      "outputs": ["src/paraglide/**"]
+    },
     "build": {
+      "dependsOn": ["^compile"],
       "outputs": ["dist/**"]
     },
-    "typecheck": {},
-    "test": {},
+    "typecheck": {
+      "dependsOn": ["compile", "^compile"]
+    },
+    "test": {
+      "dependsOn": ["compile", "^compile"]
+    },
     "test:e2e": {
       "cache": false,
       "dependsOn": ["^test:e2e"]

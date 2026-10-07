@@ -143,6 +143,41 @@ layer(TestLayer, { excludeTestServices: true })("Mail", (it) => {
     }),
   );
 
+  it.effect("writes in the language each signed up in", () =>
+    Effect.gen(function* () {
+      const attendance = yield* Attendance;
+      const event = yield* publishedEvent();
+      const address = `nora-${crypto.randomUUID()}@example.org`;
+      const token = yield* attendance.attendAsGuest(
+        event,
+        { name: "Nora", email: address },
+        { locale: "nb" },
+      );
+      const [signedUp] = yield* emailsTo(address, 1);
+      assert.strictEqual(signedUp?.message.subject, "Du er påmeldt: Launch");
+      assert.include(signedUp?.message.text ?? "", "Hei Nora,");
+      // Dates as Norwegians write them, in the event's zone.
+      assert.include(
+        signedUp?.message.text ?? "",
+        "onsdag 15. oktober 2036, 18:00–21:00 (sentraleuropeisk tid)",
+      );
+      assert.include(signedUp?.message.html ?? "", 'lang="nb"');
+
+      // Nynorsk, for a guest who said so.
+      const other = `nils-${crypto.randomUUID()}@example.org`;
+      const nils = yield* attendance.attendAsGuest(
+        event,
+        { name: "Nils", email: other },
+        { locale: "nn" },
+      );
+      yield* attendance.leaveAsGuest(event, nils);
+      const [, left] = yield* emailsTo(other, 2);
+      assert.strictEqual(left?.message.subject, "Avmeld: Launch");
+      assert.include(left?.message.text ?? "", "Du er ikkje lenger påmeld");
+      yield* attendance.leaveAsGuest(event, token);
+    }),
+  );
+
   it.effect("tells members once, however often they sign up", () =>
     Effect.gen(function* () {
       const attendance = yield* Attendance;

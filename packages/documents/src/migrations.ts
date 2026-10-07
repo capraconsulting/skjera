@@ -573,4 +573,9 @@ export const migrations = Migrator.fromRecord({
         OR OLD.deleted_at IS DISTINCT FROM NEW.deleted_at)
       EXECUTE FUNCTION events_touch_attendees()`,
   ),
+  "0019_attendee_locale": statements(
+    // The language each signed up in ("en", "nb", "nn"): emails to them are
+    // in it. Null: the site's (SITE_LOCALE).
+    `ALTER TABLE attendees ADD COLUMN locale text`,
+  ),
 });
