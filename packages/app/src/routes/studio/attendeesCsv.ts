@@ -1,4 +1,4 @@
-import type { AttendeeRow, EventRow } from "@skjera/documents/api";
+import type { Answer, AttendeeRow, EventRow } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import Papa from "papaparse";
 
@@ -22,7 +22,7 @@ export const attendeesCsv = (
   const rows = attendees.flatMap(({ details, signedUpAt, changedAt }) => {
     if (details === null) return [];
     const answers = new Map(
-      details.answers.map((answer) => [answer.id, answer.answer]),
+      details.answers.map((answer) => [answer.id, answerText(answer)]),
     );
     return [
       [
@@ -53,6 +53,14 @@ export const attendeesCsv = (
     { escapeFormulae: true },
   );
 };
+
+/** An answer as it reads: a ticked box as yes or no, in the interface's language. */
+export const answerText = (answer: Answer) =>
+  typeof answer.value === "boolean"
+    ? answer.value
+      ? m.common_yes()
+      : m.common_no()
+    : answer.answer;
 
 /** Has the browser save `text` as a file. */
 export const download = (text: string, name: string, type: string) => {

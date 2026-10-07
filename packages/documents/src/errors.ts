@@ -1,4 +1,8 @@
 import { Schema } from "effect";
+import { Problem } from "./Problems.ts";
+
+// Refusals carry why (`problem`), for the interface to say in its language,
+// and `message`, in English: make them with `refused(problem)`.
 
 export class DocumentNotFound extends Schema.TaggedError<DocumentNotFound>()(
   "DocumentNotFound",
@@ -26,7 +30,7 @@ export class InvalidContent extends Schema.TaggedError<InvalidContent>()(
 
 export class PublishRejected extends Schema.TaggedError<PublishRejected>()(
   "PublishRejected",
-  { message: Schema.String },
+  { problem: Problem, message: Schema.String },
   { httpApiStatus: 400 },
 ) {}
 
@@ -46,7 +50,7 @@ export class TeamNotFound extends Schema.TaggedError<TeamNotFound>()(
 /** Empty, too long, or already used by another team (names ignore case). */
 export class InvalidTeamName extends Schema.TaggedError<InvalidTeamName>()(
   "InvalidTeamName",
-  { message: Schema.String },
+  { problem: Problem, message: Schema.String },
   { httpApiStatus: 400 },
 ) {}
 
@@ -60,14 +64,14 @@ export class TeamNotEmpty extends Schema.TaggedError<TeamNotEmpty>()(
 /** Attending as a member needs a login. */
 export class SignInRequired extends Schema.TaggedError<SignInRequired>()(
   "SignInRequired",
-  { message: Schema.String },
+  { problem: Problem, message: Schema.String },
   { httpApiStatus: 401 },
 ) {}
 
 /** The event doesn't take this signup, e.g. guests on a members-only event. */
 export class SignupRejected extends Schema.TaggedError<SignupRejected>()(
   "SignupRejected",
-  { message: Schema.String },
+  { problem: Problem, message: Schema.String },
   { httpApiStatus: 400 },
 ) {}
 
@@ -81,6 +85,6 @@ export class SignupNotFound extends Schema.TaggedError<SignupNotFound>()(
 /** Not an image that can be uploaded: the wrong format, or too big. */
 export class InvalidImage extends Schema.TaggedError<InvalidImage>()(
   "InvalidImage",
-  { message: Schema.String },
+  { problem: Problem, message: Schema.String },
   { httpApiStatus: 400 },
 ) {}

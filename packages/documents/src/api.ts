@@ -5,6 +5,7 @@ export * from "./DraftSyncProtocol.ts";
 export * from "./errors.ts";
 export * from "./ImagesApi.ts";
 export * from "./Model.ts";
+export * from "./Problems.ts";
 export * from "./PublicApi.ts";
 export * from "./SyncApi.ts";
 export * from "./TeamsApi.ts";

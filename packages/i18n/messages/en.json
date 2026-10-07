@@ -247,5 +247,29 @@
       }
     }
   ],
-  "studio_here": "Here: {names}"
+  "studio_here": "Here: {names}",
+  "problem_signup_closed": "Sign-up for this event has closed",
+  "problem_guests_not_allowed": "Log in to sign up for this event",
+  "problem_email_taken": "That email is already signed up for this event",
+  "problem_dietary_missing": "Tell us your dietary preferences, or write “none”",
+  "problem_answer_too_long": "Keep your answer to “{question}” shorter",
+  "problem_answer_missing": "Answer “{question}”",
+  "problem_tick_missing": "Tick “{question}” to sign up",
+  "problem_answer_unknown": "Pick one of the answers to “{question}”",
+  "problem_log_in_to_attend": "Log in to attend",
+  "problem_log_in_or_guest": "Log in, or leave your name and email",
+  "problem_missing_to_publish": "Add {fields} before publishing",
+  "problem_field_title": "a title",
+  "problem_field_start": "a start time",
+  "problem_field_end": "an end time",
+  "problem_and": "and",
+  "problem_ends_before_start": "The event has to end after it starts",
+  "problem_deadline_after_start": "The sign-up deadline can't be after the event starts",
+  "problem_food_deadline_after_close": "The food deadline can't be after sign-up closes",
+  "problem_question_without_text": "Every question needs its text",
+  "problem_choice_without_options": "Choice questions need at least two options, all filled in",
+  "problem_mixed_time_zones": "The times have to be in the same time zone",
+  "problem_unknown_version": "Unknown version",
+  "problem_team_name_length": "A team name needs 1 to 100 characters",
+  "problem_team_name_taken": "There is already a team called {name}"
 }

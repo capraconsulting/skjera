@@ -61,7 +61,9 @@ const EventsHandlers = HttpApiBuilder.group(Api, "events", (handlers) =>
       Option.match(user, {
         onNone: () =>
           Effect.fail(
-            new Documents.SignInRequired({ message: "Log in to attend" }),
+            new Documents.SignInRequired(
+              Documents.refused({ _tag: "LogInToAttend" }),
+            ),
           ),
         onSome: Effect.succeed,
       }),
@@ -76,9 +78,9 @@ const EventsHandlers = HttpApiBuilder.group(Api, "events", (handlers) =>
             return null;
           }
           if (payload.guest === undefined) {
-            return yield* new Documents.SignInRequired({
-              message: "Log in, or leave your name and email",
-            });
+            return yield* new Documents.SignInRequired(
+              Documents.refused({ _tag: "LogInOrGuest" }),
+            );
           }
           const cancelToken = yield* attendance.attendAsGuest(
             params.id,

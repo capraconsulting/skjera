@@ -19,6 +19,7 @@ import { syncedTable } from "@skjera/snapsync/client";
 import { Effect } from "effect";
 import { FetchHttpClient } from "effect/http";
 import { HttpApi, HttpApiClient } from "effect/http-api";
+import { sayWhy } from "../problems.ts";
 import { type PublicClient, runPublic } from "../site/client.ts";
 import { guestSignup, rememberGuestSignup } from "../site/guestSignups.ts";
 
@@ -65,9 +66,7 @@ const sendPublic = <E extends { readonly _tag: string }>(
 const failureMessage = (failure: { readonly _tag: string }) =>
   failure._tag === "TeamNotEmpty"
     ? m.studio_only_empty_teams()
-    : "message" in failure && typeof failure.message === "string"
-      ? failure.message
-      : m.common_something_wrong();
+    : sayWhy(failure, m.common_something_wrong());
 
 /** Tags published events have had: suggestions when tagging. */
 export const tags = syncedTable({

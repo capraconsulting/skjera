@@ -22,6 +22,7 @@ import {
   type TeamId,
 } from "./Model.ts";
 import { Notifications, type Signup, tell } from "./Notifications.ts";
+import { refused } from "./Problems.ts";
 
 /** When an event is, as published. */
 interface EventTimes {
@@ -327,7 +328,9 @@ export class Documents extends Context.Service<
 
       const unknownVersion = (error: SqlError.SqlError) =>
         pgCode(error) === "22023"
-          ? Effect.fail(new PublishRejected({ message: "Unknown version" }))
+          ? Effect.fail(
+              new PublishRejected(refused({ _tag: "UnknownVersion" })),
+            )
           : Effect.die(error);
 
       const publish = Effect.fn("Documents.publish")(function* (
@@ -348,7 +351,7 @@ export class Documents extends Context.Service<
         )(version?.content).pipe(Effect.orDie);
         const missing = cantPublish(contentTypes[type], content);
         if (missing !== null) {
-          return yield* new PublishRejected({ message: missing });
+          return yield* new PublishRejected(refused(missing));
         }
 
         const [row] = yield* publishers[type](id, heads, user).pipe(

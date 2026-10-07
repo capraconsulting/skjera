@@ -26,6 +26,7 @@ export * as Mail from "./Mail.tsx";
 export * from "./Model.ts";
 export * from "./Notifications.ts";
 export * from "./Presence.ts";
+export * from "./Problems.ts";
 export * from "./PublicApi.ts";
 export * from "./Sync.ts";
 export * from "./SyncApi.ts";

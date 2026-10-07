@@ -12,6 +12,7 @@ import {
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import { InvalidImage } from "./errors.ts";
 import { type ImageType, imagesPath, maxImageBytes } from "./ImagesApi.ts";
+import { refused } from "./Problems.ts";
 
 // Uploaded images, in an S3-compatible bucket. The bucket stays private:
 // the server serves the images, under ids too long to guess.
@@ -93,15 +94,16 @@ export class Images extends Context.Service<
 
       const upload = Effect.fn("Images.upload")(function* (bytes: Uint8Array) {
         if (bytes.byteLength > maxImageBytes) {
-          return yield* new InvalidImage({
-            message: `Images can be at most ${maxImageBytes / 1024 / 1024} MB`,
-          });
+          return yield* new InvalidImage(
+            refused({
+              _tag: "ImageTooBig",
+              maxMb: maxImageBytes / 1024 / 1024,
+            }),
+          );
         }
         const contentType = sniffImageType(bytes);
         if (contentType === null) {
-          return yield* new InvalidImage({
-            message: "Upload a PNG, JPEG, GIF, WebP or AVIF image",
-          });
+          return yield* new InvalidImage(refused({ _tag: "ImageFormat" }));
         }
         const id = newId();
         const response = yield* request(url(id), {

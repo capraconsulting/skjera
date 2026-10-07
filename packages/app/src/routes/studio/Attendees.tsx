@@ -10,7 +10,7 @@ import {
   type Removal,
 } from "../../sync/tables.ts";
 import styles from "./Attendees.module.css";
-import { attendeesCsv, download } from "./attendeesCsv.ts";
+import { answerText, attendeesCsv, download } from "./attendeesCsv.ts";
 
 /** Who has signed up to attend, for the event's organizers. */
 export function Attendees(props: { readonly id: DocumentId }) {
@@ -101,10 +101,10 @@ export function Attendees(props: { readonly id: DocumentId }) {
                 )}
                 {who.answers.length === 0 ? null : (
                   <dl className={styles.answers}>
-                    {who.answers.map(({ question, answer }) => (
-                      <div key={question}>
-                        <dt>{question}</dt>
-                        <dd>{answer}</dd>
+                    {who.answers.map((answer) => (
+                      <div key={answer.question}>
+                        <dt>{answer.question}</dt>
+                        <dd>{answerText(answer)}</dd>
                       </div>
                     ))}
                   </dl>

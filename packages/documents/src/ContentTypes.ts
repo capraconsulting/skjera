@@ -1,6 +1,7 @@
 import { Schema } from "effect";
 import { Temporal } from "temporal-polyfill";
 import { Cover, Question, Tag, ZonedDateTime } from "./Model.ts";
+import type { Problem, PublishField } from "./Problems.ts";
 
 // Content types are safe to share with the editor. A draft must always match
 // its type's schema exactly: changes that would add unknown fields or change
@@ -53,7 +54,7 @@ export type EventContent = typeof EventContent.Type;
 
 /** What a draft needs before it can be published, named for messages. */
 export interface Requirement<Content> {
-  readonly label: string;
+  readonly field: PublishField;
   readonly met: (content: Content) => boolean;
 }
 
@@ -76,34 +77,34 @@ export const contentTypes = {
       reminders: true,
     } satisfies EventContent,
     toPublish: [
-      { label: "a title", met: (event) => event.title.trim() !== "" },
-      { label: "a start time", met: (event) => event.start !== null },
-      { label: "an end time", met: (event) => event.end !== null },
+      { field: "title", met: (event) => event.title.trim() !== "" },
+      { field: "start", met: (event) => event.start !== null },
+      { field: "end", met: (event) => event.end !== null },
     ] satisfies ReadonlyArray<Requirement<EventContent>>,
     checks: [
       (event) =>
         event.start !== null &&
         event.end !== null &&
         compare(event.end, event.start) <= 0
-          ? "The event has to end after it starts"
+          ? { _tag: "EndsBeforeStart" }
           : null,
       (event) =>
         event.start !== null &&
         event.deadline !== null &&
         compare(event.deadline, event.start) > 0
-          ? "The sign-up deadline can't be after the event starts"
+          ? { _tag: "DeadlineAfterStart" }
           : null,
       (event) => {
         const closes = event.deadline ?? event.start;
         return event.foodDeadline !== null &&
           closes !== null &&
           compare(event.foodDeadline, closes) > 0
-          ? "The food deadline can't be after sign-up closes"
+          ? { _tag: "FoodDeadlineAfterClose" }
           : null;
       },
       (event) =>
         event.questions.some((question) => question.text.trim() === "")
-          ? "Every question needs its text"
+          ? { _tag: "QuestionWithoutText" }
           : null,
       (event) =>
         event.questions.some(
@@ -112,7 +113,7 @@ export const contentTypes = {
             (question.options.length < 2 ||
               question.options.some((option) => option.text.trim() === "")),
         )
-          ? "Choice questions need at least two options, all filled in"
+          ? { _tag: "ChoiceWithoutOptions" }
           : null,
       (event) =>
         new Set(
@@ -120,14 +121,14 @@ export const contentTypes = {
             .filter((time) => time !== null)
             .map((time) => Temporal.ZonedDateTime.from(time).timeZoneId),
         ).size > 1
-          ? "The times have to be in the same time zone"
+          ? { _tag: "MixedTimeZones" }
           : null,
     ] satisfies ReadonlyArray<Check<EventContent>>,
   },
 };
 
 /** Something else that must hold to publish: why not, or null. */
-export type Check<Content> = (content: Content) => string | null;
+export type Check<Content> = (content: Content) => Problem | null;
 
 const compare = (a: ZonedDateTime, b: ZonedDateTime) =>
   Temporal.ZonedDateTime.compare(
@@ -145,25 +146,22 @@ export const cantPublish = <Content>(
     readonly checks: ReadonlyArray<Check<Content>>;
   },
   content: Content,
-): string | null =>
+): Problem | null =>
   missingToPublish(type.toPublish, content) ??
   type.checks.map((check) => check(content)).find((why) => why !== null) ??
   null;
 
-/** "Add a title and a start time before publishing", or null when nothing is missing. */
+/** What's missing to publish ("Add a title and a start time"), or null. */
 export const missingToPublish = <Content>(
   requirements: ReadonlyArray<Requirement<Content>>,
   content: Content,
-): string | null => {
-  const missing = requirements
+): Problem | null => {
+  const [first, ...rest] = requirements
     .filter((requirement) => !requirement.met(content))
-    .map((requirement) => requirement.label);
-  if (missing.length === 0) return null;
-  const list =
-    missing.length === 1
-      ? missing[0]
-      : `${missing.slice(0, -1).join(", ")} and ${missing.at(-1)}`;
-  return `Add ${list} before publishing`;
+    .map((requirement) => requirement.field);
+  return first === undefined
+    ? null
+    : { _tag: "MissingToPublish", fields: [first, ...rest] };
 };
 
 export type ContentTypeName = keyof typeof contentTypes;

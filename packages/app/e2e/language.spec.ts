@@ -38,6 +38,20 @@ test("visitors pick their language, and get emails in it", async ({
   const email = await emailTo(address, `Du er påmeldt: ${event.title}`);
   expect(email.text).toContain("Hei Nora,");
 
+  // The server's refusals come in it too.
+  const other = await visitor(browser);
+  await other.goto(`/events/${event.id}`);
+  await other
+    .getByRole("combobox", { name: "Language" })
+    .selectOption("Norsk bokmål");
+  const form = other.getByRole("region", { name: "Påmelding" });
+  await form.getByRole("textbox", { name: "Navnet ditt" }).fill("Nora");
+  await form.getByRole("textbox", { name: "E-postadressen din" }).fill(address);
+  await form.getByRole("button", { name: "Meld meg på" }).click();
+  await expect(form.getByRole("alert")).toHaveText(
+    "Den e-postadressen er allerede påmeldt dette arrangementet",
+  );
+
   // Remembered.
   await nora.reload();
   await expect(nora.locator("html")).toHaveAttribute("lang", "nb");

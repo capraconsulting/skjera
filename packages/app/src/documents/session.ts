@@ -16,6 +16,7 @@ import { eq } from "@tanstack/react-db";
 import { Effect, Fiber, Schedule } from "effect";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { DraftPresence } from "../presence/presence.ts";
+import { sayWhy } from "../problems.ts";
 import { documents, events, publishDraft } from "../sync/tables.ts";
 import { forgetLocal, openDraft } from "./repo.ts";
 
@@ -158,12 +159,7 @@ const session = (id: DocumentId, store: SessionStore) =>
       ),
       Effect.catch((error) =>
         Effect.sync(() =>
-          store.set({
-            error:
-              "message" in error && typeof error.message === "string"
-                ? error.message
-                : m.studio_publish_failed(),
-          }),
+          store.set({ error: sayWhy(error, m.studio_publish_failed()) }),
         ),
       ),
       Effect.ensuring(Effect.sync(() => store.set({ publishing: false }))),

@@ -247,5 +247,29 @@
       }
     }
   ],
-  "studio_here": "Her no: {names}"
+  "studio_here": "Her no: {names}",
+  "problem_signup_closed": "Påmeldinga til dette arrangementet er stengd",
+  "problem_guests_not_allowed": "Logg inn for å melde deg på dette arrangementet",
+  "problem_email_taken": "Den e-postadressa er allereie påmeld dette arrangementet",
+  "problem_dietary_missing": "Fortel oss om matpreferansane dine, eller skriv «ingen»",
+  "problem_answer_too_long": "Svaret ditt på «{question}» er for langt",
+  "problem_answer_missing": "Svar på «{question}»",
+  "problem_tick_missing": "Kryss av for «{question}» for å melde deg på",
+  "problem_answer_unknown": "Vel eitt av svara på «{question}»",
+  "problem_log_in_to_attend": "Logg inn for å melde deg på",
+  "problem_log_in_or_guest": "Logg inn, eller oppgi namn og e-postadresse",
+  "problem_missing_to_publish": "Legg til {fields} før du publiserer",
+  "problem_field_title": "ein tittel",
+  "problem_field_start": "eit starttidspunkt",
+  "problem_field_end": "eit sluttidspunkt",
+  "problem_and": "og",
+  "problem_ends_before_start": "Arrangementet må slutte etter at det startar",
+  "problem_deadline_after_start": "Påmeldingsfristen kan ikkje vere etter at arrangementet startar",
+  "problem_food_deadline_after_close": "Matfristen kan ikkje vere etter at påmeldinga stengjer",
+  "problem_question_without_text": "Alle spørsmål må ha tekst",
+  "problem_choice_without_options": "Fleirvalsspørsmål må ha minst to alternativ, alle fylte ut",
+  "problem_mixed_time_zones": "Tidspunkta må vere i same tidssone",
+  "problem_unknown_version": "Ukjend versjon",
+  "problem_team_name_length": "Namnet på eit team må ha 1 til 100 teikn",
+  "problem_team_name_taken": "Det finst allereie eit team som heiter {name}"
 }

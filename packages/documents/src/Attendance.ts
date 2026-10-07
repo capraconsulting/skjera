@@ -13,6 +13,7 @@ import type {
   Question,
 } from "./Model.ts";
 import { Notifications, type Signup, tell } from "./Notifications.ts";
+import { type Problem, refused } from "./Problems.ts";
 
 /** What someone signing up tells, besides who they are. */
 export interface SignupDetails {
@@ -37,16 +38,16 @@ export const answersFor = (
   const stored: Array<Answer> = [];
   for (const question of questions) {
     const value = answers[question.id];
-    const reject = (message: string) =>
-      Effect.fail(new SignupRejected({ message }));
+    const reject = (problem: Problem) =>
+      Effect.fail(new SignupRejected(refused(problem)));
     switch (question.type) {
       case "text": {
         const text = typeof value === "string" ? value.trim() : "";
         if (text.length > 1000) {
-          return reject(`Keep your answer to “${question.text}” shorter`);
+          return reject({ _tag: "AnswerTooLong", question: question.text });
         }
         if (text === "" && question.required) {
-          return reject(`Answer “${question.text}”`);
+          return reject({ _tag: "AnswerMissing", question: question.text });
         }
         if (text !== "") {
           stored.push({
@@ -61,7 +62,7 @@ export const answersFor = (
       case "checkbox": {
         const ticked = value === true;
         if (!ticked && question.required) {
-          return reject(`Tick “${question.text}” to sign up`);
+          return reject({ _tag: "TickMissing", question: question.text });
         }
         stored.push({
           id: question.id,
@@ -74,10 +75,10 @@ export const answersFor = (
       case "choice": {
         const option = question.options.find((each) => each.id === value);
         if (option === undefined && value !== undefined && value !== "") {
-          return reject(`Pick one of the answers to “${question.text}”`);
+          return reject({ _tag: "AnswerUnknown", question: question.text });
         }
         if (option === undefined && question.required) {
-          return reject(`Answer “${question.text}”`);
+          return reject({ _tag: "AnswerMissing", question: question.text });
         }
         if (option !== undefined) {
           stored.push({
@@ -181,9 +182,7 @@ export class Attendance extends Context.Service<
           .update(`guest-signup/${attendee}`)
           .digest("base64url");
 
-      const closed = new SignupRejected({
-        message: "Sign-up for this event has closed",
-      });
+      const closed = new SignupRejected(refused({ _tag: "SignupClosed" }));
 
       /**
        * The event's signup rules, if the audience may see it. Signing up
@@ -223,11 +222,7 @@ export class Attendance extends Context.Service<
         if (!askDietary) return Effect.succeed(null);
         const dietary = (value ?? "").trim();
         return dietary === "" || dietary.length > 500
-          ? Effect.fail(
-              new SignupRejected({
-                message: 'Tell us your dietary preferences, or write "none"',
-              }),
-            )
+          ? Effect.fail(new SignupRejected(refused({ _tag: "DietaryMissing" })))
           : Effect.succeed(dietary);
       };
 
@@ -285,9 +280,9 @@ export class Attendance extends Context.Service<
           "anyone",
         );
         if (!allowGuests) {
-          return yield* new SignupRejected({
-            message: "Log in to sign up for this event",
-          });
+          return yield* new SignupRejected(
+            refused({ _tag: "GuestsNotAllowed" }),
+          );
         }
         const dietary = yield* dietaryFor(askDietary, details.dietary);
         const answers = yield* answersFor(questions, details.answers);
@@ -309,11 +304,7 @@ export class Attendance extends Context.Service<
           sql.withTransaction,
           Effect.catchIf(SqlError.isSqlError, (error) =>
             pgCode(error) === "23505"
-              ? Effect.fail(
-                  new SignupRejected({
-                    message: "That email is already signed up for this event",
-                  }),
-                )
+              ? Effect.fail(new SignupRejected(refused({ _tag: "EmailTaken" })))
               : Effect.die(error),
           ),
         );

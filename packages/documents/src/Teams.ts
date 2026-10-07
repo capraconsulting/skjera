@@ -3,6 +3,7 @@ import { Context, Effect, Layer } from "effect";
 import { SqlClient, SqlError } from "effect/sql";
 import { InvalidTeamName, TeamNotEmpty, TeamNotFound } from "./errors.ts";
 import { Team, type TeamId } from "./Model.ts";
+import { refused } from "./Problems.ts";
 
 type Row = {
   id: TeamId;
@@ -68,9 +69,7 @@ export class Teams extends Context.Service<
         const trimmed = name.trim();
         return trimmed === "" || trimmed.length > 100
           ? Effect.fail(
-              new InvalidTeamName({
-                message: "A team name needs 1 to 100 characters",
-              }),
+              new InvalidTeamName(refused({ _tag: "TeamNameLength" })),
             )
           : Effect.succeed(trimmed);
       };
@@ -78,9 +77,7 @@ export class Teams extends Context.Service<
       const nameTaken = (name: string) => (error: SqlError.SqlError) =>
         pgCode(error) === "23505"
           ? Effect.fail(
-              new InvalidTeamName({
-                message: `There is already a team called ${name}`,
-              }),
+              new InvalidTeamName(refused({ _tag: "TeamNameTaken", name })),
             )
           : Effect.die(error);
 

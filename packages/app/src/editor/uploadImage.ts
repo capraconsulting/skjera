@@ -1,5 +1,6 @@
 import { imagesPath, imageTypes, maxImageBytes } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
+import { sayWhy } from "../problems.ts";
 
 /** What the file picker offers. */
 export const acceptedImages = imageTypes.join(",");
@@ -24,10 +25,9 @@ export const uploadImage = async (file: File): Promise<string> => {
   });
   const body = (await response.json().catch(() => ({}))) as {
     readonly url?: string;
-    readonly message?: string;
   };
   if (!response.ok || body.url === undefined) {
-    throw new Error(body.message ?? m.editor_upload_failed());
+    throw new Error(sayWhy(body, m.editor_upload_failed()));
   }
   return body.url;
 };
