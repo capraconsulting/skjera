@@ -22,7 +22,7 @@ The [Dockerfile](Dockerfile) builds one image: the server, serving the built app
 docker build -t skjera .
 ```
 
-It's configured by environment variables, as in [mise.toml](mise.toml). Needed: `DATABASE_URL` (Postgres 18 with pg_automerge; migrations run at start), `OAUTH_*` (an OIDC provider), `S3_*` (image storage), `SITE_URL`, `EMAIL_FROM`, `SIGNING_SECRET` (any long random string, the same across restarts) and `EMAIL_TRANSPORT=ses` (with `AWS_REGION` and AWS credentials) or `smtp` (with `EMAIL_SMTP_URL`). The server starts without the email settings and the secret, warning that emails aren't sent.
+It's configured by environment variables, as in [mise.toml](mise.toml). Needed: `DATABASE_URL` (Postgres 18 with pg_automerge; migrations run at start), `OAUTH_*` (an OIDC provider), `S3_*` (image storage), `SITE_URL`, `SITE_NAME`, `SITE_LOCALE` (the language for those who haven't picked one: `en`, `nb` or `nn`), `EMAIL_FROM`, `SIGNING_SECRET` (any long random string, the same across restarts) and `EMAIL_TRANSPORT=ses` (with `AWS_REGION` and AWS credentials) or `smtp` (with `EMAIL_SMTP_URL`). The server starts without the email settings and the secret, warning that emails aren't sent.
 
 In Kubernetes:
 
@@ -30,3 +30,7 @@ In Kubernetes:
 - One replica for now: background work (emails, reminders) runs on an Effect cluster in single-runner mode. More need its runners set up to find each other.
 - It stops promptly on SIGTERM.
 - WebSockets (`/automerge`, where drafts sync) have to pass through the ingress.
+
+## Languages
+
+The interface and emails are in English, Norwegian Bokmål and Nynorsk: [packages/i18n](packages/i18n), with [Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs). Each language's words are in `messages/{en,nb,nn}.json`; a test checks every message is in each. Event content stays in the language it was written in.
