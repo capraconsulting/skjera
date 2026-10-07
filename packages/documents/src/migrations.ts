@@ -200,8 +200,6 @@ export const migrations = Migrator.fromRecord({
       FOR EACH ROW EXECUTE FUNCTION documents_summarize()`,
     `UPDATE documents SET draft = draft`,
   ),
-  // pg_automerge 0.2.0 adds automerge_spans, for rich text; the image must
-  // have it (see compose.yml).
   "0008_pg_automerge_0_2": statements(`ALTER EXTENSION pg_automerge UPDATE`),
   "0009_rich_body": statements(
     // The published body keeps its rich text structure: automerge_spans,

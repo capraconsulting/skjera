@@ -2,7 +2,7 @@
 
 To work on Skjera you need [mise](https://mise.jdx.dev) and Docker installed. mise installs the right versions of Node and pnpm, and Docker runs the local services.
 
-Until pg_automerge publishes its Docker image, the local Postgres is built from a checkout of [pg-automerge](../pg-automerge) next to this repository.
+The local Postgres is [pg_automerge](https://github.com/TheKnarf/pg-automerge)'s released image (Postgres 18 with the extension), pinned in [compose.yml](compose.yml). In Kubernetes, CloudNativePG can mount its extension image (`ghcr.io/theknarf/pg-automerge-cnpg`) instead.
 
 Table syncing uses [snapsync](packages/snapsync), pure SQL in this repository, which the server's migrations install: Postgres needs nothing of ours beyond pg_automerge.
 

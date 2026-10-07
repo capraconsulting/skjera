@@ -8,9 +8,8 @@
 # there are no node_modules, and it runs on a distroless base with just the
 # node binary, no shell or package manager.
 
-ARG NODE_VERSION=24.21.0
-
-FROM node:${NODE_VERSION}-bookworm-slim AS node
+# Pinned by digest, as the base below: the same build everywhere.
+FROM node:24.21.0-bookworm-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20 AS node
 
 FROM node AS build
 RUN npm install --global pnpm@12.8.1
