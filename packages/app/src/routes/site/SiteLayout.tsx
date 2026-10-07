@@ -1,8 +1,8 @@
 import { m } from "@skjera/i18n/messages";
 import { LogIn } from "lucide-react";
-import { Link, Outlet, useLoaderData } from "react-router";
+import { NavLink, Outlet, useLoaderData } from "react-router";
 import { Shell } from "../../components/Shell.tsx";
-import { SignedIn } from "../../components/SignedIn.tsx";
+import { UserMenu } from "../../components/UserMenu.tsx";
 import { fetchMe, loginUrl } from "../../site/client.ts";
 
 export const siteLoader = () => fetchMe();
@@ -12,6 +12,9 @@ export function SiteLayout() {
   const me = useLoaderData<typeof siteLoader>();
   return (
     <Shell
+      links={
+        me === null ? null : <NavLink to="/studio">{m.common_studio()}</NavLink>
+      }
       actions={
         me === null ? (
           <a href={loginUrl("/studio")}>
@@ -19,10 +22,7 @@ export function SiteLayout() {
             <LogIn size={16} strokeWidth={1.5} aria-hidden="true" />
           </a>
         ) : (
-          <>
-            <Link to="/studio">{m.common_studio()}</Link>
-            <SignedIn me={me} />
-          </>
+          <UserMenu me={me} />
         )
       }
     >

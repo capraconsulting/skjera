@@ -276,5 +276,16 @@
   "site_today_at": "I dag kl. {time}",
   "site_open_to_all": "Åpent for alle",
   "site_show_more": "Se flere arrangementer",
-  "site_all_events": "Alle arrangementer"
+  "site_all_events": "Alle arrangementer",
+  "common_account_menu": "Kontomeny",
+  "account_settings": "Kontoinnstillinger",
+  "account_profile": "Profil",
+  "account_name": "Navn",
+  "account_email": "E-post",
+  "account_profile_hint": "Navnet og e-postadressen din kommer fra der du logger inn, og endres der.",
+  "account_language_hint": "Nettstedet er på dette språket, og det samme er e-poster om arrangementer du melder deg på.",
+  "account_theme": "Tema",
+  "account_theme_system": "Samme som systemet",
+  "account_theme_light": "Lys",
+  "account_theme_dark": "Mørk"
 }

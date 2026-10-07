@@ -36,12 +36,18 @@ test("logging in from the site leads to the studio and back", async ({
   await page.getByRole("link", { name: "Log in" }).click();
   await signInAtDex(page, "alice@example.com");
   await expect(page).toHaveURL(/\/studio\/teams$/);
-  await expect(page.getByTestId("me")).toHaveText("alice@example.com");
+  await expect(page.getByTestId("me")).toHaveAttribute(
+    "title",
+    "alice@example.com",
+  );
 
   await page.getByRole("link", { name: "Skjera" }).click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("link", { name: "Studio" })).toBeVisible();
-  await expect(page.getByTestId("me")).toHaveText("alice@example.com");
+  await expect(page.getByTestId("me")).toHaveAttribute(
+    "title",
+    "alice@example.com",
+  );
 });
 
 test("the theme follows the system until the user picks one", async ({
@@ -218,4 +224,48 @@ test("sign-up closes at the deadline, in the event's time zone", async ({
 
   await deleteEvent(alice, event.id);
   await deleteTeam(alice, team);
+});
+
+test("the account menu leads to settings, and logs out", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  // In the studio, its link says so; on the site, it doesn't.
+  const studio = alice.getByRole("link", { name: "Studio" });
+  await expect(studio).toHaveAttribute("aria-current", "page");
+
+  // Who's signed in: their name from the login, and their email.
+  await alice.getByRole("button", { name: "Account menu" }).click();
+  const menu = alice.locator(":popover-open");
+  await expect(menu).toContainText("alice");
+  await expect(menu).toContainText("alice@example.com");
+  await menu.getByRole("link", { name: "Account settings" }).click();
+  await expect(alice).toHaveURL(/\/account$/);
+  await expect(studio).not.toHaveAttribute("aria-current");
+
+  const page = alice.getByRole("main");
+  await expect(
+    page.getByRole("heading", { name: "Account settings" }),
+  ).toBeVisible();
+  await expect(page).toContainText("alice@example.com");
+
+  // The theme: picked, or the system's again.
+  const root = alice.locator("html");
+  await page.getByRole("radio", { name: "Dark" }).check();
+  await expect(root).toHaveAttribute("data-theme", "dark");
+  await page.getByRole("radio", { name: "Same as the system" }).check();
+  await expect(root).not.toHaveAttribute("data-theme");
+
+  // The language: the page comes back in it.
+  await page.getByRole("radio", { name: "Nynorsk" }).check();
+  await expect(root).toHaveAttribute("lang", "nn");
+  await expect(
+    alice.getByRole("heading", { name: "Kontoinnstillingar" }),
+  ).toBeVisible();
+  await alice.getByRole("radio", { name: "English" }).check();
+  await expect(root).toHaveAttribute("lang", "en");
+
+  await alice.getByRole("button", { name: "Account menu" }).click();
+  await alice.getByRole("button", { name: "Log out" }).click();
+  await expect(alice.getByRole("link", { name: "Log in" })).toBeVisible();
 });

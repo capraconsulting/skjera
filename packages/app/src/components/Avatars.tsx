@@ -3,7 +3,8 @@ import { getLocale } from "@skjera/i18n/runtime";
 import type { PresenceEntry } from "../presence/presence.ts";
 import styles from "./Avatars.module.css";
 
-const initials = (name: string) => {
+/** "AA" for "Alice Andersen"; "AE" for "alice@example.com". */
+export const initials = (name: string) => {
   const words = name.split(/[\s@._-]+/).filter(Boolean);
   const [first, second] = words;
   return `${first?.[0] ?? "?"}${second?.[0] ?? ""}`;

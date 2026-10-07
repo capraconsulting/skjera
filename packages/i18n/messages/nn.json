@@ -276,5 +276,16 @@
   "site_today_at": "I dag kl. {time}",
   "site_open_to_all": "Ope for alle",
   "site_show_more": "Sjå fleire arrangement",
-  "site_all_events": "Alle arrangement"
+  "site_all_events": "Alle arrangement",
+  "common_account_menu": "Kontomeny",
+  "account_settings": "Kontoinnstillingar",
+  "account_profile": "Profil",
+  "account_name": "Namn",
+  "account_email": "E-post",
+  "account_profile_hint": "Namnet og e-postadressa di kjem frå der du loggar inn, og blir endra der.",
+  "account_language_hint": "Nettstaden er på dette språket, og det same er e-postar om arrangement du melder deg på.",
+  "account_theme": "Tema",
+  "account_theme_system": "Same som systemet",
+  "account_theme_light": "Ljos",
+  "account_theme_dark": "Mørk"
 }

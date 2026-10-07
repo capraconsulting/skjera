@@ -40,16 +40,25 @@
   text-decoration: none;
 }
 
+/* Links beside the name: where one can go, and where one is. */
 .nav a:not(.brand) {
+  padding-block: 0.25rem;
   color: var(--color-text-muted);
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   font-weight: 500;
   text-decoration: none;
+  text-underline-offset: 0.5rem;
+  text-decoration-thickness: 2px;
 }
 
-.nav a:not(.brand):hover,
+.nav a:not(.brand):hover {
+  color: var(--color-text);
+}
+
 .nav a[aria-current="page"] {
   color: var(--color-text);
+  font-weight: 600;
+  text-decoration-line: underline;
 }
 
 /* Links among the actions look like the buttons beside them. */
@@ -94,9 +103,10 @@
   border-bottom-color: var(--color-border);
 }
 
+/* Shorter, but as wide as the site's: the name and links stay put. */
 .filled .bar {
   min-height: 3.5rem;
-  padding: 0.5rem 1.5rem;
+  padding-block: 0.5rem;
 }
 
 .filled .brand {

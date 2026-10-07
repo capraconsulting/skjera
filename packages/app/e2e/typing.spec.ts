@@ -136,6 +136,7 @@ test("logging out deletes the local copies", async ({ browser }) => {
   await expect(alice.getByTestId("status")).toContainText("Saved");
   await expect.poll(() => localRecords(alice)).toBeGreaterThan(0);
 
+  await alice.getByRole("button", { name: "Account menu" }).click();
   await alice.getByRole("button", { name: "Log out" }).click();
   await expect(alice.getByTestId("me")).toHaveCount(0);
   expect(await localRecords(alice)).toBe(0);

@@ -23,7 +23,7 @@ export const signedIn = async (browser: Browser, email: string) => {
   const page = await visitor(browser);
   await page.goto("/studio/teams");
   await signInAtDex(page, email);
-  await expect(page.getByTestId("me")).toHaveText(email);
+  await expect(page.getByTestId("me")).toHaveAttribute("title", email);
   return page;
 };
 

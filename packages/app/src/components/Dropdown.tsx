@@ -5,17 +5,27 @@ import {
   useId,
   useRef,
 } from "react";
+import { Link } from "react-router";
 import styles from "./Dropdown.module.css";
 import { placeUnder } from "./popover.ts";
 
 /**
- * A "⋯" button that opens its content in a native popover, under the button
- * and aligned to its right edge. The browser closes it on Escape and on
- * clicks outside; `close` closes it from inside, e.g. after an action.
+ * A button ("⋯" unless given another face) that opens its content in a
+ * native popover, under the button and aligned to its right edge. The
+ * browser closes it on Escape and on clicks outside; `close` closes it from
+ * inside, e.g. after an action.
  */
 export function Dropdown(props: {
   /** Accessible name of the button, e.g. "Team options". */
   readonly label: string;
+  /** What the button shows, instead of "⋯", and how it looks then. */
+  readonly trigger?: {
+    readonly content: ReactNode;
+    readonly className: string | undefined;
+    /** Shown on hover. */
+    readonly title?: string;
+    readonly testId?: string;
+  };
   /** Called when the dropdown opens or closes. */
   readonly onToggle?: (open: boolean) => void;
   readonly children: ReactNode | ((close: () => void) => ReactNode);
@@ -32,11 +42,12 @@ export function Dropdown(props: {
         ref={trigger}
         type="button"
         popoverTarget={id}
-        className={styles.trigger}
+        className={props.trigger?.className ?? styles.trigger}
         aria-label={props.label}
-        title={props.label}
+        title={props.trigger?.title ?? props.label}
+        data-testid={props.trigger?.testId}
       >
-        <DotsIcon />
+        {props.trigger?.content ?? <DotsIcon />}
       </button>
       <div
         ref={popover}
@@ -49,7 +60,7 @@ export function Dropdown(props: {
           placeUnder(event.currentTarget, trigger.current, "end");
           // Start with the first field or item, for keyboard users.
           event.currentTarget
-            .querySelector<HTMLElement>("input, button:not(:disabled)")
+            .querySelector<HTMLElement>("input, a, button:not(:disabled)")
             ?.focus();
         }}
       >
@@ -76,6 +87,19 @@ export function DropdownItem({
         .join(" ")}
       {...props}
     />
+  );
+}
+
+/** A link in a dropdown, to another page. */
+export function DropdownLink(props: {
+  readonly to: string;
+  readonly onClick?: () => void;
+  readonly children: ReactNode;
+}) {
+  return (
+    <Link to={props.to} className={styles.item} onClick={props.onClick}>
+      {props.children}
+    </Link>
   );
 }
 

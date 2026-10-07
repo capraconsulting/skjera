@@ -276,5 +276,16 @@
   "site_today_at": "Today at {time}",
   "site_open_to_all": "Open to all",
   "site_show_more": "Show more events",
-  "site_all_events": "All events"
+  "site_all_events": "All events",
+  "common_account_menu": "Account menu",
+  "account_settings": "Account settings",
+  "account_profile": "Profile",
+  "account_name": "Name",
+  "account_email": "Email",
+  "account_profile_hint": "Your name and email come from where you log in, and are changed there.",
+  "account_language_hint": "The site is in it, and so are emails about events you sign up for.",
+  "account_theme": "Theme",
+  "account_theme_system": "Same as the system",
+  "account_theme_light": "Light",
+  "account_theme_dark": "Dark"
 }

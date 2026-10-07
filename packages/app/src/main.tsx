@@ -7,6 +7,7 @@ import { createBrowserRouter, Outlet, redirect } from "react-router";
 import { RouterProvider } from "react-router/dom";
 import { Loading } from "./components/Loading.tsx";
 import { loadSite } from "./i18n.ts";
+import { Account, accountLoader } from "./routes/account/Account.tsx";
 import { Playground } from "./routes/Playground.tsx";
 import {
   EventError,
@@ -60,6 +61,8 @@ const router = createBrowserRouter([
             loader: eventLoader,
             ErrorBoundary: EventError,
           },
+          // The signed-in user's own settings.
+          { path: "account", Component: Account, loader: accountLoader },
         ],
       },
       // The studio: everything else, behind login. Its columns nest: teams,
