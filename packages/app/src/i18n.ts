@@ -1,0 +1,47 @@
+import type { Site } from "@skjera/documents/api";
+import {
+  baseLocale,
+  defineCustomClientStrategy,
+  getLocale,
+  isLocale,
+  type Locale,
+  setLocale,
+} from "@skjera/i18n/runtime";
+
+// The interface's language: the one picked here (a cookie), else the site's
+// (SITE_LOCALE, from /api/site), else English. Picking one reloads the page
+// in it. Event content is in whatever language it was written in.
+
+let site: Site = { name: "Skjera", locale: baseLocale };
+
+defineCustomClientStrategy("custom-site", {
+  getLocale: () => site.locale,
+  // The site's stays: a pick goes in the cookie.
+  setLocale: () => {},
+});
+
+/** Loads the site's name and language: before the first render. */
+export const loadSite = async () => {
+  try {
+    const response = await fetch("/api/site");
+    if (response.ok) {
+      const loaded = (await response.json()) as Site;
+      if (isLocale(loaded.locale)) site = loaded;
+    }
+  } catch {
+    // Offline or failing: English, and the name it was built with.
+  }
+  document.documentElement.lang = getLocale();
+};
+
+/** What the site is called: SITE_NAME. */
+export const siteName = () => site.name;
+
+/** The languages, each named in itself. */
+export const languages: ReadonlyArray<{ locale: Locale; name: string }> = [
+  { locale: "en", name: "English" },
+  { locale: "nb", name: "Norsk bokmål" },
+  { locale: "nn", name: "Norsk nynorsk" },
+];
+
+export { getLocale, setLocale };

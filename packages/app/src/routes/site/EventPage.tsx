@@ -1,4 +1,5 @@
 import type { DocumentId } from "@skjera/documents/api";
+import { m } from "@skjera/i18n/messages";
 import { eq, useLiveQuery } from "@tanstack/react-db";
 import {
   data,
@@ -52,8 +53,6 @@ const useSignups = (id: DocumentId) =>
     [id],
   ).data;
 
-const missing = "This event doesn't exist, or isn't published.";
-
 export function EventPage() {
   const { id } = useLoaderData<typeof eventLoader>();
   const signups = useSignups(id);
@@ -67,7 +66,9 @@ export function EventPage() {
     [id],
   ).data;
   // Unpublished, deleted or hidden since the page opened.
-  if (event === undefined) return <p className={styles.missing}>{missing}</p>;
+  if (event === undefined) {
+    return <p className={styles.missing}>{m.site_event_missing()}</p>;
+  }
   return (
     <article className={styles.event}>
       {event.cover === null ? null : (
@@ -85,12 +86,12 @@ export function EventPage() {
         {event.isPublic ? null : (
           <>
             {" "}
-            <Badge tone="neutral">Members only</Badge>
+            <Badge tone="neutral">{m.common_members_only()}</Badge>
           </>
         )}
       </p>
       {event.tags.length === 0 ? null : (
-        <ul className={styles.tags} aria-label="Tags">
+        <ul className={styles.tags} aria-label={m.site_tags()}>
           {event.tags.map((tag) => (
             <li key={tag.toLowerCase()}>
               <Link to={`/?tag=${encodeURIComponent(tag)}`}>{tag}</Link>
@@ -100,7 +101,7 @@ export function EventPage() {
       )}
       {event.askDietary && event.food.trim() !== "" ? (
         <p className={styles.food}>
-          <span className={styles.foodLabel}>Food</span> {event.food}
+          <span className={styles.foodLabel}>{m.site_food()}</span> {event.food}
         </p>
       ) : null}
       <div className={styles.body} data-testid="event-body">
@@ -120,8 +121,8 @@ export function EventError() {
   return (
     <p className={styles.missing}>
       {isRouteErrorResponse(error) && error.status === 404
-        ? missing
-        : "Something went wrong."}
+        ? m.site_event_missing()
+        : m.common_something_wrong()}
     </p>
   );
 }

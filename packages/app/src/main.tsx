@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import { createBrowserRouter, Outlet, redirect } from "react-router";
 import { RouterProvider } from "react-router/dom";
 import { Loading } from "./components/Loading.tsx";
+import { loadSite } from "./i18n.ts";
 import { Playground } from "./routes/Playground.tsx";
 import {
   EventError,
@@ -28,6 +29,8 @@ import "./global.css";
 // The slim build loads Automerge's WebAssembly explicitly, so Vite needs no
 // wasm plugin. @automerge/prosemirror imports the same slim entry point.
 await initializeWasm(wasmUrl);
+// The site's name and language, before anything shows.
+await loadSite();
 
 /** Around every page: state kept in the URL's query, with nuqs. */
 const Root = () => (

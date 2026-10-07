@@ -1,3 +1,4 @@
+import { m } from "@skjera/i18n/messages";
 import type { Identity } from "@skjera/oauth/api";
 import { forgetLocalCopies } from "../documents/repo.ts";
 import { Button } from "./Button.tsx";
@@ -24,7 +25,7 @@ export function SignedIn({ me }: { readonly me: Identity }) {
             .then(() => form.submit());
         }}
       >
-        <Button type="submit">Log out</Button>
+        <Button type="submit">{m.common_log_out()}</Button>
       </form>
     </>
   );

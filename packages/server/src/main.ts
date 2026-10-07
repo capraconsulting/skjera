@@ -223,6 +223,17 @@ const App = Layer.unwrap(
   }),
 );
 
+/** The site's name and language, for the app (see Documents.Site). */
+const site = Layer.unwrap(
+  Effect.map(Documents.SiteConfig, (config) =>
+    HttpRouter.add(
+      "GET",
+      "/api/site",
+      HttpServerResponse.json(Documents.Site.make(config)),
+    ),
+  ),
+);
+
 /** Ready to serve: the database answers. (`/health`: the process does.) */
 const ready = HttpRouter.add(
   "GET",
@@ -255,6 +266,7 @@ const Routes = Layer.mergeAll(
   Documents.Images.layerHttp,
   HttpRouter.add("GET", "/health", HttpServerResponse.text("ok")),
   ready,
+  site,
   App,
 ).pipe(Layer.provideMerge(OAuth.routes));
 

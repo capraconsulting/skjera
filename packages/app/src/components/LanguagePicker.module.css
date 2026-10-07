@@ -1,0 +1,20 @@
+.picker {
+  min-height: 2rem;
+  padding: 0 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.picker:hover {
+  color: var(--color-text);
+}
+
+.picker:focus {
+  border-color: var(--color-focus);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-focus) 25%, transparent);
+}

@@ -1,4 +1,8 @@
-const relative = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+import { m } from "@skjera/i18n/messages";
+import { getLocale } from "@skjera/i18n/runtime";
+
+// Dates and times in the interface's language (see i18n.ts), not the
+// browser's.
 
 const units: ReadonlyArray<[Intl.RelativeTimeFormatUnit, number]> = [
   ["year", 365 * 24 * 3600],
@@ -12,12 +16,15 @@ const units: ReadonlyArray<[Intl.RelativeTimeFormatUnit, number]> = [
 /** "just now", "5 minutes ago", "yesterday", … */
 export const timeAgo = (date: Date, now = new Date()): string => {
   const seconds = (date.getTime() - now.getTime()) / 1000;
+  const relative = new Intl.RelativeTimeFormat(getLocale(), {
+    numeric: "auto",
+  });
   for (const [unit, size] of units) {
     if (Math.abs(seconds) >= size) {
       return relative.format(Math.round(seconds / size), unit);
     }
   }
-  return "just now";
+  return m.common_just_now();
 };
 
 /** The viewer's time zone: "Europe/Oslo". */
@@ -26,12 +33,15 @@ export const localTimeZone = () =>
 
 /** "Norway Time", to say what zone times are shown in. */
 export const timeZoneName = (timeZone: string, at = new Date()): string =>
-  new Intl.DateTimeFormat(undefined, { timeZone, timeZoneName: "shortGeneric" })
+  new Intl.DateTimeFormat(getLocale(), {
+    timeZone,
+    timeZoneName: "shortGeneric",
+  })
     .formatToParts(at)
     .find((part) => part.type === "timeZoneName")?.value ?? timeZone;
 
 const dateTime = (timeZone: string) =>
-  new Intl.DateTimeFormat(undefined, {
+  new Intl.DateTimeFormat(getLocale(), {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -63,7 +73,7 @@ export const formatDateTime = (at: Date, timeZone: string): string =>
 
 /** "15 Oct 2026", the day it is in the given zone. */
 export const formatDateIn = (at: Date, timeZone: string): string =>
-  at.toLocaleDateString(undefined, {
+  at.toLocaleDateString(getLocale(), {
     day: "numeric",
     month: "short",
     year: "numeric",

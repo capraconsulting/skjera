@@ -4,6 +4,8 @@ import type {
   EventRow,
   Question,
 } from "@skjera/documents/api";
+import { m } from "@skjera/i18n/messages";
+import { getLocale } from "@skjera/i18n/runtime";
 import { type FormEvent, useEffect, useState } from "react";
 import { Button } from "../../components/Button.tsx";
 import { Input } from "../../components/Input.tsx";
@@ -80,6 +82,8 @@ export function Attend(props: {
     const form = new FormData(submitted.currentTarget);
     const dietary = form.get("dietary");
     const signup: Signup = {
+      // Emails to them are in it.
+      locale: getLocale(),
       ...(dietary === null ? {} : { dietary: String(dietary) }),
       answers: answersFrom(event.questions, form),
       ...(asGuest
@@ -146,8 +150,8 @@ export function Attend(props: {
 
   const count =
     signups.length === 0
-      ? "Nobody has signed up yet."
-      : `${signups.length} attending`;
+      ? m.attend_nobody()
+      : m.attend_count({ count: signups.length });
   const failure =
     error === null ? null : (
       <p role="alert" className={styles.error}>
@@ -157,23 +161,25 @@ export function Attend(props: {
 
   if (closed) {
     return (
-      <section className={styles.box} aria-label="Attendance">
+      <section className={styles.box} aria-label={m.attend_region()}>
         <p className={styles.count}>{count}</p>
         {mine !== undefined || guest !== null ? (
           <p className={styles.status}>
-            {mine !== undefined ? "You're attending." : "You're signed up."}
+            {mine !== undefined
+              ? m.attend_you_attending()
+              : m.attend_you_signed_up()}
           </p>
         ) : null}
-        <p className={styles.closes}>Sign-up has closed.</p>
+        <p className={styles.closes}>{m.attend_closed()}</p>
       </section>
     );
   }
 
   const closes = (
     <p className={styles.closes}>
-      Sign-up closes {formatDateTime(closesAt, event.timeZone)}.
+      {m.attend_closes({ when: formatDateTime(closesAt, event.timeZone) })}
       {asksDietary && event.foodDeadline !== null
-        ? ` Dietary preferences by ${formatDateTime(event.foodDeadline, event.timeZone)}.`
+        ? ` ${m.attend_dietary_by({ when: formatDateTime(event.foodDeadline, event.timeZone) })}`
         : null}
     </p>
   );
@@ -192,37 +198,41 @@ export function Attend(props: {
       <form
         className={styles.form}
         onSubmit={(submitted) => change(submitted, id)}
-        aria-label="Your answers"
+        aria-label={m.attend_your_answers()}
       >
         {asked(given)}
         <div className={styles.row}>
           <Button type="submit" variant="primary">
-            Save changes
+            {m.attend_save_changes()}
           </Button>
-          <Button onClick={() => setEditing(false)}>Keep as is</Button>
+          <Button onClick={() => setEditing(false)}>{m.attend_keep()}</Button>
         </div>
       </form>
     ) : (
       <div className={styles.row}>
         <p className={styles.status}>{status}</p>
         {changeable ? (
-          <Button onClick={() => setEditing(true)}>Change answers</Button>
+          <Button onClick={() => setEditing(true)}>
+            {m.attend_change_answers()}
+          </Button>
         ) : null}
         <Button onClick={() => cancel(id)}>
-          {mine !== undefined ? "Cancel attendance" : "Cancel my signup"}
+          {mine !== undefined
+            ? m.attend_cancel_attendance()
+            : m.attend_cancel_signup()}
         </Button>
       </div>
     );
 
   if (props.signedIn) {
     return (
-      <section className={styles.box} aria-label="Attendance">
+      <section className={styles.box} aria-label={m.attend_region()}>
         <p className={styles.count}>{count}</p>
         {closes}
         {mine !== undefined ? (
           signedUp(
             mine.id,
-            "You're attending.",
+            m.attend_you_attending(),
             given ?? {
               ...(mine.details?.dietary == null
                 ? {}
@@ -243,7 +253,7 @@ export function Attend(props: {
             {asked()}
             <div className={styles.row}>
               <Button type="submit" variant="primary">
-                Attend
+                {m.attend_attend()}
               </Button>
             </div>
           </form>
@@ -255,18 +265,20 @@ export function Attend(props: {
 
   if (!event.allowGuests) {
     return (
-      <section className={styles.box} aria-label="Attendance">
+      <section className={styles.box} aria-label={m.attend_region()}>
         <p className={styles.count}>{count}</p>
         {closes}
         <p className={styles.row}>
-          <a href={loginUrl(`/events/${event.id}`)}>Log in to attend</a>
+          <a href={loginUrl(`/events/${event.id}`)}>
+            {m.attend_log_in_to_attend()}
+          </a>
         </p>
       </section>
     );
   }
 
   return (
-    <section className={styles.box} aria-label="Attendance">
+    <section className={styles.box} aria-label={m.attend_region()}>
       <p className={styles.count}>{count}</p>
       {closes}
       {guest === null ? (
@@ -277,30 +289,31 @@ export function Attend(props: {
           <div className={styles.fields}>
             <Input
               name="name"
-              aria-label="Your name"
-              placeholder="Your name"
+              aria-label={m.attend_your_name()}
+              placeholder={m.attend_your_name()}
               required
             />
             <Input
               name="email"
               type="email"
-              aria-label="Your email"
-              placeholder="Your email"
+              aria-label={m.attend_your_email()}
+              placeholder={m.attend_your_email()}
               required
             />
           </div>
           {asked()}
           <div className={styles.row}>
             <Button type="submit" variant="primary">
-              Sign up
+              {m.attend_sign_up()}
             </Button>
             <span>
-              or <a href={loginUrl(`/events/${event.id}`)}>log in</a>
+              {m.attend_or()}{" "}
+              <a href={loginUrl(`/events/${event.id}`)}>{m.attend_log_in()}</a>
             </span>
           </div>
         </form>
       ) : (
-        signedUp(guest.id, "You're signed up.", guest.given ?? {})
+        signedUp(guest.id, m.attend_you_signed_up(), guest.given ?? {})
       )}
       {failure}
     </section>
@@ -320,8 +333,8 @@ const DietaryInput = (props: {
   <Input
     name="dietary"
     defaultValue={props.defaultValue}
-    aria-label="Dietary preferences"
-    placeholder={'Dietary preferences (write "none" if you have none)'}
+    aria-label={m.attend_dietary()}
+    placeholder={m.attend_dietary_placeholder()}
     required
     maxLength={500}
   />
@@ -358,7 +371,7 @@ function QuestionInputs(props: {
             <label htmlFor={field(question)}>
               {question.text}
               {question.required ? null : (
-                <span className={styles.optional}> (optional)</span>
+                <span className={styles.optional}> {m.attend_optional()}</span>
               )}
             </label>
             <Input
@@ -392,7 +405,7 @@ function QuestionInputs(props: {
             <legend>
               {question.text}
               {question.required ? null : (
-                <span className={styles.optional}> (optional)</span>
+                <span className={styles.optional}> {m.attend_optional()}</span>
               )}
             </legend>
             {question.options.map((option) => (

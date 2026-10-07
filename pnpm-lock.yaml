@@ -334,6 +334,9 @@ importers:
       '@skjera/documents':
         specifier: workspace:*
         version: link:../documents
+      '@skjera/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       '@skjera/oauth':
         specifier: workspace:*
         version: link:../oauth

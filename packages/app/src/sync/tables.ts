@@ -7,6 +7,7 @@ import {
   DocumentsApi,
   type EventRow,
   type GuestDetails,
+  type Locale,
   PublicSyncApi,
   SyncApi,
   type TagRow,
@@ -170,7 +171,7 @@ export const attendees = syncedTable({
   write: {
     // Signing up, as the signed-in user or as a guest (see `Signup`).
     insert: (attendee, metadata) => {
-      const { guest, dietary, answers } = metadata as Signup;
+      const { guest, dietary, answers, locale } = metadata as Signup;
       return sendPublic((client) =>
         client.events
           .attend({
@@ -180,6 +181,7 @@ export const attendees = syncedTable({
               ...(guest === undefined ? {} : { guest }),
               ...(dietary === undefined ? {} : { dietary }),
               ...(answers === undefined ? {} : { answers }),
+              ...(locale === undefined ? {} : { locale }),
             },
           })
           .pipe(
@@ -279,4 +281,6 @@ export type Signup = {
   readonly dietary?: string;
   /** Answers to the event's questions, by question id. */
   readonly answers?: Answers;
+  /** The language they signed up in: emails to them are in it. */
+  readonly locale?: Locale;
 };

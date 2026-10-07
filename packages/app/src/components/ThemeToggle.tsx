@@ -1,17 +1,14 @@
+import { m } from "@skjera/i18n/messages";
 import { useTheme } from "../theme.ts";
 import { Button } from "./Button.tsx";
 
 /** Switches between the light and dark theme, and remembers the choice. */
 export function ThemeToggle() {
   const { theme, toggle } = useTheme();
-  const next = theme === "dark" ? "light" : "dark";
+  const label =
+    theme === "dark" ? m.theme_switch_light() : m.theme_switch_dark();
   return (
-    <Button
-      variant="ghost"
-      onClick={toggle}
-      aria-label={`Switch to ${next} mode`}
-      title={`Switch to ${next} mode`}
-    >
+    <Button variant="ghost" onClick={toggle} aria-label={label} title={label}>
       {theme === "dark" ? <SunIcon /> : <MoonIcon />}
     </Button>
   );

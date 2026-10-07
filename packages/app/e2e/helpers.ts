@@ -5,6 +5,8 @@ import {
   type Page,
   type WebSocketRoute,
 } from "@playwright/test";
+import { m } from "@skjera/i18n/messages";
+import { locales } from "@skjera/i18n/runtime";
 
 /** A browser of its own, with no session. */
 export const visitor = async (browser: Browser) =>
@@ -144,14 +146,17 @@ export const deleteEvent = async (page: Page, id: string) => {
 
   await page.goto(`/events/${id}`);
   await expect(page.getByText("isn't published")).toBeVisible();
-  // (Titles are unique: see publishedEvent. Mailpit matches subjects by
-  // what they contain, "Signup cancelled: …" too.)
-  const subject = `Cancelled: ${eventTitle}`;
+  // (Titles are unique: see publishedEvent.) In each one's language.
+  const subjects: ReadonlyArray<string> = locales.map((locale) =>
+    m.email_cancelled_subject({ title: eventTitle }, { locale }),
+  );
   const cancelled = async () => {
+    // Mailpit matches subjects by what they contain: "Signup cancelled: …"
+    // too.
     const { messages } = (await mailpit(
-      `/search?query=${encodeURIComponent(`subject:"${subject}"`)}`,
+      `/search?query=${encodeURIComponent(`subject:"${eventTitle}"`)}`,
     )) as { messages: ReadonlyArray<MailpitSummary> };
-    return messages.filter((message) => message.Subject === subject);
+    return messages.filter((message) => subjects.includes(message.Subject));
   };
   if (signedUp > 0) {
     await expect.poll(async () => (await cancelled()).length).toBe(signedUp);

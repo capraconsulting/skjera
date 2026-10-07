@@ -1,3 +1,4 @@
+import { m } from "@skjera/i18n/messages";
 import { Link, Outlet, useLoaderData } from "react-router";
 import { Shell } from "../../components/Shell.tsx";
 import { SignedIn } from "../../components/SignedIn.tsx";
@@ -12,10 +13,10 @@ export function SiteLayout() {
     <Shell
       actions={
         me === null ? (
-          <a href={loginUrl("/studio")}>Log in</a>
+          <a href={loginUrl("/studio")}>{m.common_log_in()}</a>
         ) : (
           <>
-            <Link to="/studio">Studio</Link>
+            <Link to="/studio">{m.common_studio()}</Link>
             <SignedIn me={me} />
           </>
         )

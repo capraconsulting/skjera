@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
+import { siteName } from "../i18n.ts";
+import { LanguagePicker } from "./LanguagePicker.tsx";
 import styles from "./Shell.module.css";
 import { ThemeToggle } from "./ThemeToggle.tsx";
 
 /**
- * Page frame: "Skjera" (always to the site's front page) and any links on the
- * left, actions and the theme toggle on the right.
+ * Page frame: the site's name (always to its front page) and any links on
+ * the left; actions, the language and the theme toggle on the right.
  */
 export function Shell(props: {
   readonly links?: ReactNode;
@@ -20,12 +22,13 @@ export function Shell(props: {
         <div className={styles.bar}>
           <nav className={styles.nav}>
             <Link to="/" className={styles.brand}>
-              Skjera
+              {siteName()}
             </Link>
             {props.links}
           </nav>
           <div className={styles.actions}>
             {props.actions}
+            <LanguagePicker />
             <ThemeToggle />
           </div>
         </div>

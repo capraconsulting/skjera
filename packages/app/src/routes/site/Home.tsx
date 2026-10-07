@@ -1,4 +1,6 @@
 import type { EventRow, RichText } from "@skjera/documents/api";
+import { m } from "@skjera/i18n/messages";
+import { getLocale } from "@skjera/i18n/runtime";
 import { useLiveQuery } from "@tanstack/react-db";
 import { useQueryState } from "nuqs";
 import { useEffect, useId, useState } from "react";
@@ -42,7 +44,7 @@ export function Home() {
   const active = events.filter((event) => event.endsAt > now);
   // Filters only for what's coming up or going on.
   const tags = uniqueTags(active.flatMap((event) => event.tags)).toSorted(
-    (a, b) => a.localeCompare(b),
+    (a, b) => a.localeCompare(b, getLocale()),
   );
   const tag =
     picked === null
@@ -63,24 +65,24 @@ export function Home() {
   if (events.length === 0) {
     return (
       <div className={styles.home}>
-        <h1 className={styles.heading}>Events</h1>
-        <p className={styles.empty}>Nothing has been published yet.</p>
+        <h1 className={styles.heading}>{m.site_events()}</h1>
+        <p className={styles.empty}>{m.site_nothing_published()}</p>
       </div>
     );
   }
 
   return (
     <div className={styles.home}>
-      <h1 className={styles.heading}>Events</h1>
+      <h1 className={styles.heading}>{m.site_events()}</h1>
       {tags.length === 0 && tag === null ? null : (
-        <nav className={styles.filters} aria-label="Filter by tag">
+        <nav className={styles.filters} aria-label={m.site_filter_by_tag()}>
           <button
             type="button"
             className={styles.filter}
             aria-pressed={tag === null}
             onClick={() => pick(null)}
           >
-            All
+            {m.site_filter_all()}
           </button>
           {(tag === null || tags.some((each) => sameTag(each, tag))
             ? tags
@@ -101,17 +103,17 @@ export function Home() {
         </nav>
       )}
       <Section
-        title="Upcoming and ongoing"
+        title={m.site_upcoming()}
         events={upcoming}
         now={now}
         empty={
           tag === null
-            ? "Nothing coming up right now."
-            : `Nothing tagged “${tag}” coming up.`
+            ? m.site_nothing_upcoming()
+            : m.site_nothing_upcoming_tagged({ tag })
         }
       />
       {past.length === 0 ? null : (
-        <Section title="Past" events={past} now={now} empty="" />
+        <Section title={m.site_past()} events={past} now={now} empty="" />
       )}
     </div>
   );
@@ -163,8 +165,12 @@ function Teaser(props: { readonly event: EventRow; readonly now: Date }) {
         <Link to={`/events/${event.id}`}>{event.title}</Link>
       </h3>
       <div className={styles.badges}>
-        {ongoing ? <Badge tone="success">Happening now</Badge> : null}
-        {event.isPublic ? null : <Badge tone="neutral">Members only</Badge>}
+        {ongoing ? (
+          <Badge tone="success">{m.site_happening_now()}</Badge>
+        ) : null}
+        {event.isPublic ? null : (
+          <Badge tone="neutral">{m.common_members_only()}</Badge>
+        )}
         {event.tags.map((tag) => (
           <span key={tag.toLowerCase()} className={styles.tag}>
             {tag}

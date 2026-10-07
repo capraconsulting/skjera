@@ -80,6 +80,15 @@ export const SiteLocale = Config.Literals(locales, "SITE_LOCALE").pipe(
   Config.withDefault(baseLocale),
 );
 
+/** What the site is called (`SITE_NAME`) and its language: `/api/site`. */
+export const Site = Schema.Struct({ name: Schema.String, locale: Locale });
+export type Site = typeof Site.Type;
+
+export const SiteConfig = Config.all({
+  name: Config.String("SITE_NAME").pipe(Config.withDefault("Skjera")),
+  locale: SiteLocale,
+});
+
 export const GuestDetails = Schema.Struct({
   name: Schema.String.check(
     Schema.makeFilter(
