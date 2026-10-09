@@ -7,3 +7,4 @@ mprocs.log
 dist/
 # The server build copies snapsync's SQL here (see packages/server/build.ts).
 packages/server/extension/
+/.idea/
