@@ -22,9 +22,19 @@
   "email_moved_preview": "{title} er nå {when}",
   "email_moved_heading": "Nytt tidspunkt",
   "email_moved_body": "{title}, som du er påmeldt, er flyttet. Det er nå {when}.",
-  "email_moved_was": "Det var {previously}. Invitasjonen i vedlegget oppdaterer det i kalenderen din.",
+  "email_moved_was": "Det var {previously}.",
   "email_moved_cancel_member": "Kan du ikke lenger? Du kan melde deg av på siden til arrangementet.",
   "email_moved_cancel_guest": "Kan du ikke lenger? Med din egen lenke kan du melde deg av.",
+  "email_calendar_updated": "Invitasjonen i vedlegget oppdaterer det i kalenderen din.",
+  "email_new_place_subject": "Nytt sted: {title}",
+  "email_new_place_preview": "{title} er nå på {place}",
+  "email_new_place_heading": "Nytt sted",
+  "email_new_place_body": "{title}, som du er påmeldt, har fått nytt sted. Det er nå på {place}.",
+  "email_new_place_was": "Det var på {previousPlace}.",
+  "email_moved_and_new_place_subject": "Nytt tidspunkt og sted: {title}",
+  "email_moved_and_new_place_preview": "{title} er nå {when}, på {place}",
+  "email_moved_and_new_place_heading": "Nytt tidspunkt og sted",
+  "email_moved_new_place_too": "Det er også på et nytt sted: {place}.",
   "email_cancelled_subject": "Avlyst: {title}",
   "email_cancelled_preview": "{title} blir ikke noe av",
   "email_cancelled_heading": "Arrangementet er avlyst",
@@ -56,6 +66,7 @@
   "site_happening_now": "Pågår nå",
   "site_tags": "Emneknagger",
   "site_food": "Mat",
+  "site_place": "Sted",
   "site_event_missing": "Dette arrangementet finnes ikke, eller er ikke publisert.",
   "attend_region": "Påmelding",
   "attend_nobody": "Ingen har meldt seg på ennå.",
@@ -237,6 +248,26 @@
       }
     }
   ],
+  "studio_confirm_new_place": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Publisere det nye stedet? Den påmeldte får beskjed på e-post.",
+        "countPlural=other": "Publisere det nye stedet? De {count} påmeldte får beskjed på e-post."
+      }
+    }
+  ],
+  "studio_confirm_move_and_place": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Publisere det nye tidspunktet og stedet? Den påmeldte får beskjed på e-post.",
+        "countPlural=other": "Publisere det nye tidspunktet og stedet? De {count} påmeldte får beskjed på e-post."
+      }
+    }
+  ],
   "studio_confirm_delete_cancels": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],
@@ -262,6 +293,7 @@
   "problem_field_title": "en tittel",
   "problem_field_start": "et starttidspunkt",
   "problem_field_end": "et sluttidspunkt",
+  "problem_field_place": "et sted",
   "problem_and": "og",
   "problem_ends_before_start": "Arrangementet må slutte etter at det starter",
   "problem_deadline_after_start": "Påmeldingsfristen kan ikke være etter at arrangementet starter",

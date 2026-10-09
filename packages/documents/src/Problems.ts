@@ -9,7 +9,7 @@ import type { Locale } from "./Model.ts";
 const question = { question: Schema.String };
 
 /** What an event needs before it can be published. */
-export const PublishField = Schema.Literals(["title", "start", "end"]);
+export const PublishField = Schema.Literals(["title", "start", "end", "place"]);
 export type PublishField = typeof PublishField.Type;
 
 export const Problem = Schema.Union([
@@ -51,6 +51,7 @@ const fieldNames: Record<
   title: m.problem_field_title,
   start: m.problem_field_start,
   end: m.problem_field_end,
+  place: m.problem_field_place,
 };
 
 /** "a title, a start time and an end time" */

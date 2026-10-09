@@ -11,6 +11,7 @@ import {
   title,
   typeAt,
   uniqueTeamName,
+  writePlace,
 } from "./helpers.ts";
 
 test("two users edit an event live, publish it and delete it", async ({
@@ -45,6 +46,7 @@ test("two users edit an event live, publish it and delete it", async ({
   await expect(bob.getByLabel("Start time")).toHaveValue("18:00");
   await expect(bob.getByLabel("End time")).toHaveValue("20:00");
 
+  await writePlace(alice);
   await expect(alice.getByTestId("status")).toContainText("Saved");
   await alice.getByRole("button", { name: "Publish" }).click();
   await expect(alice.getByTestId("status")).toContainText("Published");
@@ -64,7 +66,7 @@ test("two users edit an event live, publish it and delete it", async ({
   await deleteTeam(alice, team);
 });
 
-test("publishing needs a title and times that make sense", async ({
+test("publishing needs a title, times that make sense and a place", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -73,16 +75,22 @@ test("publishing needs a title and times that make sense", async ({
   await body(alice).pressSequentially("No title here");
   await alice.getByRole("button", { name: "Publish" }).click();
   await expect(alice.getByRole("alert")).toHaveText(
-    "Add a title, a start time and an end time before publishing",
+    "Add a title, a start time, an end time and a place before publishing",
   );
 
   await title(alice).pressSequentially("Titled");
   await alice.getByRole("button", { name: "Publish" }).click();
   await expect(alice.getByRole("alert")).toHaveText(
-    "Add a start time and an end time before publishing",
+    "Add a start time, an end time and a place before publishing",
   );
 
   await pickTimes(alice);
+  await alice.getByRole("button", { name: "Publish" }).click();
+  await expect(alice.getByRole("alert")).toHaveText(
+    "Add a place before publishing",
+  );
+
+  await writePlace(alice);
   await alice.getByLabel("End time").fill("17:00");
   await alice.getByRole("button", { name: "Publish" }).click();
   await expect(alice.getByRole("alert")).toHaveText(

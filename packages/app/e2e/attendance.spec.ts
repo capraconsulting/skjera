@@ -7,8 +7,10 @@ import {
   emailTo,
   eventPath,
   newTeam,
+  place,
   publishedEvent,
   signedIn,
+  typeAt,
   uniqueTeamName,
   visitor,
 } from "./helpers.ts";
@@ -215,6 +217,50 @@ test("moving an event emails who signed up, once the organizer agrees", async ({
   const moved = await emailTo(address, `New time: ${event.title}`);
   expect(moved.text).toMatch(/It's now .* 7:00/);
   expect(moved.text).toMatch(/It was .* 6:00/);
+  expect(moved.raw).toMatch(/Content-Type: text\/calendar;.*method=REQUEST/);
+
+  await deleteEvent(alice, event.id);
+  await deleteTeam(alice, team);
+});
+
+test("a new place emails who signed up, once the organizer agrees (AC-5)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await newTeam(alice, uniqueTeamName("Elsewhere"));
+  const event = await publishedEvent(alice, { public: true, guests: true });
+  const address = `gina-${crypto.randomUUID()}@example.org`;
+
+  const guest = await visitor(browser);
+  await guest.goto(`/events/${event.id}`);
+  const box = attendance(guest);
+  await box.getByRole("textbox", { name: "Your name" }).fill("Gina");
+  await box.getByRole("textbox", { name: "Your email" }).fill(address);
+  await box.getByRole("button", { name: "Sign up" }).click();
+  await expect(box).toContainText("You're signed up.");
+  await expect(attendees(alice)).toContainText("Gina");
+
+  await typeAt(place(alice), "end", ", 2nd floor");
+  await expect(alice.getByTestId("status")).toContainText("Saved");
+  const publish = alice.getByRole("button", { name: "Publish" });
+  const asked: Array<string> = [];
+  alice.once("dialog", (dialog) => {
+    asked.push(dialog.message());
+    return dialog.dismiss();
+  });
+  await publish.click();
+  expect(asked).toEqual([
+    "Publish the new place? The person signed up is emailed about it.",
+  ]);
+  // Not published, then.
+  await expect(publish).toBeEnabled();
+
+  alice.once("dialog", (dialog) => dialog.accept());
+  await publish.click();
+  await expect(alice.getByTestId("status")).toContainText("Published");
+  const moved = await emailTo(address, `New place: ${event.title}`);
+  expect(moved.text).toContain("It's now at Kantina, 2nd floor.");
+  expect(moved.text).toContain("It was at Kantina.");
   expect(moved.raw).toMatch(/Content-Type: text\/calendar;.*method=REQUEST/);
 
   await deleteEvent(alice, event.id);

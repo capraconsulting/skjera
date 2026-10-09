@@ -89,6 +89,11 @@ const setTimes = (
   }
 };
 
+/** Writes the place the way the editor does: text, edited together. */
+const setPlace = (event: EventContent, place = "Kantina") => {
+  A.updateText(event, ["place"], place);
+};
+
 /** Creates and publishes an event, with the given visibility settings. */
 const publishedEvent = Effect.fn(function* (settings: {
   readonly public: boolean;
@@ -106,6 +111,7 @@ const publishedEvent = Effect.fn(function* (settings: {
       editor.edit((event) => {
         A.updateText(event, ["title"], "Meetup");
         setTimes(event);
+        setPlace(event);
         (event as { public: boolean }).public = settings.public;
         (event as { guests: boolean }).guests = settings.guests;
         (event as { dietary: boolean }).dietary = settings.dietary ?? false;
@@ -219,6 +225,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         questions: [],
         tags: [],
         reminders: true,
+        place: "",
       });
       assert.deepStrictEqual(
         snapshot.heads,
@@ -271,6 +278,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
           questions: [],
           tags: [],
           reminders: true,
+          place: "",
         });
         assert.deepStrictEqual(
           [...A.getHeads(editor.doc())].sort(),
@@ -445,6 +453,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
           editor.edit((event) => {
             A.updateText(event, ["title"], "Launch");
             setTimes(event);
+            setPlace(event);
             setCover(event, src);
           }),
           editor.edit((event) =>
@@ -505,6 +514,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
               true,
             );
             setTimes(event);
+            setPlace(event);
           }),
         ],
         alice,
@@ -563,7 +573,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
   );
 
   it.effect(
-    "refuses to publish without a title or times, or an unknown version",
+    "refuses to publish without a title, times or a place, or an unknown version (AC-2)",
     () =>
       Effect.gen(function* () {
         const documents = yield* Documents;
@@ -572,24 +582,47 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         const blank = (yield* documents.get(id)).heads;
         const dated = yield* documents.applyChanges(
           id,
-          [editor.edit((event) => setTimes(event))],
+          [
+            editor.edit((event) => {
+              setTimes(event);
+              setPlace(event);
+            }),
+          ],
           alice,
         );
         const empty = yield* Effect.flip(documents.publish(id, blank, alice));
         assert.strictEqual(
           empty.message,
-          "Add a title, a start time and an end time before publishing",
+          "Add a title, a start time, an end time and a place before publishing",
         );
         const untitled = yield* Effect.flip(
           documents.publish(id, dated, alice),
         );
         assert.strictEqual(untitled.message, "Add a title before publishing");
 
+        // A place of nothing but spaces is no place.
+        for (const place of ["", "  "]) {
+          const placeless = yield* documents.applyChanges(
+            id,
+            [
+              editor.edit((event) => {
+                A.updateText(event, ["title"], "Endless");
+                setPlace(event, place);
+              }),
+            ],
+            alice,
+          );
+          const unplaced = yield* Effect.flip(
+            documents.publish(id, placeless, alice),
+          );
+          assert.strictEqual(unplaced.message, "Add a place before publishing");
+        }
+
         const titled = yield* documents.applyChanges(
           id,
           [
             editor.edit((event) => {
-              A.updateText(event, ["title"], "Endless");
+              setPlace(event);
               setTimes(event, { end: null });
             }),
           ],
@@ -662,6 +695,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
           editor.edit((event) => {
             A.updateText(event, ["title"], "Listed");
             setTimes(event);
+            setPlace(event);
           }),
         ],
         alice,
@@ -703,6 +737,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
           editor.edit((event) => {
             A.updateText(event, ["title"], "Public");
             setTimes(event);
+            setPlace(event);
           }),
         ],
         alice,
@@ -738,6 +773,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
           editor.edit((event) => {
             A.updateText(event, ["title"], "Short-lived");
             setTimes(event);
+            setPlace(event);
           }),
         ],
         alice,
@@ -963,6 +999,155 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       });
       assert.strictEqual(yield* reminds(older), true);
     }),
+  );
+
+  it.effect("takes a place in a draft from before events had one (AC-1)", () =>
+    Effect.gen(function* () {
+      const documents = yield* Documents;
+      const id = yield* documents.create("event", yield* newTeam, alice);
+      const editor = yield* openEditor(id);
+      yield* documents.applyChanges(
+        id,
+        [
+          editor.edit((event) => {
+            delete (event as { place?: string }).place;
+          }),
+        ],
+        alice,
+      );
+      // Without a place, the draft takes other changes, and then a place.
+      yield* documents.applyChanges(
+        id,
+        [editor.edit((event) => A.updateText(event, ["title"], "Older"))],
+        alice,
+      );
+      const heads = yield* documents.applyChanges(
+        id,
+        [
+          editor.edit((event) => {
+            (event as { place?: string }).place = "";
+          }),
+          editor.edit((event) => setPlace(event, "Kantina, 2. etasje")),
+        ],
+        alice,
+      );
+      const draft = A.load<EventContent>((yield* documents.get(id)).draft);
+      assert.strictEqual(draft.place, "Kantina, 2. etasje");
+      assert.deepStrictEqual(
+        [...A.getHeads(editor.doc())].sort(),
+        [...heads].sort(),
+      );
+    }),
+  );
+
+  it.effect(
+    "tells attendees when a republish gives the event another place (AC-5, AC-6)",
+    () =>
+      Effect.gen(function* () {
+        const documents = yield* Documents;
+        const attendance = yield* Attendance;
+        const kept = yield* NoticesKept;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        const carol = new Identity({
+          issuer: "https://idp.example",
+          subject: "carol",
+          email: "carol@example.com",
+          name: "Carol",
+        });
+        yield* attendance.attend(id, carol);
+        yield* attendance.attend(id, bob); // No email to tell.
+        yield* attendance.attendAsGuest(id, {
+          name: "Gina",
+          email: "gina@example.org",
+        });
+        const changes = Ref.get(kept).pipe(
+          Effect.map((all) =>
+            all.filter((notice) => notice.kind === "eventChanged"),
+          ),
+        );
+        const editor = yield* openEditor(id);
+        const republish = (edit: (event: EventContent) => void) =>
+          documents
+            .applyChanges(id, [editor.edit(edit)], alice)
+            .pipe(
+              Effect.flatMap((heads) => documents.publish(id, heads, alice)),
+            );
+
+        // The same place again: nobody is told.
+        yield* republish((event) => setPlace(event, "Kantina"));
+        assert.deepStrictEqual(yield* changes, []);
+
+        // Another place, at the same times: everyone with an email is, once
+        // each, with the place it was.
+        const moved = yield* republish((event) => setPlace(event, "Aula"));
+        const told = yield* changes;
+        assert.deepStrictEqual(
+          told.map((notice) => notice.attendee.name).sort(),
+          ["Carol", "Gina"],
+        );
+        for (const notice of told) {
+          assert.strictEqual(
+            notice.version,
+            String(moved.publishedAt.getTime()),
+          );
+          assert.strictEqual(notice.previousPlace, "Kantina");
+          assert.isUndefined(notice.previously);
+        }
+
+        // Both at once: one notice each, with both.
+        const both = yield* republish((event) => {
+          setPlace(event, "Torget");
+          setTimes(event, {
+            start: "2036-10-16T18:00+02:00[Europe/Oslo]",
+            end: "2036-10-16T21:00+02:00[Europe/Oslo]",
+          });
+        });
+        const latest = (yield* changes).filter(
+          (notice) => notice.version === String(both.publishedAt.getTime()),
+        );
+        assert.deepStrictEqual(
+          latest.map((notice) => notice.attendee.name).sort(),
+          ["Carol", "Gina"],
+        );
+        for (const notice of latest) {
+          assert.strictEqual(notice.previousPlace, "Aula");
+          assert.deepStrictEqual(notice.previously, {
+            startsAt: "2036-10-15T16:00:00.000Z",
+            endsAt: "2036-10-15T19:00:00.000Z",
+          });
+        }
+      }),
+  );
+
+  it.effect(
+    "tells attendees of an event published before when it gets a place (AC-5)",
+    () =>
+      Effect.gen(function* () {
+        const documents = yield* Documents;
+        const attendance = yield* Attendance;
+        const sql = yield* SqlClient.SqlClient;
+        const kept = yield* NoticesKept;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        yield* attendance.attendAsGuest(id, {
+          name: "Gina",
+          email: "gina@example.org",
+        });
+        // As published before events had a place.
+        yield* sql`UPDATE events SET place = NULL WHERE id = ${id}`;
+        const editor = yield* openEditor(id);
+        const heads = yield* documents.applyChanges(
+          id,
+          [editor.edit((event) => setPlace(event, "Aula"))],
+          alice,
+        );
+        yield* documents.publish(id, heads, alice);
+        const told = (yield* Ref.get(kept)).filter(
+          (notice) => notice.kind === "eventChanged",
+        );
+        assert.strictEqual(told.length, 1);
+        assert.strictEqual(told[0]?.previousPlace, "");
+        assert.isUndefined(told[0]?.previously);
+      }),
   );
 
   it.effect("keeps a deleted event, telling attendees it's cancelled", () =>
@@ -1236,6 +1421,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
             editor.edit((event) => {
               A.updateText(event, ["title"], "Questions");
               setTimes(event);
+              setPlace(event);
             }),
           ],
           alice,

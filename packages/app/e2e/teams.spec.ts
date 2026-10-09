@@ -13,6 +13,7 @@ import {
   title,
   typeAt,
   uniqueTeamName,
+  writePlace,
 } from "./helpers.ts";
 
 test("events are created in a team and listed under it", async ({
@@ -178,6 +179,7 @@ test("publishing shows for others without reloading", async ({ browser }) => {
   const event = await newEvent(bob);
   await title(bob).pressSequentially("Launch party");
   await pickTimes(bob);
+  await writePlace(bob);
   await expect(bob.getByTestId("status")).toContainText("Saved");
 
   // Alice has it open, unpublished.

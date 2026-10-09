@@ -2,8 +2,8 @@ import { Context, Effect, Layer, Ref, Schema } from "effect";
 import { type DocumentId, Locale } from "./Model.ts";
 
 // What attendees are told of, by email (see Mail.tsx): signing up and
-// cancelling tell it, and so do republishing an event at a new time and
-// deleting it, in their transaction.
+// cancelling tell it, and so do republishing an event at a new time or place
+// and deleting it, in their transaction.
 
 /** Who an email is to. */
 export const Recipient = Schema.Struct({
@@ -33,7 +33,10 @@ export interface Notice {
 export interface ChangeNotice extends Notice {
   /** The publication that moved it: each is told of once. */
   readonly version: string;
-  readonly previously: Times;
+  /** When it was, if it moved. */
+  readonly previously?: Times;
+  /** Where it was, if the place changed: "" when it had none. */
+  readonly previousPlace?: string;
 }
 
 export type Kept =
@@ -59,7 +62,7 @@ export class Notifications extends Context.Service<
   {
     readonly signedUp: (notice: Notice) => Effect.Effect<void>;
     readonly signupCancelled: (notice: Notice) => Effect.Effect<void>;
-    /** The event moved: it starts or ends at another time. */
+    /** The event moved, or is at another place. */
     readonly eventChanged: (notice: ChangeNotice) => Effect.Effect<void>;
     /** The event was deleted before it was over: it won't happen. */
     readonly eventCancelled: (notice: Notice) => Effect.Effect<void>;

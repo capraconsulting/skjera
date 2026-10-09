@@ -1,7 +1,8 @@
+import * as A from "@automerge/automerge/slim";
 import type { DocHandle } from "@automerge/automerge-repo/slim";
 import type { DocumentId, EventContent } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Avatars } from "../../components/Avatars.tsx";
 import { Field } from "../../components/Field.tsx";
@@ -25,6 +26,7 @@ import styles from "./EventEditor.module.css";
 const titlePath = ["title"] as const;
 const bodyPath = ["body"] as const;
 const foodPath = ["food"] as const;
+const placePath = ["place"] as const;
 
 /** The third column: the selected event. */
 export function EventEditor() {
@@ -102,6 +104,9 @@ function EventSession({ id }: { readonly id: DocumentId }) {
           <CoverField handle={handle} presence={session.presence} />
         </Field>
         <EventTimes handle={handle} />
+        <Field label={m.site_place()}>
+          <Place handle={handle} presence={session.presence} />
+        </Field>
         <TagsField handle={handle} />
         <Field label={m.studio_visibility()}>
           <CheckboxField
@@ -144,6 +149,43 @@ function EventSession({ id }: { readonly id: DocumentId }) {
         <Attendees id={id} />
       </div>
     </Pane>
+  );
+}
+
+/** Where it is. A draft from before events had a place gets one to write in. */
+function Place(props: {
+  readonly handle: DocHandle<EventContent>;
+  readonly presence: DraftPresence | null;
+}) {
+  const { handle } = props;
+  useEffect(() => {
+    if (handle.doc().place === undefined) {
+      handle.change((doc) => {
+        (doc as { place?: string }).place = "";
+      });
+    }
+  }, [handle]);
+  // The text's object, so a new editor starts if someone else's wins. A
+  // text's value is a plain string: its id is asked of the draft by key.
+  const text = useSyncExternalStore(
+    (onChange) => {
+      handle.on("change", onChange);
+      return () => handle.off("change", onChange);
+    },
+    () => {
+      const doc = handle.doc();
+      return doc.place === undefined ? null : A.getObjectId(doc, "place");
+    },
+  );
+  if (text === null) return null;
+  return (
+    <TextEditor
+      key={text}
+      handle={handle}
+      path={placePath}
+      label={m.site_place()}
+      presence={props.presence}
+    />
   );
 }
 

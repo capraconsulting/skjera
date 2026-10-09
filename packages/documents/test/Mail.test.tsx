@@ -56,6 +56,8 @@ const publishedEvent = (
     readonly dietary?: boolean;
     readonly startsAt?: Date;
     readonly reminders?: boolean;
+    /** Where it is; null: published before events had a place. */
+    readonly place?: string | null;
   } = {},
 ) =>
   Effect.gen(function* () {
@@ -66,11 +68,12 @@ const publishedEvent = (
     const endsAt = new Date(startsAt.getTime() + 3 * 60 * 60 * 1000);
     yield* sql`
       INSERT INTO events (id, title, starts_at, ends_at, time_zone, body, is_public,
-        allow_guests, ask_dietary, send_reminders, published_heads,
+        allow_guests, ask_dietary, send_reminders, place, published_heads,
         published_by_issuer, published_by_subject)
       VALUES (${id}, 'Launch', ${startsAt}, ${endsAt},
         'Europe/Oslo', '[]', true, true, ${options.dietary ?? false},
-        ${options.reminders ?? true}, '{}', 'test', 'test')
+        ${options.reminders ?? true}, ${options.place === undefined ? "Kantina" : options.place},
+        '{}', 'test', 'test')
     `;
     return id as DocumentId;
   }).pipe(Effect.orDie);
@@ -128,6 +131,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail", (it) => {
       assert.include(invitation, "DTEND:20361015T190000Z");
       assert.match(invitation, /ATTENDEE;[^\r\n]*CN="Gina"/);
       assert.include(invitation, "SUMMARY:Launch");
+      assert.include(invitation, "LOCATION:Kantina");
 
       yield* attendance.leaveAsGuest(event, token);
       const [, cancelled] = yield* emailsTo(address, 2);
@@ -240,6 +244,100 @@ layer(TestLayer, { excludeTestServices: true })("Mail", (it) => {
       yield* Effect.sleep("300 millis");
       assert.strictEqual(outbox.to(address).length, 1);
     }),
+  );
+
+  it.effect(
+    "tells attendees the new place when the event is somewhere else (AC-5)",
+    () =>
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        const notifications = yield* Notifications;
+        const event = yield* publishedEvent();
+        yield* sql`UPDATE events SET place = 'Aula' WHERE id = ${event}`;
+        const signup = crypto.randomUUID();
+        const address = `gina-${signup}@example.org`;
+        const notice = {
+          event,
+          attendee: { id: signup, name: "Gina", email: address, guest: true },
+          version: "1",
+          previousPlace: "Kantina",
+        };
+        yield* notifications.eventChanged(notice);
+        yield* notifications.eventChanged(notice);
+
+        const [moved] = yield* emailsTo(address, 1);
+        const message = moved?.message;
+        assert.strictEqual(message?.subject, "New place: Launch");
+        assert.include(message?.text ?? "", "It's now at Aula.");
+        assert.include(message?.text ?? "", "It was at Kantina.");
+        assert.notInclude(message?.text ?? "", "It was Wednesday");
+        assert.strictEqual(message?.calendar?.method, "REQUEST");
+        assert.include(message?.calendar?.content ?? "", "LOCATION:Aula");
+        yield* Effect.sleep("300 millis");
+        assert.strictEqual(outbox.to(address).length, 1);
+      }),
+  );
+
+  it.effect(
+    "tells attendees of both in one email when time and place change (AC-6)",
+    () =>
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        const notifications = yield* Notifications;
+        const event = yield* publishedEvent();
+        yield* sql`
+        UPDATE events SET place = 'Aula', starts_at = '2036-10-16T18:00+02',
+          ends_at = '2036-10-16T21:00+02'
+        WHERE id = ${event}
+      `;
+        const signup = crypto.randomUUID();
+        const address = `gina-${signup}@example.org`;
+        yield* notifications.eventChanged({
+          event,
+          attendee: { id: signup, name: "Gina", email: address, guest: true },
+          version: "1",
+          previously: {
+            startsAt: "2036-10-15T16:00:00.000Z",
+            endsAt: "2036-10-15T19:00:00.000Z",
+          },
+          previousPlace: "Kantina",
+        });
+
+        const [moved] = yield* emailsTo(address, 1);
+        const message = moved?.message;
+        assert.strictEqual(message?.subject, "New time and place: Launch");
+        assert.match(
+          message?.text ?? "",
+          /It's now Thursday, October 16, 2036/,
+        );
+        assert.match(message?.text ?? "", /It was Wednesday, October 15, 2036/);
+        assert.include(message?.text ?? "", "Aula");
+        assert.include(message?.text ?? "", "It was at Kantina.");
+        yield* Effect.sleep("300 millis");
+        assert.strictEqual(outbox.to(address).length, 1);
+      }),
+  );
+
+  it.effect(
+    "names no old place when an event published before gets one (AC-5)",
+    () =>
+      Effect.gen(function* () {
+        const notifications = yield* Notifications;
+        const event = yield* publishedEvent({ place: "Aula" });
+        const signup = crypto.randomUUID();
+        const address = `gina-${signup}@example.org`;
+        yield* notifications.eventChanged({
+          event,
+          attendee: { id: signup, name: "Gina", email: address, guest: true },
+          version: "1",
+          previousPlace: "",
+        });
+
+        const [moved] = yield* emailsTo(address, 1);
+        assert.strictEqual(moved?.message.subject, "New place: Launch");
+        assert.include(moved?.message.text ?? "", "It's now at Aula.");
+        assert.notInclude(moved?.message.text ?? "", "It was at");
+      }),
   );
 
   it.effect("tells attendees a deleted event is cancelled, and no more", () =>

@@ -76,6 +76,8 @@ export const EventRow = Schema.Struct({
   questions: Schema.Array(Question),
   /** Without duplicates. */
   tags: Schema.Array(Schema.String),
+  /** Where it is, as written; null for events published before events had a place. */
+  place: Schema.NullOr(Schema.String),
   /** The version of the draft that was published. */
   publishedHeads: Heads,
   publishedAt: Schema.Date,

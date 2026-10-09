@@ -42,15 +42,15 @@ group("Problems", () => {
   it("list what's missing, as each language does", () => {
     const missing: Problem = {
       _tag: "MissingToPublish",
-      fields: ["title", "start", "end"],
+      fields: ["title", "start", "end", "place"],
     };
     assert.strictEqual(
       describe(missing, "en"),
-      "Add a title, a start time and an end time before publishing",
+      "Add a title, a start time, an end time and a place before publishing",
     );
     assert.strictEqual(
       describe(missing, "nb"),
-      "Legg til en tittel, et starttidspunkt og et sluttidspunkt før du publiserer",
+      "Legg til en tittel, et starttidspunkt, et sluttidspunkt og et sted før du publiserer",
     );
     assert.strictEqual(
       describe({ _tag: "AnswerMissing", question }, "nn"),

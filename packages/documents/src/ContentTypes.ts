@@ -49,6 +49,11 @@ export const EventContent = Schema.Struct({
    * drafts from before there was a choice): on.
    */
   reminders: Schema.optionalKey(Schema.Boolean),
+  /**
+   * Where it is, as written: "Kantina, 2. etasje". Missing in drafts from
+   * before events had a place.
+   */
+  place: Schema.optionalKey(Schema.String),
 });
 export type EventContent = typeof EventContent.Type;
 
@@ -75,11 +80,13 @@ export const contentTypes = {
       questions: [],
       tags: [],
       reminders: true,
+      place: "",
     } satisfies EventContent,
     toPublish: [
       { field: "title", met: (event) => event.title.trim() !== "" },
       { field: "start", met: (event) => event.start !== null },
       { field: "end", met: (event) => event.end !== null },
+      { field: "place", met: (event) => (event.place ?? "").trim() !== "" },
     ] satisfies ReadonlyArray<Requirement<EventContent>>,
     checks: [
       (event) =>

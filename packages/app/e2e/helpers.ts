@@ -57,6 +57,17 @@ export const connection = async (page: Page) => {
 export const title = (page: Page) =>
   page.getByRole("textbox", { name: "Title" });
 export const body = (page: Page) => page.getByRole("textbox", { name: "Body" });
+export const place = (page: Page) =>
+  page.getByRole("textbox", { name: "Place", exact: true });
+
+/** Where events are, unless a test says otherwise. */
+export const defaultPlace = "Kantina";
+
+/** Writes where the open event is. */
+export const writePlace = async (page: Page, text = defaultPlace) => {
+  await place(page).pressSequentially(text);
+  await expect(place(page)).toHaveText(text);
+};
 
 const lastPathSegment = (page: Page) =>
   new URL(page.url()).pathname.split("/").pop() ?? "";
@@ -253,6 +264,7 @@ export const publishedEvent = async (
   const eventTitle = `Meetup ${id.slice(-12)}`;
   await title(page).pressSequentially(eventTitle);
   await pickTimes(page);
+  await writePlace(page);
   if (options.public) {
     await page.getByRole("checkbox", { name: /Public event/ }).check();
   }

@@ -5,6 +5,7 @@ const invite = (
   method: "REQUEST" | "CANCEL",
   sequence = 0,
   cancelled = false,
+  place?: string,
 ) =>
   invitation({
     method,
@@ -16,6 +17,7 @@ const invite = (
       url: "https://skjera.test/events/launch",
       sequence,
       cancelled,
+      ...(place === undefined ? {} : { place }),
     },
     attendee: { name: "Gina", email: "gina@example.org" },
     organizer: { name: "Skjera", email: "events@skjera.test" },
@@ -54,6 +56,17 @@ describe("Calendar", () => {
     const ics = invite("CANCEL", 5, true);
     assert.include(ics, "METHOD:CANCEL");
     assert.include(ics, "STATUS:CANCELLED");
+  });
+
+  it("puts the place in the invitation, to add and to cancel (AC-4)", () => {
+    for (const method of ["REQUEST", "CANCEL"] as const) {
+      const ics = invite(method, 1, false, "Kantina").replace(/\r\n /g, "");
+      assert.include(ics, "LOCATION:Kantina");
+    }
+  });
+
+  it("leaves the location out of an event without a place (AC-4, AC-7)", () => {
+    assert.notInclude(invite("REQUEST"), "LOCATION");
   });
 
   it("reads who emails come from", () => {

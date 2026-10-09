@@ -45,6 +45,8 @@ const Send = Rpc.make("Send", {
     attendee: Recipient,
     /** When the event was, before it moved. */
     previously: Schema.optional(Times),
+    /** Where it was, before it changed place: "" when it had none. */
+    previousPlace: Schema.optional(Schema.String),
   },
   primaryKey: ({ key }) => key,
 }).annotate(ClusterSchema.Persisted, true);
@@ -72,12 +74,13 @@ export const layerNotifications = Layer.effect(
           kind: "signupCancelled",
           attendee,
         }),
-      eventChanged: ({ event, attendee, version, previously }) =>
+      eventChanged: ({ event, attendee, version, previously, previousPlace }) =>
         send(event, {
           key: `eventChanged/${version}/${attendee.id}`,
           kind: "eventChanged",
           attendee,
-          previously,
+          ...(previously === undefined ? {} : { previously }),
+          ...(previousPlace === undefined ? {} : { previousPlace }),
         }),
       eventCancelled: ({ event, attendee }) =>
         send(event, {
@@ -106,6 +109,8 @@ interface EventRow {
   readonly ends_at: Date;
   readonly signup_deadline: Date | null;
   readonly time_zone: string;
+  /** Null: published before events had a place. */
+  readonly place: string | null;
   readonly ask_dietary: boolean;
   readonly food_deadline: Date | null;
   readonly published_at: Date;
@@ -151,7 +156,7 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
         Send: ({ payload }) =>
           Effect.gen(function* () {
             const [event] = yield* sql<EventRow>`
-            SELECT title, starts_at, ends_at, signup_deadline, time_zone,
+            SELECT title, starts_at, ends_at, signup_deadline, time_zone, place,
               ask_dietary, food_deadline, published_at, first_published_at,
               deleted_at IS NOT NULL AS deleted
             FROM events WHERE id = ${eventId}
@@ -188,6 +193,7 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                   endsAt: event.ends_at,
                   url,
                   cancelled,
+                  ...(event.place === null ? {} : { place: event.place }),
                   // Newer with each republish.
                   sequence: Math.floor(
                     (event.published_at.getTime() -
@@ -265,12 +271,18 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                     ),
                     calendar: calendar("CANCEL"),
                   };
-                case "eventChanged":
+                case "eventChanged": {
+                  const moved = payload.previously !== undefined;
+                  const newPlace =
+                    payload.previousPlace !== undefined && event.place !== null;
+                  const subject =
+                    moved && newPlace
+                      ? m.email_moved_and_new_place_subject
+                      : newPlace
+                        ? m.email_new_place_subject
+                        : m.email_moved_subject;
                   return {
-                    subject: m.email_moved_subject(
-                      { title: event.title },
-                      { locale },
-                    ),
+                    subject: subject({ title: event.title }, { locale }),
                     body: (
                       <EventChanged
                         locale={locale}
@@ -278,22 +290,29 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                         name={attendee.name}
                         title={event.title}
                         when={when}
-                        previously={
-                          payload.previously === undefined
-                            ? ""
-                            : formatWhen(
+                        {...(payload.previously === undefined
+                          ? {}
+                          : {
+                              previously: formatWhen(
                                 locale,
                                 new Date(payload.previously.startsAt),
                                 new Date(payload.previously.endsAt),
                                 event.time_zone,
-                              )
-                        }
+                              ),
+                            })}
+                        {...(newPlace && event.place !== null
+                          ? {
+                              place: event.place,
+                              previousPlace: payload.previousPlace ?? "",
+                            }
+                          : {})}
                         url={url}
                         {...guestLink}
                       />
                     ),
                     calendar: calendar("REQUEST"),
                   };
+                }
                 case "eventCancelled":
                   return {
                     subject: m.email_cancelled_subject(

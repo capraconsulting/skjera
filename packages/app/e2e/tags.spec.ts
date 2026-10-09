@@ -9,6 +9,7 @@ import {
   title,
   uniqueTeamName,
   visitor,
+  writePlace,
 } from "./helpers.ts";
 
 const tagInput = (page: Page) => page.getByRole("combobox", { name: "Tags" });
@@ -21,6 +22,7 @@ const pills = (page: Page) =>
 const publish = async (page: Page) => {
   // Done tagging: the suggestions close.
   await tagInput(page).press("Escape");
+  await writePlace(page);
   await page.getByRole("checkbox", { name: /Public event/ }).check();
   await expect(page.getByTestId("status")).toContainText("Saved");
   await page.getByRole("button", { name: "Publish" }).click();

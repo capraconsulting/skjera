@@ -22,6 +22,8 @@ export interface InvitationEvent {
   readonly sequence: number;
   /** It won't happen: for everyone, not just this attendee. */
   readonly cancelled?: boolean;
+  /** Where it is, as written. Missing: not known (published before). */
+  readonly place?: string;
 }
 
 export interface Person {
@@ -62,6 +64,7 @@ export const invitation = (options: {
     summary: event.title,
     description: event.url,
     url: event.url,
+    ...(event.place === undefined ? {} : { location: event.place }),
     organizer: { name: organizer.name, email: organizer.email },
     attendees: [
       {

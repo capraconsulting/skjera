@@ -22,9 +22,19 @@
   "email_moved_preview": "{title} is now {when}",
   "email_moved_heading": "New time",
   "email_moved_body": "{title}, which you're signed up for, has moved. It's now {when}.",
-  "email_moved_was": "It was {previously}. The invitation attached updates it in your calendar.",
+  "email_moved_was": "It was {previously}.",
   "email_moved_cancel_member": "Can't make it now? You can cancel your signup on the event's page.",
   "email_moved_cancel_guest": "Can't make it now? Your own link cancels your signup.",
+  "email_calendar_updated": "The invitation attached updates it in your calendar.",
+  "email_new_place_subject": "New place: {title}",
+  "email_new_place_preview": "{title} is now at {place}",
+  "email_new_place_heading": "New place",
+  "email_new_place_body": "{title}, which you're signed up for, has a new place. It's now at {place}.",
+  "email_new_place_was": "It was at {previousPlace}.",
+  "email_moved_and_new_place_subject": "New time and place: {title}",
+  "email_moved_and_new_place_preview": "{title} is now {when}, at {place}",
+  "email_moved_and_new_place_heading": "New time and place",
+  "email_moved_new_place_too": "It's at a new place too: {place}.",
   "email_cancelled_subject": "Cancelled: {title}",
   "email_cancelled_preview": "{title} won't happen",
   "email_cancelled_heading": "Event cancelled",
@@ -56,6 +66,7 @@
   "site_happening_now": "Happening now",
   "site_tags": "Tags",
   "site_food": "Food",
+  "site_place": "Place",
   "site_event_missing": "This event doesn't exist, or isn't published.",
   "attend_region": "Attendance",
   "attend_nobody": "Nobody has signed up yet.",
@@ -237,6 +248,26 @@
       }
     }
   ],
+  "studio_confirm_new_place": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Publish the new place? The person signed up is emailed about it.",
+        "countPlural=other": "Publish the new place? The {count} people signed up are emailed about it."
+      }
+    }
+  ],
+  "studio_confirm_move_and_place": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Publish the new time and place? The person signed up is emailed about it.",
+        "countPlural=other": "Publish the new time and place? The {count} people signed up are emailed about it."
+      }
+    }
+  ],
   "studio_confirm_delete_cancels": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],
@@ -262,6 +293,7 @@
   "problem_field_title": "a title",
   "problem_field_start": "a start time",
   "problem_field_end": "an end time",
+  "problem_field_place": "a place",
   "problem_and": "and",
   "problem_ends_before_start": "The event has to end after it starts",
   "problem_deadline_after_start": "The sign-up deadline can't be after the event starts",

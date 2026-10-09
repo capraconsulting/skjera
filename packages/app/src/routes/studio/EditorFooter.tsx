@@ -57,17 +57,32 @@ export function EditorFooter(props: {
     [id],
   ).data.length;
 
-  // Moving an event people signed up for emails them: say so first.
+  // Moving an event people signed up for, or giving it another place,
+  // emails them: say so first.
   const publish = () => {
     const draft = props.handle.doc();
     const moved =
       publication !== undefined &&
       (!sameInstant(draft.start, publication.startsAt) ||
         !sameInstant(draft.end, publication.endsAt));
+    const place = draft.place ?? "";
+    // As published: compared as written, as the server compares it.
+    const newPlace =
+      publication !== undefined &&
+      place.trim() !== "" &&
+      place !== (publication.place ?? "");
+    const question =
+      moved && newPlace
+        ? m.studio_confirm_move_and_place
+        : moved
+          ? m.studio_confirm_move
+          : newPlace
+            ? m.studio_confirm_new_place
+            : null;
     if (
-      moved &&
+      question !== null &&
       signedUp > 0 &&
-      !window.confirm(m.studio_confirm_move({ count: signedUp }))
+      !window.confirm(question({ count: signedUp }))
     ) {
       return;
     }

@@ -7,6 +7,7 @@ import {
   Clock,
   Globe,
   Lock,
+  MapPin,
   Users,
   UtensilsCrossed,
 } from "lucide-react";
@@ -107,6 +108,15 @@ export function EventPage() {
               {formatHoursIn(event.startsAt, event.endsAt, event.timeZone)}
             </time>
           </li>
+          {event.place === null ? null : (
+            <li>
+              <MapPin {...icon} />
+              <span>
+                <span className={styles.label}>{m.site_place()}:</span>{" "}
+                {event.place}
+              </span>
+            </li>
+          )}
           {event.askDietary && event.food.trim() !== "" ? (
             <li>
               <UtensilsCrossed {...icon} />

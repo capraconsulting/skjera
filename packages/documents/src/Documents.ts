@@ -24,10 +24,12 @@ import {
 import { Notifications, type Signup, tell } from "./Notifications.ts";
 import { refused } from "./Problems.ts";
 
-/** When an event is, as published. */
-interface EventTimes {
+/** When and where an event is, as published. */
+interface WhenAndWhere {
   readonly starts_at: Date;
   readonly ends_at: Date;
+  /** Null: published before events had a place. */
+  readonly place: string | null;
 }
 
 export interface DocumentSnapshot {
@@ -289,22 +291,30 @@ export class Documents extends Context.Service<
       const publishers = {
         event: (id: DocumentId, heads: Heads, user: Identity) =>
           Effect.gen(function* () {
-            const [before] = yield* sql<EventTimes>`
-              SELECT starts_at, ends_at FROM events WHERE id = ${id} FOR UPDATE
+            const [before] = yield* sql<WhenAndWhere>`
+              SELECT starts_at, ends_at, place FROM events WHERE id = ${id} FOR UPDATE
             `;
-            const rows = yield* sql<PublicationRow & EventTimes>`
+            const rows = yield* sql<PublicationRow & WhenAndWhere>`
               SELECT published_heads, published_at, first_published_at,
-                starts_at, ends_at
+                starts_at, ends_at, place
               FROM publish_event(${id}, ${heads}::text[], ${user.issuer}, ${user.subject})
             `;
             const [after] = rows;
-            // Moved: its attendees are told, and get the new time for their
-            // calendars.
-            if (
+            const moved =
               before !== undefined &&
               after !== undefined &&
               (before.starts_at.getTime() !== after.starts_at.getTime() ||
-                before.ends_at.getTime() !== after.ends_at.getTime())
+                before.ends_at.getTime() !== after.ends_at.getTime());
+            const newPlace =
+              before !== undefined &&
+              after !== undefined &&
+              before.place !== after.place;
+            // Moved, or somewhere else: its attendees are told, in one
+            // email, and get the new time and place for their calendars.
+            if (
+              before !== undefined &&
+              after !== undefined &&
+              (moved || newPlace)
             ) {
               const signups = yield* sql<Signup>`
                 SELECT id, name, email, user_issuer IS NULL AS guest, locale
@@ -315,10 +325,15 @@ export class Documents extends Context.Service<
                   event: id,
                   attendee,
                   version: String(after.published_at.getTime()),
-                  previously: {
-                    startsAt: before.starts_at.toISOString(),
-                    endsAt: before.ends_at.toISOString(),
-                  },
+                  ...(moved
+                    ? {
+                        previously: {
+                          startsAt: before.starts_at.toISOString(),
+                          endsAt: before.ends_at.toISOString(),
+                        },
+                      }
+                    : {}),
+                  ...(newPlace ? { previousPlace: before.place ?? "" } : {}),
                 }),
               );
             }

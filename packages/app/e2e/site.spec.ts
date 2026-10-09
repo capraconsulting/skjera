@@ -13,6 +13,7 @@ import {
   typeAt,
   uniqueTeamName,
   visitor,
+  writePlace,
 } from "./helpers.ts";
 
 test("visitors can read the site but not the studio", async ({ browser }) => {
@@ -73,7 +74,7 @@ test("the theme follows the system until the user picks one", async ({
   await expect(root).toHaveCSS("background-color", "rgb(9, 9, 11)");
 });
 
-test("the site shows what was published, and only that", async ({
+test("the site shows what was published, and only that (AC-1, AC-3)", async ({
   browser,
 }) => {
   const alice = await visitor(browser);
@@ -112,6 +113,7 @@ test("the site shows what was published, and only that", async ({
     body(alice).getByRole("link", { name: "friends" }),
   ).toBeVisible();
   const date = await pickTimes(alice);
+  await writePlace(alice, "Kantina, 2. etasje");
   await alice.getByRole("checkbox", { name: /Public event/ }).check();
   await expect(alice.getByTestId("status")).toContainText("Saved");
   await alice.getByRole("button", { name: "Publish" }).click();
@@ -125,6 +127,7 @@ test("the site shows what was published, and only that", async ({
   const times = reader.getByRole("article").locator("time");
   await expect(times.nth(0)).toContainText(date);
   await expect(times.nth(1)).toHaveText(/^6:00\s*–\s*8:00\s*PM$/);
+  await expect(reader.getByRole("article")).toContainText("Kantina, 2. etasje");
   const content = reader.getByTestId("event-body");
   await expect(
     content.getByRole("heading", { name: "Agenda", level: 2 }),
