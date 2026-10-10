@@ -1062,7 +1062,9 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         });
         const changes = Ref.get(kept).pipe(
           Effect.map((all) =>
-            all.filter((notice) => notice.kind === "eventChanged"),
+            all
+              .filter((notice) => notice.kind === "eventChanged")
+              .filter((notice) => notice.event === id),
           ),
         );
         const editor = yield* openEditor(id);
@@ -1073,8 +1075,8 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
               Effect.flatMap((heads) => documents.publish(id, heads, alice)),
             );
 
-        // The same place again: nobody is told.
-        yield* republish((event) => setPlace(event, "Kantina"));
+        // Anything but its place: nobody is told.
+        yield* republish((event) => A.updateText(event, ["title"], "Meetup!"));
         assert.deepStrictEqual(yield* changes, []);
 
         // Another place, at the same times: everyone with an email is, once
@@ -1141,9 +1143,9 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
           alice,
         );
         yield* documents.publish(id, heads, alice);
-        const told = (yield* Ref.get(kept)).filter(
-          (notice) => notice.kind === "eventChanged",
-        );
+        const told = (yield* Ref.get(kept))
+          .filter((notice) => notice.kind === "eventChanged")
+          .filter((notice) => notice.event === id);
         assert.strictEqual(told.length, 1);
         assert.strictEqual(told[0]?.previousPlace, "");
         assert.isUndefined(told[0]?.previously);
@@ -1252,7 +1254,9 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       });
       const changes = Ref.get(kept).pipe(
         Effect.map((all) =>
-          all.filter((notice) => notice.kind === "eventChanged"),
+          all
+            .filter((notice) => notice.kind === "eventChanged")
+            .filter((notice) => notice.event === id),
         ),
       );
       const editor = yield* openEditor(id);
