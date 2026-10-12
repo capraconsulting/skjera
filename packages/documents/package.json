@@ -17,6 +17,7 @@
     "@skjera/email": "workspace:*",
     "@skjera/i18n": "workspace:*",
     "@skjera/oauth": "workspace:*",
+    "@skjera/slack": "workspace:*",
     "@skjera/snapsync": "workspace:*",
     "aws4fetch": "catalog:",
     "bs58check": "catalog:",

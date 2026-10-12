@@ -2,6 +2,7 @@ import * as A from "@automerge/automerge";
 import type { Identity } from "@skjera/oauth/api";
 import { Context, Effect, Layer, Schema } from "effect";
 import { SqlClient, SqlError } from "effect/sql";
+import { Announcements } from "./Announcements.ts";
 import {
   type ContentTypeName,
   cantPublish,
@@ -110,6 +111,7 @@ export class Documents extends Context.Service<
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
       const notifications = yield* Notifications;
+      const announcements = yield* Announcements;
 
       const create = Effect.fn("Documents.create")(function* (
         type: ContentTypeName,
@@ -300,6 +302,10 @@ export class Documents extends Context.Service<
               FROM publish_event(${id}, ${heads}::text[], ${user.issuer}, ${user.subject})
             `;
             const [after] = rows;
+            // Published for the first time: the channel is told, once.
+            if (before === undefined && after !== undefined) {
+              yield* announcements.eventPublished(id);
+            }
             const moved =
               before !== undefined &&
               after !== undefined &&

@@ -393,5 +393,10 @@
   "studio_team_logo_replace": "Bytt bilde",
   "studio_team_logo_remove": "Fjern bilde",
   "studio_team_logo_hint": "Logoen vises på nettstedet i stedet for navnet på teamet, på arrangementene til teamet.",
-  "site_organizer": "Arrangør"
+  "site_organizer": "Arrangør",
+  "slack_signup": "Påmelding",
+  "slack_signup_link": "Meld deg på her",
+  "slack_when": "Når",
+  "slack_where": "Hvor",
+  "slack_deadlines_heading": "Påmeldingsfrist nærmer seg"
 }

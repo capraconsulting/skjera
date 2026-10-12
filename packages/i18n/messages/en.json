@@ -393,5 +393,10 @@
   "studio_team_logo_replace": "Replace image",
   "studio_team_logo_remove": "Remove image",
   "studio_team_logo_hint": "The logo shows on the site in place of the team's name, on the team's events.",
-  "site_organizer": "Organizer"
+  "site_organizer": "Organizer",
+  "slack_signup": "Sign up",
+  "slack_signup_link": "Sign up here",
+  "slack_when": "When",
+  "slack_where": "Where",
+  "slack_deadlines_heading": "Sign-up deadlines are near"
 }

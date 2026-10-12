@@ -2,6 +2,7 @@ import { assert, layer } from "@effect/vitest";
 import { Identity } from "@skjera/oauth/api";
 import { Deferred, Effect, Fiber, Layer, Option } from "effect";
 import { SqlClient } from "effect/sql";
+import { Announcements } from "../src/Announcements.ts";
 import { Documents } from "../src/Documents.ts";
 import type { TeamId } from "../src/Model.ts";
 import { Notifications } from "../src/Notifications.ts";
@@ -13,6 +14,7 @@ import { TestDatabase } from "./TestDatabase.ts";
 const alice = new Identity({ issuer: "https://idp.example", subject: "alice" });
 
 const TestLayer = Layer.mergeAll(Sync.layer, Teams.layer, Documents.layer).pipe(
+  Layer.provideMerge(Announcements.layerTest),
   Layer.provideMerge(Notifications.layerTest),
   Layer.provideMerge(TestDatabase),
 );

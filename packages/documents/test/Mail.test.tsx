@@ -6,6 +6,7 @@ import { Identity } from "@skjera/oauth/api";
 import { Effect, Layer, Schedule } from "effect";
 import { SingleRunner } from "effect/cluster";
 import { SqlClient } from "effect/sql";
+import { Announcements } from "../src/Announcements.ts";
 import { Attendance } from "../src/Attendance.ts";
 import { Documents } from "../src/Documents.ts";
 import * as Mail from "../src/Mail.tsx";
@@ -33,6 +34,7 @@ const TestLayer = Layer.mergeAll(
   Mail.layerMailer,
 ).pipe(
   Layer.provideMerge(Attendance.layer),
+  Layer.provideMerge(Announcements.layerTest),
   Layer.provideMerge(Mail.layerNotifications),
   Layer.provideMerge(Layer.succeed(Email, outbox.email)),
   Layer.provideMerge(cluster),

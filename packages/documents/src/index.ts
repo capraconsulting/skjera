@@ -7,9 +7,11 @@ import { DocumentEvents } from "./DocumentEvents.ts";
 import { Documents } from "./Documents.ts";
 import * as Mail from "./Mail.tsx";
 import { Presence } from "./Presence.ts";
+import * as SlackChannel from "./SlackChannel.ts";
 import { Sync } from "./Sync.ts";
 import { Teams } from "./Teams.ts";
 
+export * from "./Announcements.ts";
 export * from "./Attendance.ts";
 export * as Cluster from "./Cluster.ts";
 export * from "./ContentTypes.ts";
@@ -31,6 +33,7 @@ export * from "./Problems.ts";
 export * from "./PublicApi.ts";
 export * as PublicEvents from "./PublicEvents.ts";
 export * as Sharing from "./Sharing.ts";
+export * as SlackChannel from "./SlackChannel.ts";
 export * from "./Sync.ts";
 export * from "./SyncApi.ts";
 export * from "./Teams.ts";
@@ -52,9 +55,12 @@ export const layer = Layer.mergeAll(
   Cluster.jobs,
   Mail.layerMailer,
   Mail.reminders,
+  SlackChannel.layer,
+  SlackChannel.deadlines,
 ).pipe(
   Layer.provideMerge(Attendance.layer),
   Layer.provideMerge(Mail.layerNotifications),
+  Layer.provideMerge(SlackChannel.layerAnnouncements),
   Layer.provideMerge(Cluster.layer),
   Layer.provideMerge(Database.layer),
 );

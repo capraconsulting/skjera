@@ -25,6 +25,8 @@ SITE_LOCALE = "en"
 # them, in development and in the browser test, which serves its own page at
 # this address.
 WEBSITE_ORIGINS = "http://website.localhost"
+# SLACK_BOT_TOKEN and SLACK_CHANNEL are not set here, so nothing is posted to
+# Slack in development. The Readme says how to set them.
 # Branding, all optional. Files in SITE_ASSETS_DIR are served at /site-assets/.
 SITE_ASSETS_DIR = "{{config_root}}/dev/site-assets"
 SITE_LOGO = "/site-assets/logo.svg"

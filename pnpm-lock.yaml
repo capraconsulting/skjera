@@ -446,6 +446,9 @@ importers:
       '@skjera/oauth':
         specifier: workspace:*
         version: link:../oauth
+      '@skjera/slack':
+        specifier: workspace:*
+        version: link:../slack
       '@skjera/snapsync':
         specifier: workspace:*
         version: link:../snapsync

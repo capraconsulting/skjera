@@ -12,6 +12,7 @@ import {
   Stream,
 } from "effect";
 import { SqlClient } from "effect/sql";
+import { Announcements, AnnouncementsKept } from "../src/Announcements.ts";
 import { Attendance } from "../src/Attendance.ts";
 import type { EventContent } from "../src/ContentTypes.ts";
 import { DocumentEvents } from "../src/DocumentEvents.ts";
@@ -35,6 +36,7 @@ const TestLayer = Layer.mergeAll(
   Attendance.layer,
   Presence.layer,
 ).pipe(
+  Layer.provideMerge(Announcements.layerTest),
   Layer.provideMerge(Notifications.layerTest),
   Layer.provideMerge(TestDatabase),
 );
@@ -242,6 +244,50 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       const draft = A.load<EventContent>((yield* documents.get(id)).draft);
       assert.strictEqual(draft.title, "Kept");
     }),
+  );
+
+  it.effect(
+    "tells Announcements once when an event is first published (AC-1)",
+    () =>
+      Effect.gen(function* () {
+        const kept = yield* AnnouncementsKept;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        const told = (yield* Ref.get(kept)).filter((event) => event === id);
+        assert.deepStrictEqual(told, [id]);
+      }),
+  );
+
+  it.effect(
+    "tells Announcements nothing when a published event is published again (AC-2)",
+    () =>
+      Effect.gen(function* () {
+        const documents = yield* Documents;
+        const kept = yield* AnnouncementsKept;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        const editor = yield* openEditor(id);
+        // A new title, then moved a day.
+        const retitled = yield* documents.applyChanges(
+          id,
+          [editor.edit((event) => A.updateText(event, ["title"], "Meetup 2"))],
+          alice,
+        );
+        yield* documents.publish(id, retitled, alice);
+        const moved = yield* documents.applyChanges(
+          id,
+          [
+            editor.edit((event) =>
+              setTimes(event, {
+                start: "2036-10-16T18:00+02:00[Europe/Oslo]",
+                end: "2036-10-16T21:00+02:00[Europe/Oslo]",
+              }),
+            ),
+          ],
+          alice,
+        );
+        yield* documents.publish(id, moved, alice);
+        const told = (yield* Ref.get(kept)).filter((event) => event === id);
+        assert.deepStrictEqual(told, [id]);
+      }),
   );
 
   it.effect("creates an empty draft", () =>

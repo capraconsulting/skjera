@@ -8,6 +8,7 @@ import { Identity } from "@skjera/oauth/api";
 import { ConfigProvider, Effect, Exit, FileSystem, Layer } from "effect";
 import { HttpRouter, HttpStaticServer } from "effect/http";
 import { SqlClient } from "effect/sql";
+import { Announcements } from "../src/Announcements.ts";
 import { Documents } from "../src/Documents.ts";
 import * as Embed from "../src/Embed.ts";
 import type { DocumentId } from "../src/Model.ts";
@@ -22,6 +23,7 @@ import { TestDatabase } from "./TestDatabase.ts";
 const alice = new Identity({ issuer: "https://idp.example", subject: "alice" });
 
 const TestLayer = Layer.mergeAll(Teams.layer, Documents.layer).pipe(
+  Layer.provideMerge(Announcements.layerTest),
   Layer.provideMerge(Notifications.layerTest),
   Layer.provideMerge(TestDatabase),
 );

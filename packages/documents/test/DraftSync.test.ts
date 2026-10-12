@@ -4,6 +4,7 @@ import { Identity } from "@skjera/oauth/api";
 import { decode, encode } from "cbor-x";
 import { Effect, Fiber, Layer, Option, Queue } from "effect";
 import { Socket } from "effect/socket";
+import { Announcements } from "../src/Announcements.ts";
 import type { EventContent } from "../src/ContentTypes.ts";
 import { DocumentEvents } from "../src/DocumentEvents.ts";
 import { Documents } from "../src/Documents.ts";
@@ -23,6 +24,7 @@ const TestLayer = Layer.mergeAll(
   Presence.layer,
   Teams.layer,
 ).pipe(
+  Layer.provideMerge(Announcements.layerTest),
   Layer.provideMerge(Notifications.layerTest),
   Layer.provideMerge(TestDatabase),
 );

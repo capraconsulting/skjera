@@ -393,5 +393,10 @@
   "studio_team_logo_replace": "Bytt bilete",
   "studio_team_logo_remove": "Fjern bilete",
   "studio_team_logo_hint": "Logoen blir vist på nettstaden i staden for namnet på teamet, på arrangementa til teamet.",
-  "site_organizer": "Arrangør"
+  "site_organizer": "Arrangør",
+  "slack_signup": "Påmelding",
+  "slack_signup_link": "Meld deg på her",
+  "slack_when": "Når",
+  "slack_where": "Kvar",
+  "slack_deadlines_heading": "Påmeldingsfrist nærmar seg"
 }

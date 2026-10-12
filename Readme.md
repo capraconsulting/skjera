@@ -57,7 +57,7 @@ It installs, builds the app and the server from the working tree, creates a new 
 - [packages/email](packages/email): sending email, through SES or SMTP.
 - [packages/i18n](packages/i18n): the interface's words in English, Bokmål and Nynorsk.
 - [packages/snapsync](packages/snapsync): syncing tables to the browser by polling.
-- [packages/slack](packages/slack): Slack's API, not wired in yet.
+- [packages/slack](packages/slack): Slack's API: posts new events and sign-up deadlines to a channel.
 
 ## Deploying
 
@@ -80,10 +80,12 @@ Also optional, for websites that show the next events (`/embed`) in an iframe, o
 
 - `WEBSITE_ORIGINS`: the websites that may do so, each address they are served at, separated by spaces or commas, e.g. `https://www.capraconsulting.no, https://capraconsulting.no, https://www.liflig.no, https://liflig.no`. List the address with `www.` and the one without when a website answers at both. Without it, no website may. A value that is not such an address (no path, query or user; `http:` or `https:`) stops the server at start.
 
+Also optional, Slack: `SLACK_BOT_TOKEN`, the bot token of an app made from [packages/slack/manifest.yaml](packages/slack/manifest.yaml), and `SLACK_CHANNEL`, the id of a channel the bot has been invited to (e.g. `C0123ABC`). With both, and `SITE_URL`, Skjera posts each event the first time it is published, with `@here`, and at 07:00 UTC the events whose sign-up deadline runs out within a day, with `@channel`: every event, those shown only to members too, with times in Norwegian time. Slack fetches the cover from `SITE_URL`; when it cannot, the event is posted without it. Without them nothing is posted, with a warning at start.
+
 In Kubernetes:
 
 - Liveness: `GET /health`. Readiness: `GET /health/ready`, which checks the database.
-- One replica for now: background work (emails, reminders) runs on an Effect cluster in single-runner mode. More need its runners set up to find each other.
+- One replica for now: background work (emails, reminders, Slack messages) runs on an Effect cluster in single-runner mode. More need its runners set up to find each other.
 - It stops promptly on SIGTERM.
 - WebSockets (`/automerge`, where drafts sync) have to pass through the ingress.
 
