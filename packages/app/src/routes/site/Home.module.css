@@ -56,6 +56,13 @@
   font-weight: 300;
 }
 
+/* The filter groups side by side, further apart than the buttons in one. */
+.filterGroups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+}
+
 .filters {
   display: flex;
   flex-wrap: wrap;

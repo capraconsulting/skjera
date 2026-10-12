@@ -294,6 +294,8 @@ export const publishedEvent = async (
     readonly maxAttendees?: number;
     /** Streamed, with a link to the stream if given; not streamed by default. */
     readonly streamed?: { readonly link?: string };
+    /** Tags, added one by one; none by default. */
+    readonly tags?: ReadonlyArray<string>;
   },
 ) => {
   const id = await newEvent(page);
@@ -301,6 +303,15 @@ export const publishedEvent = async (
   await title(page).pressSequentially(eventTitle);
   await pickTimes(page);
   await writePlace(page);
+  if (options.tags !== undefined && options.tags.length > 0) {
+    const tagInput = page.getByRole("combobox", { name: "Tags" });
+    for (const tag of options.tags) {
+      await tagInput.fill(tag);
+      await tagInput.press("Enter");
+    }
+    // Done tagging: the suggestions close.
+    await tagInput.press("Escape");
+  }
   if (options.public) {
     await page.getByRole("checkbox", { name: /Public event/ }).check();
   }

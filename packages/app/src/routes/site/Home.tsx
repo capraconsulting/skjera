@@ -3,7 +3,7 @@ import { m } from "@skjera/i18n/messages";
 import { getLocale } from "@skjera/i18n/runtime";
 import { useLiveQuery } from "@tanstack/react-db";
 import { ArrowDown, ArrowRight } from "lucide-react";
-import { useQueryState } from "nuqs";
+import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { useEffect, useId, useState } from "react";
 import { Link } from "react-router";
 import { Badge } from "../../components/Badge.tsx";
@@ -52,6 +52,10 @@ const useSignedUp = () => {
 /** Past events, a page at a time. */
 const pastPage = 6;
 
+/** Events open to guests, or not: ?guests=yes or ?guests=no. */
+const guestChoices = ["yes", "no"] as const;
+type GuestChoice = (typeof guestChoices)[number];
+
 export function Home() {
   const events = useLiveQuery((q) =>
     q.from({ event: eventsTable.collection }),
@@ -61,6 +65,11 @@ export function Home() {
   const [pastShown, setPastShown] = useState(pastPage);
   // The tag picked, in the URL as ?tag=, to share or come back to.
   const [picked, setPicked] = useQueryState("tag");
+  // Open to guests or not, in the URL as ?guests=yes or ?guests=no.
+  const [guests, setGuests] = useQueryState(
+    "guests",
+    parseAsStringLiteral(guestChoices),
+  );
 
   const active = events.filter((event) => event.endsAt > now);
   // Filters only for what's coming up or going on.
@@ -72,9 +81,14 @@ export function Home() {
       ? null
       : (tags.find((each) => sameTag(each, picked)) ?? picked);
   const shown = events.filter(
-    (event) => tag === null || event.tags.some((each) => sameTag(each, tag)),
+    (event) =>
+      (tag === null || event.tags.some((each) => sameTag(each, tag))) &&
+      (guests === null || event.allowGuests === (guests === "yes")),
   );
   const pick = (next: string | null) => void setPicked(next);
+  // Choosing the chosen one again removes it.
+  const pickGuests = (next: GuestChoice) =>
+    void setGuests(guests === next ? null : next);
 
   const upcoming = shown
     .filter((event) => event.endsAt > now)
@@ -123,7 +137,30 @@ export function Home() {
           <h1 id={upcomingId} className={styles.heading}>
             {m.site_upcoming()}
           </h1>
-          {filters}
+          <div className={styles.filterGroups}>
+            <nav
+              className={styles.filters}
+              aria-label={m.site_filter_by_guests()}
+            >
+              <button
+                type="button"
+                className={styles.filter}
+                aria-pressed={guests === "yes"}
+                onClick={() => pickGuests("yes")}
+              >
+                {m.site_filter_open_to_guests()}
+              </button>
+              <button
+                type="button"
+                className={styles.filter}
+                aria-pressed={guests === "no"}
+                onClick={() => pickGuests("no")}
+              >
+                {m.site_filter_not_open_to_guests()}
+              </button>
+            </nav>
+            {filters}
+          </div>
         </div>
         {events.length === 0 ? (
           <p className={styles.empty}>{m.site_nothing_published()}</p>

@@ -2,9 +2,11 @@ import { expect, type Page, test } from "@playwright/test";
 import {
   deleteEvent,
   deleteTeam,
+  eventPath,
   newEvent,
   newTeam,
   pickTimes,
+  publishedEvent,
   signedIn,
   title,
   uniqueTeamName,
@@ -110,5 +112,129 @@ test("events are tagged, and the site groups and filters them", async ({
   await deleteEvent(alice, past);
   await alice.goto(`/studio/teams/${team}/events/${coming}`);
   await deleteEvent(alice, coming);
+  await deleteTeam(alice, team);
+});
+
+test("the site filters events open to guests and those not, with the tag too (AC-1, AC-2, AC-3, AC-4, AC-5)", async ({
+  browser,
+}) => {
+  test.slow();
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await newTeam(alice, uniqueTeamName("Guest filter"));
+  // A tag only this test uses, so the past list holds just D.
+  const tag = uniqueTeamName("Guests");
+
+  const a = await publishedEvent(alice, {
+    public: true,
+    guests: true,
+    tags: [tag],
+  });
+  const b = await publishedEvent(alice, { public: true, tags: [tag] });
+  const c = await publishedEvent(alice, { public: true, guests: true });
+  // D is past, not open to guests, tagged.
+  const d = await newEvent(alice);
+  const dTitle = `Was ${d.slice(-12)}`;
+  await title(alice).pressSequentially(dTitle);
+  await alice.getByRole("button", { name: "Start date" }).click();
+  await alice.getByRole("button", { name: /previous month/i }).click();
+  await alice.getByRole("button", { name: /15th, \d{4}/ }).click();
+  await tagInput(alice).fill(tag);
+  await tagInput(alice).press("Enter");
+  await publish(alice);
+
+  const reader = await visitor(browser);
+  const upcoming = reader.getByRole("region", { name: "Upcoming events" });
+  const pastEvents = reader.getByRole("region", { name: "Past events" });
+  const guestFilter = reader.getByRole("navigation", {
+    name: "Filter by who can sign up",
+  });
+  // "Open to guests" is part of "Not open to guests": match whole names.
+  const open = guestFilter.getByRole("button", {
+    name: "Open to guests",
+    exact: true,
+  });
+  const notOpen = guestFilter.getByRole("button", {
+    name: "Not open to guests",
+    exact: true,
+  });
+  const tagFilter = reader.getByRole("navigation", { name: "Filter by tag" });
+  const link = (region: typeof upcoming, event: { title: string }) =>
+    region.getByRole("link", { name: event.title });
+  const shows = async (
+    region: typeof upcoming,
+    wanted: ReadonlyArray<{ title: string }>,
+    unwanted: ReadonlyArray<{ title: string }>,
+  ) => {
+    for (const event of wanted) await expect(link(region, event)).toBeVisible();
+    for (const event of unwanted)
+      await expect(link(region, event)).toHaveCount(0);
+  };
+  const hasQuery =
+    (guests: string | null, tagged: string | null) => (url: URL) =>
+      url.searchParams.get("guests") === guests &&
+      url.searchParams.get("tag") === tagged;
+
+  // Neither filter chosen: everything shows (AC-1, AC-2).
+  await reader.goto("/");
+  await expect(open).toHaveAttribute("aria-pressed", "false");
+  await expect(notOpen).toHaveAttribute("aria-pressed", "false");
+  await shows(upcoming, [a, b, c], []);
+
+  // Choosing one keeps its events and puts it in the address (AC-2, AC-5).
+  await open.click();
+  await expect(reader).toHaveURL(hasQuery("yes", null));
+  await expect(open).toHaveAttribute("aria-pressed", "true");
+  await shows(upcoming, [a, c], [b]);
+
+  // Choosing the other replaces it (AC-2, AC-3).
+  await notOpen.click();
+  await expect(reader).toHaveURL(hasQuery("no", null));
+  await expect(notOpen).toHaveAttribute("aria-pressed", "true");
+  await expect(open).toHaveAttribute("aria-pressed", "false");
+  await shows(upcoming, [b], [a, c]);
+
+  // Choosing the chosen one again removes it (AC-3).
+  await notOpen.click();
+  await expect(reader).toHaveURL(hasQuery(null, null));
+  await expect(notOpen).toHaveAttribute("aria-pressed", "false");
+  await expect(open).toHaveAttribute("aria-pressed", "false");
+  await shows(upcoming, [a, b, c], []);
+
+  // Opening the address shows the same lists (AC-5).
+  await reader.goto("/?guests=yes");
+  await expect(open).toHaveAttribute("aria-pressed", "true");
+  await shows(upcoming, [a, c], [b]);
+
+  // The tag alone, then the guest filter chosen beside it, then the tag
+  // removed (AC-4).
+  await reader.goto(`/?tag=${encodeURIComponent(tag)}`);
+  await shows(upcoming, [a, b], [c]);
+  await open.click();
+  await expect(reader).toHaveURL(hasQuery("yes", tag));
+  await shows(upcoming, [a], [b, c]);
+  await tagFilter.getByRole("button", { name: "All" }).click();
+  await expect(reader).toHaveURL(hasQuery("yes", null));
+  await shows(upcoming, [a, c], [b]);
+
+  // Both in the address: the events matching both, in both lists (AC-2,
+  // AC-4).
+  await reader.goto(`/?tag=${encodeURIComponent(tag)}&guests=yes`);
+  await shows(upcoming, [a], [b, c]);
+  await expect(reader.getByRole("link", { name: dTitle })).toHaveCount(0);
+  await reader.goto(`/?tag=${encodeURIComponent(tag)}&guests=no`);
+  await shows(upcoming, [b], [a, c]);
+  await expect(pastEvents.getByRole("link", { name: dTitle })).toBeVisible();
+
+  // An unknown value is no choice (AC-5).
+  await reader.goto("/?guests=maybe");
+  await expect(open).toHaveAttribute("aria-pressed", "false");
+  await expect(notOpen).toHaveAttribute("aria-pressed", "false");
+  await shows(upcoming, [a, b, c], []);
+
+  await deleteEvent(alice, d);
+  for (const event of [a, b, c]) {
+    await alice.goto(eventPath(team, event.id));
+    await deleteEvent(alice, event.id);
+  }
   await deleteTeam(alice, team);
 });
