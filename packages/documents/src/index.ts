@@ -19,6 +19,7 @@ export * from "./Documents.ts";
 export * from "./DocumentsApi.ts";
 export * as DraftSync from "./DraftSync.ts";
 export * from "./DraftSyncProtocol.ts";
+export * as Embed from "./Embed.ts";
 export * from "./errors.ts";
 export * as Images from "./Images.ts";
 export * from "./ImagesApi.ts";

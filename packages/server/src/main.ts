@@ -288,6 +288,8 @@ const Routes = Layer.mergeAll(
   ),
   Documents.DraftSync.layerHttp({ path: Documents.draftSyncPath }),
   Documents.Images.layerHttp,
+  // The next events, for the websites to show in an iframe.
+  Documents.Embed.layerHttp,
   HttpRouter.add("GET", "/health", HttpServerResponse.text("ok")),
   ready,
   site,
