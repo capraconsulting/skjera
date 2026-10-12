@@ -28,6 +28,7 @@ import { attendees, events } from "../../sync/tables.ts";
 import { formatDaysIn, formatHoursIn } from "../../time.ts";
 import { Attend } from "./Attend.tsx";
 import styles from "./EventPage.module.css";
+import { Signups } from "./Signups.tsx";
 import type { siteLoader } from "./SiteLayout.tsx";
 
 export const eventLoader = async ({ params, request }: LoaderFunctionArgs) => {
@@ -67,6 +68,7 @@ export function EventPage() {
   const { id } = useLoaderData<typeof eventLoader>();
   const signups = useSignups(id);
   const me = useRouteLoaderData<typeof siteLoader>("site");
+  const signedIn = me !== null && me !== undefined;
   const event = useLiveQuery(
     (q) =>
       q
@@ -165,11 +167,8 @@ export function EventPage() {
       <div className={styles.body} data-testid="event-body">
         <RichText spans={event.body} />
       </div>
-      <Attend
-        event={event}
-        signups={signups}
-        signedIn={me !== null && me !== undefined}
-      />
+      <Attend event={event} signups={signups} signedIn={signedIn} />
+      {signedIn ? <Signups event={event} signups={signups} /> : null}
     </article>
   );
 }
