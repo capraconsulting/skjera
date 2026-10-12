@@ -27,7 +27,11 @@ import styles from "./EventEditor.module.css";
 const titlePath = ["title"] as const;
 const bodyPath = ["body"] as const;
 const foodPath = ["food"] as const;
-const placePath = ["place"] as const;
+/** The collaborative texts kept in a draft under a key of their own. */
+const textPaths = {
+  place: ["place"],
+  streamLink: ["streamLink"],
+} as const;
 
 /** The third column: the selected event. */
 export function EventEditor() {
@@ -106,7 +110,21 @@ function EventSession({ id }: { readonly id: DocumentId }) {
         </Field>
         <EventTimes handle={handle} />
         <Field label={m.site_place()}>
-          <Place handle={handle} presence={session.presence} />
+          <DraftText
+            handle={handle}
+            presence={session.presence}
+            field="place"
+            label={m.site_place()}
+          />
+        </Field>
+        <Field label={m.studio_streaming()}>
+          <CheckboxField
+            handle={handle}
+            field="streamed"
+            label={m.studio_streamed()}
+            hint={m.studio_streamed_hint()}
+          />
+          <StreamLink handle={handle} presence={session.presence} />
         </Field>
         <TagsField handle={handle} />
         <Field label={m.studio_visibility()}>
@@ -156,19 +174,24 @@ function EventSession({ id }: { readonly id: DocumentId }) {
   );
 }
 
-/** Where it is. A draft from before events had a place gets one to write in. */
-function Place(props: {
+/**
+ * Collaborative text kept under `field`, which a draft from before it
+ * existed gets to write in.
+ */
+function DraftText(props: {
   readonly handle: DocHandle<EventContent>;
   readonly presence: DraftPresence | null;
+  readonly field: keyof typeof textPaths;
+  readonly label: string;
 }) {
-  const { handle } = props;
+  const { handle, field } = props;
   useEffect(() => {
-    if (handle.doc().place === undefined) {
+    if (handle.doc()[field] === undefined) {
       handle.change((doc) => {
-        (doc as { place?: string }).place = "";
+        (doc as Partial<Record<typeof field, string>>)[field] = "";
       });
     }
-  }, [handle]);
+  }, [handle, field]);
   // The text's object, so a new editor starts if someone else's wins. A
   // text's value is a plain string: its id is asked of the draft by key.
   const text = useSyncExternalStore(
@@ -178,7 +201,7 @@ function Place(props: {
     },
     () => {
       const doc = handle.doc();
-      return doc.place === undefined ? null : A.getObjectId(doc, "place");
+      return doc[field] === undefined ? null : A.getObjectId(doc, field);
     },
   );
   if (text === null) return null;
@@ -186,10 +209,29 @@ function Place(props: {
     <TextEditor
       key={text}
       handle={handle}
-      path={placePath}
-      label={m.site_place()}
+      path={textPaths[field]}
+      label={props.label}
       presence={props.presence}
     />
+  );
+}
+
+/** Where to follow the stream, while the event is streamed. */
+function StreamLink(props: {
+  readonly handle: DocHandle<EventContent>;
+  readonly presence: DraftPresence | null;
+}) {
+  const streamed = useBooleanField(props.handle, "streamed");
+  if (!streamed) return null;
+  return (
+    <div className={styles.food}>
+      <DraftText
+        handle={props.handle}
+        presence={props.presence}
+        field="streamLink"
+        label={m.studio_stream_link()}
+      />
+    </div>
   );
 }
 

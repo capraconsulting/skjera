@@ -75,7 +75,7 @@ export function Attendees(props: { readonly id: DocumentId }) {
         <p className={styles.empty}>{m.attend_nobody()}</p>
       ) : (
         <ul className={styles.list}>
-          {attendees.map(({ id, details: who }) =>
+          {attendees.map(({ id, details: who, online }) =>
             // Signed-in users always see who signed up.
             who === null ? null : (
               <li key={id} className={styles.item}>
@@ -85,6 +85,11 @@ export function Attendees(props: { readonly id: DocumentId }) {
                 )}
                 {who.guest ? (
                   <Badge tone="neutral">{m.studio_guest()}</Badge>
+                ) : null}
+                {event?.isStreamed ? (
+                  <Badge tone="neutral">
+                    {online ? m.attend_online() : m.attend_in_person()}
+                  </Badge>
                 ) : null}
                 <Button
                   variant="ghost"

@@ -10,6 +10,7 @@ import {
   MapPin,
   Users,
   UtensilsCrossed,
+  Video,
 } from "lucide-react";
 import {
   data,
@@ -117,6 +118,22 @@ export function EventPage() {
               </span>
             </li>
           )}
+          {event.isStreamed ? (
+            <li>
+              <Video {...icon} />
+              <span>
+                <span className={styles.label}>{m.site_streamed()}</span>
+                {event.streamLink === null ? null : (
+                  <>
+                    {": "}
+                    <a href={event.streamLink} rel="noopener noreferrer">
+                      {event.streamLink}
+                    </a>
+                  </>
+                )}
+              </span>
+            </li>
+          ) : null}
           {event.askDietary && event.food.trim() !== "" ? (
             <li>
               <UtensilsCrossed {...icon} />

@@ -82,6 +82,10 @@ export const EventRow = Schema.Struct({
   maxAttendees: Schema.NullOr(Schema.Int),
   /** Don't show how many places are left. */
   hidePlacesLeft: Schema.Boolean,
+  /** Those signing up say whether they come in person or follow online. */
+  isStreamed: Schema.Boolean,
+  /** Where it is streamed; null: no link (yet), and always while not streamed. */
+  streamLink: Schema.NullOr(Schema.String),
   /** The version of the draft that was published. */
   publishedHeads: Heads,
   publishedAt: Schema.Date,
@@ -111,6 +115,11 @@ export const AttendeeRow = Schema.Struct({
   changedAt: Schema.Date,
   /** The signed-in user's own signup. Guests keep track in their browser. */
   mine: Schema.Boolean,
+  /**
+   * Follows online rather than in person. Counts only while the event is
+   * streamed; anyone looking at a public event counts places left in person.
+   */
+  online: Schema.Boolean,
   /** Who it is: for signed-in users only; anyone else can only count. */
   details: Schema.NullOr(AttendeeDetails),
 });

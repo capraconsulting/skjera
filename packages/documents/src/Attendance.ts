@@ -1,7 +1,7 @@
 import { createHash, createHmac, randomBytes } from "node:crypto";
 import type { Identity } from "@skjera/oauth/api";
 import { Config, Context, Effect, Layer, Option, Redacted } from "effect";
-import { SqlClient, SqlError } from "effect/sql";
+import { SqlClient, SqlError, type Statement } from "effect/sql";
 import { EventNotFound, SignupNotFound, SignupRejected } from "./errors.ts";
 import type {
   Answer,
@@ -21,6 +21,8 @@ export interface SignupDetails {
   readonly dietary?: string;
   /** Answers to the event's questions, by question id. */
   readonly answers?: Answers;
+  /** Follows online rather than in person; required while the event is streamed. */
+  readonly online?: boolean;
   /** The signup's id, picked by the client. */
   readonly id?: string;
   /** The language they signed up in, for emails to them. */
@@ -186,21 +188,30 @@ export class Attendance extends Context.Service<
       const full = new SignupRejected(refused({ _tag: "EventFull" }));
 
       /**
-       * Refuses a new signup when the event is full. The event is locked
+       * Refuses a signup that would take a place when none is left. Those
+       * following a streamed event online take none. The event is locked
        * first, so signups for its last place take turns: the count, in a
        * statement of its own, sees those that committed while this one
-       * waited. A member signed up already isn't new.
+       * waited. Someone with a place already (their own row, counted in
+       * person) isn't new.
        */
-      const room = Effect.fn(function* (event: DocumentId, member?: Identity) {
-        const [limit] = yield* sql<{ max_attendees: number | null }>`
-          SELECT max_attendees FROM events WHERE id = ${event} FOR UPDATE
+      const room = Effect.fn(function* (
+        event: DocumentId,
+        online: boolean,
+        own: Statement.Fragment,
+      ) {
+        const [limit] = yield* sql<{
+          max_attendees: number | null;
+          is_streamed: boolean;
+        }>`
+          SELECT max_attendees, is_streamed FROM events WHERE id = ${event} FOR UPDATE
         `;
         if (limit === undefined || limit.max_attendees === null) return;
+        if (limit.is_streamed && online) return;
         const [taken] = yield* sql<{ count: number; mine: boolean }>`
-          SELECT count(*)::int AS count,
-            coalesce(bool_or(user_issuer = ${member?.issuer ?? null}::text
-              AND user_subject = ${member?.subject ?? null}::text), false) AS mine
-          FROM attendees WHERE event_id = ${event}
+          SELECT count(*)::int AS count, coalesce(bool_or(${own}), false) AS mine
+          FROM attendees
+          WHERE event_id = ${event} AND NOT (${limit.is_streamed}::boolean AND online)
         `;
         if (
           taken !== undefined &&
@@ -223,9 +234,10 @@ export class Attendance extends Context.Service<
           allow_guests: boolean;
           ask_dietary: boolean;
           questions: ReadonlyArray<Question>;
+          streamed: boolean;
           open: boolean;
         }>`
-          SELECT allow_guests, questions,
+          SELECT allow_guests, questions, is_streamed AS streamed,
             -- After the food deadline, people can still come; not eat.
             ask_dietary AND coalesce(food_deadline > now(), true) AS ask_dietary,
             coalesce(signup_deadline, starts_at) > now() AS open
@@ -241,6 +253,7 @@ export class Attendance extends Context.Service<
           allowGuests: row.allow_guests,
           askDietary: row.ask_dietary,
           questions: row.questions,
+          streamed: row.streamed,
         };
       });
 
@@ -253,24 +266,42 @@ export class Attendance extends Context.Service<
           : Effect.succeed(dietary);
       };
 
+      /** Whether they follow online: asked only while the event is streamed. */
+      const onlineFor = (streamed: boolean, value: boolean | undefined) =>
+        !streamed
+          ? Effect.succeed(false)
+          : value === undefined
+            ? Effect.fail(
+                new SignupRejected(refused({ _tag: "AttendanceMissing" })),
+              )
+            : Effect.succeed(value);
+
       const attend = Effect.fn("Attendance.attend")(function* (
         event: DocumentId,
         user: Identity,
         details: SignupDetails = {},
       ) {
-        const { askDietary, questions } = yield* rules(event, "members");
+        const { askDietary, questions, streamed } = yield* rules(
+          event,
+          "members",
+        );
         const dietary = yield* dietaryFor(askDietary, details.dietary);
         const answers = yield* answersFor(questions, details.answers);
+        const online = yield* onlineFor(streamed, details.online);
         const id = details.id;
         yield* Effect.gen(function* () {
-          yield* room(event, user);
+          yield* room(
+            event,
+            online,
+            sql`user_issuer = ${user.issuer} AND user_subject = ${user.subject}`,
+          );
           // Already signed up, or a retry: nothing to do, or tell.
           const inserted = yield* sql<Signup>`
-            INSERT INTO attendees (id, event_id, user_issuer, user_subject, name, email, dietary, answers, locale)
+            INSERT INTO attendees (id, event_id, user_issuer, user_subject, name, email, dietary, answers, online, locale)
             VALUES (coalesce(${id ?? null}::uuid, uuidv7()), ${event}, ${user.issuer},
               ${user.subject}, ${user.name ?? user.email ?? user.subject},
               ${user.email ?? null}, ${dietary}, ${JSON.stringify(answers)}::jsonb,
-              ${details.locale ?? null})
+              ${online}, ${details.locale ?? null})
             ON CONFLICT DO NOTHING
             RETURNING id, name, email, false AS guest, locale
           `;
@@ -306,7 +337,7 @@ export class Attendance extends Context.Service<
         guest: GuestDetails,
         details: SignupDetails = {},
       ) {
-        const { allowGuests, askDietary, questions } = yield* rules(
+        const { allowGuests, askDietary, questions, streamed } = yield* rules(
           event,
           "anyone",
         );
@@ -317,16 +348,17 @@ export class Attendance extends Context.Service<
         }
         const dietary = yield* dietaryFor(askDietary, details.dietary);
         const answers = yield* answersFor(questions, details.answers);
+        const online = yield* onlineFor(streamed, details.online);
         const id = details.id;
         const attendee = id ?? crypto.randomUUID();
         const token = guestToken(attendee);
         yield* Effect.gen(function* () {
-          yield* room(event);
+          yield* room(event, online, sql`false`);
           const inserted = yield* sql<Signup>`
-            INSERT INTO attendees (id, event_id, name, email, dietary, answers, cancel_token_hash, locale)
+            INSERT INTO attendees (id, event_id, name, email, dietary, answers, cancel_token_hash, online, locale)
             VALUES (${attendee}::uuid, ${event}, ${guest.name.trim()},
               ${guest.email.trim()}, ${dietary}, ${JSON.stringify(answers)}::jsonb, ${hash(token)},
-              ${details.locale ?? null})
+              ${online}, ${details.locale ?? null})
             RETURNING id, name, email, true AS guest, locale
           `;
           yield* tell(inserted, (attendee) =>
@@ -372,26 +404,40 @@ export class Attendance extends Context.Service<
         who: { readonly user: Identity } | { readonly cancelToken: string },
         details: SignupDetails,
       ) {
-        const { askDietary, questions } = yield* rules(
+        const { askDietary, questions, streamed } = yield* rules(
           event,
           "user" in who ? "members" : "anyone",
         );
         const dietary = yield* dietaryFor(askDietary, details.dietary);
         const answers = yield* answersFor(questions, details.answers);
-        const changed = yield* sql`
-          UPDATE attendees SET
-            answers = ${JSON.stringify(answers)}::jsonb,
-            changed_at = now(),
-            -- Kept as given once the event stops asking.
-            dietary = CASE WHEN ${askDietary}::boolean THEN ${dietary}::text ELSE dietary END
-          WHERE event_id = ${event} AND ${
-            "user" in who
-              ? sql`user_issuer = ${who.user.issuer} AND user_subject = ${who.user.subject}`
-              : sql`cancel_token_hash = ${hash(who.cancelToken)}`
-          }
-          RETURNING id
+        const own =
+          "user" in who
+            ? sql`user_issuer = ${who.user.issuer} AND user_subject = ${who.user.subject}`
+            : sql`cancel_token_hash = ${hash(who.cancelToken)}`;
+        const found = yield* sql`
+          SELECT id FROM attendees WHERE event_id = ${event} AND ${own}
         `.pipe(Effect.orDie);
-        if (changed.length === 0) return yield* new SignupNotFound({});
+        if (found.length === 0) return yield* new SignupNotFound({});
+        // Counts only while the event is streamed; left out, the choice stays.
+        const online = streamed ? (details.online ?? null) : null;
+        yield* Effect.gen(function* () {
+          // A place in person is taken: the event's row is locked first.
+          if (online === false) yield* room(event, false, own);
+          const changed = yield* sql`
+            UPDATE attendees SET
+              answers = ${JSON.stringify(answers)}::jsonb,
+              changed_at = now(),
+              -- Kept as given once the event stops asking.
+              dietary = CASE WHEN ${askDietary}::boolean THEN ${dietary}::text ELSE dietary END,
+              online = coalesce(${online}::boolean, online)
+            WHERE event_id = ${event} AND ${own}
+            RETURNING id
+          `;
+          if (changed.length === 0) return yield* new SignupNotFound({});
+        }).pipe(
+          sql.withTransaction,
+          Effect.catchIf(SqlError.isSqlError, Effect.die),
+        );
       });
 
       const remove = Effect.fn("Attendance.remove")(function* (

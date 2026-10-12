@@ -83,11 +83,13 @@ export function Attend(props: {
     submitted.preventDefault();
     const form = new FormData(submitted.currentTarget);
     const dietary = form.get("dietary");
+    const online = onlineFrom(event, form);
     const signup: Signup = {
       // Emails to them are in it.
       locale: getLocale(),
       ...(dietary === null ? {} : { dietary: String(dietary) }),
       answers: answersFrom(event.questions, form),
+      ...(online === undefined ? {} : { online }),
       ...(asGuest
         ? {
             guest: {
@@ -106,6 +108,7 @@ export function Attend(props: {
           signedUpAt: new Date(),
           changedAt: new Date(),
           mine: !asGuest,
+          online: online === true,
           details: null,
         },
         { metadata: signup },
@@ -118,15 +121,18 @@ export function Attend(props: {
     submitted.preventDefault();
     const form = new FormData(submitted.currentTarget);
     const dietary = form.get("dietary");
+    const online = onlineFrom(event, form);
     const changed: SignupChange = {
       ...(dietary === null ? {} : { dietary: String(dietary) }),
       answers: answersFrom(event.questions, form),
+      ...(online === undefined ? {} : { online }),
     };
     const transaction = attendees.collection.update(
       id,
       { metadata: changed },
       (draft) => {
         draft.changedAt = new Date();
+        if (online !== undefined) draft.online = online;
       },
     );
     settle(transaction);
@@ -161,15 +167,22 @@ export function Attend(props: {
       </p>
     );
 
-  // Places left; null without a limit. A limit set below those signed up
-  // leaves none.
+  // Places left; null without a limit. Only those in person take one, when
+  // the event is streamed. A limit set below those signed up leaves none.
+  const inPerson = event.isStreamed
+    ? signups.filter((signup) => !signup.online)
+    : signups;
   const left =
     event.maxAttendees === null
       ? null
-      : Math.max(0, event.maxAttendees - signups.length);
+      : Math.max(0, event.maxAttendees - inPerson.length);
   const full = left === 0;
+  // A full streamed event still takes those following online.
+  const noMore = full && !event.isStreamed;
   const places = full ? (
-    <p className={styles.closes}>{m.attend_full()}</p>
+    <p className={styles.closes}>
+      {event.isStreamed ? m.attend_full_online() : m.attend_full()}
+    </p>
   ) : left === null || event.hidePlacesLeft ? null : (
     <p className={styles.closes}>{m.attend_places_left({ count: left })}</p>
   );
@@ -210,12 +223,20 @@ export function Attend(props: {
   );
   const asked = (given: Given = {}) => (
     <>
+      {event.isStreamed ? (
+        <AttendanceInput
+          defaultOnline={given.online}
+          // Those in person keep their place when they answer again.
+          inPersonDisabled={full && given.online !== false}
+        />
+      ) : null}
       {asksDietary ? <DietaryInput defaultValue={given.dietary} /> : null}
       <QuestionInputs questions={event.questions} given={given.answers} />
     </>
   );
   // There's something to change.
-  const changeable = asksDietary || event.questions.length > 0;
+  const changeable =
+    asksDietary || event.questions.length > 0 || event.isStreamed;
 
   /** Signed up: changing the answers, or cancelling. */
   const signedUp = (id: string, status: string, given: Given) =>
@@ -257,10 +278,8 @@ export function Attend(props: {
         {closes}
         {places}
         {mine !== undefined ? (
-          signedUp(
-            mine.id,
-            m.attend_you_attending(),
-            given ?? {
+          signedUp(mine.id, m.attend_you_attending(), {
+            ...(given ?? {
               ...(mine.details?.dietary == null
                 ? {}
                 : { dietary: mine.details.dietary }),
@@ -270,9 +289,11 @@ export function Attend(props: {
                   answer.value,
                 ]),
               ),
-            },
-          )
-        ) : full ? null : (
+            }),
+            // The row holds the choice whether or not this browser remembered it.
+            online: mine.online,
+          })
+        ) : noMore ? null : (
           <form
             className={styles.form}
             onSubmit={(submitted) => signUp(submitted, false)}
@@ -297,7 +318,7 @@ export function Attend(props: {
         <p className={styles.count}>{count}</p>
         {closes}
         {places}
-        {full ? (
+        {noMore ? (
           logInWhenFull
         ) : (
           <p className={styles.row}>
@@ -316,7 +337,7 @@ export function Attend(props: {
       <p className={styles.count}>{count}</p>
       {closes}
       {places}
-      {guest === null && full ? (
+      {guest === null && noMore ? (
         logInWhenFull
       ) : guest === null ? (
         <form
@@ -353,7 +374,10 @@ export function Attend(props: {
           </p>
         </form>
       ) : (
-        signedUp(guest.id, m.attend_you_signed_up(), guest.given ?? {})
+        signedUp(guest.id, m.attend_you_signed_up(), {
+          ...(guest.given ?? {}),
+          online: signups.find((signup) => signup.id === guest.id)?.online,
+        })
       )}
       {failure}
     </section>
@@ -374,6 +398,8 @@ function PrivacyLink() {
 type Given = {
   readonly dietary?: string | undefined;
   readonly answers?: Answers | undefined;
+  /** Follows online rather than in person; unknown for a new signup. */
+  readonly online?: boolean | undefined;
 };
 
 /** Asked of everyone signing up, when the event wants to know. */
@@ -391,6 +417,47 @@ const DietaryInput = (props: {
 );
 
 const field = (question: Question) => `question-${question.id}`;
+
+/** What the attendance question was answered: online or not; undefined while not asked. */
+const onlineFrom = (event: EventRow, form: FormData) =>
+  event.isStreamed ? form.get("attendance") === "online" : undefined;
+
+/**
+ * In person or online, picked by everyone signing up to a streamed event:
+ * neither is chosen in advance.
+ */
+function AttendanceInput(props: {
+  readonly defaultOnline: boolean | undefined;
+  /** No place is left in person. */
+  readonly inPersonDisabled: boolean;
+}) {
+  return (
+    <fieldset className={styles.choice}>
+      <legend>{m.attend_how()}</legend>
+      <label className={styles.check}>
+        <input
+          type="radio"
+          name="attendance"
+          value="in-person"
+          required
+          disabled={props.inPersonDisabled}
+          defaultChecked={props.defaultOnline === false}
+        />
+        {m.attend_in_person()}
+      </label>
+      <label className={styles.check}>
+        <input
+          type="radio"
+          name="attendance"
+          value="online"
+          required
+          defaultChecked={props.defaultOnline === true}
+        />
+        {m.attend_online()}
+      </label>
+    </fieldset>
+  );
+}
 
 /** The answers in a signup form, by question id. */
 const answersFrom = (

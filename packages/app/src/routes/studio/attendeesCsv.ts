@@ -3,12 +3,12 @@ import { m } from "@skjera/i18n/messages";
 import Papa from "papaparse";
 
 /**
- * The attendees as a spreadsheet: who they are, what they can't eat, and a
- * column for each question. Questions taken off the event since still
+ * The attendees as a spreadsheet: who they are, how each attends when the
+ * event is streamed, what they can't eat, and a column for each question. Questions taken off the event since still
  * show, after the others, as they were asked.
  */
 export const attendeesCsv = (
-  event: Pick<EventRow, "questions"> | undefined,
+  event: Pick<EventRow, "questions" | "isStreamed"> | undefined,
   attendees: ReadonlyArray<AttendeeRow>,
 ): string => {
   const columns = new Map<string, string>(
@@ -19,29 +19,36 @@ export const attendeesCsv = (
       if (!columns.has(answer.id)) columns.set(answer.id, answer.question);
     }
   }
-  const rows = attendees.flatMap(({ details, signedUpAt, changedAt }) => {
-    if (details === null) return [];
-    const answers = new Map(
-      details.answers.map((answer) => [answer.id, answerText(answer)]),
-    );
-    return [
-      [
-        details.name,
-        details.email ?? "",
-        details.guest ? m.common_yes() : m.common_no(),
-        signedUpAt.toISOString(),
-        changedAt.toISOString(),
-        details.dietary ?? "",
-        ...[...columns.keys()].map((id) => answers.get(id) ?? ""),
-      ],
-    ];
-  });
+  const streamed = event?.isStreamed === true;
+  const rows = attendees.flatMap(
+    ({ details, online, signedUpAt, changedAt }) => {
+      if (details === null) return [];
+      const answers = new Map(
+        details.answers.map((answer) => [answer.id, answerText(answer)]),
+      );
+      return [
+        [
+          details.name,
+          details.email ?? "",
+          details.guest ? m.common_yes() : m.common_no(),
+          ...(streamed
+            ? [online ? m.attend_online() : m.attend_in_person()]
+            : []),
+          signedUpAt.toISOString(),
+          changedAt.toISOString(),
+          details.dietary ?? "",
+          ...[...columns.keys()].map((id) => answers.get(id) ?? ""),
+        ],
+      ];
+    },
+  );
   return Papa.unparse(
     {
       fields: [
         m.csv_name(),
         m.csv_email(),
         m.csv_guest(),
+        ...(streamed ? [m.csv_attending()] : []),
         m.csv_signed_up(),
         m.csv_changed(),
         m.csv_dietary(),

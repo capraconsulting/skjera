@@ -172,6 +172,8 @@ export class Sync extends Context.Service<
             place: string | null;
             max_attendees: number | null;
             hide_places_left: boolean;
+            is_streamed: boolean;
+            stream_link: string | null;
             published_heads: Heads;
             published_at: Date;
             first_published_at: Date;
@@ -179,7 +181,8 @@ export class Sync extends Context.Service<
           }>`
             SELECT id, title, starts_at, ends_at, signup_deadline, time_zone, body, cover, is_public,
               allow_guests, ask_dietary, food, food_deadline, questions, tags,
-              place, max_attendees, hide_places_left, published_heads, published_at,
+              place, max_attendees, hide_places_left, is_streamed, stream_link,
+              published_heads, published_at,
               first_published_at,
               (is_public OR ${audience === "members"}) AND deleted_at IS NULL AS visible
             FROM events WHERE id = ANY(${keys}::uuid[])
@@ -207,6 +210,8 @@ export class Sync extends Context.Service<
                     place: row.place,
                     maxAttendees: row.max_attendees,
                     hidePlacesLeft: row.hide_places_left,
+                    isStreamed: row.is_streamed,
+                    streamLink: row.stream_link,
                     publishedHeads: row.published_heads,
                     publishedAt: row.published_at,
                     firstPublishedAt: row.first_published_at,
@@ -242,10 +247,11 @@ export class Sync extends Context.Service<
             answers: ReadonlyArray<Answer>;
             guest: boolean;
             mine: boolean;
+            online: boolean;
             visible: boolean;
           }>`
             SELECT a.id, a.event_id, a.created_at, a.changed_at, a.name, a.email, a.dietary, a.answers,
-              a.user_issuer IS NULL AS guest,
+              a.user_issuer IS NULL AS guest, a.online,
               coalesce(a.user_issuer = ${issuer} AND a.user_subject = ${subject}, false)
                 AS mine,
               (e.is_public OR ${member}) AND e.deleted_at IS NULL AS visible
@@ -262,6 +268,7 @@ export class Sync extends Context.Service<
                     signedUpAt: row.created_at,
                     changedAt: row.changed_at,
                     mine: row.mine,
+                    online: row.online,
                     details: member
                       ? AttendeeDetails.make({
                           name: row.name,

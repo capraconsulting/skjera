@@ -71,8 +71,24 @@ export const EventContent = Schema.Struct({
   maxAttendees: Schema.optionalKey(AttendeeLimit),
   /** Don't show how many places are left. Missing: shown. */
   hidePlacesLeft: Schema.optionalKey(Schema.Boolean),
+  /**
+   * Streamed: those signing up say whether they come in person or follow
+   * online, and only those in person count against the limit. Missing: no.
+   */
+  streamed: Schema.optionalKey(Schema.Boolean),
+  /** Where it is streamed, as written; published only while streamed. */
+  streamLink: Schema.optionalKey(Schema.String),
 });
 export type EventContent = typeof EventContent.Type;
+
+/** An http or https address. */
+const isWebAddress = (text: string) => {
+  try {
+    return ["http:", "https:"].includes(new URL(text).protocol);
+  } catch {
+    return false;
+  }
+};
 
 /** What a draft needs before it can be published, named for messages. */
 export interface Requirement<Content> {
@@ -147,6 +163,12 @@ export const contentTypes = {
         ).size > 1
           ? { _tag: "MixedTimeZones" }
           : null,
+      (event) => {
+        const link = (event.streamLink ?? "").trim();
+        return event.streamed === true && link !== "" && !isWebAddress(link)
+          ? { _tag: "StreamLinkNotWeb" }
+          : null;
+      },
     ] satisfies ReadonlyArray<Check<EventContent>>,
   },
 };

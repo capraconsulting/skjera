@@ -171,7 +171,7 @@ export const attendees = syncedTable({
   write: {
     // Signing up, as the signed-in user or as a guest (see `Signup`).
     insert: (attendee, metadata) => {
-      const { guest, dietary, answers, locale } = metadata as Signup;
+      const { guest, dietary, answers, online, locale } = metadata as Signup;
       return sendPublic((client) =>
         client.events
           .attend({
@@ -181,6 +181,7 @@ export const attendees = syncedTable({
               ...(guest === undefined ? {} : { guest }),
               ...(dietary === undefined ? {} : { dietary }),
               ...(answers === undefined ? {} : { answers }),
+              ...(online === undefined ? {} : { online }),
               ...(locale === undefined ? {} : { locale }),
             },
           })
@@ -269,6 +270,8 @@ export const attendees = syncedTable({
 export type SignupChange = {
   readonly dietary?: string;
   readonly answers?: Answers;
+  /** Follows online rather than in person; asked while the event is streamed. */
+  readonly online?: boolean;
 };
 
 /** Pass as a delete's metadata to take someone off as an organizer. */
@@ -281,6 +284,8 @@ export type Signup = {
   readonly dietary?: string;
   /** Answers to the event's questions, by question id. */
   readonly answers?: Answers;
+  /** Follows online rather than in person; asked while the event is streamed. */
+  readonly online?: boolean;
   /** The language they signed up in: emails to them are in it. */
   readonly locale?: Locale;
 };

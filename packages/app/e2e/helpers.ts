@@ -260,6 +260,8 @@ export const publishedEvent = async (
     readonly dietary?: boolean;
     /** The most who can sign up; none by default. */
     readonly maxAttendees?: number;
+    /** Streamed, with a link to the stream if given; not streamed by default. */
+    readonly streamed?: { readonly link?: string };
   },
 ) => {
   const id = await newEvent(page);
@@ -280,6 +282,14 @@ export const publishedEvent = async (
     await page
       .getByRole("spinbutton", { name: "Maximum attendees" })
       .fill(String(options.maxAttendees));
+  }
+  if (options.streamed !== undefined) {
+    await page.getByRole("checkbox", { name: /The event is streamed/ }).check();
+    if (options.streamed.link !== undefined) {
+      const link = page.getByRole("textbox", { name: "Link to the stream" });
+      await link.pressSequentially(options.streamed.link);
+      await expect(link).toHaveText(options.streamed.link);
+    }
   }
   await expect(page.getByTestId("status")).toContainText("Saved");
   await page.getByRole("button", { name: "Publish" }).click();

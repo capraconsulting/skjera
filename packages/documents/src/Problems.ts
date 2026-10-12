@@ -19,6 +19,7 @@ export const Problem = Schema.Union([
   Schema.TaggedStruct("EmailTaken", {}),
   Schema.TaggedStruct("EventFull", {}),
   Schema.TaggedStruct("DietaryMissing", {}),
+  Schema.TaggedStruct("AttendanceMissing", {}),
   Schema.TaggedStruct("AnswerTooLong", question),
   Schema.TaggedStruct("AnswerMissing", question),
   Schema.TaggedStruct("TickMissing", question),
@@ -35,6 +36,7 @@ export const Problem = Schema.Union([
   Schema.TaggedStruct("QuestionWithoutText", {}),
   Schema.TaggedStruct("ChoiceWithoutOptions", {}),
   Schema.TaggedStruct("MixedTimeZones", {}),
+  Schema.TaggedStruct("StreamLinkNotWeb", {}),
   Schema.TaggedStruct("UnknownVersion", {}),
   // Teams.
   Schema.TaggedStruct("TeamNameLength", {}),
@@ -75,6 +77,8 @@ export const describe = (problem: Problem, locale?: Locale): string => {
       return m.problem_event_full({}, options);
     case "DietaryMissing":
       return m.problem_dietary_missing({}, options);
+    case "AttendanceMissing":
+      return m.problem_attendance_missing({}, options);
     case "AnswerTooLong":
       return m.problem_answer_too_long(problem, options);
     case "AnswerMissing":
@@ -109,6 +113,8 @@ export const describe = (problem: Problem, locale?: Locale): string => {
       return m.problem_choice_without_options({}, options);
     case "MixedTimeZones":
       return m.problem_mixed_time_zones({}, options);
+    case "StreamLinkNotWeb":
+      return m.problem_stream_link_not_web({}, options);
     case "UnknownVersion":
       return m.problem_unknown_version({}, options);
     case "TeamNameLength":

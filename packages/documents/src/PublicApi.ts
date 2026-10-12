@@ -23,6 +23,8 @@ import {
 const SignupChange = Schema.Struct({
   dietary: Schema.optionalKey(Schema.String),
   answers: Schema.optionalKey(Answers),
+  /** Follows online rather than in person; asked while the event is streamed. */
+  online: Schema.optionalKey(Schema.Boolean),
 });
 
 export class EventsApi extends HttpApiGroup.make("events").add(
@@ -41,6 +43,8 @@ export class EventsApi extends HttpApiGroup.make("events").add(
       dietary: Schema.optionalKey(Schema.String),
       /** Answers to the event's questions, by question id. */
       answers: Schema.optionalKey(Answers),
+      /** Required while the event is streamed: online, or else in person. */
+      online: Schema.optionalKey(Schema.Boolean),
       /** The language they signed up in: emails to them are in it too. */
       locale: Schema.optionalKey(Locale),
     }),
