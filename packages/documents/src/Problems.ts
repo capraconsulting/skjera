@@ -17,6 +17,7 @@ export const Problem = Schema.Union([
   Schema.TaggedStruct("SignupClosed", {}),
   Schema.TaggedStruct("GuestsNotAllowed", {}),
   Schema.TaggedStruct("EmailTaken", {}),
+  Schema.TaggedStruct("EventFull", {}),
   Schema.TaggedStruct("DietaryMissing", {}),
   Schema.TaggedStruct("AnswerTooLong", question),
   Schema.TaggedStruct("AnswerMissing", question),
@@ -70,6 +71,8 @@ export const describe = (problem: Problem, locale?: Locale): string => {
       return m.problem_guests_not_allowed({}, options);
     case "EmailTaken":
       return m.problem_email_taken({}, options);
+    case "EventFull":
+      return m.problem_event_full({}, options);
     case "DietaryMissing":
       return m.problem_dietary_missing({}, options);
     case "AnswerTooLong":

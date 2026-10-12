@@ -170,6 +170,8 @@ export class Sync extends Context.Service<
             questions: ReadonlyArray<Question>;
             tags: ReadonlyArray<string>;
             place: string | null;
+            max_attendees: number | null;
+            hide_places_left: boolean;
             published_heads: Heads;
             published_at: Date;
             first_published_at: Date;
@@ -177,7 +179,7 @@ export class Sync extends Context.Service<
           }>`
             SELECT id, title, starts_at, ends_at, signup_deadline, time_zone, body, cover, is_public,
               allow_guests, ask_dietary, food, food_deadline, questions, tags,
-              place, published_heads, published_at,
+              place, max_attendees, hide_places_left, published_heads, published_at,
               first_published_at,
               (is_public OR ${audience === "members"}) AND deleted_at IS NULL AS visible
             FROM events WHERE id = ANY(${keys}::uuid[])
@@ -203,6 +205,8 @@ export class Sync extends Context.Service<
                     questions: row.questions,
                     tags: row.tags,
                     place: row.place,
+                    maxAttendees: row.max_attendees,
+                    hidePlacesLeft: row.hide_places_left,
                     publishedHeads: row.published_heads,
                     publishedAt: row.published_at,
                     firstPublishedAt: row.first_published_at,

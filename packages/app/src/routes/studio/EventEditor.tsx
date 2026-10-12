@@ -2,10 +2,11 @@ import * as A from "@automerge/automerge/slim";
 import type { DocHandle } from "@automerge/automerge-repo/slim";
 import type { DocumentId, EventContent } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Avatars } from "../../components/Avatars.tsx";
 import { Field } from "../../components/Field.tsx";
+import { Input } from "../../components/Input.tsx";
 import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
 import { useDocumentSession } from "../../documents/session.ts";
 import { CheckboxField, useBooleanField } from "../../editor/CheckboxField.tsx";
@@ -117,6 +118,9 @@ function EventSession({ id }: { readonly id: DocumentId }) {
           />
           <GuestsCheckbox handle={handle} />
         </Field>
+        <Field label={m.studio_max_attendees()}>
+          <AttendeeLimit handle={handle} />
+        </Field>
         <Field label={m.studio_emails()}>
           <CheckboxField
             handle={handle}
@@ -206,6 +210,60 @@ function FoodDetails(props: {
       />
       <FoodDeadline handle={props.handle} />
     </div>
+  );
+}
+
+/** A limit: a whole number of at least one that fits a Postgres integer. */
+const isLimit = (number: number) =>
+  Number.isInteger(number) && number >= 1 && number <= 2_147_483_647;
+
+/** The most who can sign up, and whether the site says how many places are left. */
+function AttendeeLimit(props: { readonly handle: DocHandle<EventContent> }) {
+  const { handle } = props;
+  const limit = useSyncExternalStore(
+    (onChange) => {
+      handle.on("change", onChange);
+      return () => handle.off("change", onChange);
+    },
+    () => handle.doc().maxAttendees ?? null,
+  );
+  // While what is typed isn't a limit ("-", "0", "1.5"), it stays in the
+  // field and isn't saved; leaving the field shows the saved one again.
+  const [typed, setTyped] = useState<string | null>(null);
+  const write = (input: HTMLInputElement) => {
+    const number = Number(input.value);
+    if (input.validity.badInput || (input.value !== "" && !isLimit(number))) {
+      setTyped(input.value);
+      return;
+    }
+    setTyped(null);
+    handle.change((doc) => {
+      const draft = doc as { maxAttendees?: number };
+      if (input.value === "") delete draft.maxAttendees;
+      else draft.maxAttendees = number;
+    });
+  };
+  return (
+    <>
+      <Input
+        type="number"
+        min={1}
+        step={1}
+        inputMode="numeric"
+        aria-label={m.studio_max_attendees()}
+        placeholder={m.studio_no_limit()}
+        value={typed ?? (limit === null ? "" : String(limit))}
+        onChange={(event) => write(event.target)}
+        onBlur={() => setTyped(null)}
+      />
+      {limit === null ? null : (
+        <CheckboxField
+          handle={handle}
+          field="hidePlacesLeft"
+          label={m.studio_hide_places_left()}
+        />
+      )}
+    </>
   );
 }
 

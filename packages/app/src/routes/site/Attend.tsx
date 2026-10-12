@@ -161,6 +161,28 @@ export function Attend(props: {
       </p>
     );
 
+  // Places left; null without a limit. A limit set below those signed up
+  // leaves none.
+  const left =
+    event.maxAttendees === null
+      ? null
+      : Math.max(0, event.maxAttendees - signups.length);
+  const full = left === 0;
+  const places = full ? (
+    <p className={styles.closes}>{m.attend_full()}</p>
+  ) : left === null || event.hidePlacesLeft ? null : (
+    <p className={styles.closes}>{m.attend_places_left({ count: left })}</p>
+  );
+  // While full, a member signed up but logged out here can still get to
+  // their signup.
+  const logInWhenFull = (
+    <p className={styles.row}>
+      <a href={loginUrl(`/events/${event.id}`)}>
+        {m.attend_log_in_signed_up()}
+      </a>
+    </p>
+  );
+
   if (closed) {
     return (
       <section className={styles.box} aria-label={m.attend_region()}>
@@ -233,6 +255,7 @@ export function Attend(props: {
         <h2 className={styles.heading}>{m.attend_region()}</h2>
         <p className={styles.count}>{count}</p>
         {closes}
+        {places}
         {mine !== undefined ? (
           signedUp(
             mine.id,
@@ -249,7 +272,7 @@ export function Attend(props: {
               ),
             },
           )
-        ) : (
+        ) : full ? null : (
           <form
             className={styles.form}
             onSubmit={(submitted) => signUp(submitted, false)}
@@ -273,11 +296,16 @@ export function Attend(props: {
         <h2 className={styles.heading}>{m.attend_region()}</h2>
         <p className={styles.count}>{count}</p>
         {closes}
-        <p className={styles.row}>
-          <a href={loginUrl(`/events/${event.id}`)}>
-            {m.attend_log_in_to_attend()}
-          </a>
-        </p>
+        {places}
+        {full ? (
+          logInWhenFull
+        ) : (
+          <p className={styles.row}>
+            <a href={loginUrl(`/events/${event.id}`)}>
+              {m.attend_log_in_to_attend()}
+            </a>
+          </p>
+        )}
       </section>
     );
   }
@@ -287,7 +315,10 @@ export function Attend(props: {
       <h2 className={styles.heading}>{m.attend_region()}</h2>
       <p className={styles.count}>{count}</p>
       {closes}
-      {guest === null ? (
+      {places}
+      {guest === null && full ? (
+        logInWhenFull
+      ) : guest === null ? (
         <form
           className={styles.form}
           onSubmit={(submitted) => signUp(submitted, true)}

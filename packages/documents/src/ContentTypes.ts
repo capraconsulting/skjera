@@ -7,6 +7,15 @@ import type { Problem, PublishField } from "./Problems.ts";
 // its type's schema exactly: changes that would add unknown fields or change
 // a field's type are rejected before they are stored.
 
+/** A whole number of attendees, at least one; it fits a Postgres integer. */
+const AttendeeLimit = Schema.Int.check(
+  Schema.makeFilter(
+    (limit: number) =>
+      (limit >= 1 && limit <= 2_147_483_647) ||
+      "Expected a whole number of at least 1",
+  ),
+);
+
 export const EventContent = Schema.Struct({
   title: Schema.String,
   body: Schema.String,
@@ -54,6 +63,14 @@ export const EventContent = Schema.Struct({
    * before events had a place.
    */
   place: Schema.optionalKey(Schema.String),
+  /**
+   * The most who can sign up, members and guests together. Missing: no
+   * limit. Set below those signed up, it keeps them all and takes nobody
+   * new until enough have cancelled.
+   */
+  maxAttendees: Schema.optionalKey(AttendeeLimit),
+  /** Don't show how many places are left. Missing: shown. */
+  hidePlacesLeft: Schema.optionalKey(Schema.Boolean),
 });
 export type EventContent = typeof EventContent.Type;
 

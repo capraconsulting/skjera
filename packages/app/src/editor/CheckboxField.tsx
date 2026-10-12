@@ -3,7 +3,12 @@ import type { EventContent } from "@skjera/documents/api";
 import { useSyncExternalStore } from "react";
 import styles from "./CheckboxField.module.css";
 
-type BooleanField = "public" | "guests" | "dietary" | "reminders";
+type BooleanField =
+  | "public"
+  | "guests"
+  | "dietary"
+  | "reminders"
+  | "hidePlacesLeft";
 
 /** What a field means when a draft doesn't have it (yet). */
 const unset: Record<BooleanField, boolean> = {
@@ -11,6 +16,7 @@ const unset: Record<BooleanField, boolean> = {
   guests: false,
   dietary: false,
   reminders: true,
+  hidePlacesLeft: false,
 };
 
 /** The current value of a true/false field, following changes from anyone. */

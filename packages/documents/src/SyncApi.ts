@@ -78,6 +78,10 @@ export const EventRow = Schema.Struct({
   tags: Schema.Array(Schema.String),
   /** Where it is, as written; null for events published before events had a place. */
   place: Schema.NullOr(Schema.String),
+  /** The most who can sign up; null: no limit. */
+  maxAttendees: Schema.NullOr(Schema.Int),
+  /** Don't show how many places are left. */
+  hidePlacesLeft: Schema.Boolean,
   /** The version of the draft that was published. */
   publishedHeads: Heads,
   publishedAt: Schema.Date,

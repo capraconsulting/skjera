@@ -258,6 +258,8 @@ export const publishedEvent = async (
     readonly public: boolean;
     readonly guests?: boolean;
     readonly dietary?: boolean;
+    /** The most who can sign up; none by default. */
+    readonly maxAttendees?: number;
   },
 ) => {
   const id = await newEvent(page);
@@ -273,6 +275,11 @@ export const publishedEvent = async (
   }
   if (options.dietary) {
     await page.getByRole("checkbox", { name: /Food is served/ }).check();
+  }
+  if (options.maxAttendees !== undefined) {
+    await page
+      .getByRole("spinbutton", { name: "Maximum attendees" })
+      .fill(String(options.maxAttendees));
   }
   await expect(page.getByTestId("status")).toContainText("Saved");
   await page.getByRole("button", { name: "Publish" }).click();

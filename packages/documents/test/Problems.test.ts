@@ -8,6 +8,7 @@ const problems: ReadonlyArray<Problem> = [
   { _tag: "SignupClosed" },
   { _tag: "GuestsNotAllowed" },
   { _tag: "EmailTaken" },
+  { _tag: "EventFull" },
   { _tag: "DietaryMissing" },
   { _tag: "AnswerTooLong", question },
   { _tag: "AnswerMissing", question },
@@ -30,7 +31,7 @@ const problems: ReadonlyArray<Problem> = [
 ];
 
 group("Problems", () => {
-  it("are said in every language", () => {
+  it("are said in every language, EventFull among them (AC-3)", () => {
     for (const locale of ["en", "nb", "nn"] as const) {
       const said = problems.map((problem) => describe(problem, locale));
       for (const text of said) assert.isAbove(text.length, 3);

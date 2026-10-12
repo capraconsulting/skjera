@@ -183,6 +183,33 @@ export class Attendance extends Context.Service<
           .digest("base64url");
 
       const closed = new SignupRejected(refused({ _tag: "SignupClosed" }));
+      const full = new SignupRejected(refused({ _tag: "EventFull" }));
+
+      /**
+       * Refuses a new signup when the event is full. The event is locked
+       * first, so signups for its last place take turns: the count, in a
+       * statement of its own, sees those that committed while this one
+       * waited. A member signed up already isn't new.
+       */
+      const room = Effect.fn(function* (event: DocumentId, member?: Identity) {
+        const [limit] = yield* sql<{ max_attendees: number | null }>`
+          SELECT max_attendees FROM events WHERE id = ${event} FOR UPDATE
+        `;
+        if (limit === undefined || limit.max_attendees === null) return;
+        const [taken] = yield* sql<{ count: number; mine: boolean }>`
+          SELECT count(*)::int AS count,
+            coalesce(bool_or(user_issuer = ${member?.issuer ?? null}::text
+              AND user_subject = ${member?.subject ?? null}::text), false) AS mine
+          FROM attendees WHERE event_id = ${event}
+        `;
+        if (
+          taken !== undefined &&
+          !taken.mine &&
+          taken.count >= limit.max_attendees
+        ) {
+          return yield* full;
+        }
+      });
 
       /**
        * The event's signup rules, if the audience may see it. Signing up
@@ -236,6 +263,7 @@ export class Attendance extends Context.Service<
         const answers = yield* answersFor(questions, details.answers);
         const id = details.id;
         yield* Effect.gen(function* () {
+          yield* room(event, user);
           // Already signed up, or a retry: nothing to do, or tell.
           const inserted = yield* sql<Signup>`
             INSERT INTO attendees (id, event_id, user_issuer, user_subject, name, email, dietary, answers, locale)
@@ -249,7 +277,10 @@ export class Attendance extends Context.Service<
           yield* tell(inserted, (attendee) =>
             notifications.signedUp({ event, attendee }),
           );
-        }).pipe(sql.withTransaction, Effect.orDie);
+        }).pipe(
+          sql.withTransaction,
+          Effect.catchIf(SqlError.isSqlError, Effect.die),
+        );
       });
 
       const leave = Effect.fn("Attendance.leave")(function* (
@@ -290,6 +321,7 @@ export class Attendance extends Context.Service<
         const attendee = id ?? crypto.randomUUID();
         const token = guestToken(attendee);
         yield* Effect.gen(function* () {
+          yield* room(event);
           const inserted = yield* sql<Signup>`
             INSERT INTO attendees (id, event_id, name, email, dietary, answers, cancel_token_hash, locale)
             VALUES (${attendee}::uuid, ${event}, ${guest.name.trim()},

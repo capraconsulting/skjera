@@ -75,6 +75,18 @@
   "attend_you_signed_up": "Du er påmeldt.",
   "attend_closed": "Påmeldingen er stengt.",
   "attend_closes": "Påmeldingen stenger {when}.",
+  "attend_places_left": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 ledig plass",
+        "countPlural=other": "{count} ledige plasser"
+      }
+    }
+  ],
+  "attend_full": "Det er ingen flere ledige plasser.",
+  "attend_log_in_signed_up": "Påmeldt? Logg inn for å se påmeldingen din",
   "attend_dietary_by": "Matpreferanser innen {when}.",
   "attend_your_answers": "Svarene dine",
   "attend_save_changes": "Lagre endringer",
@@ -127,6 +139,9 @@
   "studio_visibility": "Synlighet",
   "studio_public_event": "Offentlig arrangement",
   "studio_public_hint": "Alle kan se det. Ellers bare innloggede brukere.",
+  "studio_max_attendees": "Maks antall deltakere",
+  "studio_no_limit": "Ingen grense",
+  "studio_hide_places_left": "Ikke vis antall ledige plasser",
   "studio_emails": "E-poster",
   "studio_remind": "Send påminnelse til deltakerne",
   "studio_remind_hint": "Alle påmeldte får en e-post dagen før.",
@@ -282,6 +297,7 @@
   "problem_signup_closed": "Påmeldingen til dette arrangementet er stengt",
   "problem_guests_not_allowed": "Logg inn for å melde deg på dette arrangementet",
   "problem_email_taken": "Den e-postadressen er allerede påmeldt dette arrangementet",
+  "problem_event_full": "Arrangementet er fullt",
   "problem_dietary_missing": "Fortell oss om matpreferansene dine, eller skriv «ingen»",
   "problem_answer_too_long": "Svaret ditt på «{question}» er for langt",
   "problem_answer_missing": "Svar på «{question}»",

@@ -75,6 +75,18 @@
   "attend_you_signed_up": "You're signed up.",
   "attend_closed": "Sign-up has closed.",
   "attend_closes": "Sign-up closes {when}.",
+  "attend_places_left": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 place left",
+        "countPlural=other": "{count} places left"
+      }
+    }
+  ],
+  "attend_full": "There are no more places.",
+  "attend_log_in_signed_up": "Signed up? Log in to see your signup",
   "attend_dietary_by": "Dietary preferences by {when}.",
   "attend_your_answers": "Your answers",
   "attend_save_changes": "Save changes",
@@ -127,6 +139,9 @@
   "studio_visibility": "Visibility",
   "studio_public_event": "Public event",
   "studio_public_hint": "Anyone can see it. Otherwise only signed-in users.",
+  "studio_max_attendees": "Maximum attendees",
+  "studio_no_limit": "No limit",
+  "studio_hide_places_left": "Hide how many places are left",
   "studio_emails": "Emails",
   "studio_remind": "Remind attendees",
   "studio_remind_hint": "Everyone signed up gets an email the day before.",
@@ -282,6 +297,7 @@
   "problem_signup_closed": "Sign-up for this event has closed",
   "problem_guests_not_allowed": "Log in to sign up for this event",
   "problem_email_taken": "That email is already signed up for this event",
+  "problem_event_full": "This event is full",
   "problem_dietary_missing": "Tell us your dietary preferences, or write “none”",
   "problem_answer_too_long": "Keep your answer to “{question}” shorter",
   "problem_answer_missing": "Answer “{question}”",

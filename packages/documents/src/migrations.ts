@@ -637,4 +637,72 @@ export const migrations = Migrator.fromRecord({
       RETURNING e.*
     $$`,
   ),
+  "0021_attendee_limit": statements(
+    // The most who can sign up; null: no limit. Signups are not touched
+    // when it changes: a limit below those signed up takes nobody new.
+    `ALTER TABLE events
+      ADD COLUMN max_attendees integer CHECK (max_attendees > 0),
+      ADD COLUMN hide_places_left boolean NOT NULL DEFAULT false`,
+    `CREATE OR REPLACE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
+      RETURNS SETOF events LANGUAGE sql AS $$
+      INSERT INTO events AS e
+        (id, title, starts_at, ends_at, signup_deadline, time_zone, body, cover,
+         is_public, allow_guests, ask_dietary, food, food_deadline, questions, tags,
+         send_reminders, place, max_attendees, hide_places_left,
+         published_heads, published_by_issuer, published_by_subject)
+      SELECT d.id, c.content->>'title',
+        zoned_instant(c.content->>'start'), zoned_instant(c.content->>'end'),
+        zoned_instant(c.content->>'deadline'), zoned_zone(c.content->>'start'),
+        automerge_spans(d.draft, '{body}', heads), c.content->'cover',
+        (c.content->>'public')::boolean,
+        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
+        (c.content->>'dietary')::boolean,
+        c.content->>'food', zoned_instant(c.content->>'foodDeadline'),
+        c.content->'questions',
+        -- Each once, ignoring case, as first written.
+        ARRAY(
+          SELECT tag FROM (
+            SELECT DISTINCT ON (lower(tag)) tag, n
+            FROM jsonb_array_elements_text(c.content->'tags') WITH ORDINALITY AS t(tag, n)
+            ORDER BY lower(tag), n
+          ) firsts ORDER BY n
+        ),
+        -- On unless turned off: drafts from before have no such field.
+        coalesce((c.content->>'reminders')::boolean, true),
+        -- Stored as written. Drafts from before have none: null.
+        c.content->>'place',
+        -- Through numeric: a whole number stored as a float reads "30.0".
+        (c.content->>'maxAttendees')::numeric::integer,
+        -- Shown unless hidden: drafts from before have no such field.
+        coalesce((c.content->>'hidePlacesLeft')::boolean, false),
+        -- Sorted like automerge_heads(), so the two can be compared.
+        ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
+      FROM documents d
+      CROSS JOIN LATERAL (SELECT automerge_to_jsonb(d.draft, heads) AS content OFFSET 0) c
+      WHERE d.id = document_id AND d.type = 'event'
+      ON CONFLICT (id) DO UPDATE SET
+        title = EXCLUDED.title,
+        starts_at = EXCLUDED.starts_at,
+        ends_at = EXCLUDED.ends_at,
+        signup_deadline = EXCLUDED.signup_deadline,
+        time_zone = EXCLUDED.time_zone,
+        body = EXCLUDED.body,
+        cover = EXCLUDED.cover,
+        is_public = EXCLUDED.is_public,
+        allow_guests = EXCLUDED.allow_guests,
+        ask_dietary = EXCLUDED.ask_dietary,
+        food = EXCLUDED.food,
+        food_deadline = EXCLUDED.food_deadline,
+        questions = EXCLUDED.questions,
+        tags = EXCLUDED.tags,
+        send_reminders = EXCLUDED.send_reminders,
+        place = EXCLUDED.place,
+        max_attendees = EXCLUDED.max_attendees,
+        hide_places_left = EXCLUDED.hide_places_left,
+        published_heads = EXCLUDED.published_heads,
+        published_by_issuer = EXCLUDED.published_by_issuer,
+        published_by_subject = EXCLUDED.published_by_subject
+      RETURNING e.*
+    $$`,
+  ),
 });
