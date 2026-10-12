@@ -20,9 +20,10 @@ SITE_URL = "http://localhost:5173"
 SITE_NAME = "Skjera"
 # The language for those who haven't picked one: en, nb or nn.
 SITE_LOCALE = "en"
-# The websites that may show /embed in an iframe, each address they are served
-# at. Here it stands in for them, in development and in the browser test, which
-# serves its own page at this address.
+# The websites that may show /embed in an iframe and read /api/public/events
+# from the browser, each address they are served at. Here it stands in for
+# them, in development and in the browser test, which serves its own page at
+# this address.
 WEBSITE_ORIGINS = "http://website.localhost"
 # Branding, all optional. Files in SITE_ASSETS_DIR are served at /site-assets/.
 SITE_ASSETS_DIR = "{{config_root}}/dev/site-assets"

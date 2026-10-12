@@ -50,7 +50,8 @@ const OriginsText = Schema.String.check(
 /**
  * The websites that show Skjera's events, such as the company's own: their
  * origins, from `WEBSITE_ORIGINS` (separated by spaces or commas). They may
- * show `/embed` in an iframe. A value that is not a bare origin fails.
+ * show `/embed` in an iframe and read `/api/public/events` from the browser.
+ * A value that is not a bare origin fails.
  */
 export const WebsiteOrigins: Config.Config<ReadonlyArray<string>> =
   Config.schema(OriginsText, "WEBSITE_ORIGINS").pipe(

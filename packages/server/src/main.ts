@@ -290,6 +290,8 @@ const Routes = Layer.mergeAll(
   Documents.Images.layerHttp,
   // The next events, for the websites to show in an iframe.
   Documents.Embed.layerHttp,
+  // The coming events as JSON, in Skjer's format, for the websites.
+  Documents.PublicEvents.layerHttp,
   HttpRouter.add("GET", "/health", HttpServerResponse.text("ok")),
   ready,
   site,

@@ -76,7 +76,7 @@ Branding, all optional:
 - `SITE_OPERATOR` (who answers for the personal data kept; the site's name if not set) and `SITE_CONTACT_EMAIL`, for the built-in privacy page at `/privacy`; or `SITE_PRIVACY_URL` to link a policy elsewhere instead.
 - `SITE_ASSETS_DIR`: a directory served at `/site-assets/`, e.g. a ConfigMap mounted into the pod, so the logo can be `/site-assets/logo.webp`. In development, `dev/site-assets`.
 
-Also optional, for websites that show the next events (`/embed`) in an iframe:
+Also optional, for websites that show the next events (`/embed`) in an iframe, or read the coming events shown to everyone from the browser (`/api/public/events`: JSON in Skjer's format, served when `SITE_URL` is set; an event of the team "Capra Gruppen" is organised by "Alle", others by their team's name):
 
 - `WEBSITE_ORIGINS`: the websites that may do so, each address they are served at, separated by spaces or commas, e.g. `https://www.capraconsulting.no, https://capraconsulting.no, https://www.liflig.no, https://liflig.no`. List the address with `www.` and the one without when a website answers at both. Without it, no website may. A value that is not such an address (no path, query or user; `http:` or `https:`) stops the server at start.
 
