@@ -51,6 +51,22 @@ test("logging in from the site leads to the studio and back", async ({
   );
 });
 
+test("a page waits for a server that is starting", async ({ browser }) => {
+  const page = await signedIn(browser, "alice@example.com");
+  // The proxy's answer while the server restarts, twice, then the server.
+  let starting = 2;
+  await page.route("/api/me", (route) =>
+    starting-- > 0 ? route.fulfill({ status: 502 }) : route.continue(),
+  );
+
+  await page.goto("/studio/teams");
+  await expect(page.getByTestId("me")).toHaveAttribute(
+    "title",
+    "alice@example.com",
+  );
+  expect(starting).toBeLessThan(0);
+});
+
 test("the theme follows the system until the user picks one", async ({
   browser,
 }) => {
