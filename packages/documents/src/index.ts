@@ -28,6 +28,7 @@ export * from "./Notifications.ts";
 export * from "./Presence.ts";
 export * from "./Problems.ts";
 export * from "./PublicApi.ts";
+export * as Sharing from "./Sharing.ts";
 export * from "./Sync.ts";
 export * from "./SyncApi.ts";
 export * from "./Teams.ts";

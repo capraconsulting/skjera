@@ -57,6 +57,8 @@ export type DocumentRow = typeof DocumentRow.Type;
 export const EventRow = Schema.Struct({
   id: DocumentId,
   title: Schema.String,
+  /** What the event is, in a sentence or two; null: none. */
+  summary: Schema.NullOr(Schema.String),
   startsAt: Schema.Date,
   endsAt: Schema.Date,
   /** Signing up and cancelling close then; when it starts if null. */

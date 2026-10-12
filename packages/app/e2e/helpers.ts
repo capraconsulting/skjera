@@ -62,6 +62,8 @@ export const connection = async (page: Page) => {
 
 export const title = (page: Page) =>
   page.getByRole("textbox", { name: "Title" });
+export const summary = (page: Page) =>
+  page.getByRole("textbox", { name: "Summary" });
 export const body = (page: Page) => page.getByRole("textbox", { name: "Body" });
 export const place = (page: Page) =>
   page.getByRole("textbox", { name: "Place", exact: true });

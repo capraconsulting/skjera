@@ -29,6 +29,7 @@ const bodyPath = ["body"] as const;
 const foodPath = ["food"] as const;
 /** The collaborative texts kept in a draft under a key of their own. */
 const textPaths = {
+  summary: ["summary"],
   place: ["place"],
   streamLink: ["streamLink"],
 } as const;
@@ -103,6 +104,14 @@ function EventSession({ id }: { readonly id: DocumentId }) {
             label={m.studio_title()}
             large
             presence={session.presence}
+          />
+        </Field>
+        <Field label={m.studio_summary()}>
+          <DraftText
+            handle={handle}
+            presence={session.presence}
+            field="summary"
+            label={m.studio_summary()}
           />
         </Field>
         <Field label={m.studio_cover_image()}>

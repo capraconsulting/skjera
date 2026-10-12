@@ -6,6 +6,7 @@ const invite = (
   sequence = 0,
   cancelled = false,
   place?: string,
+  description?: string,
 ) =>
   invitation({
     method,
@@ -18,6 +19,7 @@ const invite = (
       sequence,
       cancelled,
       ...(place === undefined ? {} : { place }),
+      ...(description === undefined ? {} : { description }),
     },
     attendee: { name: "Gina", email: "gina@example.org" },
     organizer: { name: "Skjera", email: "events@skjera.test" },
@@ -67,6 +69,28 @@ describe("Calendar", () => {
 
   it("leaves the location out of an event without a place (AC-4, AC-7)", () => {
     assert.notInclude(invite("REQUEST"), "LOCATION");
+  });
+
+  it("describes the event by its summary, then its link, to add and to cancel (AC-3)", () => {
+    for (const method of ["REQUEST", "CANCEL"] as const) {
+      const ics = invite(method, 1, false, undefined, "Coffee, and a talk.");
+      // Unfolded, and read as iCalendar writes text: \n and \, escaped.
+      const description =
+        /^DESCRIPTION:(.*)$/m
+          .exec(ics.replace(/\r\n /g, ""))?.[1]
+          ?.replace(/\\n/g, "\n")
+          .replace(/\\,/g, ",") ?? "";
+      assert.strictEqual(
+        description,
+        "Coffee, and a talk.\n\nhttps://skjera.test/events/launch",
+      );
+      assert.include(ics, "URL;VALUE=URI:https://skjera.test/events/launch");
+    }
+  });
+
+  it("describes an event without a summary by its link, as before (AC-3)", () => {
+    const ics = invite("REQUEST");
+    assert.include(ics, "DESCRIPTION:https://skjera.test/events/launch");
   });
 
   it("reads who emails come from", () => {

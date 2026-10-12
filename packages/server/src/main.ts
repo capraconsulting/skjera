@@ -219,6 +219,8 @@ const App = Layer.unwrap(
         prefix: "/assets",
         cacheControl: "public, max-age=31536000, immutable",
       }),
+      // An event's page, with what a shared link shows.
+      Documents.Sharing.layerHttp({ index: `${root.value}/index.html` }),
       HttpStaticServer.layer({
         root: root.value,
         spa: true,

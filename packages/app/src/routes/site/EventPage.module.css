@@ -59,6 +59,26 @@
   }
 }
 
+/* The space below the title moves below the summary, when there is one. */
+.title:has(+ .summary) {
+  margin-bottom: 0.75rem;
+}
+
+.summary {
+  margin: 0 0 1.5rem;
+  color: var(--color-text-muted);
+  font-size: 1.125rem;
+  font-weight: 300;
+  line-height: 1.5;
+  overflow-wrap: break-word;
+}
+
+@media (min-width: 40rem) {
+  .summary {
+    font-size: 1.375rem;
+  }
+}
+
 .overview {
   display: flex;
   flex-direction: column;

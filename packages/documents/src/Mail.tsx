@@ -111,6 +111,8 @@ interface EventRow {
   readonly time_zone: string;
   /** Null: published before events had a place. */
   readonly place: string | null;
+  /** What the event is; null: none. */
+  readonly summary: string | null;
   readonly ask_dietary: boolean;
   readonly food_deadline: Date | null;
   readonly published_at: Date;
@@ -159,7 +161,7 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
           Effect.gen(function* () {
             const [event] = yield* sql<EventRow>`
             SELECT e.title, e.starts_at, e.ends_at, e.signup_deadline, e.time_zone,
-              e.place, e.ask_dietary, e.food_deadline, e.published_at,
+              e.place, e.summary, e.ask_dietary, e.food_deadline, e.published_at,
               e.first_published_at, t.name AS team,
               e.deleted_at IS NOT NULL AS deleted
             FROM events e
@@ -200,6 +202,9 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                   url,
                   cancelled,
                   ...(event.place === null ? {} : { place: event.place }),
+                  ...(event.summary === null
+                    ? {}
+                    : { description: event.summary }),
                   // Newer with each republish.
                   sequence: Math.floor(
                     (event.published_at.getTime() -

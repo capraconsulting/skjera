@@ -99,6 +99,9 @@ export function EventPage() {
         </ul>
       )}
       <h1 className={styles.title}>{event.title}</h1>
+      {event.summary === null ? null : (
+        <p className={styles.summary}>{event.summary}</p>
+      )}
       <div className={styles.overview}>
         <ul className={styles.info}>
           <li>

@@ -123,6 +123,16 @@ const setStreamed = (event: EventContent, streamed: boolean, link?: string) => {
   A.updateText(event, ["streamLink"], link);
 };
 
+/**
+ * Writes the summary the way the editor does: text under a key that older
+ * drafts lack, created when missing.
+ */
+const setSummary = (event: EventContent, text: string) => {
+  const draft = event as { summary?: string };
+  if (draft.summary === undefined) draft.summary = "";
+  A.updateText(event, ["summary"], text);
+};
+
 /** Creates and publishes an event, with the given visibility settings. */
 const publishedEvent = Effect.fn(function* (settings: {
   readonly public: boolean;
@@ -242,6 +252,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       assert.strictEqual(snapshot.type, "event");
       assert.deepStrictEqual(A.toJS(A.load(snapshot.draft)), {
         title: "",
+        summary: "",
         body: "",
         start: null,
         end: null,
@@ -295,6 +306,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       for (const editor of [aliceEditor, bobEditor]) {
         assert.deepStrictEqual(A.toJS(editor.doc()), {
           title: "Hello",
+          summary: "",
           body: "World",
           start: null,
           end: null,
@@ -1339,6 +1351,52 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
           assert.isNull(row?.streamLink, String(link));
         }
       }),
+  );
+
+  it.effect("publishes the summary trimmed (AC-1)", () =>
+    Effect.gen(function* () {
+      const id = yield* publishedEvent({
+        public: true,
+        guests: false,
+        edit: (event) =>
+          setSummary(event, "  Coffee and a talk about Effect. \n"),
+      });
+      const row = yield* publishedAs(id, "anyone");
+      assert.strictEqual(row?.summary, "Coffee and a talk about Effect.");
+    }),
+  );
+
+  it.effect(
+    "publishes a blank summary, or none from an older draft, as none (AC-1)",
+    () =>
+      Effect.gen(function* () {
+        for (const text of ["", " \t \n"]) {
+          const id = yield* publishedEvent({
+            public: true,
+            guests: false,
+            edit: (event) => setSummary(event, text),
+          });
+          const row = yield* publishedAs(id, "anyone");
+          assert.isNull(row?.summary, JSON.stringify(text));
+        }
+        // A draft from before events had a summary has no key for it.
+        const older = yield* publishedEvent({
+          public: true,
+          guests: false,
+          edit: (event) => {
+            delete (event as { summary?: string }).summary;
+          },
+        });
+        assert.isNull((yield* publishedAs(older, "anyone"))?.summary);
+      }),
+  );
+
+  it.effect("syncs an event without a summary with summary null (AC-2)", () =>
+    Effect.gen(function* () {
+      const id = yield* publishedEvent({ public: false, guests: false });
+      const row = yield* publishedAs(id, "members");
+      assert.isNull(row?.summary);
+    }),
   );
 
   it.effect("publishes no link for an event that is not streamed (AC-1)", () =>

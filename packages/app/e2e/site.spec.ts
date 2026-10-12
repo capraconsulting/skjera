@@ -12,6 +12,7 @@ import {
   setTeamLogo,
   signedIn,
   signInAtDex,
+  summary,
   title,
   typeAt,
   uniqueTeamName,
@@ -181,6 +182,28 @@ test("the site shows what was published, and only that (AC-1, AC-3)", async ({
   await deleteEvent(alice, id);
   await reader.goto("/");
   await expect(reader.getByRole("link", { name: headline })).toHaveCount(0);
+  await deleteTeam(alice, team);
+});
+
+test("an event's summary is written in the studio and shown on its page (AC-1, AC-2)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await newTeam(alice, uniqueTeamName("Summary"));
+  const event = await publishedEvent(alice, { public: true });
+  const text = `Coffee and a talk ${event.id.slice(-12)}.`;
+
+  await summary(alice).pressSequentially(text);
+  await expect(summary(alice)).toHaveText(text);
+  await expect(alice.getByTestId("status")).toContainText("Saved");
+  await alice.getByRole("button", { name: "Publish" }).click();
+  await expect(alice.getByTestId("status")).toContainText("Published");
+
+  const reader = await visitor(browser);
+  await reader.goto(`/events/${event.id}`);
+  await expect(reader.getByRole("article")).toContainText(text);
+
+  await deleteEvent(alice, event.id);
   await deleteTeam(alice, team);
 });
 

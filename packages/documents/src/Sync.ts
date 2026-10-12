@@ -165,6 +165,7 @@ export class Sync extends Context.Service<
           sql<{
             id: DocumentId;
             title: string;
+            summary: string | null;
             starts_at: Date;
             ends_at: Date;
             signup_deadline: Date | null;
@@ -191,8 +192,8 @@ export class Sync extends Context.Service<
             team_logo_dark: string | null;
             visible: boolean;
           }>`
-            SELECT e.id, e.title, e.starts_at, e.ends_at, e.signup_deadline, e.time_zone,
-              e.body, e.cover, e.is_public, e.allow_guests, e.ask_dietary, e.food,
+            SELECT e.id, e.title, e.summary, e.starts_at, e.ends_at, e.signup_deadline,
+              e.time_zone, e.body, e.cover, e.is_public, e.allow_guests, e.ask_dietary, e.food,
               e.food_deadline, e.questions, e.tags, e.place, e.max_attendees,
               e.hide_places_left, e.is_streamed, e.stream_link,
               e.published_heads, e.published_at,
@@ -211,6 +212,7 @@ export class Sync extends Context.Service<
                   EventRow.make({
                     id: row.id,
                     title: row.title,
+                    summary: row.summary,
                     startsAt: row.starts_at,
                     endsAt: row.ends_at,
                     signupDeadline: row.signup_deadline,

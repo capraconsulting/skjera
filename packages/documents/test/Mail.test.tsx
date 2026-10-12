@@ -58,6 +58,8 @@ const publishedEventOf = (
     readonly reminders?: boolean;
     /** Where it is; null: published before events had a place. */
     readonly place?: string | null;
+    /** What the event is; missing: none. */
+    readonly summary?: string;
   } = {},
 ) =>
   Effect.gen(function* () {
@@ -68,18 +70,26 @@ const publishedEventOf = (
     const endsAt = new Date(startsAt.getTime() + 3 * 60 * 60 * 1000);
     yield* sql`
       INSERT INTO events (id, title, starts_at, ends_at, time_zone, body, is_public,
-        allow_guests, ask_dietary, send_reminders, place, published_heads,
+        allow_guests, ask_dietary, send_reminders, place, summary, published_heads,
         published_by_issuer, published_by_subject)
       VALUES (${id}, 'Launch', ${startsAt}, ${endsAt},
         'Europe/Oslo', '[]', true, true, ${options.dietary ?? false},
         ${options.reminders ?? true}, ${options.place === undefined ? "Kantina" : options.place},
-        '{}', 'test', 'test')
+        ${options.summary ?? null}, '{}', 'test', 'test')
     `;
     return { id: id as DocumentId, team };
   }).pipe(Effect.orDie);
 
 const publishedEvent = (options: Parameters<typeof publishedEventOf>[0] = {}) =>
   Effect.map(publishedEventOf(options), ({ id }) => id);
+
+/** The description of an invitation, unfolded and read as text. */
+const descriptionOf = (invitation: string) =>
+  invitation
+    .replace(/\r?\n[ \t]/g, "")
+    .match(/^DESCRIPTION:(.*)$/m)?.[1]
+    ?.replace(/\\n/g, "\n")
+    .replace(/\\,/g, ",");
 
 /** The organizer line of an invitation, unfolded. */
 const organizerOf = (invitation: string) =>
@@ -151,6 +161,31 @@ layer(TestLayer, { excludeTestServices: true })("Mail", (it) => {
         cancelled?.message.calendar?.content ?? "",
         "METHOD:CANCEL",
       );
+    }),
+  );
+
+  it.effect("carries the summary in a guest's invitations (AC-3)", () =>
+    Effect.gen(function* () {
+      const attendance = yield* Attendance;
+      const event = yield* publishedEvent({ summary: "Coffee and a talk." });
+      const signup = crypto.randomUUID();
+      const address = `gina-${signup}@example.org`;
+      const token = yield* attendance.attendAsGuest(
+        event,
+        { name: "Gina", email: address },
+        { id: signup, dietary: "None" },
+      );
+      const [signedUp] = yield* emailsTo(address, 1);
+
+      yield* attendance.leaveAsGuest(event, token);
+      const [, cancelled] = yield* emailsTo(address, 2);
+      const link = `${process.env.SITE_URL}/events/${event}`;
+      for (const email of [signedUp, cancelled]) {
+        assert.strictEqual(
+          descriptionOf(email?.message.calendar?.content ?? ""),
+          `Coffee and a talk.\n\n${link}`,
+        );
+      }
     }),
   );
 

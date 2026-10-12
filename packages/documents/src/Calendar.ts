@@ -24,6 +24,8 @@ export interface InvitationEvent {
   readonly cancelled?: boolean;
   /** Where it is, as written. Missing: not known (published before). */
   readonly place?: string;
+  /** What the event is: its summary. Missing: none. */
+  readonly description?: string;
 }
 
 export interface Person {
@@ -62,7 +64,11 @@ export const invitation = (options: {
     start: event.startsAt,
     end: event.endsAt,
     summary: event.title,
-    description: event.url,
+    // What it is, then where to sign up or cancel.
+    description:
+      event.description === undefined
+        ? event.url
+        : `${event.description}\n\n${event.url}`,
     url: event.url,
     ...(event.place === undefined ? {} : { location: event.place }),
     organizer: { name: organizer.name, email: organizer.email },

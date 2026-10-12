@@ -18,6 +18,11 @@ const AttendeeLimit = Schema.Int.check(
 
 export const EventContent = Schema.Struct({
   title: Schema.String,
+  /**
+   * What the event is, in a sentence or two, under its title and when a link
+   * to it is shared. Missing in drafts from before events had a summary.
+   */
+  summary: Schema.optionalKey(Schema.String),
   body: Schema.String,
   /**
    * Missing when there is none. `src` is an ImmutableString, replaced as a
@@ -101,6 +106,7 @@ export const contentTypes = {
     schema: EventContent,
     initial: {
       title: "",
+      summary: "",
       body: "",
       start: null,
       end: null,
