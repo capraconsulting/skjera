@@ -45,6 +45,10 @@ EMAIL_FROM = "Skjera <events@skjera.localhost>"
 SIGNING_SECRET = "skjera-dev-signing-secret"
 EMAIL_TRANSPORT = "smtp"
 EMAIL_SMTP_URL = "smtp://localhost:1025"
+# Test servers (pnpm test-server, see the Readme) are reached at
+# SKJERA_TEST_SERVER_URL, which belongs to the machine: set it in its own mise
+# config, not here. Where it's set, Mailpit's web UI is open to other machines.
+MAILPIT_UI_ADDRESS = "{% if env.SKJERA_TEST_SERVER_URL | default(value='') %}0.0.0.0{% else %}127.0.0.1{% endif %}"
 
 [tasks.hooks]
 description = "Activate git hooks in .hooks/"

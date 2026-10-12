@@ -28,6 +28,11 @@ staticClients:
       - http://localhost:5173/auth/callback
       # The @skjera/oauth demo server used by its own tests.
       - http://localhost:3001/auth/callback
+      # Test servers (pnpm test-server) at SKJERA_TEST_SERVER_URL, on the
+      # ports they're given. Dex's image renders this file with gomplate.
+      {{- range seq 8801 8806 }}
+      - {{ getenv "SKJERA_TEST_SERVER_URL" "http://localhost" }}:{{ . }}/auth/callback
+      {{- end }}
 
 enablePasswordDB: true
 

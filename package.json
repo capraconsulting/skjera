@@ -8,7 +8,8 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:e2e": "turbo run test:e2e",
-    "check": "biome check . && turbo run typecheck test"
+    "check": "biome check . && turbo run typecheck test",
+    "test-server": "pnpm install --frozen-lockfile --filter \"@skjera/app...\" --filter \"@skjera/server...\" && pnpm --filter @skjera/app build && pnpm --filter @skjera/server build && node packages/server/test-server.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",

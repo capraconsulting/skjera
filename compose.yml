@@ -26,6 +26,9 @@ services:
   dex:
     image: ghcr.io/dexidp/dex:v2.45.1@sha256:8499afd690c437f52301efd2b05b2455da5bd2dfc20332cd697dc9937f808462
     command: ["dex", "serve", "/etc/dex/config.yaml"]
+    environment:
+      # For the test servers' callbacks in its config (gomplate renders it).
+      SKJERA_TEST_SERVER_URL: ${SKJERA_TEST_SERVER_URL:-http://localhost}
     ports:
       - "5556:5556"
     volumes:
@@ -60,7 +63,8 @@ services:
     image: axllent/mailpit:v1.31.4@sha256:b68349e3a014b90c5610bfb26b2ae36f3892d7b8cf25ee140c6c71c98d2fcf48
     ports:
       - "127.0.0.1:1025:1025"
-      - "127.0.0.1:8025:8025"
+      # Every interface where test servers have an address (mise.toml).
+      - "${MAILPIT_UI_ADDRESS:-127.0.0.1}:8025:8025"
     healthcheck:
       test: ["CMD", "/mailpit", "readyz"]
       interval: 2s

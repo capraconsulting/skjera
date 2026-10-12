@@ -11,6 +11,8 @@
     "SES_*",
     "SITE_*",
     "SIGNING_SECRET",
+    "SKJERA_TEST_SERVER_URL",
+    "MAILPIT_UI_ADDRESS",
     "CI"
   ],
   "tasks": {
