@@ -18,14 +18,25 @@ export const runPublic = <A, E>(
     makeClient.pipe(Effect.flatMap(f), Effect.provide(FetchHttpClient.layer)),
   );
 
-/** The signed-in user, or null when nobody is. */
+// What a proxy answers while the server starts: after a deploy, or in
+// development when a change restarts it.
+const starting = new Set([502, 503, 504]);
+
+/**
+ * The signed-in user, or null when nobody is. Waits up to ten seconds for a
+ * server that is starting.
+ */
 export const fetchMe = async (): Promise<Identity | null> => {
-  const response = await fetch("/api/me");
-  if (response.status === 401) return null;
-  if (!response.ok) {
-    throw new Error(`Could not load the session (${response.status})`);
+  const giveUp = Date.now() + 10_000;
+  for (;;) {
+    const response = await fetch("/api/me");
+    if (response.status === 401) return null;
+    if (response.ok) return (await response.json()) as Identity;
+    if (!starting.has(response.status) || Date.now() >= giveUp) {
+      throw new Error(`Could not load the session (${response.status})`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  return (await response.json()) as Identity;
 };
 
 export const loginUrl = (returnTo: string) =>
