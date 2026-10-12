@@ -243,6 +243,8 @@ export class Sync extends Context.Service<
             changed_at: Date;
             name: string;
             email: string | null;
+            phone: string | null;
+            company: string | null;
             dietary: string | null;
             answers: ReadonlyArray<Answer>;
             guest: boolean;
@@ -250,7 +252,7 @@ export class Sync extends Context.Service<
             online: boolean;
             visible: boolean;
           }>`
-            SELECT a.id, a.event_id, a.created_at, a.changed_at, a.name, a.email, a.dietary, a.answers,
+            SELECT a.id, a.event_id, a.created_at, a.changed_at, a.name, a.email, a.phone, a.company, a.dietary, a.answers,
               a.user_issuer IS NULL AS guest, a.online,
               coalesce(a.user_issuer = ${issuer} AND a.user_subject = ${subject}, false)
                 AS mine,
@@ -273,6 +275,8 @@ export class Sync extends Context.Service<
                       ? AttendeeDetails.make({
                           name: row.name,
                           email: row.email,
+                          phone: row.phone,
+                          company: row.company,
                           dietary: row.dietary,
                           answers: row.answers,
                           guest: row.guest,

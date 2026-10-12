@@ -95,6 +95,8 @@ export function Attend(props: {
             guest: {
               name: String(form.get("name") ?? ""),
               email: String(form.get("email") ?? ""),
+              phone: String(form.get("phone") ?? ""),
+              company: String(form.get("company") ?? ""),
             },
           }
         : {}),
@@ -126,6 +128,13 @@ export function Attend(props: {
       ...(dietary === null ? {} : { dietary: String(dietary) }),
       answers: answersFrom(event.questions, form),
       ...(online === undefined ? {} : { online }),
+      // Only a guest's form has them; empty clears.
+      ...(id === guest?.id
+        ? {
+            phone: String(form.get("phone") ?? ""),
+            company: String(form.get("company") ?? ""),
+          }
+        : {}),
     };
     const transaction = attendees.collection.update(
       id,
@@ -234,18 +243,24 @@ export function Attend(props: {
       <QuestionInputs questions={event.questions} given={given.answers} />
     </>
   );
-  // There's something to change.
+  // There's something to change; a guest always has their phone number and company.
   const changeable =
     asksDietary || event.questions.length > 0 || event.isStreamed;
 
   /** Signed up: changing the answers, or cancelling. */
-  const signedUp = (id: string, status: string, given: Given) =>
+  const signedUp = (
+    id: string,
+    status: string,
+    given: Given,
+    asGuest = false,
+  ) =>
     editing ? (
       <form
         className={styles.form}
         onSubmit={(submitted) => change(submitted, id)}
         aria-label={m.attend_your_answers()}
       >
+        {asGuest ? <GuestContactInputs given={given} /> : null}
         {asked(given)}
         <div className={styles.row}>
           <Button type="submit" variant="primary">
@@ -257,7 +272,7 @@ export function Attend(props: {
     ) : (
       <div className={styles.row}>
         <p className={styles.status}>{status}</p>
-        {changeable ? (
+        {changeable || asGuest ? (
           <Button onClick={() => setEditing(true)}>
             {m.attend_change_answers()}
           </Button>
@@ -359,6 +374,7 @@ export function Attend(props: {
               required
             />
           </div>
+          <GuestContactInputs given={{}} />
           {asked()}
           <div className={styles.row}>
             <Button type="submit" variant="primary">
@@ -374,10 +390,15 @@ export function Attend(props: {
           </p>
         </form>
       ) : (
-        signedUp(guest.id, m.attend_you_signed_up(), {
-          ...(guest.given ?? {}),
-          online: signups.find((signup) => signup.id === guest.id)?.online,
-        })
+        signedUp(
+          guest.id,
+          m.attend_you_signed_up(),
+          {
+            ...(guest.given ?? {}),
+            online: signups.find((signup) => signup.id === guest.id)?.online,
+          },
+          true,
+        )
       )}
       {failure}
     </section>
@@ -400,7 +421,33 @@ type Given = {
   readonly answers?: Answers | undefined;
   /** Follows online rather than in person; unknown for a new signup. */
   readonly online?: boolean | undefined;
+  /** A guest's own. */
+  readonly phone?: string | undefined;
+  readonly company?: string | undefined;
 };
+
+/** A guest's phone number and company, both optional; members aren't asked. */
+const GuestContactInputs = (props: { readonly given: Given }) => (
+  <div className={styles.fields}>
+    <Input
+      name="phone"
+      type="tel"
+      autoComplete="tel"
+      defaultValue={props.given.phone}
+      aria-label={m.attend_your_phone()}
+      placeholder={`${m.attend_your_phone()} ${m.attend_optional()}`}
+      maxLength={50}
+    />
+    <Input
+      name="company"
+      autoComplete="organization"
+      defaultValue={props.given.company}
+      aria-label={m.attend_your_company()}
+      placeholder={`${m.attend_your_company()} ${m.attend_optional()}`}
+      maxLength={100}
+    />
+  </div>
+);
 
 /** Asked of everyone signing up, when the event wants to know. */
 const DietaryInput = (props: {

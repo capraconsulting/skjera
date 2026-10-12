@@ -97,6 +97,9 @@ export type EventRow = typeof EventRow.Type;
 export const AttendeeDetails = Schema.Struct({
   name: Schema.String,
   email: Schema.NullOr(Schema.String),
+  /** A guest's phone number and company, when they gave them. */
+  phone: Schema.NullOr(Schema.String),
+  company: Schema.NullOr(Schema.String),
   /** What they can't eat, when the event asked. */
   dietary: Schema.NullOr(Schema.String),
   /** Answers to the event's questions, as asked and picked then. */

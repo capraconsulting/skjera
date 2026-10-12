@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import {
   deleteEmailsTo,
   deleteEvent,
@@ -19,6 +19,16 @@ const attendance = (page: Page) =>
   page.getByRole("region", { name: "Attendance" });
 const attendees = (page: Page) =>
   page.getByRole("region", { name: "Attendees" });
+
+/** Members aren't asked for a phone number or a company. */
+const expectNoGuestContact = async (within: Locator) => {
+  await expect(
+    within.getByRole("textbox", { name: "Your phone number" }),
+  ).toHaveCount(0);
+  await expect(
+    within.getByRole("textbox", { name: "Your company" }),
+  ).toHaveCount(0);
+};
 
 test("members-only events are hidden from visitors", async ({ browser }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -131,6 +141,82 @@ test("guests sign up with their name and email", async ({ browser }) => {
   await deleteEvent(alice, event.id);
   await alice.goto(eventPath(team, closed.id));
   await deleteEvent(alice, closed.id);
+  await deleteTeam(alice, team);
+});
+
+test("guests give a phone number and a company, and organizers see and export them (AC-1, AC-3, AC-4)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await newTeam(alice, uniqueTeamName("Contact"));
+  const event = await publishedEvent(alice, { public: true, guests: true });
+
+  const guest = await visitor(browser);
+  await guest.goto(`/events/${event.id}`);
+  const box = attendance(guest);
+  await expect(
+    box.getByRole("textbox", { name: "Your phone number" }),
+  ).toBeVisible();
+  await expect(
+    box.getByRole("textbox", { name: "Your company" }),
+  ).toBeVisible();
+  await box.getByRole("textbox", { name: "Your name" }).fill("Gina");
+  await box
+    .getByRole("textbox", { name: "Your email" })
+    .fill("gina@example.org");
+  await box
+    .getByRole("textbox", { name: "Your phone number" })
+    .fill("900 00 000");
+  await box.getByRole("textbox", { name: "Your company" }).fill("Acme");
+  await box.getByRole("button", { name: "Sign up" }).click();
+  await expect(box).toContainText("You're signed up.");
+
+  const bob = await signedIn(browser, "bob@example.com");
+  await bob.goto(`/events/${event.id}`);
+  await attendance(bob).getByRole("button", { name: "Attend" }).click();
+  await expect(attendance(bob)).toContainText("You're attending.");
+
+  // The event asks nothing else, and the guest can still change these two.
+  await box.getByRole("button", { name: "Change answers" }).click();
+  const form = box.getByRole("form", { name: "Your answers" });
+  await expect(
+    form.getByRole("textbox", { name: "Your phone number" }),
+  ).toHaveValue("900 00 000");
+  await expect(form.getByRole("textbox", { name: "Your company" })).toHaveValue(
+    "Acme",
+  );
+  await form
+    .getByRole("textbox", { name: "Your phone number" })
+    .fill("911 11 111");
+  await form.getByRole("textbox", { name: "Your company" }).fill("Initech");
+  await form.getByRole("button", { name: "Save changes" }).click();
+  await expect(box).toContainText("You're signed up.");
+
+  await alice.reload();
+  const row = attendees(alice)
+    .getByRole("listitem")
+    .filter({ hasText: "Gina" });
+  await expect(row).toContainText("911 11 111");
+  await expect(row).toContainText("Initech");
+
+  const downloading = alice.waitForEvent("download");
+  await attendees(alice).getByRole("button", { name: "Download CSV" }).click();
+  const lines = (
+    await readFile((await (await downloading).path()) ?? "", "utf8")
+  )
+    .trim()
+    .split(/\r?\n/);
+  expect(lines[0]).toBe(
+    "Name,Email,Guest,Signed up,Changed,Dietary preferences,Phone,Company",
+  );
+  expect(lines.slice(1).sort()).toEqual([
+    expect.stringMatching(
+      /^Gina,gina@example\.org,Yes,.*,,911 11 111,Initech$/,
+    ),
+    expect.stringMatching(/^bob,bob@example\.com,No,.*,,,$/),
+  ]);
+
+  await deleteEvent(alice, event.id);
   await deleteTeam(alice, team);
 });
 
@@ -298,7 +384,7 @@ test("a streamed event shows its link, asks in person or online, and lists how e
     .trim()
     .split(/\r?\n/);
   expect(lines[0]).toBe(
-    "Name,Email,Guest,Attending,Signed up,Changed,Dietary preferences",
+    "Name,Email,Guest,Attending,Signed up,Changed,Dietary preferences,Phone,Company",
   );
   expect(lines.slice(1).sort()).toEqual([
     expect.stringMatching(/^Gina,gina@example\.org,Yes,Online,/),
@@ -661,7 +747,7 @@ test("events ask their own questions, and say what's served", async ({
   await deleteTeam(alice, team);
 });
 
-test("people change their answers; organizers export and remove them", async ({
+test("people change their answers; organizers export and remove them (AC-5)", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -723,10 +809,12 @@ test("people change their answers; organizers export and remove them", async ({
     .getByRole("textbox", { name: "Dietary preferences" })
     .fill("Fish");
   await member.getByRole("radio", { name: "Large" }).check();
+  await expectNoGuestContact(member);
   await member.getByRole("button", { name: "Attend" }).click();
   await expect(member).toContainText("You're attending.");
   await member.getByRole("button", { name: "Change answers" }).click();
   const memberForm = member.getByRole("form", { name: "Your answers" });
+  await expectNoGuestContact(memberForm);
   await expect(memberForm.getByRole("radio", { name: "Large" })).toBeChecked();
   await memberForm.getByRole("radio", { name: "Small" }).check();
   await memberForm.getByRole("button", { name: "Save changes" }).click();
@@ -752,11 +840,11 @@ test("people change their answers; organizers export and remove them", async ({
     .trim()
     .split(/\r?\n/);
   expect(lines[0]).toBe(
-    "Name,Email,Guest,Signed up,Changed,Dietary preferences,Towel size",
+    "Name,Email,Guest,Signed up,Changed,Dietary preferences,Phone,Company,Towel size",
   );
   expect(lines.slice(1).sort()).toEqual([
-    expect.stringMatching(/^Gina,gina@example\.org,Yes,.*,Vegan,Large$/),
-    expect.stringMatching(/^bob,bob@example\.com,No,.*,Fish,Small$/),
+    expect.stringMatching(/^Gina,gina@example\.org,Yes,.*,Vegan,,,Large$/),
+    expect.stringMatching(/^bob,bob@example\.com,No,.*,Fish,,,Small$/),
   ]);
 
   // Organizers take people off; the guest sees they're no longer signed up.

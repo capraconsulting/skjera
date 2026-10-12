@@ -4,7 +4,8 @@ import Papa from "papaparse";
 
 /**
  * The attendees as a spreadsheet: who they are, how each attends when the
- * event is streamed, what they can't eat, and a column for each question. Questions taken off the event since still
+ * event is streamed, what they can't eat, a guest's phone number and company,
+ * and a column for each question. Questions taken off the event since still
  * show, after the others, as they were asked.
  */
 export const attendeesCsv = (
@@ -37,6 +38,8 @@ export const attendeesCsv = (
           signedUpAt.toISOString(),
           changedAt.toISOString(),
           details.dietary ?? "",
+          details.phone ?? "",
+          details.company ?? "",
           ...[...columns.keys()].map((id) => answers.get(id) ?? ""),
         ],
       ];
@@ -52,6 +55,8 @@ export const attendeesCsv = (
         m.csv_signed_up(),
         m.csv_changed(),
         m.csv_dietary(),
+        m.csv_phone(),
+        m.csv_company(),
         ...columns.values(),
       ],
       data: rows,

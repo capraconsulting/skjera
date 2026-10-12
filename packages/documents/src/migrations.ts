@@ -784,4 +784,9 @@ export const migrations = Migrator.fromRecord({
       RETURNING e.*
     $$`,
   ),
+  "0023_guest_contact": statements(
+    // A guest's phone number and company, both optional: members aren't
+    // asked. Kept as typed, trimmed; nothing checks a number is real.
+    `ALTER TABLE attendees ADD COLUMN phone text, ADD COLUMN company text`,
+  ),
 });

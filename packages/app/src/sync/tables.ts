@@ -195,6 +195,12 @@ export const attendees = syncedTable({
                   given: {
                     ...(dietary === undefined ? {} : { dietary }),
                     ...(answers === undefined ? {} : { answers }),
+                    ...(guest?.phone === undefined
+                      ? {}
+                      : { phone: guest.phone }),
+                    ...(guest?.company === undefined
+                      ? {}
+                      : { company: guest.company }),
                   },
                 });
               }),
@@ -272,6 +278,9 @@ export type SignupChange = {
   readonly answers?: Answers;
   /** Follows online rather than in person; asked while the event is streamed. */
   readonly online?: boolean;
+  /** A guest's own: kept as given when left out, empty clears. */
+  readonly phone?: string;
+  readonly company?: string;
 };
 
 /** Pass as a delete's metadata to take someone off as an organizer. */

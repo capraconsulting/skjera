@@ -23,6 +23,9 @@ export interface SignupDetails {
   readonly answers?: Answers;
   /** Follows online rather than in person; required while the event is streamed. */
   readonly online?: boolean;
+  /** A guest's own, on change; kept as given when left out, never a member's. */
+  readonly phone?: string;
+  readonly company?: string;
   /** The signup's id, picked by the client. */
   readonly id?: string;
   /** The language they signed up in, for emails to them. */
@@ -96,6 +99,9 @@ export const answersFor = (
   }
   return Effect.succeed(stored);
 };
+
+/** What a typed optional text is kept as: trimmed, and nothing when blank. */
+const storedText = (text: string | undefined) => text?.trim() || null;
 
 const hash = (token: string) =>
   createHash("sha256").update(token).digest("base64url");
@@ -355,9 +361,10 @@ export class Attendance extends Context.Service<
         yield* Effect.gen(function* () {
           yield* room(event, online, sql`false`);
           const inserted = yield* sql<Signup>`
-            INSERT INTO attendees (id, event_id, name, email, dietary, answers, cancel_token_hash, online, locale)
+            INSERT INTO attendees (id, event_id, name, email, phone, company, dietary, answers, cancel_token_hash, online, locale)
             VALUES (${attendee}::uuid, ${event}, ${guest.name.trim()},
-              ${guest.email.trim()}, ${dietary}, ${JSON.stringify(answers)}::jsonb, ${hash(token)},
+              ${guest.email.trim()}, ${storedText(guest.phone)}, ${storedText(guest.company)},
+              ${dietary}, ${JSON.stringify(answers)}::jsonb, ${hash(token)},
               ${online}, ${details.locale ?? null})
             RETURNING id, name, email, true AS guest, locale
           `;
@@ -420,6 +427,10 @@ export class Attendance extends Context.Service<
         if (found.length === 0) return yield* new SignupNotFound({});
         // Counts only while the event is streamed; left out, the choice stays.
         const online = streamed ? (details.online ?? null) : null;
+        // Only a guest's signup has them; given, an empty one clears the value.
+        const guest = !("user" in who);
+        const phoneGiven = guest && details.phone !== undefined;
+        const companyGiven = guest && details.company !== undefined;
         yield* Effect.gen(function* () {
           // A place in person is taken: the event's row is locked first.
           if (online === false) yield* room(event, false, own);
@@ -429,7 +440,9 @@ export class Attendance extends Context.Service<
               changed_at = now(),
               -- Kept as given once the event stops asking.
               dietary = CASE WHEN ${askDietary}::boolean THEN ${dietary}::text ELSE dietary END,
-              online = coalesce(${online}::boolean, online)
+              online = coalesce(${online}::boolean, online),
+              phone = CASE WHEN ${phoneGiven}::boolean THEN ${storedText(details.phone)}::text ELSE phone END,
+              company = CASE WHEN ${companyGiven}::boolean THEN ${storedText(details.company)}::text ELSE company END
             WHERE event_id = ${event} AND ${own}
             RETURNING id
           `;

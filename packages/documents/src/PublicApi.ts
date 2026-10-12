@@ -10,7 +10,9 @@ import {
 import {
   Answers,
   DocumentId,
+  GuestCompany,
   GuestDetails,
+  GuestPhone,
   GuestSignup,
   Locale,
 } from "./Model.ts";
@@ -25,6 +27,9 @@ const SignupChange = Schema.Struct({
   answers: Schema.optionalKey(Answers),
   /** Follows online rather than in person; asked while the event is streamed. */
   online: Schema.optionalKey(Schema.Boolean),
+  /** A guest's own, kept as given when left out; a member's are ignored. */
+  phone: Schema.optionalKey(GuestPhone),
+  company: Schema.optionalKey(GuestCompany),
 });
 
 export class EventsApi extends HttpApiGroup.make("events").add(

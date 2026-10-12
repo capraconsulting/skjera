@@ -181,6 +181,10 @@ export const SiteConfig = Config.all({
     }),
   ),
 );
+/** A guest's phone number, as typed: only its length is checked. */
+export const GuestPhone = Schema.String.check(Schema.isMaxLength(50));
+/** The company a guest comes from. */
+export const GuestCompany = Schema.String.check(Schema.isMaxLength(100));
 export const GuestDetails = Schema.Struct({
   name: Schema.String.check(
     Schema.makeFilter(
@@ -197,6 +201,8 @@ export const GuestDetails = Schema.Struct({
         "Enter a valid email address",
     ),
   ),
+  phone: Schema.optionalKey(GuestPhone),
+  company: Schema.optionalKey(GuestCompany),
 });
 export type GuestDetails = typeof GuestDetails.Type;
 

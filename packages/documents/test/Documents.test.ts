@@ -2046,6 +2046,93 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
     }),
   );
 
+  it.effect("keeps a guest's phone number and company, trimmed (AC-2)", () =>
+    Effect.gen(function* () {
+      const attendance = yield* Attendance;
+      const id = yield* publishedEvent({ public: true, guests: true });
+      yield* attendance.attendAsGuest(id, {
+        name: "Gina",
+        email: "gina@example.org",
+        phone: " +47 900 00 000 ",
+        company: " Acme ",
+      });
+      assert.deepStrictEqual(
+        (yield* organizerView(id)).map((each) => [each?.phone, each?.company]),
+        [["+47 900 00 000", "Acme"]],
+      );
+    }),
+  );
+
+  it.effect(
+    "keeps nothing for a phone number and company left blank (AC-2)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        yield* attendance.attendAsGuest(id, {
+          name: "Gina",
+          email: "gina@example.org",
+          company: "  ",
+        });
+        assert.deepStrictEqual(
+          (yield* organizerView(id)).map((each) => [
+            each?.phone,
+            each?.company,
+          ]),
+          [[null, null]],
+        );
+      }),
+  );
+
+  it.effect(
+    "lets a guest change their phone number and company, and keeps them when left out (AC-3)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        const token = yield* attendance.attendAsGuest(id, {
+          name: "Gina",
+          email: "gina@example.org",
+          phone: "111",
+          company: "Acme",
+        });
+        const contact = () =>
+          Effect.map(organizerView(id), (rows) =>
+            rows.map((each) => [each?.phone, each?.company]),
+          );
+
+        yield* attendance.change(
+          id,
+          { cancelToken: token },
+          { phone: " 222 ", company: "Initech" },
+        );
+        assert.deepStrictEqual(yield* contact(), [["222", "Initech"]]);
+
+        yield* attendance.change(id, { cancelToken: token }, { phone: "" });
+        assert.deepStrictEqual(yield* contact(), [[null, "Initech"]]);
+
+        yield* attendance.change(id, { cancelToken: token }, {});
+        assert.deepStrictEqual(yield* contact(), [[null, "Initech"]]);
+      }),
+  );
+
+  it.effect("gives a member's signup no phone number or company (AC-5)", () =>
+    Effect.gen(function* () {
+      const attendance = yield* Attendance;
+      const id = yield* publishedEvent({ public: true, guests: true });
+      yield* attendance.attend(id, bob);
+      yield* attendance.change(
+        id,
+        { user: bob },
+        { phone: "111", company: "Acme" },
+      );
+      assert.deepStrictEqual(
+        (yield* organizerView(id)).map((each) => [each?.phone, each?.company]),
+        [[null, null]],
+      );
+    }),
+  );
+
   it.effect("asks everyone for dietary preferences when the event does", () =>
     Effect.gen(function* () {
       const attendance = yield* Attendance;

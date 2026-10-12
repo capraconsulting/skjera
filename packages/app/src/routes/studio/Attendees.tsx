@@ -83,6 +83,12 @@ export function Attendees(props: { readonly id: DocumentId }) {
                 {who.email === null ? null : (
                   <span className={styles.email}>{who.email}</span>
                 )}
+                {who.phone === null ? null : (
+                  <span className={styles.email}>{who.phone}</span>
+                )}
+                {who.company === null ? null : (
+                  <span className={styles.email}>{who.company}</span>
+                )}
                 {who.guest ? (
                   <Badge tone="neutral">{m.studio_guest()}</Badge>
                 ) : null}

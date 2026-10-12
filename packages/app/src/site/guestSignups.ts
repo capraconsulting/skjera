@@ -11,6 +11,8 @@ export interface GuestSignup {
   readonly given?: {
     readonly dietary?: string;
     readonly answers?: Answers;
+    readonly phone?: string;
+    readonly company?: string;
   };
 }
 
