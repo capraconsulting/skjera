@@ -85,14 +85,23 @@ export class Sync extends Context.Service<
         since: Token | undefined,
       ) {
         return yield* pull("teams", since, (keys) =>
-          sql<{ id: TeamId; name: string; created_at: Date }>`
-            SELECT id, name, created_at FROM teams WHERE id = ANY(${keys}::uuid[])
+          sql<{
+            id: TeamId;
+            name: string;
+            logo: string | null;
+            logo_dark: string | null;
+            created_at: Date;
+          }>`
+            SELECT id, name, logo, logo_dark, created_at
+            FROM teams WHERE id = ANY(${keys}::uuid[])
           `.pipe(
             Effect.map((rows) =>
               rows.map((row) =>
                 TeamRow.make({
                   id: row.id,
                   name: row.name,
+                  logo: row.logo,
+                  logoDark: row.logo_dark,
                   createdAt: row.created_at,
                 }),
               ),
@@ -177,15 +186,23 @@ export class Sync extends Context.Service<
             published_heads: Heads;
             published_at: Date;
             first_published_at: Date;
+            team_name: string;
+            team_logo: string | null;
+            team_logo_dark: string | null;
             visible: boolean;
           }>`
-            SELECT id, title, starts_at, ends_at, signup_deadline, time_zone, body, cover, is_public,
-              allow_guests, ask_dietary, food, food_deadline, questions, tags,
-              place, max_attendees, hide_places_left, is_streamed, stream_link,
-              published_heads, published_at,
-              first_published_at,
-              (is_public OR ${audience === "members"}) AND deleted_at IS NULL AS visible
-            FROM events WHERE id = ANY(${keys}::uuid[])
+            SELECT e.id, e.title, e.starts_at, e.ends_at, e.signup_deadline, e.time_zone,
+              e.body, e.cover, e.is_public, e.allow_guests, e.ask_dietary, e.food,
+              e.food_deadline, e.questions, e.tags, e.place, e.max_attendees,
+              e.hide_places_left, e.is_streamed, e.stream_link,
+              e.published_heads, e.published_at,
+              e.first_published_at,
+              t.name AS team_name, t.logo AS team_logo, t.logo_dark AS team_logo_dark,
+              (e.is_public OR ${audience === "members"}) AND e.deleted_at IS NULL AS visible
+            FROM events e
+              JOIN documents d ON d.id = e.id
+              JOIN teams t ON t.id = d.team_id
+            WHERE e.id = ANY(${keys}::uuid[])
           `.pipe(
             Effect.map((rows) =>
               rows
@@ -200,6 +217,11 @@ export class Sync extends Context.Service<
                     timeZone: row.time_zone,
                     body: row.body,
                     cover: row.cover,
+                    organizer: {
+                      name: row.team_name,
+                      logo: row.team_logo,
+                      logoDark: row.team_logo_dark,
+                    },
                     isPublic: row.is_public,
                     allowGuests: row.allow_guests,
                     askDietary: row.ask_dietary,

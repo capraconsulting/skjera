@@ -165,6 +165,9 @@ const TeamsHandlers = HttpApiBuilder.group(Api, "teams", (handlers) =>
       .handle("rename", ({ params, payload }) =>
         teams.rename(params.id, payload.name),
       )
+      .handle("setLogos", ({ params, payload }) =>
+        teams.setLogos(params.id, payload),
+      )
       .handle("delete", ({ params }) => teams.delete(params.id));
   }),
 );

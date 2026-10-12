@@ -2,12 +2,14 @@ import type { Identity } from "@skjera/oauth/api";
 import { Context, Effect, Layer } from "effect";
 import { SqlClient, SqlError } from "effect/sql";
 import { InvalidTeamName, TeamNotEmpty, TeamNotFound } from "./errors.ts";
-import { Team, type TeamId } from "./Model.ts";
+import { Team, type TeamId, type TeamLogosChange } from "./Model.ts";
 import { refused } from "./Problems.ts";
 
 type Row = {
   id: TeamId;
   name: string;
+  logo: string | null;
+  logo_dark: string | null;
   created_at: Date;
   document_count: number;
 };
@@ -16,6 +18,8 @@ const toTeam = (row: Row) =>
   new Team({
     id: row.id,
     name: row.name,
+    logo: row.logo,
+    logoDark: row.logo_dark,
     createdAt: row.created_at,
     documentCount: row.document_count,
   });
@@ -41,6 +45,11 @@ export class Teams extends Context.Service<
       id: TeamId,
       name: string,
     ) => Effect.Effect<Team, InvalidTeamName | TeamNotFound>;
+    /** Sets the logos given, or removes them with null; leaves the others. */
+    readonly setLogos: (
+      id: TeamId,
+      change: TeamLogosChange,
+    ) => Effect.Effect<Team, TeamNotFound>;
     /** Deletes a team that has no documents. */
     readonly delete: (
       id: TeamId,
@@ -54,7 +63,7 @@ export class Teams extends Context.Service<
 
       const get = Effect.fn("Teams.get")(function* (id: TeamId) {
         const [row] = yield* sql<Row>`
-          SELECT id, name, created_at,
+          SELECT id, name, logo, logo_dark, created_at,
           (SELECT count(*)::int FROM documents
             WHERE team_id = teams.id AND deleted_at IS NULL) AS document_count
           FROM teams WHERE id = ${id}
@@ -92,7 +101,7 @@ export class Teams extends Context.Service<
           VALUES (coalesce(${id ?? null}::uuid, uuidv7()), ${trimmed},
             ${creator.issuer}, ${creator.subject})
           ON CONFLICT (id) DO NOTHING
-          RETURNING id, name, created_at,
+          RETURNING id, name, logo, logo_dark, created_at,
           (SELECT count(*)::int FROM documents
             WHERE team_id = teams.id AND deleted_at IS NULL) AS document_count
         `.pipe(Effect.catchIf(SqlError.isSqlError, nameTaken(trimmed)));
@@ -109,10 +118,29 @@ export class Teams extends Context.Service<
         const trimmed = yield* validName(name);
         const [row] = yield* sql<Row>`
           UPDATE teams SET name = ${trimmed} WHERE id = ${id}
-          RETURNING id, name, created_at,
+          RETURNING id, name, logo, logo_dark, created_at,
           (SELECT count(*)::int FROM documents
             WHERE team_id = teams.id AND deleted_at IS NULL) AS document_count
         `.pipe(Effect.catchIf(SqlError.isSqlError, nameTaken(trimmed)));
+        if (row === undefined) {
+          return yield* new TeamNotFound({ id });
+        }
+        return toTeam(row);
+      });
+
+      const setLogos = Effect.fn("Teams.setLogos")(function* (
+        id: TeamId,
+        change: TeamLogosChange,
+      ) {
+        const [row] = yield* sql<Row>`
+          UPDATE teams SET
+            logo = CASE WHEN ${"logo" in change} THEN ${change.logo ?? null} ELSE logo END,
+            logo_dark = CASE WHEN ${"logoDark" in change} THEN ${change.logoDark ?? null} ELSE logo_dark END
+          WHERE id = ${id}
+          RETURNING id, name, logo, logo_dark, created_at,
+          (SELECT count(*)::int FROM documents
+            WHERE team_id = teams.id AND deleted_at IS NULL) AS document_count
+        `.pipe(Effect.orDie);
         if (row === undefined) {
           return yield* new TeamNotFound({ id });
         }
@@ -141,7 +169,7 @@ export class Teams extends Context.Service<
         }
       });
 
-      return Teams.of({ get, create, rename, delete: deleteTeam });
+      return Teams.of({ get, create, rename, setLogos, delete: deleteTeam });
     }),
   );
 }

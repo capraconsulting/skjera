@@ -8,6 +8,7 @@ import { useEffect, useId, useState } from "react";
 import { Link } from "react-router";
 import { Badge } from "../../components/Badge.tsx";
 import { Button } from "../../components/Button.tsx";
+import { Organizer } from "../../components/Organizer.tsx";
 import { guestSignup } from "../../site/guestSignups.ts";
 import { attendees, events as eventsTable } from "../../sync/tables.ts";
 import { sameTag, uniqueTags } from "../../tags.ts";
@@ -184,6 +185,9 @@ function Row(props: {
   return (
     <Link to={`/events/${event.id}`} className={styles.row}>
       <span className={styles.rowTitle}>{event.title}</span>
+      <span className={styles.organizer}>
+        <Organizer organizer={event.organizer} />
+      </span>
       <span className={styles.rowBadges}>
         {ongoing ? (
           <Badge tone="success">{m.site_happening_now()}</Badge>
@@ -231,6 +235,9 @@ function Card(props: { readonly event: EventRow }) {
         )}
       </span>
       <span className={styles.cardTitle}>{event.title}</span>
+      <span className={styles.cardOrganizer}>
+        <Organizer organizer={event.organizer} />
+      </span>
     </Link>
   );
 }

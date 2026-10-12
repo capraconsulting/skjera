@@ -375,5 +375,19 @@
   "privacy_rights": "Du kan be om å få se opplysningene vi har om deg, og få dem rettet eller slettet.",
   "privacy_contact": "Skriv til",
   "privacy_ask_operator": "Spør {operator}.",
-  "attend_privacy_link": "Slik behandler vi opplysningene dine"
+  "attend_privacy_link": "Slik behandler vi opplysningene dine",
+  "common_close": "Lukk",
+  "studio_team_logo_menu": "Logo …",
+  "studio_team_logo_title": "Logo for teamet",
+  "studio_team_logo_light": "Lyst tema",
+  "studio_team_logo_dark": "Mørkt tema",
+  "studio_team_logo_light_image": "Logo for lyst tema",
+  "studio_team_logo_dark_image": "Logo for mørkt tema",
+  "studio_team_logo_light_file": "Fil for logoen i lyst tema",
+  "studio_team_logo_dark_file": "Fil for logoen i mørkt tema",
+  "studio_team_logo_choose": "Velg bilde",
+  "studio_team_logo_replace": "Bytt bilde",
+  "studio_team_logo_remove": "Fjern bilde",
+  "studio_team_logo_hint": "Logoen vises på nettstedet i stedet for navnet på teamet, på arrangementene til teamet.",
+  "site_organizer": "Arrangør"
 }

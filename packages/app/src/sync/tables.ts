@@ -11,6 +11,7 @@ import {
   PublicSyncApi,
   SyncApi,
   type TagRow,
+  type TeamLogosChange,
   type TeamRow,
   TeamsApi,
 } from "@skjera/documents/api";
@@ -90,17 +91,27 @@ export const teams = syncedTable({
       sendRequest((client) =>
         client.teams.create({ payload: { id: team.id, name: team.name } }),
       ),
-    update: (team) =>
-      sendRequest((client) =>
-        client.teams.rename({
-          params: { id: team.id },
-          payload: { name: team.name },
-        }),
-      ),
+    // A logo change, passed as metadata, goes to its own endpoint; any
+    // other update is a rename. Each sends only what it changes, so one
+    // person renaming and another changing a logo don't undo each other.
+    update: (team, metadata) => {
+      const logos = (metadata as TeamChange | undefined)?.logos;
+      return sendRequest((client) =>
+        logos === undefined
+          ? client.teams.rename({
+              params: { id: team.id },
+              payload: { name: team.name },
+            })
+          : client.teams.setLogos({ params: { id: team.id }, payload: logos }),
+      );
+    },
     delete: (team) =>
       sendRequest((client) => client.teams.delete({ params: { id: team.id } })),
   },
 });
+
+/** Pass as a team update's metadata to change its logos rather than its name. */
+export type TeamChange = { readonly logos: TeamLogosChange };
 
 export const documents = syncedTable({
   id: "documents",

@@ -13,6 +13,7 @@ import {
 import { Input } from "../../components/Input.tsx";
 import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
 import { documents, teams } from "../../sync/tables.ts";
+import { TeamLogosDialog } from "./TeamLogos.tsx";
 import styles from "./Teams.module.css";
 
 /** Waits for the copies of the tables the studio lists. */
@@ -46,6 +47,7 @@ type Team = ReturnType<typeof useTeams>[number];
 type DialogState =
   | { readonly kind: "create" }
   | { readonly kind: "rename"; readonly team: Team }
+  | { readonly kind: "logos"; readonly team: Team }
   | null;
 
 /**
@@ -90,6 +92,7 @@ export function Teams() {
                 key={team.id}
                 team={team}
                 onRename={() => setDialog({ kind: "rename", team })}
+                onLogos={() => setDialog({ kind: "logos", team })}
                 onFailure={setFailure}
               />
             ))}
@@ -97,6 +100,10 @@ export function Teams() {
         )}
       </Pane>
       <TeamDialog state={dialog} onClose={() => setDialog(null)} />
+      <TeamLogosDialog
+        teamId={dialog?.kind === "logos" ? dialog.team.id : null}
+        onClose={() => setDialog(null)}
+      />
       <Outlet />
     </div>
   );
@@ -105,6 +112,7 @@ export function Teams() {
 function TeamRow(props: {
   readonly team: Team;
   readonly onRename: () => void;
+  readonly onLogos: () => void;
   /** Deleting was refused, and the team is back. */
   readonly onFailure: (message: string) => void;
 }) {
@@ -143,6 +151,14 @@ function TeamRow(props: {
                 {m.studio_rename_team_menu()}
               </DropdownItem>
               <DropdownItem
+                onClick={() => {
+                  close();
+                  props.onLogos();
+                }}
+              >
+                {m.studio_team_logo_menu()}
+              </DropdownItem>
+              <DropdownItem
                 danger
                 disabled={team.documentCount > 0}
                 onClick={() => {
@@ -171,6 +187,7 @@ function TeamDialog(props: {
   const navigate = useNavigate();
   const { state, onClose } = props;
   const renaming = state?.kind === "rename" ? state.team : null;
+  const open = state?.kind === "create" || state?.kind === "rename";
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -189,7 +206,13 @@ function TeamDialog(props: {
     const id = renaming?.id ?? (crypto.randomUUID() as TeamId);
     const change =
       renaming === null
-        ? teams.collection.insert({ id, name, createdAt: new Date() })
+        ? teams.collection.insert({
+            id,
+            name,
+            logo: null,
+            logoDark: null,
+            createdAt: new Date(),
+          })
         : teams.collection.update(id, (team) => {
             team.name = name;
           });
@@ -210,7 +233,7 @@ function TeamDialog(props: {
 
   return (
     <Dialog
-      open={state !== null}
+      open={open}
       title={renaming === null ? m.studio_new_team() : m.studio_rename_team()}
       onClose={close}
     >

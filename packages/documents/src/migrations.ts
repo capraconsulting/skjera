@@ -789,4 +789,24 @@ export const migrations = Migrator.fromRecord({
     // asked. Kept as typed, trimmed; nothing checks a number is real.
     `ALTER TABLE attendees ADD COLUMN phone text, ADD COLUMN company text`,
   ),
+  "0024_team_logos": statements(
+    // A team's logos, for the light theme and the dark: uploaded images
+    // (/api/images/…), each optional. The site shows a team as the organizer
+    // of its events, by its logo or its name.
+    `ALTER TABLE teams ADD COLUMN logo text, ADD COLUMN logo_dark text`,
+    // Events are pulled with their team's name and logos (see Sync.ts): a
+    // change to those touches the team's events, so readers pull them again.
+    `CREATE FUNCTION teams_touch_events() RETURNS trigger LANGUAGE plpgsql AS $$
+    BEGIN
+      UPDATE events SET id = id
+        WHERE id IN (SELECT id FROM documents WHERE team_id = NEW.id);
+      RETURN NULL;
+    END
+    $$`,
+    `CREATE TRIGGER teams_touch_events AFTER UPDATE OF name, logo, logo_dark ON teams
+      FOR EACH ROW WHEN (OLD.name IS DISTINCT FROM NEW.name
+        OR OLD.logo IS DISTINCT FROM NEW.logo
+        OR OLD.logo_dark IS DISTINCT FROM NEW.logo_dark)
+      EXECUTE FUNCTION teams_touch_events()`,
+  ),
 });

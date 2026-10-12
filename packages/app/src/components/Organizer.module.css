@@ -1,0 +1,45 @@
+/* An organizer's logo is a picture in a line of text. */
+.logo,
+.lightLogo,
+.darkLogo {
+  display: inline-block;
+  height: 1.5rem;
+  width: auto;
+  max-width: 100%;
+  vertical-align: middle;
+  object-fit: contain;
+}
+
+/* The theme's version: the picked theme, else the system's (as Logo.module.css). */
+.dark,
+.darkLogo {
+  display: none;
+}
+
+:root[data-theme="dark"] .light,
+:root[data-theme="dark"] .lightLogo {
+  display: none;
+}
+
+:root[data-theme="dark"] .dark {
+  display: inline;
+}
+
+:root[data-theme="dark"] .darkLogo {
+  display: inline-block;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .light,
+  :root:not([data-theme="light"]) .lightLogo {
+    display: none;
+  }
+
+  :root:not([data-theme="light"]) .dark {
+    display: inline;
+  }
+
+  :root:not([data-theme="light"]) .darkLogo {
+    display: inline-block;
+  }
+}

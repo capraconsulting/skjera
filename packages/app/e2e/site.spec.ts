@@ -1,12 +1,15 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import {
   body,
   deleteEvent,
   deleteTeam,
+  eventPath,
   newEvent,
   newTeam,
+  openTeamMenu,
   pickTimes,
   publishedEvent,
+  setTeamLogo,
   signedIn,
   signInAtDex,
   title,
@@ -320,4 +323,140 @@ test("the site has its logo, its footer and a privacy page", async ({
   await expect(
     policy.getByRole("link", { name: "privacy@skjera.localhost" }),
   ).toHaveAttribute("href", "mailto:privacy@skjera.localhost");
+});
+
+/** Publishes an event in the open team, a month ago. Returns its title. */
+const publishedPastEvent = async (page: Page) => {
+  const id = await newEvent(page);
+  const past = `Was ${id.slice(-12)}`;
+  await title(page).pressSequentially(past);
+  await page.getByRole("button", { name: "Start date" }).click();
+  await page.getByRole("button", { name: /previous month/i }).click();
+  await page.getByRole("button", { name: /15th, \d{4}/ }).click();
+  await page.getByRole("checkbox", { name: /Public event/ }).check();
+  await expect(page.getByTestId("status")).toContainText("Saved");
+  await page.getByRole("button", { name: "Publish" }).click();
+  await expect(page.getByTestId("status")).toContainText("Published");
+  return { id, title: past };
+};
+
+test("the site's list shows each event's team as its organizer (AC-2)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const brandedName = uniqueTeamName("Branded");
+  const branded = await newTeam(alice, brandedName);
+  const logo = await setTeamLogo(alice, branded, "light");
+  const coming = await publishedEvent(alice, { public: true });
+  const was = await publishedPastEvent(alice);
+  const plainName = uniqueTeamName("Plain");
+  const plain = await newTeam(alice, plainName);
+  const plainComing = await publishedEvent(alice, { public: true });
+
+  const reader = await visitor(browser);
+  await reader.goto("/");
+  const upcoming = reader.getByRole("region", { name: "Upcoming events" });
+  const past = reader.getByRole("region", { name: "Past events" });
+  // The logo, named by the team, in place of the team's name.
+  for (const link of [
+    upcoming.getByRole("link", { name: coming.title }),
+    past.getByRole("link", { name: was.title }),
+  ]) {
+    await expect(link.getByRole("img", { name: brandedName })).toHaveAttribute(
+      "src",
+      logo,
+    );
+  }
+  const plainLink = upcoming.getByRole("link", { name: plainComing.title });
+  await expect(plainLink.getByRole("img")).toHaveCount(0);
+  await expect(plainLink).toContainText(plainName);
+
+  await deleteEvent(alice, plainComing.id);
+  await deleteTeam(alice, plain);
+  await alice.goto(eventPath(branded, was.id));
+  await deleteEvent(alice, was.id);
+  await alice.goto(eventPath(branded, coming.id));
+  await deleteEvent(alice, coming.id);
+  await deleteTeam(alice, branded);
+});
+
+test("the event page shows the team as its organizer (AC-3)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const brandedName = uniqueTeamName("Branded");
+  const branded = await newTeam(alice, brandedName);
+  const logo = await setTeamLogo(alice, branded, "light");
+  const withLogo = await publishedEvent(alice, { public: true });
+  const plainName = uniqueTeamName("Plain");
+  const plain = await newTeam(alice, plainName);
+  const without = await publishedEvent(alice, { public: true });
+
+  const reader = await visitor(browser);
+  await reader.goto(`/events/${withLogo.id}`);
+  const article = reader.getByRole("article");
+  await expect(article.getByRole("img", { name: brandedName })).toHaveAttribute(
+    "src",
+    logo,
+  );
+  await reader.goto(`/events/${without.id}`);
+  await expect(reader.getByRole("article")).toContainText(plainName);
+  await expect(reader.getByRole("article").getByRole("img")).toHaveCount(0);
+
+  await deleteEvent(alice, without.id);
+  await deleteTeam(alice, plain);
+  await alice.goto(eventPath(branded, withLogo.id));
+  await deleteEvent(alice, withLogo.id);
+  await deleteTeam(alice, branded);
+});
+
+test("the dark theme shows the team's dark logo, the light one the light logo (AC-4)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await newTeam(alice, uniqueTeamName("Themed"));
+  const light = await setTeamLogo(alice, team, "light");
+  const dark = await setTeamLogo(alice, team, "dark");
+  const event = await publishedEvent(alice, { public: true });
+
+  const reader = await (
+    await browser.newContext({ colorScheme: "dark" })
+  ).newPage();
+  await reader.goto(`/events/${event.id}`);
+  const article = reader.getByRole("article");
+  await expect(article.locator(`img[src="${dark}"]`)).toBeVisible();
+  await expect(article.locator(`img[src="${light}"]`)).toBeHidden();
+
+  await reader.getByRole("button", { name: "Switch to light mode" }).click();
+  await expect(article.locator(`img[src="${light}"]`)).toBeVisible();
+  await expect(article.locator(`img[src="${dark}"]`)).toBeHidden();
+
+  await deleteEvent(alice, event.id);
+  await deleteTeam(alice, team);
+});
+
+test("the open list follows a team's rename without reloading (AC-6)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const name = uniqueTeamName("Before");
+  const team = await newTeam(alice, name);
+  const event = await publishedEvent(alice, { public: true });
+  const reader = await visitor(browser);
+  await reader.goto("/");
+  const link = reader.getByRole("link", { name: event.title });
+  await expect(link).toContainText(name);
+
+  const renamed = uniqueTeamName("After");
+  await openTeamMenu(alice, team);
+  await alice.getByRole("button", { name: "Rename team…" }).click();
+  const dialog = alice.getByRole("dialog", { name: "Rename team" });
+  await dialog.getByRole("textbox", { name: "Team name" }).fill(renamed);
+  await dialog.getByRole("button", { name: "Rename team" }).click();
+  await expect(dialog).toBeHidden();
+  // Visitors' pages pull every 5 seconds.
+  await expect(link).toContainText(renamed, { timeout: 20_000 });
+
+  await deleteEvent(alice, event.id);
+  await deleteTeam(alice, team);
 });

@@ -3,6 +3,7 @@ import { m } from "@skjera/i18n/messages";
 import { eq, useLiveQuery } from "@tanstack/react-db";
 import {
   ArrowLeft,
+  Building2,
   CalendarDays,
   Clock,
   Globe,
@@ -22,6 +23,7 @@ import {
   useRouteError,
   useRouteLoaderData,
 } from "react-router";
+import { Organizer } from "../../components/Organizer.tsx";
 import { RichText } from "../../components/RichText.tsx";
 import { rememberGuestSignup } from "../../site/guestSignups.ts";
 import { attendees, events } from "../../sync/tables.ts";
@@ -99,6 +101,13 @@ export function EventPage() {
       <h1 className={styles.title}>{event.title}</h1>
       <div className={styles.overview}>
         <ul className={styles.info}>
+          <li>
+            <Building2 {...icon} />
+            <span>
+              <span className={styles.label}>{m.site_organizer()}:</span>{" "}
+              <Organizer organizer={event.organizer} />
+            </span>
+          </li>
           <li>
             <CalendarDays {...icon} />
             <time dateTime={event.startsAt.toISOString()}>

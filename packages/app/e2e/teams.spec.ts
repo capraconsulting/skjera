@@ -8,6 +8,7 @@ import {
   openNewTeamDialog,
   openTeamMenu,
   pickTimes,
+  pixel,
   signedIn,
   teamLink,
   title,
@@ -204,5 +205,52 @@ test("publishing shows for others without reloading", async ({ browser }) => {
   await expect(edited).toContainText("Changed");
 
   await deleteEvent(bob, event);
+  await deleteTeam(alice, team);
+});
+
+test("a team's logos are chosen, replaced and removed in its logo dialog (AC-1)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await newTeam(alice, uniqueTeamName("Logos"));
+  await openTeamMenu(alice, team);
+  await alice.getByRole("button", { name: "Logo…" }).click();
+  const dialog = alice.getByRole("dialog", { name: "Team logo" });
+  const light = dialog.getByRole("group", { name: "Light theme" });
+  const dark = dialog.getByRole("group", { name: "Dark theme" });
+  const logoIn = (field: typeof light, theme: "light" | "dark") =>
+    field.getByRole("img", { name: `Logo for the ${theme} theme` });
+  const choose = (field: typeof light, theme: "light" | "dark") =>
+    field.getByLabel(`Logo file for the ${theme} theme`).setInputFiles({
+      name: "logo.png",
+      mimeType: "image/png",
+      buffer: pixel,
+    });
+
+  await expect(logoIn(light, "light")).toHaveCount(0);
+  await choose(light, "light");
+  await expect(logoIn(light, "light")).toBeVisible();
+  await choose(dark, "dark");
+  await expect(logoIn(dark, "dark")).toBeVisible();
+
+  // Replaced: another upload, with its own address.
+  const first = await logoIn(light, "light").getAttribute("src");
+  await light.getByRole("button", { name: "Replace image" }).click();
+  await choose(light, "light");
+  await expect(logoIn(light, "light")).not.toHaveAttribute("src", first ?? "");
+  const replaced = await logoIn(light, "light").getAttribute("src");
+
+  await dark.getByRole("button", { name: "Remove image" }).click();
+  await expect(logoIn(dark, "dark")).toHaveCount(0);
+  await expect(logoIn(light, "light")).toHaveAttribute("src", replaced ?? "");
+
+  // After a reload the team has the replaced light logo and no dark one.
+  await alice.reload();
+  await openTeamMenu(alice, team);
+  await alice.getByRole("button", { name: "Logo…" }).click();
+  await expect(logoIn(light, "light")).toHaveAttribute("src", replaced ?? "");
+  await expect(logoIn(dark, "dark")).toHaveCount(0);
+  await alice.keyboard.press("Escape");
+
   await deleteTeam(alice, team);
 });

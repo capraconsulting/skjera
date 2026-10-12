@@ -8,6 +8,12 @@ import {
 import { m } from "@skjera/i18n/messages";
 import { locales } from "@skjera/i18n/runtime";
 
+// The smallest valid PNG: one transparent pixel.
+export const pixel = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+  "base64",
+);
+
 /** A browser of its own, with no session. */
 export const visitor = async (browser: Browser) =>
   (await browser.newContext()).newPage();
@@ -97,6 +103,32 @@ export const openTeamMenu = async (page: Page, id: string) => {
     .filter({ has: page.locator(`a[href="/studio/teams/${id}"]`) });
   await row.hover();
   await row.getByRole("button", { name: /^Options for / }).click();
+};
+
+/**
+ * Gives a team a logo for a theme through its logo dialog, and returns the
+ * logo's address.
+ */
+export const setTeamLogo = async (
+  page: Page,
+  teamId: string,
+  theme: "light" | "dark",
+) => {
+  await page.goto(`/studio/teams/${teamId}`);
+  await openTeamMenu(page, teamId);
+  await page.getByRole("button", { name: "Logo…" }).click();
+  const dialog = page.getByRole("dialog", { name: "Team logo" });
+  await dialog.getByLabel(`Logo file for the ${theme} theme`).setInputFiles({
+    name: "logo.png",
+    mimeType: "image/png",
+    buffer: pixel,
+  });
+  const logo = dialog.getByRole("img", { name: `Logo for the ${theme} theme` });
+  await expect(logo).toBeVisible();
+  const src = await logo.getAttribute("src");
+  await dialog.getByRole("button", { name: "Close" }).click();
+  await expect(dialog).toBeHidden();
+  return src ?? "";
 };
 
 /** Creates a team with the "New team" dialog, opens it and returns its id. */

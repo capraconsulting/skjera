@@ -3,6 +3,7 @@ import { Identity } from "@skjera/oauth/api";
 import { Deferred, Effect, Fiber, Layer, Option } from "effect";
 import { SqlClient } from "effect/sql";
 import { Documents } from "../src/Documents.ts";
+import type { TeamId } from "../src/Model.ts";
 import { Notifications } from "../src/Notifications.ts";
 import type { Pull } from "../src/Sync.ts";
 import { Sync } from "../src/Sync.ts";
@@ -37,6 +38,25 @@ const replica = <Row extends { readonly id: string }>(
 
 let teamCount = 0;
 const teamName = () => `Team ${++teamCount}`;
+
+const light = "/api/images/AAAAAAAAAAAAAAAAAAAAAA";
+const dark = "/api/images/BBBBBBBBBBBBBBBBBBBBBB";
+
+/** A published event, open to anyone, of a team. */
+const publishedEvent = (team: TeamId) =>
+  Effect.gen(function* () {
+    const documents = yield* Documents;
+    const sql = yield* SqlClient.SqlClient;
+    const id = yield* documents.create("event", team, alice);
+    yield* sql`
+      INSERT INTO events (id, title, starts_at, ends_at, time_zone, body, is_public,
+        allow_guests, ask_dietary, published_heads,
+        published_by_issuer, published_by_subject)
+      VALUES (${id}, 'Event', '2036-10-15T18:00+02', '2036-10-15T21:00+02', 'Europe/Oslo', '[]', true, false,
+        false, '{}', 'test', 'test')
+    `;
+    return id;
+  }).pipe(Effect.orDie);
 
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Sync", (it) => {
@@ -277,5 +297,121 @@ layer(TestLayer, { excludeTestServices: true })("Sync", (it) => {
       assert.deepStrictEqual(pulled.deleted, [id]);
       assert.isFalse(copy.rows.has(id));
     }),
+  );
+
+  it.effect("pulls a team with its logos (AC-1)", () =>
+    Effect.gen(function* () {
+      const sync = yield* Sync;
+      const teams = yield* Teams;
+      const bare = yield* teams.create(teamName(), alice);
+      const logo = yield* teams.create(teamName(), alice);
+      yield* teams.setLogos(logo.id, { logo: light, logoDark: dark });
+
+      const copy = replica(sync.teams);
+      yield* copy.pull;
+      const logos = (id: TeamId) => {
+        const row = copy.rows.get(id);
+        return [row?.logo, row?.logoDark];
+      };
+      assert.deepStrictEqual(logos(bare.id), [null, null]);
+      assert.deepStrictEqual(logos(logo.id), [light, dark]);
+    }),
+  );
+
+  it.effect("pulls each event with its team as its organizer (AC-2)", () =>
+    Effect.gen(function* () {
+      const sync = yield* Sync;
+      const teams = yield* Teams;
+      const branded = yield* teams.create(teamName(), alice);
+      yield* teams.setLogos(branded.id, { logo: light, logoDark: dark });
+      const plain = yield* teams.create(teamName(), alice);
+      const withLogos = yield* publishedEvent(branded.id);
+      const without = yield* publishedEvent(plain.id);
+
+      const visitor = replica((since) => sync.events(since, "anyone"));
+      yield* visitor.pull;
+      assert.deepStrictEqual(visitor.rows.get(withLogos)?.organizer, {
+        name: branded.name,
+        logo: light,
+        logoDark: dark,
+      });
+      assert.deepStrictEqual(visitor.rows.get(without)?.organizer, {
+        name: plain.name,
+        logo: null,
+        logoDark: null,
+      });
+    }),
+  );
+
+  it.effect(
+    "pulls a team's events again when its name or a logo changes, and no others (AC-6)",
+    () =>
+      Effect.gen(function* () {
+        const sync = yield* Sync;
+        const teams = yield* Teams;
+        const team = yield* teams.create(teamName(), alice);
+        const neighbour = yield* teams.create(teamName(), alice);
+        const first = yield* publishedEvent(team.id);
+        const second = yield* publishedEvent(team.id);
+        const elsewhere = yield* publishedEvent(neighbour.id);
+
+        const reader = replica((since) => sync.events(since, "anyone"));
+        yield* reader.pull;
+
+        const pulledAfter = (change: Effect.Effect<unknown, unknown>) =>
+          Effect.gen(function* () {
+            yield* Effect.orDie(change);
+            return (yield* reader.pull).rows.map((row) => row.id).sort();
+          });
+        const both = [first, second].sort();
+
+        assert.deepStrictEqual(
+          yield* pulledAfter(teams.rename(team.id, `${team.name} renamed`)),
+          both,
+        );
+        assert.strictEqual(
+          reader.rows.get(first)?.organizer.name,
+          `${team.name} renamed`,
+        );
+        // A logo alone, then the other alone.
+        assert.deepStrictEqual(
+          yield* pulledAfter(teams.setLogos(team.id, { logo: light })),
+          both,
+        );
+        assert.strictEqual(reader.rows.get(second)?.organizer.logo, light);
+        assert.deepStrictEqual(
+          yield* pulledAfter(teams.setLogos(team.id, { logoDark: dark })),
+          both,
+        );
+        assert.strictEqual(reader.rows.get(second)?.organizer.logoDark, dark);
+        assert.isNull(reader.rows.get(elsewhere)?.organizer.logo);
+
+        // Nothing changed: nothing to pull.
+        assert.deepStrictEqual(
+          yield* pulledAfter(teams.setLogos(team.id, { logo: light })),
+          [],
+        );
+      }),
+  );
+
+  it.effect(
+    "pulls an event published later with its team as it is now (AC-6)",
+    () =>
+      Effect.gen(function* () {
+        const sync = yield* Sync;
+        const teams = yield* Teams;
+        const team = yield* teams.create(teamName(), alice);
+        yield* teams.rename(team.id, `${team.name} renamed`);
+        yield* teams.setLogos(team.id, { logo: light, logoDark: dark });
+        const event = yield* publishedEvent(team.id);
+
+        const reader = replica((since) => sync.events(since, "anyone"));
+        yield* reader.pull;
+        assert.deepStrictEqual(reader.rows.get(event)?.organizer, {
+          name: `${team.name} renamed`,
+          logo: light,
+          logoDark: dark,
+        });
+      }),
   );
 });

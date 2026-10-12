@@ -137,6 +137,18 @@
   }
 }
 
+/* Who organizes it: the team's logo or name. */
+.organizer {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+@media (min-width: 48rem) {
+  .organizer {
+    flex: 0 0 9rem;
+  }
+}
+
 .rowBadges {
   display: flex;
   flex: 1;
@@ -213,6 +225,13 @@
   line-height: 1.4;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+.cardOrganizer {
+  display: block;
+  margin-top: 0.5rem;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
 }
 
 .card:hover .cardTitle {

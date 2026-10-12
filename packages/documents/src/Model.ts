@@ -43,9 +43,29 @@ export const TeamId = Schema.String.check(Schema.isUUID()).pipe(
 );
 export type TeamId = typeof TeamId.Type;
 
+/** Where an uploaded image is served (see ImagesApi.ts). */
+export const ImageSrc = Schema.String.check(
+  Schema.isPattern(/^\/api\/images\/[A-Za-z0-9_-]{22}$/),
+);
+
+/** A team's logos: uploaded images for the light theme and the dark; null: none. */
+export const TeamLogos = Schema.Struct({
+  logo: Schema.NullOr(ImageSrc),
+  logoDark: Schema.NullOr(ImageSrc),
+});
+export type TeamLogos = typeof TeamLogos.Type;
+
+/** Changing a team's logos: each one given is set, or removed with null. */
+export const TeamLogosChange = Schema.Struct({
+  logo: Schema.optionalKey(Schema.NullOr(ImageSrc)),
+  logoDark: Schema.optionalKey(Schema.NullOr(ImageSrc)),
+});
+export type TeamLogosChange = typeof TeamLogosChange.Type;
+
 export class Team extends Schema.Class<Team>("@skjera/documents/Team")({
   id: TeamId,
   name: Schema.String,
+  ...TeamLogos.fields,
   createdAt: Schema.Date,
   /** How many documents the team has; only empty teams can be deleted. */
   documentCount: Schema.Int,
@@ -289,14 +309,26 @@ export const RichText = Schema.Array(
 );
 export type RichText = typeof RichText.Type;
 
-/** Where an uploaded image is served (see ImagesApi.ts). */
-export const ImageSrc = Schema.String.check(
-  Schema.isPattern(/^\/api\/images\/[A-Za-z0-9_-]{22}$/),
-);
-
 /** An event's cover image, with a description for those who can't see it. */
 export const Cover = Schema.Struct({ src: ImageSrc, alt: Schema.String });
 export type Cover = typeof Cover.Type;
+
+/** Who organizes an event, as the site shows it: its team. */
+export const Organizer = Schema.Struct({
+  name: Schema.String,
+  ...TeamLogos.fields,
+});
+export type Organizer = typeof Organizer.Type;
+
+/**
+ * The image each theme shows for an organizer; null: its name instead. The
+ * dark theme takes the light logo when there's no dark one; the light theme
+ * never takes the dark one, made for a dark background.
+ */
+export const organizerLogos = (logos: TeamLogos) => ({
+  light: logos.logo,
+  dark: logos.logoDark ?? logos.logo,
+});
 
 // Presence: who has a draft open, and their selection. Shared as automerge-
 // repo presence, in ephemeral messages (see DraftSync.ts); never stored.

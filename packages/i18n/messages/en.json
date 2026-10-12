@@ -375,5 +375,19 @@
   "privacy_rights": "You can ask to see the data kept about you, and have it corrected or deleted.",
   "privacy_contact": "Write to",
   "privacy_ask_operator": "Ask {operator}.",
-  "attend_privacy_link": "How we handle your details"
+  "attend_privacy_link": "How we handle your details",
+  "common_close": "Close",
+  "studio_team_logo_menu": "Logo…",
+  "studio_team_logo_title": "Team logo",
+  "studio_team_logo_light": "Light theme",
+  "studio_team_logo_dark": "Dark theme",
+  "studio_team_logo_light_image": "Logo for the light theme",
+  "studio_team_logo_dark_image": "Logo for the dark theme",
+  "studio_team_logo_light_file": "Logo file for the light theme",
+  "studio_team_logo_dark_file": "Logo file for the dark theme",
+  "studio_team_logo_choose": "Choose image",
+  "studio_team_logo_replace": "Replace image",
+  "studio_team_logo_remove": "Remove image",
+  "studio_team_logo_hint": "The logo shows on the site in place of the team's name, on the team's events.",
+  "site_organizer": "Organizer"
 }

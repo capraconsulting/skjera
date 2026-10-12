@@ -8,9 +8,11 @@ import {
   Cover,
   DocumentId,
   Heads,
+  Organizer,
   Question,
   RichText,
   TeamId,
+  TeamLogos,
 } from "./Model.ts";
 
 // Clients keep copies of tables. A pull returns the rows that changed since
@@ -20,6 +22,7 @@ import {
 export const TeamRow = Schema.Struct({
   id: TeamId,
   name: Schema.String,
+  ...TeamLogos.fields,
   createdAt: Schema.Date,
 });
 export type TeamRow = typeof TeamRow.Type;
@@ -62,6 +65,8 @@ export const EventRow = Schema.Struct({
   timeZone: Schema.String,
   body: RichText,
   cover: Schema.NullOr(Cover),
+  /** Who organizes it: its team, as it is now. */
+  organizer: Organizer,
   /** Visible without logging in. */
   isPublic: Schema.Boolean,
   /** People without an account can sign up to attend. */

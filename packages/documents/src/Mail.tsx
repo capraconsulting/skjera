@@ -115,6 +115,8 @@ interface EventRow {
   readonly food_deadline: Date | null;
   readonly published_at: Date;
   readonly first_published_at: Date;
+  /** The event's team: who organizes it. */
+  readonly team: string;
   readonly deleted: boolean;
 }
 
@@ -156,10 +158,14 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
         Send: ({ payload }) =>
           Effect.gen(function* () {
             const [event] = yield* sql<EventRow>`
-            SELECT title, starts_at, ends_at, signup_deadline, time_zone, place,
-              ask_dietary, food_deadline, published_at, first_published_at,
-              deleted_at IS NOT NULL AS deleted
-            FROM events WHERE id = ${eventId}
+            SELECT e.title, e.starts_at, e.ends_at, e.signup_deadline, e.time_zone,
+              e.place, e.ask_dietary, e.food_deadline, e.published_at,
+              e.first_published_at, t.name AS team,
+              e.deleted_at IS NOT NULL AS deleted
+            FROM events e
+              JOIN documents d ON d.id = e.id
+              JOIN teams t ON t.id = d.team_id
+            WHERE e.id = ${eventId}
           `.pipe(Effect.orDie);
             // Deleted meanwhile: nothing more to tell than that.
             if (
@@ -202,7 +208,7 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                   ),
                 },
                 attendee,
-                organizer: from,
+                organizer: { name: event.team, email: from.email },
                 site: { name: site.name, host },
               }),
             });

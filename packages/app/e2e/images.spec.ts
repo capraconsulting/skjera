@@ -4,17 +4,12 @@ import {
   deleteEvent,
   deleteTeam,
   newTeam,
+  pixel,
   publishedEvent,
   signedIn,
   uniqueTeamName,
   visitor,
 } from "./helpers.ts";
-
-// The smallest valid PNG: one transparent pixel.
-const pixel = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
-  "base64",
-);
 
 const pixelBase64 = pixel.toString("base64");
 

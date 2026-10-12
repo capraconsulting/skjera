@@ -39,7 +39,7 @@ export const invitation = (options: {
   readonly method: "REQUEST" | "CANCEL";
   readonly event: InvitationEvent;
   readonly attendee: Person;
-  /** Who sends it: the address emails come from. */
+  /** Who organizes the event, by name, with the address emails come from. */
   readonly organizer: Person;
   /** The site's name and host, to name the calendar and make ids unique. */
   readonly site: { readonly name: string; readonly host: string };

@@ -51,7 +51,7 @@ let teams = 0;
  * A published event open to guests: from 18:00 to 21:00 in Oslo on the 15th
  * of October 2036, or for three hours from `startsAt`.
  */
-const publishedEvent = (
+const publishedEventOf = (
   options: {
     readonly dietary?: boolean;
     readonly startsAt?: Date;
@@ -75,8 +75,15 @@ const publishedEvent = (
         ${options.reminders ?? true}, ${options.place === undefined ? "Kantina" : options.place},
         '{}', 'test', 'test')
     `;
-    return id as DocumentId;
+    return { id: id as DocumentId, team };
   }).pipe(Effect.orDie);
+
+const publishedEvent = (options: Parameters<typeof publishedEventOf>[0] = {}) =>
+  Effect.map(publishedEventOf(options), ({ id }) => id);
+
+/** The organizer line of an invitation, unfolded. */
+const organizerOf = (invitation: string) =>
+  invitation.replace(/\r?\n[ \t]/g, "").match(/^ORGANIZER[^\r\n]*/m)?.[0];
 
 /** The emails sent to `address`, once there are `count`. */
 const emailsTo = (address: string, count: number) =>
@@ -440,5 +447,59 @@ layer(TestLayer, { excludeTestServices: true })("Mail", (it) => {
       yield* Effect.sleep("300 millis");
       assert.deepStrictEqual(outbox.to(address), []);
     }),
+  );
+
+  it.effect(
+    "names the event's team as the organizer of its invitations (AC-5)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const { id: event, team } = yield* publishedEventOf();
+        const address = `team-${crypto.randomUUID()}@example.org`;
+        const token = yield* attendance.attendAsGuest(event, {
+          name: "Tora",
+          email: address,
+        });
+        const [signedUp] = yield* emailsTo(address, 1);
+        const sender = /<([^>]+)>/.exec(process.env.EMAIL_FROM ?? "")?.[1];
+        assert.match(
+          organizerOf(signedUp?.message.calendar?.content ?? "") ?? "",
+          new RegExp(`^ORGANIZER;CN="?${team.name}"?:mailto:${sender}$`),
+        );
+
+        yield* attendance.leaveAsGuest(event, token);
+        const [, cancelled] = yield* emailsTo(address, 2);
+        assert.strictEqual(cancelled?.message.calendar?.method, "CANCEL");
+        assert.match(
+          organizerOf(cancelled?.message.calendar?.content ?? "") ?? "",
+          new RegExp(`^ORGANIZER;CN="?${team.name}"?:mailto:${sender}$`),
+        );
+        // The email itself still comes from the site's address.
+        assert.strictEqual(cancelled?.message.from, process.env.EMAIL_FROM);
+      }),
+  );
+
+  it.effect(
+    "names the team by its name now, when the team is renamed (AC-5)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const { id: event, team } = yield* publishedEventOf();
+        const address = `renamed-${crypto.randomUUID()}@example.org`;
+        const token = yield* attendance.attendAsGuest(event, {
+          name: "Rolf",
+          email: address,
+        });
+        yield* emailsTo(address, 1);
+
+        const renamed = `${team.name} renamed`;
+        yield* (yield* Teams).rename(team.id, renamed);
+        yield* attendance.leaveAsGuest(event, token);
+        const [, cancelled] = yield* emailsTo(address, 2);
+        assert.include(
+          organizerOf(cancelled?.message.calendar?.content ?? "") ?? "",
+          renamed,
+        );
+      }),
   );
 });
