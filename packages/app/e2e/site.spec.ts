@@ -424,6 +424,7 @@ const publishedPastEvent = async (page: Page) => {
   await page.getByRole("button", { name: "Start date" }).click();
   await page.getByRole("button", { name: /previous month/i }).click();
   await page.getByRole("button", { name: /15th, \d{4}/ }).click();
+  await writePlace(page);
   await page.getByRole("checkbox", { name: /Public event/ }).check();
   await expect(page.getByTestId("status")).toContainText("Saved");
   await page.getByRole("button", { name: "Publish" }).click();

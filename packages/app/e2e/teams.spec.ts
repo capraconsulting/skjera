@@ -72,6 +72,37 @@ test("events are created in a team and listed under it", async ({
   await deleteTeam(alice, blue);
 });
 
+test("the events column shows the team picked, switching without a reload", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const redName = uniqueTeamName("Red");
+  const blueName = uniqueTeamName("Blue");
+  const red = await newTeam(alice, redName);
+  const event = await newEvent(alice);
+  await title(alice).pressSequentially("Red only");
+  await expect(alice.getByTestId("status")).toContainText("Saved");
+  const blue = await newTeam(alice, blueName);
+
+  const listed = alice
+    .getByRole("region", { name: "Events" })
+    .getByRole("link", { name: /Red only/ });
+  await alice.goto(`/studio/teams/${red}`);
+  await expect(listed).toBeVisible();
+  // From one team to the other in the team list, in the same page.
+  await teamLink(alice, blueName).click();
+  await expect(alice).toHaveURL(new RegExp(`/studio/teams/${blue}$`));
+  await expect(alice.getByText("No events yet.")).toBeVisible();
+  await expect(listed).toHaveCount(0);
+  await teamLink(alice, redName).click();
+  await expect(listed).toBeVisible();
+
+  await alice.goto(eventPath(red, event));
+  await deleteEvent(alice, event);
+  await deleteTeam(alice, red);
+  await deleteTeam(alice, blue);
+});
+
 test("team names must be unique", async ({ browser }) => {
   const alice = await signedIn(browser, "alice@example.com");
   const name = uniqueTeamName("Unique");
