@@ -1,4 +1,3 @@
-import * as A from "@automerge/automerge/slim";
 import type { DocHandle } from "@automerge/automerge-repo/slim";
 import type { DocumentId, EventContent } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
@@ -21,18 +20,14 @@ import {
 } from "../../presence/presence.ts";
 import { documents } from "../../sync/tables.ts";
 import { Attendees } from "./Attendees.tsx";
+import { DraftText } from "./DraftText.tsx";
 import { EditorFooter } from "./EditorFooter.tsx";
+import { EmailTexts } from "./EmailTexts.tsx";
 import styles from "./EventEditor.module.css";
 
 const titlePath = ["title"] as const;
 const bodyPath = ["body"] as const;
 const foodPath = ["food"] as const;
-/** The collaborative texts kept in a draft under a key of their own. */
-const textPaths = {
-  summary: ["summary"],
-  place: ["place"],
-  streamLink: ["streamLink"],
-} as const;
 
 /** The third column: the selected event. */
 export function EventEditor() {
@@ -155,6 +150,7 @@ function EventSession({ id }: { readonly id: DocumentId }) {
             label={m.studio_remind()}
             hint={m.studio_remind_hint()}
           />
+          <EmailTexts handle={handle} presence={session.presence} />
         </Field>
         <Field label={m.site_food()}>
           <CheckboxField
@@ -180,48 +176,6 @@ function EventSession({ id }: { readonly id: DocumentId }) {
         <Attendees id={id} />
       </div>
     </Pane>
-  );
-}
-
-/**
- * Collaborative text kept under `field`, which a draft from before it
- * existed gets to write in.
- */
-function DraftText(props: {
-  readonly handle: DocHandle<EventContent>;
-  readonly presence: DraftPresence | null;
-  readonly field: keyof typeof textPaths;
-  readonly label: string;
-}) {
-  const { handle, field } = props;
-  useEffect(() => {
-    if (handle.doc()[field] === undefined) {
-      handle.change((doc) => {
-        (doc as Partial<Record<typeof field, string>>)[field] = "";
-      });
-    }
-  }, [handle, field]);
-  // The text's object, so a new editor starts if someone else's wins. A
-  // text's value is a plain string: its id is asked of the draft by key.
-  const text = useSyncExternalStore(
-    (onChange) => {
-      handle.on("change", onChange);
-      return () => handle.off("change", onChange);
-    },
-    () => {
-      const doc = handle.doc();
-      return doc[field] === undefined ? null : A.getObjectId(doc, field);
-    },
-  );
-  if (text === null) return null;
-  return (
-    <TextEditor
-      key={text}
-      handle={handle}
-      path={textPaths[field]}
-      label={props.label}
-      presence={props.presence}
-    />
   );
 }
 

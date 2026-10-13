@@ -83,6 +83,19 @@ export const EventContent = Schema.Struct({
   streamed: Schema.optionalKey(Schema.Boolean),
   /** Where it is streamed, as written; published only while streamed. */
   streamLink: Schema.optionalKey(Schema.String),
+  /**
+   * The emails' own subject and text, per email: written for every recipient
+   * as is. Missing or blank: the standard, in each recipient's language.
+   * Texts are rich text, as the body.
+   */
+  signedUpSubject: Schema.optionalKey(Schema.String),
+  signedUpText: Schema.optionalKey(Schema.String),
+  signupCancelledSubject: Schema.optionalKey(Schema.String),
+  signupCancelledText: Schema.optionalKey(Schema.String),
+  eventChangedSubject: Schema.optionalKey(Schema.String),
+  eventChangedText: Schema.optionalKey(Schema.String),
+  eventCancelledSubject: Schema.optionalKey(Schema.String),
+  eventCancelledText: Schema.optionalKey(Schema.String),
 });
 export type EventContent = typeof EventContent.Type;
 

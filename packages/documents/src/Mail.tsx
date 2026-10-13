@@ -12,10 +12,11 @@ import { invitation, parseAddress } from "./Calendar.ts";
 import { EventCancelled } from "./emails/EventCancelled.tsx";
 import { EventChanged } from "./emails/EventChanged.tsx";
 import { formatAt, formatWhen } from "./emails/format.ts";
+import type { WrittenText } from "./emails/OrganizerText.tsx";
 import { Reminder } from "./emails/Reminder.tsx";
 import { SignedUp } from "./emails/SignedUp.tsx";
 import { SignupCancelled } from "./emails/SignupCancelled.tsx";
-import { SiteLocale } from "./Model.ts";
+import { type RichText, SiteLocale } from "./Model.ts";
 import {
   Notifications,
   Recipient,
@@ -114,6 +115,12 @@ interface EventRow {
   /** What the event is; null: none. */
   readonly summary: string | null;
   readonly ask_dietary: boolean;
+  /**
+   * The subjects (strings) and texts (spans) the organiser wrote for the
+   * emails, by key, e.g. `signedUpSubject`; a key is there only when
+   * something is written.
+   */
+  readonly email_texts: Readonly<Record<string, string | RichText>>;
   readonly published_at: Date;
   readonly first_published_at: Date;
   /** The event's team: who organizes it. */
@@ -160,7 +167,7 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
           Effect.gen(function* () {
             const [event] = yield* sql<EventRow>`
             SELECT e.title, e.starts_at, e.ends_at, e.signup_deadline, e.time_zone,
-              e.place, e.summary, e.ask_dietary, e.published_at,
+              e.place, e.summary, e.ask_dietary, e.email_texts, e.published_at,
               e.first_published_at, t.name AS team,
               e.deleted_at IS NOT NULL AS deleted
             FROM events e
@@ -217,6 +224,26 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
               }),
             });
 
+            // The organiser's own subject, and text in place of the opening.
+            const subjectOf = (kind: string, standard: string) => {
+              const written = event.email_texts[`${kind}Subject`];
+              return typeof written === "string" ? written : standard;
+            };
+            const textOf = (
+              kind: string,
+            ): { readonly text: WrittenText } | Record<string, never> => {
+              const written = event.email_texts[`${kind}Text`];
+              return Array.isArray(written)
+                ? {
+                    text: {
+                      spans: written,
+                      site: site.url,
+                      place: event.place,
+                    },
+                  }
+                : {};
+            };
+
             const guestLink = attendee.guest
               ? {
                   guestLink: `${url}?guest=${attendee.id}&token=${attendance.guestToken(attendee.id)}`,
@@ -230,9 +257,12 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
               switch (payload.kind) {
                 case "signedUp":
                   return {
-                    subject: m.email_signed_up_subject(
-                      { title: event.title },
-                      { locale },
+                    subject: subjectOf(
+                      "signedUp",
+                      m.email_signed_up_subject(
+                        { title: event.title },
+                        { locale },
+                      ),
                     ),
                     body: (
                       <SignedUp
@@ -249,15 +279,16 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                           event.time_zone,
                         )}
                         food={event.ask_dietary}
+                        {...textOf("signedUp")}
                       />
                     ),
                     calendar: calendar("REQUEST"),
                   };
                 case "signupCancelled":
                   return {
-                    subject: m.email_left_subject(
-                      { title: event.title },
-                      { locale },
+                    subject: subjectOf(
+                      "signupCancelled",
+                      m.email_left_subject({ title: event.title }, { locale }),
                     ),
                     body: (
                       <SignupCancelled
@@ -267,6 +298,7 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                         title={event.title}
                         when={when}
                         url={url}
+                        {...textOf("signupCancelled")}
                       />
                     ),
                     calendar: calendar("CANCEL"),
@@ -282,7 +314,10 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                         ? m.email_new_place_subject
                         : m.email_moved_subject;
                   return {
-                    subject: subject({ title: event.title }, { locale }),
+                    subject: subjectOf(
+                      "eventChanged",
+                      subject({ title: event.title }, { locale }),
+                    ),
                     body: (
                       <EventChanged
                         locale={locale}
@@ -308,6 +343,7 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                           : {})}
                         url={url}
                         {...guestLink}
+                        {...textOf("eventChanged")}
                       />
                     ),
                     calendar: calendar("REQUEST"),
@@ -315,9 +351,12 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                 }
                 case "eventCancelled":
                   return {
-                    subject: m.email_cancelled_subject(
-                      { title: event.title },
-                      { locale },
+                    subject: subjectOf(
+                      "eventCancelled",
+                      m.email_cancelled_subject(
+                        { title: event.title },
+                        { locale },
+                      ),
                     ),
                     body: (
                       <EventCancelled
@@ -326,6 +365,7 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                         name={attendee.name}
                         title={event.title}
                         when={when}
+                        {...textOf("eventCancelled")}
                       />
                     ),
                     calendar: calendar("CANCEL", true),

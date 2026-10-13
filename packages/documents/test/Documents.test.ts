@@ -143,6 +143,51 @@ const setSummary = (event: EventContent, text: string) => {
   A.updateText(event, ["summary"], text);
 };
 
+/**
+ * Writes one of an email's own subjects or texts the way the studio does:
+ * text under a key that older drafts lack, created when missing.
+ */
+const setEmailField = (event: EventContent, key: string, text: string) => {
+  const draft = event as Record<string, unknown>;
+  if (draft[key] === undefined) draft[key] = "";
+  A.updateText(event, [key], text);
+};
+
+/**
+ * Writes an email's text as rich text: a heading, a list item and a
+ * paragraph with a bold word.
+ */
+const setEmailRichText = (event: EventContent, key: string) => {
+  const draft = event as Record<string, unknown>;
+  if (draft[key] === undefined) draft[key] = "";
+  A.splitBlock(event, [key], 0, {
+    type: new A.ImmutableString("heading"),
+    parents: [],
+    attrs: { level: 2 },
+  });
+  A.splice(event, [key], 1, 0, "News");
+  A.splitBlock(event, [key], 5, {
+    type: new A.ImmutableString("unordered-list-item"),
+    parents: [],
+    attrs: {},
+  });
+  A.splice(event, [key], 6, 0, "Bring a friend");
+  A.splitBlock(event, [key], 20, {
+    type: new A.ImmutableString("paragraph"),
+    parents: [],
+    attrs: {},
+  });
+  A.splice(event, [key], 21, 0, "We're live");
+  A.mark(event, [key], { start: 27, end: 31, expand: "none" }, "strong", true);
+};
+
+const emailKinds = [
+  "signedUp",
+  "signupCancelled",
+  "eventChanged",
+  "eventCancelled",
+] as const;
+
 /** Creates and publishes an event, with the given visibility settings. */
 const publishedEvent = Effect.fn(function* (settings: {
   readonly public: boolean;
@@ -1435,6 +1480,113 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
           },
         });
         assert.isNull((yield* publishedAs(older, "anyone"))?.summary);
+      }),
+  );
+
+  it.effect(
+    "publishes each email's own subject trimmed and its text as spans (AC-1)",
+    () =>
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        const id = yield* publishedEvent({
+          public: true,
+          guests: true,
+          edit: (event) => {
+            for (const kind of emailKinds) {
+              setEmailField(event, `${kind}Subject`, `  ${kind}\nsubject `);
+              setEmailRichText(event, `${kind}Text`);
+            }
+          },
+        });
+        const [row] = yield* sql<{ email_texts: Record<string, unknown> }>`
+          SELECT email_texts FROM events WHERE id = ${id}
+        `;
+        const texts = row?.email_texts ?? {};
+        for (const kind of emailKinds) {
+          // A line break is a space, and the rest as written.
+          assert.strictEqual(texts[`${kind}Subject`], `${kind} subject`);
+          // The structure is kept: a heading, a list item, a bold run.
+          assert.deepStrictEqual(texts[`${kind}Text`], [
+            {
+              type: "block",
+              value: { type: "heading", attrs: { level: 2 }, parents: [] },
+            },
+            { type: "text", value: "News" },
+            {
+              type: "block",
+              value: { type: "unordered-list-item", attrs: {}, parents: [] },
+            },
+            { type: "text", value: "Bring a friend" },
+            {
+              type: "block",
+              value: { type: "paragraph", attrs: {}, parents: [] },
+            },
+            { type: "text", value: "We're " },
+            { type: "text", value: "live", marks: { strong: true } },
+          ]);
+        }
+      }),
+  );
+
+  it.effect("publishes a changed email subject again (AC-1)", () =>
+    Effect.gen(function* () {
+      const documents = yield* Documents;
+      const sql = yield* SqlClient.SqlClient;
+      const id = yield* publishedEvent({
+        public: true,
+        guests: true,
+        edit: (event) => setEmailField(event, "signedUpSubject", "Welcome"),
+      });
+      const editor = yield* openEditor(id);
+      const heads = yield* documents.applyChanges(
+        id,
+        [
+          editor.edit((event) =>
+            A.updateText(event, ["signedUpSubject"], "See you there"),
+          ),
+        ],
+        alice,
+      );
+      yield* documents.publish(id, heads, alice);
+      const [row] = yield* sql<{ email_texts: Record<string, unknown> }>`
+        SELECT email_texts FROM events WHERE id = ${id}
+      `;
+      assert.strictEqual(row?.email_texts["signedUpSubject"], "See you there");
+    }),
+  );
+
+  it.effect(
+    "publishes blank subjects and texts, and an older draft's, as none (AC-4)",
+    () =>
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        const emailTextsOf = (id: DocumentId) =>
+          sql<{ email_texts: Record<string, unknown> }>`
+            SELECT email_texts FROM events WHERE id = ${id}
+          `.pipe(Effect.map((rows) => rows[0]?.email_texts));
+        const blank = yield* publishedEvent({
+          public: true,
+          guests: true,
+          edit: (event) => {
+            for (const kind of emailKinds) {
+              setEmailField(event, `${kind}Subject`, " \t ");
+            }
+            // Only whitespace, or only an empty paragraph.
+            setEmailField(event, "signedUpText", " \n ");
+            const draft = event as Record<string, unknown>;
+            draft["eventChangedText"] = "";
+            A.splitBlock(event, ["eventChangedText"], 0, {
+              type: new A.ImmutableString("paragraph"),
+              parents: [],
+              attrs: {},
+            });
+          },
+        });
+        assert.deepStrictEqual(yield* emailTextsOf(blank), {});
+
+        // A draft from before these fields existed has no keys for them.
+        const older = yield* publishedEvent({ public: true, guests: true });
+        assert.deepStrictEqual(yield* emailTextsOf(older), {});
       }),
   );
 

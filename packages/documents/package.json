@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@automerge/automerge": "catalog:",
+    "@automerge/prosemirror": "catalog:",
     "@effect/sql-pg": "catalog:",
     "@skjera/email": "workspace:*",
     "@skjera/i18n": "workspace:*",
@@ -24,6 +25,7 @@
     "cbor-x": "catalog:",
     "effect": "catalog:",
     "ical-generator": "catalog:",
+    "prosemirror-model": "^1.25.12",
     "react": "catalog:",
     "react-email": "catalog:",
     "temporal-polyfill": "catalog:"
