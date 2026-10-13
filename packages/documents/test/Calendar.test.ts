@@ -1,5 +1,10 @@
 import { assert, describe, it } from "@effect/vitest";
-import { invitation, parseAddress } from "../src/Calendar.ts";
+import {
+  type FeedEvent,
+  feed,
+  invitation,
+  parseAddress,
+} from "../src/Calendar.ts";
 
 const invite = (
   method: "REQUEST" | "CANCEL",
@@ -106,5 +111,72 @@ describe("Calendar", () => {
       name: "events@skjera.test",
       email: "events@skjera.test",
     });
+  });
+});
+
+const feedSite = { name: "Skjer", host: "skjera.test", locale: "nb" } as const;
+
+const launch = (fields: Partial<FeedEvent> = {}): FeedEvent => ({
+  id: "launch",
+  title: "Launch",
+  startsAt: new Date("2036-10-15T18:00+02:00"),
+  endsAt: new Date("2036-10-15T21:00+02:00"),
+  url: "https://skjera.test/events/launch",
+  ...fields,
+});
+
+/** A property's value, unfolded and unescaped as iCalendar writes text. */
+const property = (ics: string, name: string) =>
+  new RegExp(`^${name}:(.*)$`, "m")
+    .exec(ics.replace(/\r\n /g, ""))?.[1]
+    ?.replace(/\\n/g, "\n")
+    .replace(/\\,/g, ",");
+
+describe("Calendar feed", () => {
+  it("is a published calendar named after the site, with one event each (AC-1)", () => {
+    const ics = feed({
+      events: [launch(), launch({ id: "party", title: "Party" })],
+      site: feedSite,
+    });
+    assert.include(ics, "X-WR-CALNAME:Skjer");
+    assert.include(ics, "METHOD:PUBLISH");
+    assert.strictEqual(ics.match(/BEGIN:VEVENT/g)?.length, 2);
+  });
+
+  it("gives an event its id, title, place, times in UTC, page and description (AC-4)", () => {
+    const ics = feed({
+      events: [launch({ place: "Kantina", summary: "Coffee, and a talk." })],
+      site: feedSite,
+    });
+    assert.include(ics, "UID:launch@skjera.test");
+    assert.include(ics, "SUMMARY:Launch");
+    assert.include(ics.replace(/\r\n /g, ""), "LOCATION:Kantina");
+    assert.include(ics, "DTSTART:20361015T160000Z");
+    assert.include(ics, "DTEND:20361015T190000Z");
+    assert.include(ics, "URL;VALUE=URI:https://skjera.test/events/launch");
+    assert.strictEqual(
+      property(ics, "DESCRIPTION"),
+      "Coffee, and a talk.\n\nMeld deg på eller av arrangementet: https://skjera.test/events/launch",
+    );
+  });
+
+  it("describes an event without a summary by the sentence alone, and has no place (AC-4)", () => {
+    const ics = feed({ events: [launch()], site: feedSite });
+    assert.strictEqual(
+      property(ics, "DESCRIPTION"),
+      "Meld deg på eller av arrangementet: https://skjera.test/events/launch",
+    );
+    assert.notInclude(ics, "LOCATION");
+  });
+
+  it("marks every event as not taking up time (AC-5)", () => {
+    const ics = feed({
+      events: [launch(), launch({ id: "party", title: "Party" })],
+      site: feedSite,
+    });
+    assert.deepStrictEqual(ics.match(/^TRANSP:.*$/gm), [
+      "TRANSP:TRANSPARENT",
+      "TRANSP:TRANSPARENT",
+    ]);
   });
 });

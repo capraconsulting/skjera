@@ -292,6 +292,8 @@ const Routes = Layer.mergeAll(
   Documents.Embed.layerHttp,
   // The coming events as JSON, in Skjer's format, for the websites.
   Documents.PublicEvents.layerHttp,
+  // The coming events as a calendar to subscribe to, members only ones too.
+  Documents.CalendarFeed.layerHttp,
   HttpRouter.add("GET", "/health", HttpServerResponse.text("ok")),
   ready,
   site,

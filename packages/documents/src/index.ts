@@ -13,6 +13,7 @@ import { Teams } from "./Teams.ts";
 
 export * from "./Announcements.ts";
 export * from "./Attendance.ts";
+export * as CalendarFeed from "./CalendarFeed.ts";
 export * as Cluster from "./Cluster.ts";
 export * from "./ContentTypes.ts";
 export * as Database from "./Database.ts";

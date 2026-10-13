@@ -317,6 +317,30 @@ test("the account menu leads to settings, and logs out", async ({
   await expect(alice.getByRole("link", { name: "Log in" })).toBeVisible();
 });
 
+test("the account menu subscribes to the coming events in Google Calendar (AC-6)", async ({
+  browser,
+}) => {
+  const reader = await visitor(browser);
+  await reader.goto("/");
+  await expect(reader.getByRole("link", { name: "Subscribe" })).toHaveCount(0);
+
+  const alice = await signedIn(browser, "alice@example.com");
+  // Nothing leaves the machine: Google's address is answered here.
+  await alice
+    .context()
+    .route("https://www.google.com/**", (route) => route.fulfill({ body: "" }));
+  await alice.goto("/");
+  await alice.getByRole("button", { name: "Account menu" }).click();
+  const popup = alice.waitForEvent("popup");
+  await alice
+    .locator(":popover-open")
+    .getByRole("link", { name: "Subscribe" })
+    .click();
+  await expect(await popup).toHaveURL(
+    `https://www.google.com/calendar/render?cid=webcal://${new URL(alice.url()).host}/api/subscribe`,
+  );
+});
+
 test("the site has its logo, its footer and a privacy page", async ({
   browser,
 }) => {

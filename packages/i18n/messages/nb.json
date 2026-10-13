@@ -351,6 +351,7 @@
   "site_show_more": "Se flere arrangementer",
   "site_all_events": "Alle arrangementer",
   "common_account_menu": "Kontomeny",
+  "common_subscribe": "Abonner",
   "account_settings": "Kontoinnstillinger",
   "account_profile": "Profil",
   "account_name": "Navn",
@@ -398,5 +399,6 @@
   "slack_signup_link": "Meld deg på her",
   "slack_when": "Når",
   "slack_where": "Hvor",
-  "slack_deadlines_heading": "Påmeldingsfrist nærmer seg"
+  "slack_deadlines_heading": "Påmeldingsfrist nærmer seg",
+  "calendar_signup_or_cancel": "Meld deg på eller av arrangementet: {url}"
 }
