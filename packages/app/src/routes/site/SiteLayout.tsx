@@ -4,9 +4,15 @@ import { NavLink, Outlet, useLoaderData } from "react-router";
 import { Shell } from "../../components/Shell.tsx";
 import { SubscribeLink } from "../../components/SubscribeLink.tsx";
 import { UserMenu } from "../../components/UserMenu.tsx";
+import { currentSite } from "../../i18n.ts";
 import { fetchMe, loginUrl } from "../../site/client.ts";
+import { loadHubSpot } from "../../site/hubSpot.ts";
 
-export const siteLoader = () => fetchMe();
+export const siteLoader = () => {
+  const { hubSpot } = currentSite();
+  if (hubSpot !== undefined) loadHubSpot(hubSpot);
+  return fetchMe();
+};
 
 /** The public site. Anyone can read it; signing in leads to the studio. */
 export function SiteLayout() {

@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { m } from "@skjera/i18n/messages";
 import {
   body,
   deleteEvent,
@@ -549,4 +550,184 @@ test("the open list follows a team's rename without reloading (AC-6)", async ({
 
   await deleteEvent(alice, event.id);
   await deleteTeam(alice, team);
+});
+
+const hubSpotAccount = "146072525";
+
+/**
+ * Gives the page's browser the site as configured with a HubSpot account,
+ * and answers HubSpot's script on the machine: it counts its runs in
+ * `window.hubSpotRuns`. Returns the addresses asked for.
+ */
+const withHubSpot = async (page: Page) => {
+  const requested: Array<string> = [];
+  const context = page.context();
+  await context.route("/api/site", async (route) => {
+    const response = await route.fetch();
+    const site = (await response.json()) as object;
+    await route.fulfill({
+      response,
+      json: { ...site, hubSpot: hubSpotAccount },
+    });
+  });
+  await context.route("https://js-eu1.hs-scripts.com/**", (route) => {
+    requested.push(route.request().url());
+    return route.fulfill({
+      contentType: "text/javascript",
+      body: "window.hubSpotRuns = (window.hubSpotRuns ?? 0) + 1;",
+    });
+  });
+  return requested;
+};
+
+/** How many times HubSpot's script has run in the page. */
+const hubSpotRuns = (page: Page) =>
+  page.evaluate(() => (window as { hubSpotRuns?: number }).hubSpotRuns ?? 0);
+
+const hubSpotScript = `https://js-eu1.hs-scripts.com/${hubSpotAccount}.js`;
+
+test("every page of the site loads HubSpot's script, once (AC-1)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await newTeam(alice, uniqueTeamName("HubSpot"));
+  const event = await publishedEvent(alice, { public: true });
+
+  const reader = await visitor(browser);
+  const asked = await withHubSpot(reader);
+  for (const [n, path] of ["/", `/events/${event.id}`, "/privacy"].entries()) {
+    await reader.goto(path);
+    await expect.poll(() => hubSpotRuns(reader)).toBe(1);
+    expect(asked).toHaveLength(n + 1);
+  }
+  expect(asked).toEqual(Array(3).fill(hubSpotScript));
+
+  // The site's name leads to the front page, whose loader runs again: the
+  // script is not added again.
+  const loaded = reader.waitForResponse((response) =>
+    response.url().endsWith("/api/me"),
+  );
+  await reader.getByRole("link", { name: "Skjera", exact: true }).click();
+  await loaded;
+  await expect(
+    reader.getByRole("heading", { name: "Upcoming events" }),
+  ).toBeVisible();
+  await expect(reader.locator("script#hs-script-loader")).toHaveCount(1);
+  expect(await hubSpotRuns(reader)).toBe(1);
+  expect(asked).toHaveLength(3);
+
+  const member = await withHubSpot(alice);
+  await alice.goto("/account");
+  await expect.poll(() => hubSpotRuns(alice)).toBe(1);
+  expect(member).toEqual([hubSpotScript]);
+
+  await alice.goto(eventPath(team, event.id));
+  await deleteEvent(alice, event.id);
+  await deleteTeam(alice, team);
+});
+
+test("the way from the studio to the site loads HubSpot's script (AC-1)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  await withHubSpot(alice);
+  await alice.goto("/studio/teams");
+  await expect(alice.getByRole("region", { name: "Teams" })).toBeVisible();
+
+  await alice.getByRole("link", { name: "Skjera", exact: true }).click();
+  await expect(
+    alice.getByRole("heading", { name: "Upcoming events" }),
+  ).toBeVisible();
+  await expect.poll(() => hubSpotRuns(alice)).toBe(1);
+});
+
+test("the studio never runs HubSpot's script, however it is entered (AC-2)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const asked = await withHubSpot(alice);
+  const teams = alice.getByRole("region", { name: "Teams" });
+
+  // Entered directly.
+  await alice.goto("/studio/teams");
+  await expect(teams).toBeVisible();
+  expect(asked).toEqual([]);
+  expect(await hubSpotRuns(alice)).toBe(0);
+  await expect(alice.locator("script#hs-script-loader")).toHaveCount(0);
+
+  // From a site page that has run it, by Back.
+  await alice.getByRole("link", { name: "Skjera", exact: true }).click();
+  await expect.poll(() => hubSpotRuns(alice)).toBe(1);
+  await alice.goBack();
+  // Only the studio shows its teams: the page that ran HubSpot never does.
+  await expect(teams).toBeVisible();
+  await expect.poll(() => hubSpotRuns(alice)).toBe(0);
+  await expect(alice.locator("script#hs-script-loader")).toHaveCount(0);
+
+  // From a site page that has run it, by the "Studio" link.
+  await alice.getByRole("link", { name: "Skjera", exact: true }).click();
+  await expect.poll(() => hubSpotRuns(alice)).toBe(1);
+  await alice.getByRole("link", { name: "Studio" }).click();
+  await expect(teams).toBeVisible();
+  await expect.poll(() => hubSpotRuns(alice)).toBe(0);
+  await expect(alice.locator("script#hs-script-loader")).toHaveCount(0);
+});
+
+test("without a HubSpot account id, nothing goes to HubSpot (AC-3)", async ({
+  browser,
+}) => {
+  const reader = await visitor(browser);
+  const asked: Array<string> = [];
+  reader.on("request", (request) => {
+    if (/hubspot|hs-scripts/.test(request.url())) asked.push(request.url());
+  });
+  await reader.goto("/");
+  await expect(
+    reader.getByRole("heading", { name: "Upcoming events" }),
+  ).toBeVisible();
+  await reader.goto("/privacy");
+  await expect(
+    reader.getByRole("heading", { name: m.privacy_title(), level: 1 }),
+  ).toBeVisible();
+  await reader.waitForLoadState("networkidle");
+  expect(asked).toEqual([]);
+});
+
+/** The privacy page's part on cookies. */
+const cookiesPart = (page: Page) =>
+  page.locator("section").filter({
+    has: page.getByRole("heading", { name: m.privacy_cookies_heading() }),
+  });
+
+test("the privacy page names HubSpot, and opens its cookie settings (AC-5)", async ({
+  browser,
+}) => {
+  const reader = await visitor(browser);
+  await withHubSpot(reader);
+  await reader.goto("/privacy");
+  const cookies = cookiesPart(reader);
+  await expect(cookies).toContainText(m.privacy_cookies_hubspot());
+  await expect(cookies).not.toContainText(m.privacy_cookies_untracked());
+
+  await cookies
+    .getByRole("button", { name: m.privacy_cookie_settings() })
+    .click();
+  expect(
+    await reader.evaluate(() => (window as { _hsp?: unknown })._hsp),
+  ).toEqual([["showBanner"]]);
+});
+
+test("without a HubSpot account id, the privacy page says nothing tracks you (AC-6)", async ({
+  browser,
+}) => {
+  const reader = await visitor(browser);
+  await reader.goto("/privacy");
+  const cookies = cookiesPart(reader);
+  await expect(cookies).toContainText(
+    `${m.privacy_cookies()} ${m.privacy_cookies_untracked()}`,
+  );
+  await expect(cookies).not.toContainText(m.privacy_cookies_hubspot());
+  await expect(
+    cookies.getByRole("button", { name: m.privacy_cookie_settings() }),
+  ).toHaveCount(0);
 });

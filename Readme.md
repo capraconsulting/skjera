@@ -84,6 +84,8 @@ Also optional, for websites that show the next events (`/embed`) in an iframe, o
 
 Also optional, Slack: `SLACK_BOT_TOKEN`, the bot token of an app made from [packages/slack/manifest.yaml](packages/slack/manifest.yaml), and `SLACK_CHANNEL`, the id of a channel the bot has been invited to (e.g. `C0123ABC`). With both, and `SITE_URL`, Skjera posts each event the first time it is published, with `@here`, and at 07:00 UTC the events whose sign-up deadline runs out within a day, with `@channel`: every event, those shown only to members too, with times in Norwegian time. Slack fetches the cover from `SITE_URL`; when it cannot, the event is posted without it. Without them nothing is posted, with a warning at start.
 
+Also optional, HubSpot: `HUBSPOT_ACCOUNT_ID`, the account id as HubSpot shows it (digits). With it, every page of the site but `/embed` and the studio loads HubSpot's script for that account from `js-eu1.hs-scripts.com`, and the privacy page says so, with a button for HubSpot's cookie settings. What HubSpot does with the page (statistics, cookie banner, collected forms) is set up in the HubSpot account. Without it, or blank, nothing is loaded from HubSpot. A value that is not digits stops the server at start.
+
 In Kubernetes:
 
 - Liveness: `GET /health`. Readiness: `GET /health/ready`, which checks the database.

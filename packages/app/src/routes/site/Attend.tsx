@@ -93,9 +93,9 @@ export function Attend(props: {
       ...(asGuest
         ? {
             guest: {
-              name: String(form.get("name") ?? ""),
+              name: String(form.get("firstname") ?? ""),
               email: String(form.get("email") ?? ""),
-              phone: String(form.get("phone") ?? ""),
+              phone: String(form.get("telephone") ?? ""),
               company: String(form.get("company") ?? ""),
             },
           }
@@ -129,7 +129,7 @@ export function Attend(props: {
       // Only a guest's form has them; empty clears.
       ...(id === guest?.id
         ? {
-            phone: String(form.get("phone") ?? ""),
+            phone: String(form.get("telephone") ?? ""),
             company: String(form.get("company") ?? ""),
           }
         : {}),
@@ -356,7 +356,8 @@ export function Attend(props: {
         >
           <div className={styles.fields}>
             <Input
-              name="name"
+              name="firstname"
+              autoComplete="name"
               aria-label={m.attend_your_name()}
               placeholder={m.attend_your_name()}
               required
@@ -424,7 +425,7 @@ type Given = {
 const GuestContactInputs = (props: { readonly given: Given }) => (
   <div className={styles.fields}>
     <Input
-      name="phone"
+      name="telephone"
       type="tel"
       autoComplete="tel"
       defaultValue={props.given.phone}

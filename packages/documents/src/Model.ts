@@ -147,8 +147,19 @@ export const Site = Schema.Struct({
   logo: Schema.optionalKey(SiteLogo),
   footer: Schema.optionalKey(SiteFooter),
   privacy: SitePrivacy,
+  /** HubSpot's account, where the site loads HubSpot: `HUBSPOT_ACCOUNT_ID`. */
+  hubSpot: Schema.optionalKey(Schema.String),
 });
 export type Site = typeof Site.Type;
+
+/** `HUBSPOT_ACCOUNT_ID`: a HubSpot account id, as HubSpot shows it (digits), or blank for none. */
+const HubSpotAccountIdText = Schema.String.check(
+  Schema.makeFilter(
+    (text: string) =>
+      /^\d*$/.test(text.trim()) ||
+      `Expected a HubSpot account id, digits only; got ${JSON.stringify(text)}`,
+  ),
+);
 
 const optional = (config: Config.Config<string>) =>
   Config.option(config).pipe(
@@ -175,6 +186,9 @@ export const SiteConfig = Config.all({
   operator: optional(Config.String("SITE_OPERATOR")),
   contact: optional(Config.String("SITE_CONTACT_EMAIL")),
   privacyUrl: optional(Config.String("SITE_PRIVACY_URL")),
+  hubSpot: Config.schema(HubSpotAccountIdText, "HUBSPOT_ACCOUNT_ID").pipe(
+    Config.withDefault(""),
+  ),
 }).pipe(
   Config.map(
     (config): Site => ({
@@ -198,6 +212,9 @@ export const SiteConfig = Config.all({
         contact: config.contact,
         url: config.privacyUrl,
       }),
+      ...(config.hubSpot.trim() === ""
+        ? {}
+        : { hubSpot: config.hubSpot.trim() }),
     }),
   ),
 );

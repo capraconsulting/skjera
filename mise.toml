@@ -27,6 +27,8 @@ SITE_LOCALE = "en"
 WEBSITE_ORIGINS = "http://website.localhost"
 # SLACK_BOT_TOKEN and SLACK_CHANNEL are not set here, so nothing is posted to
 # Slack in development. The Readme says how to set them.
+# HUBSPOT_ACCOUNT_ID is not set either, so nothing is loaded from HubSpot in
+# development or the browser tests.
 # Branding, all optional. Files in SITE_ASSETS_DIR are served at /site-assets/.
 SITE_ASSETS_DIR = "{{config_root}}/dev/site-assets"
 SITE_LOGO = "/site-assets/logo.svg"

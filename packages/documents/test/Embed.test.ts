@@ -524,4 +524,17 @@ layer(TestLayer, { excludeTestServices: true })("Embed route", (it) => {
       );
     }),
   );
+
+  it.effect("loads nothing from HubSpot, also where the site does (AC-2)", () =>
+    withPages({ HUBSPOT_ACCOUNT_ID: "146072525" }, (page) =>
+      Effect.gen(function* () {
+        const response = yield* page("/embed");
+        assert.strictEqual(response.status, 200);
+        assert.notInclude(
+          yield* Effect.promise(() => response.text()),
+          "hs-scripts.com",
+        );
+      }),
+    ),
+  );
 });

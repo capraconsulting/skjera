@@ -1,6 +1,8 @@
 import { m } from "@skjera/i18n/messages";
 import type { ReactNode } from "react";
+import { Button } from "../../components/Button.tsx";
 import { currentSite } from "../../i18n.ts";
+import { showCookieSettings } from "../../site/hubSpot.ts";
 import styles from "./Privacy.module.css";
 
 /**
@@ -9,7 +11,7 @@ import styles from "./Privacy.module.css";
  * Skjera does; keep it so when that changes.
  */
 export function Privacy() {
-  const { name, privacy } = currentSite();
+  const { name, privacy, hubSpot } = currentSite();
   const contact =
     privacy.contact === undefined ? (
       m.privacy_ask_operator({ operator: privacy.operator })
@@ -43,7 +45,17 @@ export function Privacy() {
         <p>{m.privacy_keep()}</p>
       </Part>
       <Part title={m.privacy_cookies_heading()}>
-        <p>{m.privacy_cookies()}</p>
+        <p>
+          {m.privacy_cookies()}{" "}
+          {hubSpot === undefined
+            ? m.privacy_cookies_untracked()
+            : m.privacy_cookies_hubspot()}
+        </p>
+        {hubSpot === undefined ? null : (
+          <Button className={styles.settings} onClick={showCookieSettings}>
+            {m.privacy_cookie_settings()}
+          </Button>
+        )}
       </Part>
       <Part title={m.privacy_rights_heading()}>
         <p>

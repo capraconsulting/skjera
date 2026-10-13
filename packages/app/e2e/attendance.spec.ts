@@ -168,6 +168,18 @@ test("guests give a phone number and a company, and organizers see and export th
   await expect(
     box.getByRole("textbox", { name: "Your company" }),
   ).toBeVisible();
+  // The names HubSpot recognises, as Skjer's form has them.
+  for (const [label, name] of [
+    ["Your name", "firstname"],
+    ["Your email", "email"],
+    ["Your phone number", "telephone"],
+    ["Your company", "company"],
+  ] as const) {
+    await expect(box.getByRole("textbox", { name: label })).toHaveAttribute(
+      "name",
+      name,
+    );
+  }
   await box.getByRole("textbox", { name: "Your name" }).fill("Gina");
   await box
     .getByRole("textbox", { name: "Your email" })
@@ -193,6 +205,9 @@ test("guests give a phone number and a company, and organizers see and export th
   await expect(form.getByRole("textbox", { name: "Your company" })).toHaveValue(
     "Acme",
   );
+  await expect(
+    form.getByRole("textbox", { name: "Your phone number" }),
+  ).toHaveAttribute("name", "telephone");
   await form
     .getByRole("textbox", { name: "Your phone number" })
     .fill("911 11 111");

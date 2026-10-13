@@ -1,6 +1,11 @@
 import { assert, describe, it } from "@effect/vitest";
-import { Option, Schema } from "effect";
-import { GuestDetails, organizerLogos, TeamLogosChange } from "../src/Model.ts";
+import { ConfigProvider, Effect, Exit, Option, Schema } from "effect";
+import {
+  GuestDetails,
+  organizerLogos,
+  SiteConfig,
+  TeamLogosChange,
+} from "../src/Model.ts";
 
 const decode = Schema.decodeUnknownOption(GuestDetails);
 
@@ -77,4 +82,49 @@ describe("organizerLogos", () => {
     );
     assert.isNull(organizerLogos({ logo: null, logoDark: null }).dark);
   });
+});
+
+/** The site as the server reads it from these environment variables. */
+const readSite = (env: Record<string, string>) =>
+  Effect.exit(
+    Effect.gen(function* () {
+      return yield* SiteConfig;
+    }),
+  ).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(env))));
+
+describe("SiteConfig", () => {
+  it.effect("gives the app the HubSpot account id (AC-1)", () =>
+    Effect.gen(function* () {
+      const site = yield* readSite({ HUBSPOT_ACCOUNT_ID: "146072525" });
+      assert.isTrue(Exit.isSuccess(site));
+      if (Exit.isSuccess(site)) {
+        assert.strictEqual(site.value.hubSpot, "146072525");
+      }
+    }),
+  );
+
+  it.effect("refuses an account id that is not digits (AC-1)", () =>
+    Effect.gen(function* () {
+      for (const given of ["abc", "1460/72525", "146072525.js", "14 6"]) {
+        const site = yield* readSite({ HUBSPOT_ACCOUNT_ID: given });
+        assert.isTrue(Exit.isFailure(site), given);
+      }
+    }),
+  );
+
+  it.effect(
+    "has no HubSpot key without an account id, or with a blank one (AC-3)",
+    () =>
+      Effect.gen(function* () {
+        for (const env of [
+          {},
+          { HUBSPOT_ACCOUNT_ID: "" },
+          { HUBSPOT_ACCOUNT_ID: "  " },
+        ]) {
+          const site = yield* readSite(env);
+          assert.isTrue(Exit.isSuccess(site));
+          if (Exit.isSuccess(site)) assert.notProperty(site.value, "hubSpot");
+        }
+      }),
+  );
 });
