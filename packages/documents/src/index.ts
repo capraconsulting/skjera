@@ -7,6 +7,7 @@ import { DocumentEvents } from "./DocumentEvents.ts";
 import { Documents } from "./Documents.ts";
 import * as Mail from "./Mail.tsx";
 import { Presence } from "./Presence.ts";
+import * as Recurring from "./Recurring.ts";
 import * as SignupRetention from "./SignupRetention.ts";
 import * as SlackChannel from "./SlackChannel.ts";
 import { Sync } from "./Sync.ts";
@@ -34,6 +35,7 @@ export * from "./Presence.ts";
 export * from "./Problems.ts";
 export * from "./PublicApi.ts";
 export * as PublicEvents from "./PublicEvents.ts";
+export * as Recurring from "./Recurring.ts";
 export * as Sharing from "./Sharing.ts";
 export * as SlackChannel from "./SlackChannel.ts";
 export * from "./Sync.ts";
@@ -58,6 +60,7 @@ export const layer = Layer.mergeAll(
   Mail.layerMailer,
   Mail.reminders,
   SignupRetention.job,
+  Recurring.job,
   SlackChannel.layer,
   SlackChannel.deadlines,
 ).pipe(

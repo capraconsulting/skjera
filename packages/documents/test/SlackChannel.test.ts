@@ -83,6 +83,21 @@ describe("The messages", () => {
     assert.include(words, "*Where:*\nKantina");
   });
 
+  it("marks an event moved on to its next date with :repeat: in place of :loudspeaker:, and changes nothing else (AC-6)", () => {
+    const first = SlackChannel.announcement(launch, site);
+    const repeated = SlackChannel.announcement(launch, site, {
+      repeated: true,
+    });
+    const heading = "*Launch | <!here> :repeat:*";
+    assert.strictEqual(repeated.text, heading);
+    assert.deepStrictEqual(leaves(repeated.blocks[0]), [
+      "section",
+      "mrkdwn",
+      heading,
+    ]);
+    assert.deepStrictEqual(repeated.blocks.slice(1), first.blocks.slice(1));
+  });
+
   it("leaves out what the event lacks, and names a cover by the title when its alt is blank (AC-1)", () => {
     const bare = SlackChannel.announcement(
       { ...launch, summary: null, cover: null, place: null },

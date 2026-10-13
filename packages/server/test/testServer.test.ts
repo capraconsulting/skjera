@@ -59,6 +59,13 @@ describe("testServerEnv", () => {
     );
   });
 
+  it("listens on this machine only behind a TLS proxy, on every interface otherwise", () => {
+    // The proxy holds the port on the machine's other addresses.
+    expect(settings("https://box.example.ts.net").HOST).toBe("127.0.0.1");
+    expect(settings("http://box.lan").HOST).toBeUndefined();
+    expect(settings(undefined).HOST).toBeUndefined();
+  });
+
   it.each([
     "box.lan",
     "https://box.lan:8443",

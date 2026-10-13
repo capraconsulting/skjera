@@ -583,6 +583,55 @@ test("a new place emails who signed up, once the organizer agrees (AC-5)", async
   await deleteTeam(alice, team);
 });
 
+test("an organizer writes the signed-up email's own subject and text (AC-1)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await newTeam(alice, uniqueTeamName("Own email"));
+  const event = await publishedEvent(alice, { public: true, guests: true });
+  const address = `gina-${crypto.randomUUID()}@example.org`;
+  const wording = "Welcome, we saved you a seat";
+
+  // Opening a published event does not make it unpublished: the fields of an
+  // email are not created until it is opened.
+  await alice.reload();
+  await expect(alice.getByTestId("status")).toContainText("Published");
+
+  await alice.getByRole("button", { name: "Signed-up email" }).click();
+  const subject = alice.getByRole("textbox", {
+    name: "Subject of the signed-up email",
+  });
+  await subject.pressSequentially(wording);
+  await expect(subject).toHaveText(wording);
+  const text = alice.getByRole("textbox", {
+    name: "Text of the signed-up email",
+  });
+  await text.pressSequentially("Bring a friend");
+  await expect(text).toHaveText("Bring a friend");
+  await expect(alice.getByTestId("status")).toContainText("Saved");
+  await alice.getByRole("button", { name: "Publish" }).click();
+  await expect(alice.getByTestId("status")).toContainText("Published");
+
+  const guest = await visitor(browser);
+  await guest.goto(`/events/${event.id}`);
+  const box = attendance(guest);
+  await box.getByRole("textbox", { name: "Your name" }).fill("Gina");
+  await box.getByRole("textbox", { name: "Your email" }).fill(address);
+  await box.getByRole("button", { name: "Sign up" }).click();
+  await expect(box).toContainText("You're signed up.");
+
+  // The written subject and text, then the event, and the guest's own link.
+  const signedUp = await emailTo(address, wording);
+  expect(signedUp.text).toContain("Bring a friend");
+  expect(signedUp.text).toContain(event.title);
+  expect(signedUp.text).toMatch(
+    new RegExp(`http\\S*/events/${event.id}\\?guest=\\S+`),
+  );
+
+  await deleteEvent(alice, event.id);
+  await deleteTeam(alice, team);
+});
+
 test("deleting an event emails who signed up that it's cancelled", async ({
   browser,
 }) => {

@@ -16,6 +16,16 @@ const AttendeeLimit = Schema.Int.check(
   ),
 );
 
+/** How often a recurring event comes back: 1 to 7 of its unit. */
+const RepeatEvery = Schema.Int.check(
+  Schema.makeFilter(
+    (every: number) =>
+      (every >= 1 && every <= 7) || "Expected a whole number from 1 to 7",
+  ),
+);
+export const RepeatUnit = Schema.Literals(["day", "week", "month", "year"]);
+export type RepeatUnit = typeof RepeatUnit.Type;
+
 export const EventContent = Schema.Struct({
   title: Schema.String,
   /**
@@ -83,6 +93,28 @@ export const EventContent = Schema.Struct({
   streamed: Schema.optionalKey(Schema.Boolean),
   /** Where it is streamed, as written; published only while streamed. */
   streamLink: Schema.optionalKey(Schema.String),
+  /**
+   * The emails' own subject and text, per email: written for every recipient
+   * as is. Missing or blank: the standard, in each recipient's language.
+   * Texts are rich text, as the body.
+   */
+  signedUpSubject: Schema.optionalKey(Schema.String),
+  signedUpText: Schema.optionalKey(Schema.String),
+  signupCancelledSubject: Schema.optionalKey(Schema.String),
+  signupCancelledText: Schema.optionalKey(Schema.String),
+  eventChangedSubject: Schema.optionalKey(Schema.String),
+  eventChangedText: Schema.optionalKey(Schema.String),
+  eventCancelledSubject: Schema.optionalKey(Schema.String),
+  eventCancelledText: Schema.optionalKey(Schema.String),
+  /**
+   * When it has ended, it moves on to its next date and is published again,
+   * without those signed up (see Recurring.ts). Missing: no.
+   */
+  recurring: Schema.optionalKey(Schema.Boolean),
+  /** How many units apart its dates are. Missing: 1. */
+  repeatEvery: Schema.optionalKey(RepeatEvery),
+  /** An ImmutableString, replaced as a whole. Missing: "week". */
+  repeatUnit: Schema.optionalKey(RepeatUnit),
 });
 export type EventContent = typeof EventContent.Type;
 

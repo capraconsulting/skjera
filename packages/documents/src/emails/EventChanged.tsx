@@ -3,6 +3,12 @@ import { m } from "@skjera/i18n/messages";
 import { Button, Heading, Text } from "react-email";
 import type { Locale } from "../Model.ts";
 import { button, Layout, paragraph } from "./Layout.tsx";
+import {
+  EventDetails,
+  OrganizerText,
+  plainText,
+  type WrittenText,
+} from "./OrganizerText.tsx";
 
 // Sent to attendees when an event moves, or is at another place: it starts
 // or ends at another time, or somewhere else, or both. The invitation
@@ -24,6 +30,8 @@ export interface EventChangedProps {
   readonly url: string;
   /** A guest's link to change or cancel their signup. */
   readonly guestLink?: string;
+  /** The organiser's own text, in place of the standard opening. */
+  readonly text?: WrittenText;
 }
 
 export function EventChanged(props: EventChangedProps) {
@@ -55,23 +63,34 @@ export function EventChanged(props: EventChangedProps) {
     <Layout
       locale={locale}
       siteName={props.siteName}
-      preview={copy.preview}
+      preview={
+        props.text === undefined ? copy.preview : plainText(props.text.spans)
+      }
       reason={m.email_reason_attending(
         { title, site: props.siteName },
         { locale },
       )}
     >
-      <Heading as="h1" style={{ margin: "0 0 16px", fontSize: "22px" }}>
-        {copy.heading}
-      </Heading>
-      <Text style={paragraph}>
-        {m.email_greeting({ name: props.name }, { locale })}
-      </Text>
-      <Text style={paragraph}>
-        {moved
-          ? m.email_moved_body({ title, when }, { locale })
-          : m.email_new_place_body({ title, place }, { locale })}
-      </Text>
+      {props.text === undefined ? (
+        <>
+          <Heading as="h1" style={{ margin: "0 0 16px", fontSize: "22px" }}>
+            {copy.heading}
+          </Heading>
+          <Text style={paragraph}>
+            {m.email_greeting({ name: props.name }, { locale })}
+          </Text>
+          <Text style={paragraph}>
+            {moved
+              ? m.email_moved_body({ title, when }, { locale })
+              : m.email_new_place_body({ title, place }, { locale })}
+          </Text>
+        </>
+      ) : (
+        <>
+          <OrganizerText spans={props.text.spans} site={props.text.site} />
+          <EventDetails title={title} when={when} place={props.text.place} />
+        </>
+      )}
       {moved ? (
         <Text style={paragraph}>
           {m.email_moved_was(

@@ -3,6 +3,12 @@ import { m } from "@skjera/i18n/messages";
 import { Button, Heading, Text } from "react-email";
 import type { Locale } from "../Model.ts";
 import { button, Layout, paragraph } from "./Layout.tsx";
+import {
+  EventDetails,
+  OrganizerText,
+  plainText,
+  type WrittenText,
+} from "./OrganizerText.tsx";
 
 // Sent when someone signs up, with the event as a calendar invitation.
 
@@ -20,6 +26,8 @@ export interface SignedUpProps {
   readonly closes: string;
   /** Food is served. */
   readonly food?: boolean;
+  /** The organiser's own text, in place of the standard opening. */
+  readonly text?: WrittenText;
 }
 
 export function SignedUp(props: SignedUpProps) {
@@ -28,21 +36,41 @@ export function SignedUp(props: SignedUpProps) {
     <Layout
       locale={locale}
       siteName={props.siteName}
-      preview={m.email_signed_up_preview({ title }, { locale })}
+      preview={
+        props.text === undefined
+          ? m.email_signed_up_preview({ title }, { locale })
+          : plainText(props.text.spans)
+      }
       reason={m.email_reason_signed_up(
         { title, site: props.siteName },
         { locale },
       )}
     >
-      <Heading as="h1" style={{ margin: "0 0 16px", fontSize: "22px" }}>
-        {m.email_signed_up_heading({}, { locale })}
-      </Heading>
-      <Text style={paragraph}>
-        {m.email_greeting({ name: props.name }, { locale })}
-      </Text>
-      <Text style={paragraph}>
-        {m.email_signed_up_body({ title, when: props.when }, { locale })}
-      </Text>
+      {props.text === undefined ? (
+        <>
+          <Heading as="h1" style={{ margin: "0 0 16px", fontSize: "22px" }}>
+            {m.email_signed_up_heading({}, { locale })}
+          </Heading>
+          <Text style={paragraph}>
+            {m.email_greeting({ name: props.name }, { locale })}
+          </Text>
+          <Text style={paragraph}>
+            {m.email_signed_up_body({ title, when: props.when }, { locale })}
+          </Text>
+        </>
+      ) : (
+        <>
+          <OrganizerText spans={props.text.spans} site={props.text.site} />
+          <EventDetails
+            title={title}
+            when={props.when}
+            place={props.text.place}
+          />
+          <Text style={paragraph}>
+            {m.email_organizer_calendar_invited({}, { locale })}
+          </Text>
+        </>
+      )}
       {props.food === true ? (
         <Text style={paragraph}>{m.email_signed_up_food({}, { locale })}</Text>
       ) : null}

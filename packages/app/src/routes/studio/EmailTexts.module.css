@@ -1,0 +1,22 @@
+.emails {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.email {
+  display: grid;
+  justify-items: start;
+  gap: 0.5rem;
+}
+
+.fields {
+  display: grid;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.hint {
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}

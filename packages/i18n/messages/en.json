@@ -26,6 +26,8 @@
   "email_moved_cancel_member": "Can't make it now? You can cancel your signup on the event's page.",
   "email_moved_cancel_guest": "Can't make it now? Your own link cancels your signup.",
   "email_calendar_updated": "The invitation attached updates it in your calendar.",
+  "email_organizer_calendar_invited": "The invitation attached puts it in your calendar.",
+  "email_organizer_calendar_removed": "The cancellation attached takes it out of your calendar.",
   "email_new_place_subject": "New place: {title}",
   "email_new_place_preview": "{title} is now at {place}",
   "email_new_place_heading": "New place",
@@ -161,9 +163,67 @@
   "studio_streamed": "The event is streamed",
   "studio_streamed_hint": "Those signing up choose to attend in person or online. Only those in person count against the maximum.",
   "studio_stream_link": "Link to the stream",
+  "studio_recurrence": "Repeats",
+  "studio_recurring": "The event repeats",
+  "studio_recurring_hint": "When it has ended, it moves on to its next date. Those signed up are removed, without being told.",
+  "studio_repeat_every": "Repeat every",
+  "studio_repeat_unit": "Repeat unit",
+  "studio_repeat_day": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "day",
+        "countPlural=other": "days"
+      }
+    }
+  ],
+  "studio_repeat_week": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "week",
+        "countPlural=other": "weeks"
+      }
+    }
+  ],
+  "studio_repeat_month": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "month",
+        "countPlural=other": "months"
+      }
+    }
+  ],
+  "studio_repeat_year": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "year",
+        "countPlural=other": "years"
+      }
+    }
+  ],
   "studio_emails": "Emails",
   "studio_remind": "Remind attendees",
   "studio_remind_hint": "Everyone signed up gets an email the day before.",
+  "studio_email_signed_up": "Signed-up email",
+  "studio_email_signup_cancelled": "Sign-up cancelled email",
+  "studio_email_event_changed": "Event changed email",
+  "studio_email_event_cancelled": "Event cancelled email",
+  "studio_email_signed_up_subject": "Subject of the signed-up email",
+  "studio_email_signed_up_text": "Text of the signed-up email",
+  "studio_email_signup_cancelled_subject": "Subject of the sign-up cancelled email",
+  "studio_email_signup_cancelled_text": "Text of the sign-up cancelled email",
+  "studio_email_event_changed_subject": "Subject of the event changed email",
+  "studio_email_event_changed_text": "Text of the event changed email",
+  "studio_email_event_cancelled_subject": "Subject of the event cancelled email",
+  "studio_email_event_cancelled_text": "Text of the event cancelled email",
+  "studio_email_hint": "Leave a field empty to send the standard email, in each person's language.",
   "studio_food_served": "Food is served",
   "studio_food_hint": "Everyone signing up, members and guests, can say what they can't eat. Organizers see the list, without names.",
   "studio_questions": "Questions",
