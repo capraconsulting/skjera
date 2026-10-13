@@ -73,7 +73,7 @@ export const EventRow = Schema.Struct({
   isPublic: Schema.Boolean,
   /** People without an account can sign up to attend. */
   allowGuests: Schema.Boolean,
-  /** Food is served: everyone signing up must give their dietary preferences. */
+  /** Food is served: those signing up may give their dietary preferences. */
   askDietary: Schema.Boolean,
   /** What or where people eat. */
   food: Schema.String,
@@ -107,8 +107,6 @@ export const AttendeeDetails = Schema.Struct({
   /** A guest's phone number and company, when they gave them. */
   phone: Schema.NullOr(Schema.String),
   company: Schema.NullOr(Schema.String),
-  /** What they can't eat, when the event asked. */
-  dietary: Schema.NullOr(Schema.String),
   /** Answers to the event's questions, as asked and picked then. */
   answers: Schema.Array(Answer),
   /** Signed up without an account. */
@@ -121,7 +119,7 @@ export const AttendeeRow = Schema.Struct({
   id: Schema.String,
   eventId: DocumentId,
   signedUpAt: Schema.Date,
-  /** When its answers or dietary preferences last changed. */
+  /** When its answers last changed. */
   changedAt: Schema.Date,
   /** The signed-in user's own signup. Guests keep track in their browser. */
   mine: Schema.Boolean,

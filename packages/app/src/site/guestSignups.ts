@@ -9,7 +9,6 @@ export interface GuestSignup {
   readonly cancelToken: string;
   /** What they told, to start from when changing it. */
   readonly given?: {
-    readonly dietary?: string;
     readonly answers?: Answers;
     readonly phone?: string;
     readonly company?: string;

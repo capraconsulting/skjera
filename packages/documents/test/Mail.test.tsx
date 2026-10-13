@@ -476,9 +476,13 @@ layer(TestLayer, { excludeTestServices: true })("Mail", (it) => {
       const attendance = yield* Attendance;
       const event = yield* publishedEvent({ dietary: true });
       const address = `refused-${crypto.randomUUID()}@example.org`;
-      // Without what they can't eat, as the event asks.
+      // With more about what they can't eat than is kept.
       const refused = yield* Effect.flip(
-        attendance.attendAsGuest(event, { name: "Rolf", email: address }),
+        attendance.attendAsGuest(
+          event,
+          { name: "Rolf", email: address },
+          { dietary: "x".repeat(501) },
+        ),
       );
       assert.strictEqual(refused._tag, "SignupRejected");
       yield* Effect.sleep("300 millis");

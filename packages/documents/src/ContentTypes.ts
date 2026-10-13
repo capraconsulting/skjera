@@ -43,7 +43,7 @@ export const EventContent = Schema.Struct({
    */
   guests: Schema.Boolean,
   /**
-   * Food is served: everyone signing up, members and guests, must say what
+   * Food is served: everyone signing up, members and guests, may say what
    * they can't eat, until the food deadline.
    */
   dietary: Schema.Boolean,

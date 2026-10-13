@@ -110,9 +110,11 @@ const EventsHandlers = HttpApiBuilder.group(Api, "events", (handlers) =>
 const AttendeesHandlers = HttpApiBuilder.group(Api, "attendees", (handlers) =>
   Effect.gen(function* () {
     const attendance = yield* Documents.Attendance;
-    return handlers.handle("remove", ({ params }) =>
-      attendance.remove(params.id),
-    );
+    return handlers
+      .handle("remove", ({ params }) => attendance.remove(params.id))
+      .handle("dietaryPreferences", ({ params }) =>
+        attendance.dietaryPreferences(params.id),
+      );
   }),
 );
 

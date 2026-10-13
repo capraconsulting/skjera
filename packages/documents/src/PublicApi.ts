@@ -23,7 +23,6 @@ import {
 
 /** What changing a signup sends: as when signing up. */
 const SignupChange = Schema.Struct({
-  dietary: Schema.optionalKey(Schema.String),
   answers: Schema.optionalKey(Answers),
   /** Follows online rather than in person; asked while the event is streamed. */
   online: Schema.optionalKey(Schema.Boolean),
@@ -36,8 +35,8 @@ export class EventsApi extends HttpApiGroup.make("events").add(
   /**
    * Signs up the signed-in user, or, without a session, a guest with the
    * details given. A guest gets the token that cancels their signup.
-   * `dietary` is required while the event asks for it, and `answers` for
-   * its required questions.
+   * `dietary` is optional, and kept for the event while it asks for it;
+   * `answers` are required for its required questions.
    */
   HttpApiEndpoint.post("attend", "/api/events/:id/attendance", {
     params: { id: DocumentId },
@@ -65,8 +64,7 @@ export class EventsApi extends HttpApiGroup.make("events").add(
     error: [SignupNotFound, SignupRejected],
   }),
   /**
-   * Changes the signed-in user's answers, and their dietary preferences
-   * while the event asks for them, until the sign-up deadline.
+   * Changes the signed-in user's answers, until the sign-up deadline.
    */
   HttpApiEndpoint.patch("change", "/api/events/:id/attendance", {
     params: { id: DocumentId },
@@ -89,6 +87,15 @@ export class AttendeesApi extends HttpApiGroup.make("attendees")
       params: { id: Schema.String.check(Schema.isUUID()) },
       error: SignupNotFound,
     }),
+    /** What people can't eat, for an event: the texts, sorted, without names. */
+    HttpApiEndpoint.get(
+      "dietaryPreferences",
+      "/api/events/:id/dietary-preferences",
+      {
+        params: { id: DocumentId },
+        success: Schema.Array(Schema.String),
+      },
+    ),
   )
   .middleware(Authentication) {}
 

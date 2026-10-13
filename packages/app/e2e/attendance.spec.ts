@@ -214,14 +214,10 @@ test("guests give a phone number and a company, and organizers see and export th
   )
     .trim()
     .split(/\r?\n/);
-  expect(lines[0]).toBe(
-    "Name,Email,Guest,Signed up,Changed,Dietary preferences,Phone,Company",
-  );
+  expect(lines[0]).toBe("Name,Email,Guest,Signed up,Changed,Phone,Company");
   expect(lines.slice(1).sort()).toEqual([
-    expect.stringMatching(
-      /^Gina,gina@example\.org,Yes,.*,,911 11 111,Initech$/,
-    ),
-    expect.stringMatching(/^bob,bob@example\.com,No,.*,,,$/),
+    expect.stringMatching(/^Gina,gina@example\.org,Yes,.*,911 11 111,Initech$/),
+    expect.stringMatching(/^bob,bob@example\.com,No,.*,,$/),
   ]);
 
   await deleteEvent(alice, event.id);
@@ -392,7 +388,7 @@ test("a streamed event shows its link, asks in person or online, and lists how e
     .trim()
     .split(/\r?\n/);
   expect(lines[0]).toBe(
-    "Name,Email,Guest,Attending,Signed up,Changed,Dietary preferences,Phone,Company",
+    "Name,Email,Guest,Attending,Signed up,Changed,Phone,Company",
   );
   expect(lines.slice(1).sort()).toEqual([
     expect.stringMatching(/^Gina,gina@example\.org,Yes,Online,/),
@@ -610,7 +606,7 @@ test("deleting an event emails who signed up that it's cancelled", async ({
   await deleteTeam(alice, team);
 });
 
-test("everyone gives dietary preferences when the event asks", async ({
+test("dietary preferences are optional, and organizers see them without names (AC-1, AC-4)", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -621,40 +617,58 @@ test("everyone gives dietary preferences when the event asks", async ({
     dietary: true,
   });
 
-  // A member answers before attending.
+  // A member attends without answering, and has no answers to change.
   const bob = await signedIn(browser, "bob@example.com");
   await bob.goto(`/events/${event.id}`);
   const member = attendance(bob);
   const memberDietary = member.getByRole("textbox", {
     name: "Dietary preferences",
   });
-  await expect(memberDietary).toHaveAttribute("required");
-  await memberDietary.fill("Vegan");
+  await expect(memberDietary).not.toHaveAttribute("required");
   await member.getByRole("button", { name: "Attend" }).click();
   await expect(member).toContainText("You're attending.");
+  await expect(
+    member.getByRole("button", { name: "Change answers" }),
+  ).toHaveCount(0);
 
-  // So does a guest.
-  const guest = await visitor(browser);
-  await guest.goto(`/events/${event.id}`);
-  const box = attendance(guest);
-  await box.getByRole("textbox", { name: "Your name" }).fill("Gina");
-  await box
-    .getByRole("textbox", { name: "Your email" })
-    .fill("gina@example.org");
-  const dietary = box.getByRole("textbox", { name: "Dietary preferences" });
-  await expect(dietary).toHaveAttribute("required");
-  await dietary.fill("Vegetarian, no nuts");
-  await box.getByRole("button", { name: "Sign up" }).click();
-  await expect(box).toContainText("You're signed up.");
+  // A guest signs up without answering, too.
+  const signUpAsGuest = async (name: string, dietary?: string) => {
+    const page = await visitor(browser);
+    await page.goto(`/events/${event.id}`);
+    const box = attendance(page);
+    await box.getByRole("textbox", { name: "Your name" }).fill(name);
+    await box
+      .getByRole("textbox", { name: "Your email" })
+      .fill(`${name.toLowerCase()}@example.org`);
+    const field = box.getByRole("textbox", { name: "Dietary preferences" });
+    await expect(field).not.toHaveAttribute("required");
+    if (dietary !== undefined) await field.fill(dietary);
+    await box.getByRole("button", { name: "Sign up" }).click();
+    await expect(box).toContainText("You're signed up.");
+    return page;
+  };
+  await signUpAsGuest("Hana");
+  await signUpAsGuest("Gina", "Fish");
+  await signUpAsGuest("Ivar", "Vegan");
 
+  // The organizer sees the two texts and how many, and no names with them.
   await alice.reload();
-  await expect(attendees(alice)).toContainText("Diet: Vegan");
-  await expect(attendees(alice)).toContainText("Diet: Vegetarian, no nuts");
+  const given = alice.getByRole("region", { name: "Dietary preferences" });
+  await expect(
+    given.getByRole("heading", { name: "Dietary preferences (2)" }),
+  ).toBeVisible();
+  await expect(given.getByRole("listitem")).toHaveText(["Fish", "Vegan"]);
+  for (const name of ["bob", "Hana", "Gina", "Ivar"]) {
+    await expect(given).not.toContainText(name);
+  }
 
-  await box.getByRole("button", { name: "Cancel my signup" }).click();
-  await expect(box.getByRole("button", { name: "Sign up" })).toBeVisible();
-  // Saved: the organizer sees it.
-  await expect(attendees(alice)).not.toContainText("Gina");
+  // Only signed-in users can read the list.
+  const stranger = await visitor(browser);
+  const refused = await stranger.request.get(
+    `/api/events/${event.id}/dietary-preferences`,
+  );
+  expect(refused.status()).toBe(401);
+
   await deleteEvent(alice, event.id);
   await deleteTeam(alice, team);
 });
@@ -755,7 +769,7 @@ test("events ask their own questions, and say what's served", async ({
   await deleteTeam(alice, team);
 });
 
-test("people change their answers; organizers export and remove them (AC-5)", async ({
+test("people change their answers; organizers export and remove them (AC-5, AC-6)", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -791,20 +805,18 @@ test("people change their answers; organizers export and remove them (AC-5)", as
   await box
     .getByRole("textbox", { name: "Your email" })
     .fill("gina@example.org");
-  await box.getByRole("textbox", { name: "Dietary preferences" }).fill("None");
+  await box.getByRole("textbox", { name: "Dietary preferences" }).fill("Vegan");
   await box.getByRole("radio", { name: "Small" }).check();
   await box.getByRole("button", { name: "Sign up" }).click();
   await expect(box).toContainText("You're signed up.");
 
   await box.getByRole("button", { name: "Change answers" }).click();
   const form = box.getByRole("form", { name: "Your answers" });
+  // What they can't eat belongs to no one once given: nothing to change.
   await expect(
     form.getByRole("textbox", { name: "Dietary preferences" }),
-  ).toHaveValue("None");
+  ).toHaveCount(0);
   await expect(form.getByRole("radio", { name: "Small" })).toBeChecked();
-  await form
-    .getByRole("textbox", { name: "Dietary preferences" })
-    .fill("Vegan");
   await form.getByRole("radio", { name: "Large" }).check();
   await form.getByRole("button", { name: "Save changes" }).click();
   await expect(box).toContainText("You're signed up.");
@@ -825,6 +837,9 @@ test("people change their answers; organizers export and remove them (AC-5)", as
   await expectNoGuestContact(memberForm);
   await expect(memberForm.getByRole("radio", { name: "Large" })).toBeChecked();
   await memberForm.getByRole("radio", { name: "Small" }).check();
+  await expect(
+    memberForm.getByRole("textbox", { name: "Dietary preferences" }),
+  ).toHaveCount(0);
   await memberForm.getByRole("button", { name: "Save changes" }).click();
   await expect(member).toContainText("You're attending.");
 
@@ -837,7 +852,10 @@ test("people change their answers; organizers export and remove them (AC-5)", as
       .locator("+ dd");
   await expect(answer("Gina")).toHaveText("Large");
   await expect(answer("bob")).toHaveText("Small");
-  await expect(attendees(alice)).toContainText("Diet: Vegan");
+  // Neither text is with the people: the attendee list holds no dietary
+  // preference.
+  await expect(attendees(alice)).not.toContainText("Vegan");
+  await expect(attendees(alice)).not.toContainText("Fish");
 
   // A spreadsheet of them, with a column for the question.
   const downloading = alice.waitForEvent("download");
@@ -848,12 +866,13 @@ test("people change their answers; organizers export and remove them (AC-5)", as
     .trim()
     .split(/\r?\n/);
   expect(lines[0]).toBe(
-    "Name,Email,Guest,Signed up,Changed,Dietary preferences,Phone,Company,Towel size",
+    "Name,Email,Guest,Signed up,Changed,Phone,Company,Towel size",
   );
   expect(lines.slice(1).sort()).toEqual([
-    expect.stringMatching(/^Gina,gina@example\.org,Yes,.*,Vegan,,,Large$/),
-    expect.stringMatching(/^bob,bob@example\.com,No,.*,Fish,,,Small$/),
+    expect.stringMatching(/^Gina,gina@example\.org,Yes,.*,,,Large$/),
+    expect.stringMatching(/^bob,bob@example\.com,No,.*,,,Small$/),
   ]);
+  expect(lines.join("\n")).not.toMatch(/Vegan|Fish/);
 
   // Organizers take people off; the guest sees they're no longer signed up.
   alice.once("dialog", (dialog) => dialog.accept());

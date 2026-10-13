@@ -156,6 +156,17 @@ export const publishDraft = (id: DocumentId, heads: ReadonlyArray<string>) =>
     Effect.provide(FetchHttpClient.layer),
   );
 
+/**
+ * What people can't eat at an event, for its organizers: the texts, sorted,
+ * with nothing that says who gave them.
+ */
+export const dietaryPreferences = (id: DocumentId) =>
+  request((client) =>
+    client.attendees
+      .dietaryPreferences({ params: { id } })
+      .pipe(Effect.mapError((error) => new Error(failureMessage(error)))),
+  );
+
 /** Published events: every one for members, the public ones for anyone. */
 export const events = syncedTable({
   id: "events",
@@ -204,7 +215,6 @@ export const attendees = syncedTable({
                   id: attendee.id,
                   cancelToken: signup.cancelToken,
                   given: {
-                    ...(dietary === undefined ? {} : { dietary }),
                     ...(answers === undefined ? {} : { answers }),
                     ...(guest?.phone === undefined
                       ? {}
@@ -285,7 +295,6 @@ export const attendees = syncedTable({
  * the row's `changedAt`, so the update has a change to send.
  */
 export type SignupChange = {
-  readonly dietary?: string;
   readonly answers?: Answers;
   /** Follows online rather than in person; asked while the event is streamed. */
   readonly online?: boolean;

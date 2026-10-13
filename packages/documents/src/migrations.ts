@@ -887,4 +887,20 @@ export const migrations = Migrator.fromRecord({
       RETURNING e.*
     $$`,
   ),
+  "0026_dietary_preferences": statements(
+    // What people can't eat, for the event, with nothing that says who wrote
+    // it or when. Random ids (not uuidv7, which holds the time), so the
+    // order they were given can't be matched to the order of signups.
+    `CREATE TABLE dietary_preferences (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      event_id uuid NOT NULL REFERENCES events (id) ON DELETE CASCADE,
+      text text NOT NULL CHECK (btrim(text) <> '')
+    )`,
+    `CREATE INDEX dietary_preferences_event_id_idx ON dietary_preferences (event_id)`,
+    // Those given on signups so far move to their events.
+    `INSERT INTO dietary_preferences (event_id, text)
+      SELECT event_id, btrim(dietary) FROM attendees
+      WHERE dietary IS NOT NULL AND btrim(dietary) <> ''`,
+    `ALTER TABLE attendees DROP COLUMN dietary`,
+  ),
 });

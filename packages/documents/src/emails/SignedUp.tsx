@@ -18,8 +18,8 @@ export interface SignedUpProps {
   readonly guestLink?: string;
   /** Until when sign-up, and so changing it, is open. */
   readonly closes: string;
-  /** When food is served: until when they can say what they can't eat. */
-  readonly dietaryBy?: string;
+  /** Food is served. */
+  readonly food?: boolean;
 }
 
 export function SignedUp(props: SignedUpProps) {
@@ -43,11 +43,9 @@ export function SignedUp(props: SignedUpProps) {
       <Text style={paragraph}>
         {m.email_signed_up_body({ title, when: props.when }, { locale })}
       </Text>
-      {props.dietaryBy === undefined ? null : (
-        <Text style={paragraph}>
-          {m.email_signed_up_food({ until: props.dietaryBy }, { locale })}
-        </Text>
-      )}
+      {props.food === true ? (
+        <Text style={paragraph}>{m.email_signed_up_food({}, { locale })}</Text>
+      ) : null}
       <Text style={paragraph}>
         {props.guestLink === undefined
           ? m.email_signed_up_change_member({ until: props.closes }, { locale })
@@ -71,7 +69,7 @@ SignedUp.PreviewProps = {
   url: "http://localhost:5173/events/1",
   guestLink: "http://localhost:5173/events/1?guest=g&token=t",
   closes: "torsdag 15. oktober 2026 kl. 18:00 (sentraleuropeisk tid)",
-  dietaryBy: "tirsdag 13. oktober 2026 kl. 12:00 (sentraleuropeisk tid)",
+  food: true,
 } satisfies SignedUpProps;
 
 export default SignedUp;
