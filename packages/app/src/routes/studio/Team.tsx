@@ -36,8 +36,8 @@ export const teamLoader = async ({ params }: LoaderFunctionArgs) => {
 
 /** The team's events, most recently edited first, with how published. */
 const useTeamEvents = (teamId: TeamId) =>
-  useLiveQuery(
-    (q) =>
+  useLiveQuery({
+    query: (q) =>
       q
         .from({ document: documents.collection })
         .leftJoin({ event: events.collection }, ({ document, event }) =>
@@ -53,8 +53,7 @@ const useTeamEvents = (teamId: TeamId) =>
           draftHeads: document.draftHeads,
           publishedHeads: event?.publishedHeads,
         })),
-    [teamId],
-  ).data;
+  }).data;
 
 type TeamEvent = ReturnType<typeof useTeamEvents>[number];
 

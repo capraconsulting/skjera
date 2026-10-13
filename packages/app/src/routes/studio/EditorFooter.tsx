@@ -37,25 +37,23 @@ export function EditorFooter(props: {
   const version = useVersion(props.handle);
   const { id } = props;
   // The published version, if any.
-  const publication = useLiveQuery(
-    (q) =>
+  const publication = useLiveQuery({
+    query: (q) =>
       q
         .from({ event: events.collection })
         .where(({ event }) => eq(event.id, id))
         .findOne(),
-    [id],
-  ).data;
+  }).data;
   const upToDate =
     publication !== undefined &&
     !props.saving &&
     [...publication.publishedHeads].sort().join(",") === version;
-  const signedUp = useLiveQuery(
-    (q) =>
+  const signedUp = useLiveQuery({
+    query: (q) =>
       q
         .from({ attendee: attendees.collection })
         .where(({ attendee }) => eq(attendee.eventId, id)),
-    [id],
-  ).data.length;
+  }).data.length;
 
   // Moving an event people signed up for, or giving it another place,
   // emails them: say so first.

@@ -16,23 +16,21 @@ import { answerText, attendeesCsv, download } from "./attendeesCsv.ts";
 /** Who has signed up to attend, for the event's organizers. */
 export function Attendees(props: { readonly id: DocumentId }) {
   const { id } = props;
-  const { data, isReady } = useLiveQuery(
-    (q) =>
+  const { data, isReady } = useLiveQuery({
+    query: (q) =>
       q
         .from({ attendee: attendeesTable.collection })
         .where(({ attendee }) => eq(attendee.eventId, id))
         .orderBy(({ attendee }) => attendee.signedUpAt),
-    [id],
-  );
+  });
   const attendees = isReady ? data : null;
-  const event = useLiveQuery(
-    (q) =>
+  const event = useLiveQuery({
+    query: (q) =>
       q
         .from({ event: events.collection })
         .where(({ event }) => eq(event.id, id))
         .findOne(),
-    [id],
-  ).data;
+  }).data;
   const [error, setError] = useState<string | null>(null);
 
   const remove = (attendee: string, name: string) => {
