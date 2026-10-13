@@ -57,18 +57,31 @@ test("logging in from the site leads to the studio and back", async ({
 
 test("a page waits for a server that is starting", async ({ browser }) => {
   const page = await signedIn(browser, "alice@example.com");
-  // The proxy's answer while the server restarts, twice, then the server.
-  let starting = 2;
-  await page.route("/api/me", (route) =>
-    starting-- > 0 ? route.fulfill({ status: 502 }) : route.continue(),
-  );
+  const name = uniqueTeamName("Starting");
+  const team = await newTeam(page, name);
+  // The proxy's answer while the server restarts: twice for every API
+  // request, the session and the synced tables alike, then the server.
+  const tries = new Map<string, number>();
+  await page.route("/api/**", (route) => {
+    const path = new URL(route.request().url()).pathname;
+    const tried = (tries.get(path) ?? 0) + 1;
+    tries.set(path, tried);
+    return tried <= 2 ? route.fulfill({ status: 502 }) : route.continue();
+  });
 
   await page.goto("/studio/teams");
   await expect(page.getByTestId("me")).toHaveAttribute(
     "title",
     "alice@example.com",
   );
-  expect(starting).toBeLessThan(0);
+  await expect(page.getByRole("link", { name })).toBeVisible();
+  expect(tries.get("/api/me")).toBeGreaterThan(2);
+  expect(
+    [...tries].some(([path, n]) => path.startsWith("/api/sync/") && n > 2),
+  ).toBe(true);
+
+  await page.unrouteAll();
+  await deleteTeam(page, team);
 });
 
 test("the theme follows the system until the user picks one", async ({
