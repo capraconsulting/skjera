@@ -161,6 +161,51 @@
   "studio_streamed": "Arrangementet blir strøymt",
   "studio_streamed_hint": "Dei som melder seg på vel å delta fysisk eller digitalt. Berre dei som deltek fysisk tel mot maksimum.",
   "studio_stream_link": "Lenkje til strøymingen",
+  "studio_recurrence": "Gjentaking",
+  "studio_recurring": "Arrangementet blir gjenteke",
+  "studio_recurring_hint": "Når det er over, blir det flytta til neste dato. Dei som er påmelde blir fjerna, utan at dei får beskjed.",
+  "studio_repeat_every": "Gjenta kvar",
+  "studio_repeat_unit": "Eining for gjentaking",
+  "studio_repeat_day": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "dag",
+        "countPlural=other": "dagar"
+      }
+    }
+  ],
+  "studio_repeat_week": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "veke",
+        "countPlural=other": "veker"
+      }
+    }
+  ],
+  "studio_repeat_month": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "månad",
+        "countPlural=other": "månader"
+      }
+    }
+  ],
+  "studio_repeat_year": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "år",
+        "countPlural=other": "år"
+      }
+    }
+  ],
   "studio_emails": "E-postar",
   "studio_remind": "Send påminning til deltakarane",
   "studio_remind_hint": "Alle påmelde får ein e-post dagen før.",

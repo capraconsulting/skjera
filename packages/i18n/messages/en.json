@@ -161,6 +161,51 @@
   "studio_streamed": "The event is streamed",
   "studio_streamed_hint": "Those signing up choose to attend in person or online. Only those in person count against the maximum.",
   "studio_stream_link": "Link to the stream",
+  "studio_recurrence": "Repeats",
+  "studio_recurring": "The event repeats",
+  "studio_recurring_hint": "When it has ended, it moves on to its next date. Those signed up are removed, without being told.",
+  "studio_repeat_every": "Repeat every",
+  "studio_repeat_unit": "Repeat unit",
+  "studio_repeat_day": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "day",
+        "countPlural=other": "days"
+      }
+    }
+  ],
+  "studio_repeat_week": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "week",
+        "countPlural=other": "weeks"
+      }
+    }
+  ],
+  "studio_repeat_month": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "month",
+        "countPlural=other": "months"
+      }
+    }
+  ],
+  "studio_repeat_year": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "year",
+        "countPlural=other": "years"
+      }
+    }
+  ],
   "studio_emails": "Emails",
   "studio_remind": "Remind attendees",
   "studio_remind_hint": "Everyone signed up gets an email the day before.",

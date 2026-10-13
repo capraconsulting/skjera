@@ -15,8 +15,9 @@ import { formatAt } from "./emails/format.ts";
 import { type Cover, type Locale, SiteLocale } from "./Model.ts";
 
 // What the organisation's Slack channel is told of: an event published for
-// the first time, and the sign-up deadlines that run out within a day. A
-// first publish tells `Announcements`, in its transaction; on the server,
+// the first time, a recurring event moved on to its next date, and the
+// sign-up deadlines that run out within a day. A first publish and a move
+// tell `Announcements`, in their transactions; on the server,
 // that leaves a message for the channel (a cluster entity, one for all, so
 // messages are posted one at a time, in order), kept in the database and
 // deduplicated, so each is posted once it's committed, and once only. The
@@ -36,8 +37,8 @@ const Post = Rpc.make("Post", {
   payload: {
     /** Each message once: what it's about, e.g. "eventPublished/<event>". */
     key: Schema.String,
-    kind: Schema.Literals(["eventPublished", "deadlines"]),
-    /** For `eventPublished`: the event, read when the message is posted. */
+    kind: Schema.Literals(["eventPublished", "eventRepeated", "deadlines"]),
+    /** For the event kinds: the event, read when the message is posted. */
     event: Schema.optionalKey(Schema.String),
     /** For `deadlines`: the events, soonest first. */
     deadlines: Schema.optionalKey(Schema.Array(Deadline)),
@@ -94,11 +95,17 @@ export interface Announced {
 /**
  * The message for an event published: its title with `@here`, cover, summary,
  * a link to sign up, when it starts and where. Each is left out when the
- * event has none.
+ * event has none. `repeated`: moved on to its next date, marked :repeat:
+ * instead.
  */
-export const announcement = (event: Announced, site: Site): Message => {
+export const announcement = (
+  event: Announced,
+  site: Site,
+  options: { readonly repeated?: boolean } = {},
+): Message => {
   const { locale } = site;
-  const heading = `*${escapeSlack(event.title)} | <!here> :loudspeaker:*`;
+  const mark = options.repeated === true ? ":repeat:" : ":loudspeaker:";
+  const heading = `*${escapeSlack(event.title)} | <!here> ${mark}*`;
   const page = new URL(`/events/${event.id}`, site.url).href;
   const when = `*${m.slack_when({}, { locale })}:*\n${formatAt(locale, event.startsAt, channelTimeZone)}`;
   const where =
@@ -243,6 +250,17 @@ export const layerAnnouncements = Layer.effect(
             { discard: true },
           )
           .pipe(Effect.orDie),
+      eventRepeated: (event, startsAt) =>
+        channel(channelId)
+          .Post(
+            {
+              key: `eventRepeated/${event}/${startsAt.toISOString()}`,
+              kind: "eventRepeated",
+              event,
+            },
+            { discard: true },
+          )
+          .pipe(Effect.orDie),
     });
   }),
 );
@@ -311,13 +329,14 @@ export const poster = (options: {
           startsAt: event.starts_at,
           place: event.place,
         };
+        const options = { repeated: payload.kind === "eventRepeated" };
         return Option.some({
-          message: announcement(announced, site),
+          message: announcement(announced, site, options),
           // For when Slack can't use the cover.
           withoutCover:
             event.cover === null
               ? undefined
-              : announcement({ ...announced, cover: null }, site),
+              : announcement({ ...announced, cover: null }, site, options),
         });
       });
 

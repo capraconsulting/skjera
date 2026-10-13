@@ -903,4 +903,96 @@ export const migrations = Migrator.fromRecord({
       WHERE dietary IS NOT NULL AND btrim(dietary) <> ''`,
     `ALTER TABLE attendees DROP COLUMN dietary`,
   ),
+  "0027_recurring": statements(
+    // Recurring events move on to their next date when they have ended (see
+    // Recurring.ts): every 1 to 7 days, weeks, months or years. Both null:
+    // not recurring.
+    `ALTER TABLE events
+      ADD COLUMN repeat_every integer CHECK (repeat_every BETWEEN 1 AND 7),
+      ADD COLUMN repeat_unit text CHECK (repeat_unit IN ('day', 'week', 'month', 'year')),
+      ADD CHECK ((repeat_every IS NULL) = (repeat_unit IS NULL))`,
+    `CREATE OR REPLACE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
+      RETURNS SETOF events LANGUAGE sql AS $$
+      INSERT INTO events AS e
+        (id, title, summary, starts_at, ends_at, signup_deadline, time_zone, body, cover,
+         is_public, allow_guests, ask_dietary, food, food_deadline, questions, tags,
+         send_reminders, place, max_attendees, hide_places_left,
+         is_streamed, stream_link, repeat_every, repeat_unit,
+         published_heads, published_by_issuer, published_by_subject)
+      SELECT d.id, c.content->>'title',
+        -- Stored trimmed; blank, or drafts from before, are none.
+        nullif(regexp_replace(c.content->>'summary', '^\\s+|\\s+$', '', 'g'), ''),
+        zoned_instant(c.content->>'start'), zoned_instant(c.content->>'end'),
+        zoned_instant(c.content->>'deadline'), zoned_zone(c.content->>'start'),
+        automerge_spans(d.draft, '{body}', heads), c.content->'cover',
+        (c.content->>'public')::boolean,
+        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
+        (c.content->>'dietary')::boolean,
+        c.content->>'food', zoned_instant(c.content->>'foodDeadline'),
+        c.content->'questions',
+        -- Each once, ignoring case, as first written.
+        ARRAY(
+          SELECT tag FROM (
+            SELECT DISTINCT ON (lower(tag)) tag, n
+            FROM jsonb_array_elements_text(c.content->'tags') WITH ORDINALITY AS t(tag, n)
+            ORDER BY lower(tag), n
+          ) firsts ORDER BY n
+        ),
+        -- On unless turned off: drafts from before have no such field.
+        coalesce((c.content->>'reminders')::boolean, true),
+        -- Stored as written. Drafts from before have none: null.
+        c.content->>'place',
+        -- Through numeric: a whole number stored as a float reads "30.0".
+        (c.content->>'maxAttendees')::numeric::integer,
+        -- Shown unless hidden: drafts from before have no such field.
+        coalesce((c.content->>'hidePlacesLeft')::boolean, false),
+        -- Streamed unless missing: drafts from before have no such field.
+        coalesce((c.content->>'streamed')::boolean, false),
+        -- Only while streamed; trimmed as the check trims, blank is none.
+        CASE WHEN coalesce((c.content->>'streamed')::boolean, false)
+          THEN nullif(regexp_replace(c.content->>'streamLink', '^\\s+|\\s+$', '', 'g'), '')
+        END,
+        -- Only while recurring; nothing chosen is every 1 week. Through
+        -- numeric: a whole number stored as a float reads "2.0".
+        CASE WHEN coalesce((c.content->>'recurring')::boolean, false)
+          THEN coalesce((c.content->>'repeatEvery')::numeric::integer, 1)
+        END,
+        CASE WHEN coalesce((c.content->>'recurring')::boolean, false)
+          THEN coalesce(c.content->>'repeatUnit', 'week')
+        END,
+        -- Sorted like automerge_heads(), so the two can be compared.
+        ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
+      FROM documents d
+      CROSS JOIN LATERAL (SELECT automerge_to_jsonb(d.draft, heads) AS content OFFSET 0) c
+      WHERE d.id = document_id AND d.type = 'event'
+      ON CONFLICT (id) DO UPDATE SET
+        title = EXCLUDED.title,
+        summary = EXCLUDED.summary,
+        starts_at = EXCLUDED.starts_at,
+        ends_at = EXCLUDED.ends_at,
+        signup_deadline = EXCLUDED.signup_deadline,
+        time_zone = EXCLUDED.time_zone,
+        body = EXCLUDED.body,
+        cover = EXCLUDED.cover,
+        is_public = EXCLUDED.is_public,
+        allow_guests = EXCLUDED.allow_guests,
+        ask_dietary = EXCLUDED.ask_dietary,
+        food = EXCLUDED.food,
+        food_deadline = EXCLUDED.food_deadline,
+        questions = EXCLUDED.questions,
+        tags = EXCLUDED.tags,
+        send_reminders = EXCLUDED.send_reminders,
+        place = EXCLUDED.place,
+        max_attendees = EXCLUDED.max_attendees,
+        hide_places_left = EXCLUDED.hide_places_left,
+        is_streamed = EXCLUDED.is_streamed,
+        stream_link = EXCLUDED.stream_link,
+        repeat_every = EXCLUDED.repeat_every,
+        repeat_unit = EXCLUDED.repeat_unit,
+        published_heads = EXCLUDED.published_heads,
+        published_by_issuer = EXCLUDED.published_by_issuer,
+        published_by_subject = EXCLUDED.published_by_subject
+      RETURNING e.*
+    $$`,
+  ),
 });

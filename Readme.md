@@ -82,12 +82,12 @@ Also optional, for websites that show the next events (`/embed`) in an iframe, o
 
 `GET /api/subscribe` is a calendar of every coming event, those shown only to members too, that «Abonner», beside the account menu, adds to Google Calendar. It is open to anyone with the address, served when `SITE_URL` is set, named «Skjer», and says where to sign up in `SITE_LOCALE`.
 
-Also optional, Slack: `SLACK_BOT_TOKEN`, the bot token of an app made from [packages/slack/manifest.yaml](packages/slack/manifest.yaml), and `SLACK_CHANNEL`, the id of a channel the bot has been invited to (e.g. `C0123ABC`). With both, and `SITE_URL`, Skjera posts each event the first time it is published, with `@here`, and at 07:00 UTC the events whose sign-up deadline runs out within a day, with `@channel`: every event, those shown only to members too, with times in Norwegian time. Slack fetches the cover from `SITE_URL`; when it cannot, the event is posted without it. Without them nothing is posted, with a warning at start.
+Also optional, Slack: `SLACK_BOT_TOKEN`, the bot token of an app made from [packages/slack/manifest.yaml](packages/slack/manifest.yaml), and `SLACK_CHANNEL`, the id of a channel the bot has been invited to (e.g. `C0123ABC`). With both, and `SITE_URL`, Skjera posts each event the first time it is published, with `@here`, and each recurring event when it has moved on to its next date, with `@here` and `:repeat:`, and at 07:00 UTC the events whose sign-up deadline runs out within a day, with `@channel`: every event, those shown only to members too, with times in Norwegian time. Slack fetches the cover from `SITE_URL`; when it cannot, the event is posted without it. Without them nothing is posted, with a warning at start.
 
 In Kubernetes:
 
 - Liveness: `GET /health`. Readiness: `GET /health/ready`, which checks the database.
-- One replica for now: background work (emails, reminders, Slack messages) runs on an Effect cluster in single-runner mode. More need its runners set up to find each other.
+- One replica for now: background work (emails, reminders, Slack messages, moving recurring events) runs on an Effect cluster in single-runner mode. More need its runners set up to find each other.
 - It stops promptly on SIGTERM.
 - WebSockets (`/automerge`, where drafts sync) have to pass through the ingress.
 
