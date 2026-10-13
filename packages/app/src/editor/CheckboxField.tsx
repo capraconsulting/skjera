@@ -9,7 +9,8 @@ type BooleanField =
   | "dietary"
   | "reminders"
   | "hidePlacesLeft"
-  | "streamed";
+  | "streamed"
+  | "recurring";
 
 /** What a field means when a draft doesn't have it (yet). */
 const unset: Record<BooleanField, boolean> = {
@@ -19,6 +20,7 @@ const unset: Record<BooleanField, boolean> = {
   reminders: true,
   hidePlacesLeft: false,
   streamed: false,
+  recurring: false,
 };
 
 /** The current value of a true/false field, following changes from anyone. */

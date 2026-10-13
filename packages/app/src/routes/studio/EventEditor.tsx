@@ -12,6 +12,7 @@ import { CheckboxField, useBooleanField } from "../../editor/CheckboxField.tsx";
 import { CoverField } from "../../editor/CoverField.tsx";
 import { EventTimes, FoodDeadline } from "../../editor/DateTimeField.tsx";
 import { QuestionsField } from "../../editor/QuestionsField.tsx";
+import { RepeatField } from "../../editor/RepeatField.tsx";
 import { TagsField } from "../../editor/TagsField.tsx";
 import { TextEditor } from "../../editor/TextEditor.tsx";
 import {
@@ -113,6 +114,15 @@ function EventSession({ id }: { readonly id: DocumentId }) {
           <CoverField handle={handle} presence={session.presence} />
         </Field>
         <EventTimes handle={handle} />
+        <Field label={m.studio_recurrence()}>
+          <CheckboxField
+            handle={handle}
+            field="recurring"
+            label={m.studio_recurring()}
+            hint={m.studio_recurring_hint()}
+          />
+          <RepeatField handle={handle} />
+        </Field>
         <Field label={m.site_place()}>
           <DraftText
             handle={handle}

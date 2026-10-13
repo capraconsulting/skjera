@@ -56,6 +56,9 @@ export const testServerEnv = (
     OAUTH_AUTHORIZATION_ENDPOINT: `${dex.href.replace(/\/$/, "")}/auth`,
     STATIC_DIR: options.staticDir,
     NODE_ENV: "production",
+    // Behind a TLS proxy, which holds the port on the machine's other
+    // addresses: listening on all of them would find it taken.
+    ...(site.protocol === "https:" ? { HOST: "127.0.0.1" } : {}),
   };
 };
 

@@ -1195,6 +1195,51 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
     }),
   );
 
+  it.effect(
+    "takes a repeat of 1 to 7 days, weeks, months or years, and refuses the rest (AC-1)",
+    () =>
+      Effect.gen(function* () {
+        const documents = yield* Documents;
+        const id = yield* documents.create("event", yield* newTeam, alice);
+        const setRepeat =
+          (every: number, unit: string) => (event: EventContent) => {
+            const draft = event as Record<string, unknown>;
+            draft.recurring = true;
+            draft.repeatEvery = every;
+            draft.repeatUnit = new A.ImmutableString(unit);
+          };
+        for (const [every, unit] of [
+          [1, "day"],
+          [7, "week"],
+          [3, "month"],
+          [2, "year"],
+        ] as const) {
+          const editor = yield* openEditor(id);
+          yield* documents.applyChanges(
+            id,
+            [editor.edit(setRepeat(every, unit))],
+            alice,
+          );
+        }
+        for (const [every, unit] of [
+          [0, "week"],
+          [8, "week"],
+          [1.5, "week"],
+          [1, "fortnight"],
+        ] as const) {
+          const editor = yield* openEditor(id);
+          const error = yield* Effect.flip(
+            documents.applyChanges(
+              id,
+              [editor.edit(setRepeat(every, unit))],
+              alice,
+            ),
+          );
+          assert.strictEqual(error._tag, "InvalidContent", `${every} ${unit}`);
+        }
+      }),
+  );
+
   it.effect("counts members and guests together against the limit (AC-2)", () =>
     Effect.gen(function* () {
       const attendance = yield* Attendance;

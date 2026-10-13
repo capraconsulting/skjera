@@ -43,7 +43,7 @@ PORT=8801 mise exec -- pnpm test-server
 
 It installs, builds the app and the server from the working tree, creates a new database `skjera_testserver_<port>_<random>` in the development Postgres, and serves both on `PORT` until it is stopped (SIGINT or SIGTERM). The development services must be running: `pnpm dev`, or `docker compose up --detach --wait postgres dex rustfs mailpit` in a checkout. In a new worktree, run `mise trust` first.
 
-- **Its address** is `SKJERA_TEST_SERVER_URL`: `http://<host>` or `https://<host>`, without a port, and `http://localhost` when it isn't set. It belongs to the machine, so set it in the machine's own mise config (`~/.config/mise/config.toml`, `[env]`) or its shell, not in this repository. The test server's links, including the ones in its emails, use it with the port. Restart `pnpm dev` (or the services) after changing it.
+- **Its address** is `SKJERA_TEST_SERVER_URL`: `http://<host>` or `https://<host>`, without a port, and `http://localhost` when it isn't set. It belongs to the machine, so set it in the machine's own mise config (`~/.config/mise/config.toml`, `[env]`) or its shell, not in this repository. The test server's links, including the ones in its emails, use it with the port. With `https://` it listens on `127.0.0.1` only, since the TLS proxy holds the port on the machine's other addresses. Restart `pnpm dev` (or the services) after changing it.
 - **Logging in** works from other machines on ports 8801–8806, the callbacks Dex knows. Cookies are per host, not per port, so logging in on one test server logs you out of another at the same host.
 - **Email** is read in Mailpit at the same address on port 8025, which is open to other machines while the address is set. Dex is at the same address on port 5556. With `https://`, both need the same TLS proxy as the test servers, for example `tailscale serve --bg --https 5556 http://127.0.0.1:5556` and `tailscale serve --bg --https 8025 http://127.0.0.1:8025`.
 - **The databases** are not dropped when a test server stops. List them with `psql "$DATABASE_URL"` and `\l skjera_testserver_*`, and drop one with `DROP DATABASE <name>`.
@@ -82,12 +82,12 @@ Also optional, for websites that show the next events (`/embed`) in an iframe, o
 
 `GET /api/subscribe` is a calendar of every coming event, those shown only to members too, that «Abonner», beside the account menu, adds to Google Calendar. It is open to anyone with the address, served when `SITE_URL` is set, named «Skjer», and says where to sign up in `SITE_LOCALE`.
 
-Also optional, Slack: `SLACK_BOT_TOKEN`, the bot token of an app made from [packages/slack/manifest.yaml](packages/slack/manifest.yaml), and `SLACK_CHANNEL`, the id of a channel the bot has been invited to (e.g. `C0123ABC`). With both, and `SITE_URL`, Skjera posts each event the first time it is published, with `@here`, and at 07:00 UTC the events whose sign-up deadline runs out within a day, with `@channel`: every event, those shown only to members too, with times in Norwegian time. Slack fetches the cover from `SITE_URL`; when it cannot, the event is posted without it. Without them nothing is posted, with a warning at start.
+Also optional, Slack: `SLACK_BOT_TOKEN`, the bot token of an app made from [packages/slack/manifest.yaml](packages/slack/manifest.yaml), and `SLACK_CHANNEL`, the id of a channel the bot has been invited to (e.g. `C0123ABC`). With both, and `SITE_URL`, Skjera posts each event the first time it is published, with `@here`, and each recurring event when it has moved on to its next date, with `@here` and `:repeat:`, and at 07:00 UTC the events whose sign-up deadline runs out within a day, with `@channel`: every event, those shown only to members too, with times in Norwegian time. Slack fetches the cover from `SITE_URL`; when it cannot, the event is posted without it. Without them nothing is posted, with a warning at start.
 
 In Kubernetes:
 
 - Liveness: `GET /health`. Readiness: `GET /health/ready`, which checks the database.
-- One replica for now: background work (emails, reminders, Slack messages) runs on an Effect cluster in single-runner mode. More need its runners set up to find each other.
+- One replica for now: background work (emails, reminders, Slack messages, moving recurring events) runs on an Effect cluster in single-runner mode. More need its runners set up to find each other.
 - It stops promptly on SIGTERM.
 - WebSockets (`/automerge`, where drafts sync) have to pass through the ingress.
 

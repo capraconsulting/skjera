@@ -101,3 +101,49 @@ test("publishing needs a title, times that make sense and a place", async ({
   await deleteEvent(alice, id);
   await deleteTeam(alice, team);
 });
+
+test("an event can be set to repeat, and still repeats after a reload (AC-1)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await newTeam(alice, uniqueTeamName("Repeating"));
+  const id = await newEvent(alice);
+
+  const repeats = alice.getByRole("checkbox", { name: /The event repeats/ });
+  const every = alice.getByRole("combobox", { name: "Repeat every" });
+  const unit = alice.getByRole("combobox", { name: "Repeat unit" });
+  await expect(every).toHaveCount(0);
+  await expect(unit).toHaveCount(0);
+
+  await repeats.check();
+  await every.selectOption("2");
+  await expect(every.locator("option")).toHaveText([
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+  ]);
+  await expect(unit.locator("option")).toHaveText([
+    "days",
+    "weeks",
+    "months",
+    "years",
+  ]);
+  await unit.selectOption("week");
+  await expect(alice.getByTestId("status")).toContainText("Saved");
+
+  await alice.reload();
+  await expect(repeats).toBeChecked();
+  await expect(every).toHaveValue("2");
+  await expect(unit).toHaveValue("week");
+
+  await repeats.uncheck();
+  await expect(every).toHaveCount(0);
+  await expect(unit).toHaveCount(0);
+
+  await deleteEvent(alice, id);
+  await deleteTeam(alice, team);
+});
