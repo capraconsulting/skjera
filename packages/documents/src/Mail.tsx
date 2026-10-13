@@ -114,7 +114,6 @@ interface EventRow {
   /** What the event is; null: none. */
   readonly summary: string | null;
   readonly ask_dietary: boolean;
-  readonly food_deadline: Date | null;
   readonly published_at: Date;
   readonly first_published_at: Date;
   /** The event's team: who organizes it. */
@@ -161,7 +160,7 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
           Effect.gen(function* () {
             const [event] = yield* sql<EventRow>`
             SELECT e.title, e.starts_at, e.ends_at, e.signup_deadline, e.time_zone,
-              e.place, e.summary, e.ask_dietary, e.food_deadline, e.published_at,
+              e.place, e.summary, e.ask_dietary, e.published_at,
               e.first_published_at, t.name AS team,
               e.deleted_at IS NOT NULL AS deleted
             FROM events e
@@ -249,17 +248,7 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                           event.signup_deadline ?? event.starts_at,
                           event.time_zone,
                         )}
-                        {...(event.ask_dietary
-                          ? {
-                              dietaryBy: formatAt(
-                                locale,
-                                event.food_deadline ??
-                                  event.signup_deadline ??
-                                  event.starts_at,
-                                event.time_zone,
-                              ),
-                            }
-                          : {})}
+                        food={event.ask_dietary}
                       />
                     ),
                     calendar: calendar("REQUEST"),

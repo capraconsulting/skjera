@@ -18,10 +18,9 @@ import {
 import { m } from "@skjera/i18n/messages";
 import { syncedTable } from "@skjera/snapsync/client";
 import { Effect } from "effect";
-import { FetchHttpClient } from "effect/http";
 import { HttpApi, HttpApiClient } from "effect/http-api";
 import { sayWhy } from "../problems.ts";
-import { type PublicClient, runPublic } from "../site/client.ts";
+import { type PublicClient, provideHttp, runPublic } from "../site/client.ts";
 import { guestSignup, rememberGuestSignup } from "../site/guestSignups.ts";
 
 class Api extends HttpApi.make("studio")
@@ -37,10 +36,7 @@ const makeClient = HttpApiClient.make(Api, {
 
 const request = <A, E>(
   f: (client: Effect.Success<typeof makeClient>) => Effect.Effect<A, E>,
-) =>
-  Effect.runPromise(
-    makeClient.pipe(Effect.flatMap(f), Effect.provide(FetchHttpClient.layer)),
-  );
+) => Effect.runPromise(provideHttp(makeClient.pipe(Effect.flatMap(f))));
 
 /** Runs a write over the studio's API, failing with a message for people. */
 const sendRequest = <E extends { readonly _tag: string }>(
@@ -146,14 +142,26 @@ export const documents = syncedTable({
  * must have all of it. The published version arrives as a row of `events`.
  */
 export const publishDraft = (id: DocumentId, heads: ReadonlyArray<string>) =>
-  makeClient.pipe(
-    Effect.flatMap((client) =>
-      client.documents.update({
-        params: { id },
-        payload: { published: true, heads: [...heads] },
-      }),
+  provideHttp(
+    makeClient.pipe(
+      Effect.flatMap((client) =>
+        client.documents.update({
+          params: { id },
+          payload: { published: true, heads: [...heads] },
+        }),
+      ),
     ),
-    Effect.provide(FetchHttpClient.layer),
+  );
+
+/**
+ * What people can't eat at an event, for its organizers: the texts, sorted,
+ * with nothing that says who gave them.
+ */
+export const dietaryPreferences = (id: DocumentId) =>
+  request((client) =>
+    client.attendees
+      .dietaryPreferences({ params: { id } })
+      .pipe(Effect.mapError((error) => new Error(failureMessage(error)))),
   );
 
 /** Published events: every one for members, the public ones for anyone. */
@@ -204,7 +212,6 @@ export const attendees = syncedTable({
                   id: attendee.id,
                   cancelToken: signup.cancelToken,
                   given: {
-                    ...(dietary === undefined ? {} : { dietary }),
                     ...(answers === undefined ? {} : { answers }),
                     ...(guest?.phone === undefined
                       ? {}
@@ -285,7 +292,6 @@ export const attendees = syncedTable({
  * the row's `changedAt`, so the update has a change to send.
  */
 export type SignupChange = {
-  readonly dietary?: string;
   readonly answers?: Answers;
   /** Follows online rather than in person; asked while the event is streamed. */
   readonly online?: boolean;

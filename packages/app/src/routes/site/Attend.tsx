@@ -122,10 +122,8 @@ export function Attend(props: {
   const change = (submitted: FormEvent<HTMLFormElement>, id: string) => {
     submitted.preventDefault();
     const form = new FormData(submitted.currentTarget);
-    const dietary = form.get("dietary");
     const online = onlineFrom(event, form);
     const changed: SignupChange = {
-      ...(dietary === null ? {} : { dietary: String(dietary) }),
       answers: answersFrom(event.questions, form),
       ...(online === undefined ? {} : { online }),
       // Only a guest's form has them; empty clears.
@@ -230,7 +228,7 @@ export function Attend(props: {
         : null}
     </p>
   );
-  const asked = (given: Given = {}) => (
+  const asked = (given: Given = {}, signingUp = false) => (
     <>
       {event.isStreamed ? (
         <AttendanceInput
@@ -239,13 +237,13 @@ export function Attend(props: {
           inPersonDisabled={full && given.online !== false}
         />
       ) : null}
-      {asksDietary ? <DietaryInput defaultValue={given.dietary} /> : null}
+      {/* Asked only when signing up: once given, it belongs to no one. */}
+      {signingUp && asksDietary ? <DietaryInput /> : null}
       <QuestionInputs questions={event.questions} given={given.answers} />
     </>
   );
   // There's something to change; a guest always has their phone number and company.
-  const changeable =
-    asksDietary || event.questions.length > 0 || event.isStreamed;
+  const changeable = event.questions.length > 0 || event.isStreamed;
 
   /** Signed up: changing the answers, or cancelling. */
   const signedUp = (
@@ -295,9 +293,6 @@ export function Attend(props: {
         {mine !== undefined ? (
           signedUp(mine.id, m.attend_you_attending(), {
             ...(given ?? {
-              ...(mine.details?.dietary == null
-                ? {}
-                : { dietary: mine.details.dietary }),
               answers: Object.fromEntries(
                 (mine.details?.answers ?? []).map((answer) => [
                   answer.id,
@@ -313,7 +308,7 @@ export function Attend(props: {
             className={styles.form}
             onSubmit={(submitted) => signUp(submitted, false)}
           >
-            {asked()}
+            {asked({}, true)}
             <div className={styles.row}>
               <Button type="submit" variant="primary">
                 {m.attend_attend()}
@@ -375,7 +370,7 @@ export function Attend(props: {
             />
           </div>
           <GuestContactInputs given={{}} />
-          {asked()}
+          {asked({}, true)}
           <div className={styles.row}>
             <Button type="submit" variant="primary">
               {m.attend_sign_up()}
@@ -417,7 +412,6 @@ function PrivacyLink() {
 
 /** What someone told when signing up, to change it. */
 type Given = {
-  readonly dietary?: string | undefined;
   readonly answers?: Answers | undefined;
   /** Follows online rather than in person; unknown for a new signup. */
   readonly online?: boolean | undefined;
@@ -449,16 +443,12 @@ const GuestContactInputs = (props: { readonly given: Given }) => (
   </div>
 );
 
-/** Asked of everyone signing up, when the event wants to know. */
-const DietaryInput = (props: {
-  readonly defaultValue?: string | undefined;
-}) => (
+/** Asked, optionally, of everyone signing up when the event serves food. */
+const DietaryInput = () => (
   <Input
     name="dietary"
-    defaultValue={props.defaultValue}
     aria-label={m.attend_dietary()}
-    placeholder={m.attend_dietary_placeholder()}
-    required
+    placeholder={`${m.attend_dietary()} ${m.attend_optional()}`}
     maxLength={500}
   />
 );

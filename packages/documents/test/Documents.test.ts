@@ -73,6 +73,14 @@ const organizerView = (id: DocumentId) =>
     rows.map((row) => row.details),
   );
 
+/** Why a signup was refused, if it was. */
+const problemOf = (error: { readonly _tag: string }) =>
+  "problem" in error ? error.problem : undefined;
+
+/** What people can't eat at an event, as its organizers read it. */
+const dietaryList = (id: DocumentId) =>
+  Effect.flatMap(Attendance, (attendance) => attendance.dietaryPreferences(id));
+
 let teamCount = 0;
 /** A team of its own for each test. */
 const newTeam = Effect.gen(function* () {
@@ -1267,16 +1275,9 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
 
         // Nothing changes, and nobody is refused.
         yield* attendance.attend(id, alice, { dietary: "None" });
-        yield* attendance.change(id, { user: alice }, { dietary: "Vegan" });
-        yield* attendance.change(
-          id,
-          { cancelToken: token },
-          { dietary: "Vegetarian" },
-        );
-        assert.deepStrictEqual(
-          (yield* organizerView(id)).map((each) => each?.dietary),
-          ["Vegan", "Vegetarian"],
-        );
+        yield* attendance.change(id, { user: alice }, {});
+        yield* attendance.change(id, { cancelToken: token }, {});
+        assert.strictEqual((yield* organizerView(id)).length, 2);
 
         yield* attendance.leave(id, alice);
         yield* attendance.leaveAsGuest(id, token);
@@ -2237,7 +2238,122 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
     }),
   );
 
-  it.effect("asks everyone for dietary preferences when the event does", () =>
+  it.effect(
+    "keeps dietary preferences for the event, trimmed, in the order of the text (AC-2)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const id = yield* publishedEvent({
+          public: true,
+          guests: true,
+          dietary: true,
+        });
+        assert.isTrue((yield* publishedAs(id, "anyone"))?.askDietary);
+
+        yield* attendance.attend(id, alice, { dietary: " Vegan " });
+        yield* attendance.attendAsGuest(
+          id,
+          { name: "Gina", email: "g@example.org" },
+          { dietary: "Fish" },
+        );
+        assert.deepStrictEqual(yield* dietaryList(id), ["Fish", "Vegan"]);
+
+        // Members-only events can ask too.
+        const membersOnly = yield* publishedEvent({
+          public: false,
+          guests: false,
+          dietary: true,
+        });
+        yield* attendance.attend(membersOnly, bob, { dietary: "Halal" });
+        assert.deepStrictEqual(yield* dietaryList(membersOnly), ["Halal"]);
+      }),
+  );
+
+  it.effect(
+    "keeps a dietary preference once, and none from a refused signup (AC-2)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const id = yield* publishedEvent({
+          public: true,
+          guests: true,
+          dietary: true,
+        });
+        yield* attendance.attend(id, alice, { dietary: "Vegan" });
+        yield* attendance.attend(id, alice, { dietary: "Vegan" });
+        assert.deepStrictEqual(yield* dietaryList(id), ["Vegan"]);
+
+        yield* attendance.attendAsGuest(
+          id,
+          { name: "Gina", email: "g@example.org" },
+          { dietary: "Fish" },
+        );
+        const taken = yield* Effect.flip(
+          attendance.attendAsGuest(
+            id,
+            { name: "Gina", email: "g@example.org" },
+            { dietary: "Nuts" },
+          ),
+        );
+        assert.deepStrictEqual(problemOf(taken), { _tag: "EmailTaken" });
+        assert.deepStrictEqual(yield* dietaryList(id), ["Fish", "Vegan"]);
+      }),
+  );
+
+  it.effect(
+    "keeps nothing that says who gave a dietary preference or when (AC-2)",
+    () =>
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        const columns = yield* sql<{ column_name: string }>`
+          SELECT column_name FROM information_schema.columns
+          WHERE table_name = 'dietary_preferences'
+          ORDER BY column_name
+        `;
+        assert.deepStrictEqual(
+          columns.map((column) => column.column_name),
+          ["event_id", "id", "text"],
+        );
+        const [id] = yield* sql<{ column_default: string }>`
+          SELECT column_default FROM information_schema.columns
+          WHERE table_name = 'dietary_preferences' AND column_name = 'id'
+        `;
+        assert.strictEqual(id?.column_default, "gen_random_uuid()");
+      }),
+  );
+
+  it.effect(
+    "refuses a dietary preference over 500 characters, and keeps nothing (AC-2)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const id = yield* publishedEvent({
+          public: true,
+          guests: true,
+          dietary: true,
+        });
+        const member = yield* Effect.flip(
+          attendance.attend(id, alice, { dietary: "x".repeat(501) }),
+        );
+        assert.strictEqual(member._tag, "SignupRejected");
+        assert.deepStrictEqual(problemOf(member), { _tag: "DietaryTooLong" });
+        const guest = yield* Effect.flip(
+          attendance.attendAsGuest(
+            id,
+            { name: "Gina", email: "g@example.org" },
+            { dietary: "x".repeat(501) },
+          ),
+        );
+        assert.deepStrictEqual(problemOf(guest), { _tag: "DietaryTooLong" });
+        assert.deepStrictEqual(yield* organizerView(id), []);
+        assert.deepStrictEqual(yield* dietaryList(id), []);
+
+        yield* attendance.attend(id, alice, { dietary: "x".repeat(500) });
+        assert.strictEqual((yield* dietaryList(id))[0]?.length, 500);
+      }),
+  );
+
+  it.effect("signs up without a dietary preference (AC-3)", () =>
     Effect.gen(function* () {
       const attendance = yield* Attendance;
       const id = yield* publishedEvent({
@@ -2245,49 +2361,127 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         guests: true,
         dietary: true,
       });
-      assert.isTrue((yield* publishedAs(id, "anyone"))?.askDietary);
-
-      // Members and guests alike have to answer.
-      const member = yield* Effect.flip(attendance.attend(id, alice));
-      assert.strictEqual(member._tag, "SignupRejected");
-      const guest = yield* Effect.flip(
-        attendance.attendAsGuest(id, { name: "Gina", email: "g@example.org" }),
-      );
-      assert.strictEqual(guest._tag, "SignupRejected");
-
-      yield* attendance.attend(id, alice, { dietary: "None" });
+      yield* attendance.attend(id, alice);
+      yield* attendance.attend(id, bob, { dietary: "" });
       yield* attendance.attendAsGuest(
         id,
         { name: "Gina", email: "g@example.org" },
-        { dietary: " Vegetarian " },
+        { dietary: "   " },
       );
-      assert.deepStrictEqual(
-        (yield* organizerView(id)).map((each) => each?.dietary),
-        ["None", "Vegetarian"],
-      );
+      assert.strictEqual((yield* organizerView(id)).length, 3);
+      assert.deepStrictEqual(yield* dietaryList(id), []);
+    }),
+  );
 
-      // Members-only events can ask too.
-      const membersOnly = yield* publishedEvent({
-        public: false,
-        guests: false,
+  it.effect(
+    "takes dietary preferences only while the event serves food (AC-1)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const plain = yield* publishedEvent({ public: true, guests: true });
+        yield* attendance.attend(plain, alice, { dietary: "Vegan" });
+        yield* attendance.attendAsGuest(
+          plain,
+          { name: "Gus", email: "gus@example.org" },
+          { dietary: "Vegan" },
+        );
+
+        const late = yield* publishedEvent({
+          public: true,
+          guests: true,
+          dietary: true,
+          edit: (event) =>
+            setTimes(event, {
+              foodDeadline: "2020-01-15T12:00+01:00[Europe/Oslo]",
+            }),
+        });
+        const published = yield* publishedAs(late, "anyone");
+        assert.strictEqual(
+          published?.foodDeadline?.toISOString(),
+          "2020-01-15T11:00:00.000Z",
+        );
+        // Still open to sign up; dietary preferences are no longer taken.
+        yield* attendance.attend(late, alice);
+        yield* attendance.attend(late, bob, { dietary: "Vegan" });
+
+        assert.strictEqual((yield* organizerView(plain)).length, 2);
+        assert.strictEqual((yield* organizerView(late)).length, 2);
+        assert.deepStrictEqual(yield* dietaryList(plain), []);
+        assert.deepStrictEqual(yield* dietaryList(late), []);
+      }),
+  );
+
+  it.effect(
+    "lists dietary preferences by the text, not the order given (AC-4)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const id = yield* publishedEvent({
+          public: true,
+          guests: true,
+          dietary: true,
+        });
+        yield* attendance.attend(id, alice, { dietary: "Vegan" });
+        yield* attendance.attend(id, bob, { dietary: "fish" });
+        yield* attendance.attend(id, dana, { dietary: "Apple" });
+        assert.deepStrictEqual(yield* dietaryList(id), [
+          "Apple",
+          "fish",
+          "Vegan",
+        ]);
+      }),
+  );
+
+  it.effect("gives no dietary preference with a signup's details (AC-5)", () =>
+    Effect.gen(function* () {
+      const attendance = yield* Attendance;
+      const id = yield* publishedEvent({
+        public: true,
+        guests: true,
         dietary: true,
       });
-      assert.isTrue((yield* publishedAs(membersOnly, "members"))?.askDietary);
-      yield* attendance.attend(membersOnly, bob, { dietary: "Vegan" });
-
-      // Events that don't ask ignore it.
-      const plain = yield* publishedEvent({ public: true, guests: true });
-      yield* attendance.attend(plain, alice, { dietary: "Vegan" });
-      yield* attendance.attendAsGuest(
-        plain,
-        { name: "Gus", email: "gus@example.org" },
-        { dietary: "Vegan" },
-      );
-      assert.deepStrictEqual(
-        (yield* organizerView(plain)).map((each) => each?.dietary),
-        [null, null],
+      yield* attendance.attend(id, alice, { dietary: "Vegan" });
+      const details = yield* organizerView(id);
+      assert.strictEqual(details.length, 1);
+      assert.isFalse(
+        details.some((each) => each !== null && "dietary" in each),
       );
     }),
+  );
+
+  it.effect(
+    "leaves dietary preferences as they are when signups change, cancel or are removed (AC-6)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const id = yield* publishedEvent({
+          public: true,
+          guests: true,
+          dietary: true,
+        });
+        yield* attendance.attend(id, alice, { dietary: "Vegan" });
+        const token = yield* attendance.attendAsGuest(
+          id,
+          { name: "Gina", email: "g@example.org" },
+          { dietary: "Fish" },
+        );
+        yield* attendance.attend(id, bob, { dietary: "Nuts" });
+        const all = ["Fish", "Nuts", "Vegan"];
+
+        yield* attendance.change(id, { user: alice }, { dietary: "Halal" });
+        assert.deepStrictEqual(yield* dietaryList(id), all);
+        yield* attendance.change(id, { cancelToken: token }, {});
+        assert.deepStrictEqual(yield* dietaryList(id), all);
+        yield* attendance.leave(id, alice);
+        assert.deepStrictEqual(yield* dietaryList(id), all);
+        yield* attendance.leaveAsGuest(id, token);
+        assert.deepStrictEqual(yield* dietaryList(id), all);
+
+        const [remaining] = yield* signups(id, Option.some(alice));
+        yield* attendance.remove(remaining?.id ?? "");
+        assert.deepStrictEqual(yield* organizerView(id), []);
+        assert.deepStrictEqual(yield* dietaryList(id), all);
+      }),
   );
 
   it.effect(
@@ -2358,33 +2552,6 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
           "The food deadline can't be after sign-up closes",
         );
       }),
-  );
-
-  it.effect("stops asking what people eat after the food deadline", () =>
-    Effect.gen(function* () {
-      const attendance = yield* Attendance;
-      const id = yield* publishedEvent({
-        public: true,
-        guests: true,
-        dietary: true,
-        edit: (event) =>
-          setTimes(event, {
-            foodDeadline: "2020-01-15T12:00+01:00[Europe/Oslo]",
-          }),
-      });
-      const published = yield* publishedAs(id, "anyone");
-      assert.strictEqual(
-        published?.foodDeadline?.toISOString(),
-        "2020-01-15T11:00:00.000Z",
-      );
-      // Still open to sign up; dietary preferences are no longer taken.
-      yield* attendance.attend(id, alice);
-      yield* attendance.attend(id, bob, { dietary: "Vegan" });
-      assert.deepStrictEqual(
-        (yield* organizerView(id)).map((each) => each?.dietary),
-        [null, null],
-      );
-    }),
   );
 
   it.effect("asks the event's questions, and keeps the answers as given", () =>
@@ -2583,80 +2750,47 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
             },
           ]),
       });
-      yield* attendance.attend(id, alice, {
-        dietary: "None",
-        answers: { [size]: small },
-      });
+      yield* attendance.attend(id, alice, { answers: { [size]: small } });
       const token = yield* attendance.attendAsGuest(
         id,
         { name: "Gina", email: "gina@example.org" },
-        { dietary: "Vegan", answers: { [size]: small } },
+        { answers: { [size]: small } },
       );
       const view = Effect.map(organizerView(id), (rows) =>
-        rows.map((each) => [each?.dietary, each?.answers[0]?.answer]),
+        rows.map((each) => each?.answers[0]?.answer),
       );
 
       yield* attendance.change(
         id,
         { user: alice },
-        { dietary: "Vegetarian", answers: { [size]: large } },
+        { answers: { [size]: large } },
       );
       yield* attendance.change(
         id,
         { cancelToken: token },
-        { dietary: "Vegan", answers: { [size]: large } },
+        { answers: { [size]: large } },
       );
-      assert.deepStrictEqual(yield* view, [
-        ["Vegetarian", "Large"],
-        ["Vegan", "Large"],
-      ]);
+      assert.deepStrictEqual(yield* view, ["Large", "Large"]);
 
       // Changes are checked like signups, and need a signup to change.
       const invalid = yield* Effect.flip(
-        attendance.change(
-          id,
-          { user: alice },
-          { dietary: "None", answers: {} },
-        ),
+        attendance.change(id, { user: alice }, { answers: {} }),
       );
       assert.strictEqual(invalid.message, "Answer “Towel size”");
       const nobody = yield* Effect.flip(
-        attendance.change(
-          id,
-          { user: bob },
-          { dietary: "None", answers: { [size]: small } },
-        ),
+        attendance.change(id, { user: bob }, { answers: { [size]: small } }),
       );
       assert.strictEqual(nobody._tag, "SignupNotFound");
       const wrongToken = yield* Effect.flip(
         attendance.change(
           id,
           { cancelToken: "guess" },
-          { dietary: "None", answers: { [size]: small } },
+          { answers: { [size]: small } },
         ),
       );
       assert.strictEqual(wrongToken._tag, "SignupNotFound");
 
-      // After the food deadline, what they can't eat stays as given.
       const editor = yield* openEditor(id);
-      const heads = yield* documents.applyChanges(
-        id,
-        [
-          editor.edit((event) =>
-            setTimes(event, {
-              foodDeadline: "2020-01-15T12:00+01:00[Europe/Oslo]",
-            }),
-          ),
-        ],
-        alice,
-      );
-      yield* documents.publish(id, heads, alice);
-      yield* attendance.change(
-        id,
-        { user: alice },
-        { dietary: "Anything", answers: { [size]: small } },
-      );
-      assert.deepStrictEqual((yield* view)[0], ["Vegetarian", "Small"]);
 
       // Not after sign-up closes.
       const closing = yield* documents.applyChanges(

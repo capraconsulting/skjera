@@ -9,7 +9,7 @@ const problems: ReadonlyArray<Problem> = [
   { _tag: "GuestsNotAllowed" },
   { _tag: "EmailTaken" },
   { _tag: "EventFull" },
-  { _tag: "DietaryMissing" },
+  { _tag: "DietaryTooLong" },
   { _tag: "AttendanceMissing" },
   { _tag: "AnswerTooLong", question },
   { _tag: "AnswerMissing", question },

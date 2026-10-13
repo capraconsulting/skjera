@@ -17,7 +17,11 @@ import { type Problem, refused } from "./Problems.ts";
 
 /** What someone signing up tells, besides who they are. */
 export interface SignupDetails {
-  /** Required while the event asks for it (until its food deadline). */
+  /**
+   * What they can't eat: optional, and kept for the event apart from the
+   * signup while the event asks for it (until its food deadline). Ignored on
+   * change.
+   */
   readonly dietary?: string;
   /** Answers to the event's questions, by question id. */
   readonly answers?: Answers;
@@ -117,8 +121,8 @@ export class Attendance extends Context.Service<
   Attendance,
   {
     /**
-     * Signs a member up. Signing up twice is fine. `dietary` is required
-     * when the event asks for it, and ignored otherwise.
+     * Signs a member up. Signing up twice is fine. `dietary` is kept for the
+     * event when it asks for it and one is given, and ignored otherwise.
      */
     readonly attend: (
       event: DocumentId,
@@ -141,8 +145,7 @@ export class Attendance extends Context.Service<
       cancelToken: string,
     ) => Effect.Effect<void, SignupNotFound | SignupRejected>;
     /**
-     * Changes a signup's answers, and its dietary preferences while the
-     * event still asks for them, until the sign-up deadline. A member's
+     * Changes a signup's answers until the sign-up deadline. A member's
      * signup is theirs; a guest's goes with its cancel token.
      */
     readonly change: (
@@ -152,6 +155,10 @@ export class Attendance extends Context.Service<
     ) => Effect.Effect<void, EventNotFound | SignupNotFound | SignupRejected>;
     /** Takes someone off an event, as its organizers: any time. */
     readonly remove: (attendee: string) => Effect.Effect<void, SignupNotFound>;
+    /** What people can't eat, for an event's organizers: the texts alone. */
+    readonly dietaryPreferences: (
+      event: DocumentId,
+    ) => Effect.Effect<ReadonlyArray<string>>;
     /**
      * The token a guest changes and cancels their signup with: derived from
      * it, so it can be put in emails sent later, though only its hash is
@@ -263,14 +270,19 @@ export class Attendance extends Context.Service<
         };
       });
 
-      /** What to store for dietary preferences, given the event's rules. */
+      /** What to keep of dietary preferences: nothing unless asked and given. */
       const dietaryFor = (askDietary: boolean, value: string | undefined) => {
-        if (!askDietary) return Effect.succeed(null);
-        const dietary = (value ?? "").trim();
-        return dietary === "" || dietary.length > 500
-          ? Effect.fail(new SignupRejected(refused({ _tag: "DietaryMissing" })))
+        const dietary = askDietary ? storedText(value) : null;
+        return dietary !== null && dietary.length > 500
+          ? Effect.fail(new SignupRejected(refused({ _tag: "DietaryTooLong" })))
           : Effect.succeed(dietary);
       };
+
+      /** Keeps a dietary preference for the event, apart from who gave it. */
+      const keepDietary = (event: DocumentId, dietary: string | null) =>
+        dietary === null
+          ? Effect.void
+          : sql`INSERT INTO dietary_preferences (event_id, text) VALUES (${event}, ${dietary})`;
 
       /** Whether they follow online: asked only while the event is streamed. */
       const onlineFor = (streamed: boolean, value: boolean | undefined) =>
@@ -303,14 +315,15 @@ export class Attendance extends Context.Service<
           );
           // Already signed up, or a retry: nothing to do, or tell.
           const inserted = yield* sql<Signup>`
-            INSERT INTO attendees (id, event_id, user_issuer, user_subject, name, email, dietary, answers, online, locale)
+            INSERT INTO attendees (id, event_id, user_issuer, user_subject, name, email, answers, online, locale)
             VALUES (coalesce(${id ?? null}::uuid, uuidv7()), ${event}, ${user.issuer},
               ${user.subject}, ${user.name ?? user.email ?? user.subject},
-              ${user.email ?? null}, ${dietary}, ${JSON.stringify(answers)}::jsonb,
+              ${user.email ?? null}, ${JSON.stringify(answers)}::jsonb,
               ${online}, ${details.locale ?? null})
             ON CONFLICT DO NOTHING
             RETURNING id, name, email, false AS guest, locale
           `;
+          if (inserted.length > 0) yield* keepDietary(event, dietary);
           yield* tell(inserted, (attendee) =>
             notifications.signedUp({ event, attendee }),
           );
@@ -361,13 +374,14 @@ export class Attendance extends Context.Service<
         yield* Effect.gen(function* () {
           yield* room(event, online, sql`false`);
           const inserted = yield* sql<Signup>`
-            INSERT INTO attendees (id, event_id, name, email, phone, company, dietary, answers, cancel_token_hash, online, locale)
+            INSERT INTO attendees (id, event_id, name, email, phone, company, answers, cancel_token_hash, online, locale)
             VALUES (${attendee}::uuid, ${event}, ${guest.name.trim()},
               ${guest.email.trim()}, ${storedText(guest.phone)}, ${storedText(guest.company)},
-              ${dietary}, ${JSON.stringify(answers)}::jsonb, ${hash(token)},
+              ${JSON.stringify(answers)}::jsonb, ${hash(token)},
               ${online}, ${details.locale ?? null})
             RETURNING id, name, email, true AS guest, locale
           `;
+          yield* keepDietary(event, dietary);
           yield* tell(inserted, (attendee) =>
             notifications.signedUp({ event, attendee }),
           );
@@ -411,11 +425,10 @@ export class Attendance extends Context.Service<
         who: { readonly user: Identity } | { readonly cancelToken: string },
         details: SignupDetails,
       ) {
-        const { askDietary, questions, streamed } = yield* rules(
+        const { questions, streamed } = yield* rules(
           event,
           "user" in who ? "members" : "anyone",
         );
-        const dietary = yield* dietaryFor(askDietary, details.dietary);
         const answers = yield* answersFor(questions, details.answers);
         const own =
           "user" in who
@@ -438,8 +451,6 @@ export class Attendance extends Context.Service<
             UPDATE attendees SET
               answers = ${JSON.stringify(answers)}::jsonb,
               changed_at = now(),
-              -- Kept as given once the event stops asking.
-              dietary = CASE WHEN ${askDietary}::boolean THEN ${dietary}::text ELSE dietary END,
               online = coalesce(${online}::boolean, online),
               phone = CASE WHEN ${phoneGiven}::boolean THEN ${storedText(details.phone)}::text ELSE phone END,
               company = CASE WHEN ${companyGiven}::boolean THEN ${storedText(details.company)}::text ELSE company END
@@ -462,6 +473,17 @@ export class Attendance extends Context.Service<
         if (removed.length === 0) return yield* new SignupNotFound({});
       });
 
+      const dietaryPreferences = Effect.fn("Attendance.dietaryPreferences")(
+        function* (event: DocumentId) {
+          const rows = yield* sql<{ text: string }>`
+            SELECT text FROM dietary_preferences WHERE event_id = ${event}
+            -- By the text, never the order given: that would match the signups'.
+            ORDER BY lower(text), text
+          `.pipe(Effect.orDie);
+          return rows.map((row) => row.text);
+        },
+      );
+
       return Attendance.of({
         attend,
         leave,
@@ -469,6 +491,7 @@ export class Attendance extends Context.Service<
         leaveAsGuest,
         change,
         remove,
+        dietaryPreferences,
         guestToken,
       });
     }),
