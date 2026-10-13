@@ -306,7 +306,12 @@ const Routes = Layer.mergeAll(
 const Server = Layer.unwrap(
   Effect.gen(function* () {
     const port = yield* Config.Port("PORT").pipe(Config.withDefault(3000));
-    return NodeHttpServer.layer(createServer, { port });
+    // Unset: every interface.
+    const host = yield* Config.option(Config.String("HOST"));
+    return NodeHttpServer.layer(
+      createServer,
+      Option.isNone(host) ? { port } : { port, host: host.value },
+    );
   }),
 );
 
