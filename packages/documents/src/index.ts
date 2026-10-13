@@ -7,6 +7,7 @@ import { DocumentEvents } from "./DocumentEvents.ts";
 import { Documents } from "./Documents.ts";
 import * as Mail from "./Mail.tsx";
 import { Presence } from "./Presence.ts";
+import * as SignupRetention from "./SignupRetention.ts";
 import * as SlackChannel from "./SlackChannel.ts";
 import { Sync } from "./Sync.ts";
 import { Teams } from "./Teams.ts";
@@ -56,6 +57,7 @@ export const layer = Layer.mergeAll(
   Cluster.jobs,
   Mail.layerMailer,
   Mail.reminders,
+  SignupRetention.job,
   SlackChannel.layer,
   SlackChannel.deadlines,
 ).pipe(

@@ -372,7 +372,7 @@
   "privacy_who_heading": "Hvem som ser det",
   "privacy_who": "De som logger inn, ser hvem som har meldt seg på arrangementer, med opplysningene deres. Alle andre ser bare hvor mange. E-post sendes gjennom vår e-postleverandør, og bilder lagres hos vår lagringsleverandør.",
   "privacy_keep_heading": "Hvor lenge",
-  "privacy_keep": "Påmeldingen din lagres så lenge arrangementet gjør det. Du kan melde deg av til påmeldingen stenger, og arrangørene kan fjerne den når som helst. Hva du ikke kan spise blir værende hos arrangementet når du melder deg av, siden ingenting knytter det til deg.",
+  "privacy_keep": "Påmeldingen din slettes 30 dager etter at arrangementet er over, sammen med arrangementets liste over hva folk ikke kan spise. Du kan melde deg av til påmeldingen stenger, og arrangørene kan fjerne den når som helst. Hva du ikke kan spise blir værende hos arrangementet når du melder deg av, siden ingenting knytter det til deg.",
   "privacy_cookies_heading": "Informasjonskapsler og nettleseren din",
   "privacy_cookies": "Når du logger inn, holder en informasjonskapsel deg innlogget. Nettleseren din husker språket og temaet du velger og, hvis du meldte deg på som gjest, lenken til påmeldingen din. Ingenting sporer deg.",
   "privacy_rights_heading": "Dine rettigheter",
