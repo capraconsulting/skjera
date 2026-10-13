@@ -58,27 +58,25 @@ export const eventLoader = async ({ params, request }: LoaderFunctionArgs) => {
 
 /** Everyone signed up for the event. */
 const useSignups = (id: DocumentId) =>
-  useLiveQuery(
-    (q) =>
+  useLiveQuery({
+    query: (q) =>
       q
         .from({ attendee: attendees.collection })
         .where(({ attendee }) => eq(attendee.eventId, id)),
-    [id],
-  ).data;
+  }).data;
 
 export function EventPage() {
   const { id } = useLoaderData<typeof eventLoader>();
   const signups = useSignups(id);
   const me = useRouteLoaderData<typeof siteLoader>("site");
   const signedIn = me !== null && me !== undefined;
-  const event = useLiveQuery(
-    (q) =>
+  const event = useLiveQuery({
+    query: (q) =>
       q
         .from({ event: events.collection })
         .where(({ event }) => eq(event.id, id))
         .findOne(),
-    [id],
-  ).data;
+  }).data;
   // Unpublished, deleted or hidden since the page opened.
   if (event === undefined) {
     return <p className={styles.missing}>{m.site_event_missing()}</p>;

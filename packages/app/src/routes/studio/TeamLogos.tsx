@@ -18,13 +18,12 @@ export function TeamLogosDialog(props: {
 }) {
   const { teamId, onClose } = props;
   // Live, so the dialog follows others' changes to the team.
-  const team = useLiveQuery(
-    (q) =>
+  const team = useLiveQuery({
+    query: (q) =>
       q
         .from({ team: teams.collection })
         .where(({ team }) => eq(team.id, teamId ?? "")),
-    [teamId],
-  ).data[0];
+  }).data[0];
   const [error, setError] = useState<string | null>(null);
 
   const close = () => {
