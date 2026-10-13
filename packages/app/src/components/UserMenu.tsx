@@ -1,22 +1,13 @@
 import { m } from "@skjera/i18n/messages";
 import type { Identity } from "@skjera/oauth/api";
-import { CalendarPlus, ChevronDown, LogOut, Settings } from "lucide-react";
+import { ChevronDown, LogOut, Settings } from "lucide-react";
 import { forgetLocalCopies } from "../documents/repo.ts";
 import { initials } from "./Avatars.tsx";
-import {
-  Dropdown,
-  DropdownExternalLink,
-  DropdownItem,
-  DropdownLink,
-} from "./Dropdown.tsx";
+import { Dropdown, DropdownItem, DropdownLink } from "./Dropdown.tsx";
 import styles from "./UserMenu.module.css";
 
 /** What to call someone: their name from the login, else their email. */
 export const displayName = (me: Identity) => me.name ?? me.email ?? me.subject;
-
-/** Google Calendar, asked to subscribe to the site's calendar of coming events. */
-const subscribeUrl = (host: string) =>
-  `https://www.google.com/calendar/render?cid=webcal://${host}/api/subscribe`;
 
 /** Who is signed in: their account's settings, and logging out. */
 export function UserMenu({ me }: { readonly me: Identity }) {
@@ -51,13 +42,6 @@ export function UserMenu({ me }: { readonly me: Identity }) {
             <Settings size={16} strokeWidth={1.5} aria-hidden="true" />
             {m.account_settings()}
           </DropdownLink>
-          <DropdownExternalLink
-            href={subscribeUrl(window.location.host)}
-            onClick={close}
-          >
-            <CalendarPlus size={16} strokeWidth={1.5} aria-hidden="true" />
-            {m.common_subscribe()}
-          </DropdownExternalLink>
           <form
             method="post"
             action="/auth/logout"

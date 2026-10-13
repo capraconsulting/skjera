@@ -3,8 +3,12 @@
   border-bottom: 1px solid transparent;
 }
 
+/* The name, and the actions beside it, or under it at the right when the
+   line is too short: the actions stay together, so the account menu and
+   what stands beside it are never split. */
 .bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
@@ -26,9 +30,9 @@
 }
 
 .actions {
-  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.5rem;
+  margin-left: auto;
   font-size: 0.875rem;
 }
 
@@ -122,7 +126,7 @@
   min-height: 0;
 }
 
-/* Phones: the header on one line. */
+/* Phones: smaller, so the actions fit on one line under the name. */
 @media (max-width: 40rem) {
   .bar {
     gap: 0.5rem;
@@ -133,7 +137,6 @@
   }
 
   .actions {
-    flex-wrap: nowrap;
     gap: 0.375rem;
   }
 

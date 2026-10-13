@@ -1,6 +1,7 @@
 import { m } from "@skjera/i18n/messages";
 import { NavLink, Outlet, useLoaderData } from "react-router";
 import { Shell } from "../../components/Shell.tsx";
+import { SubscribeLink } from "../../components/SubscribeLink.tsx";
 import { UserMenu } from "../../components/UserMenu.tsx";
 import { setLocalUser } from "../../documents/repo.ts";
 import { requireMe } from "../../site/client.ts";
@@ -19,7 +20,12 @@ export function StudioLayout() {
     <Shell
       fill
       links={<NavLink to="/studio">{m.common_studio()}</NavLink>}
-      actions={<UserMenu me={me} />}
+      actions={
+        <>
+          <SubscribeLink />
+          <UserMenu me={me} />
+        </>
+      }
     >
       <Outlet />
     </Shell>

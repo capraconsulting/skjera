@@ -44,15 +44,15 @@ export const feedEvents = (now: Date, options: { readonly siteUrl: string }) =>
   }).pipe(Effect.orDie);
 
 /**
- * `GET /api/subscribe`: the calendar of coming events, to anyone, named after
- * the site and in its language. Reads the configuration when it starts.
+ * `GET /api/subscribe`: the calendar of coming events, to anyone, named «Skjer»
+ * and in the site's language. Reads the configuration when it starts.
  * Without `SITE_URL`, with a warning, it serves nothing: an event is never
  * given without its page's full address.
  */
 export const layerHttp = Layer.unwrap(
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    const { name, locale } = yield* SiteConfig;
+    const { locale } = yield* SiteConfig;
     const siteUrl = Option.getOrUndefined(
       yield* Config.option(Config.String("SITE_URL")),
     );
@@ -60,7 +60,7 @@ export const layerHttp = Layer.unwrap(
       yield* Effect.logWarning("SITE_URL not set: /api/subscribe isn't served");
       return Layer.empty;
     }
-    const site = { name, locale, host: new URL(siteUrl).host };
+    const site = { locale, host: new URL(siteUrl).host };
 
     return HttpRouter.add(
       "GET",

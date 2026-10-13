@@ -1,0 +1,7 @@
+/* Phones: the icon alone, so the header's actions keep to one line. The
+   word stays the link's name. */
+@media (max-width: 40rem) {
+  .word {
+    display: none;
+  }
+}

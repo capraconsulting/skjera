@@ -2,6 +2,7 @@ import { m } from "@skjera/i18n/messages";
 import { LogIn } from "lucide-react";
 import { NavLink, Outlet, useLoaderData } from "react-router";
 import { Shell } from "../../components/Shell.tsx";
+import { SubscribeLink } from "../../components/SubscribeLink.tsx";
 import { UserMenu } from "../../components/UserMenu.tsx";
 import { fetchMe, loginUrl } from "../../site/client.ts";
 
@@ -22,7 +23,10 @@ export function SiteLayout() {
             <LogIn size={16} strokeWidth={1.5} aria-hidden="true" />
           </a>
         ) : (
-          <UserMenu me={me} />
+          <>
+            <SubscribeLink />
+            <UserMenu me={me} />
+          </>
         )
       }
     >

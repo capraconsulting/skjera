@@ -103,25 +103,6 @@ export function DropdownLink(props: {
   );
 }
 
-/** A link in a dropdown to another site, opened in a new tab. */
-export function DropdownExternalLink(props: {
-  readonly href: string;
-  readonly onClick?: () => void;
-  readonly children: ReactNode;
-}) {
-  return (
-    <a
-      href={props.href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={styles.item}
-      onClick={props.onClick}
-    >
-      {props.children}
-    </a>
-  );
-}
-
 /** A short explanation under an item, e.g. why it is disabled. */
 export function DropdownNote({ children }: { readonly children: ReactNode }) {
   return <p className={styles.note}>{children}</p>;

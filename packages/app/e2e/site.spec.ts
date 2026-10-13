@@ -330,7 +330,7 @@ test("the account menu leads to settings, and logs out", async ({
   await expect(alice.getByRole("link", { name: "Log in" })).toBeVisible();
 });
 
-test("the account menu subscribes to the coming events in Google Calendar (AC-6)", async ({
+test("the header subscribes to the coming events in Google Calendar, beside the account menu (AC-6)", async ({
   browser,
 }) => {
   const reader = await visitor(browser);
@@ -342,16 +342,46 @@ test("the account menu subscribes to the coming events in Google Calendar (AC-6)
   await alice
     .context()
     .route("https://www.google.com/**", (route) => route.fulfill({ body: "" }));
+  const subscribe = alice
+    .getByRole("banner")
+    .getByRole("link", { name: "Subscribe" });
+  for (const path of ["/", "/studio/teams"]) {
+    await alice.goto(path);
+    await expect(subscribe).toBeVisible();
+
+    // Beside the account menu, not in it.
+    await alice.getByRole("button", { name: "Account menu" }).click();
+    const menu = alice.locator(":popover-open");
+    await expect(
+      menu.getByRole("link", { name: "Account settings" }),
+    ).toBeVisible();
+    await expect(menu.getByRole("link", { name: "Subscribe" })).toHaveCount(0);
+    await alice.keyboard.press("Escape");
+  }
+
   await alice.goto("/");
-  await alice.getByRole("button", { name: "Account menu" }).click();
   const popup = alice.waitForEvent("popup");
-  await alice
-    .locator(":popover-open")
-    .getByRole("link", { name: "Subscribe" })
-    .click();
+  await subscribe.click();
   await expect(await popup).toHaveURL(
     `https://www.google.com/calendar/render?cid=webcal://${new URL(alice.url()).host}/api/subscribe`,
   );
+});
+
+test("the header keeps «Abonner» and the account menu in a phone's window (AC-6)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  await alice.setViewportSize({ width: 320, height: 640 });
+  for (const path of ["/", "/studio/teams"]) {
+    await alice.goto(path);
+    for (const control of [
+      alice.getByRole("banner").getByRole("link", { name: "Subscribe" }),
+      alice.getByRole("button", { name: "Account menu" }),
+    ]) {
+      await expect(control).toBeVisible();
+      await expect(control).toBeInViewport({ ratio: 1 });
+    }
+  }
 });
 
 test("the site has its logo, its footer and a privacy page", async ({

@@ -105,22 +105,18 @@ export interface FeedEvent {
 }
 
 /**
- * A calendar of `events` to subscribe to, named after the site: published
+ * A calendar of `events` to subscribe to, named «Skjer»: published
  * rather than sent to anyone, and each event marked as not taking up the
  * subscriber's time. Its words are in the site's language.
  */
 export const feed = (options: {
   readonly events: ReadonlyArray<FeedEvent>;
-  readonly site: {
-    readonly name: string;
-    readonly host: string;
-    readonly locale: Locale;
-  };
+  readonly site: { readonly host: string; readonly locale: Locale };
 }): string => {
   const { events, site } = options;
   const calendar = ical({
-    name: site.name,
-    prodId: { company: site.name, product: "Skjera", language: "EN" },
+    name: "Skjer",
+    prodId: { company: site.host, product: "Skjera", language: "EN" },
     method: ICalCalendarMethod.PUBLISH,
   });
   for (const event of events) {

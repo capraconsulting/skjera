@@ -114,7 +114,7 @@ describe("Calendar", () => {
   });
 });
 
-const feedSite = { name: "Skjer", host: "skjera.test", locale: "nb" } as const;
+const feedSite = { host: "skjera.test", locale: "nb" } as const;
 
 const launch = (fields: Partial<FeedEvent> = {}): FeedEvent => ({
   id: "launch",
@@ -133,7 +133,7 @@ const property = (ics: string, name: string) =>
     .replace(/\\,/g, ",");
 
 describe("Calendar feed", () => {
-  it("is a published calendar named after the site, with one event each (AC-1)", () => {
+  it("is a published calendar named Skjer, with one event each (AC-1)", () => {
     const ics = feed({
       events: [launch(), launch({ id: "party", title: "Party" })],
       site: feedSite,
