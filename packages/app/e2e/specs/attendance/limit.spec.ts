@@ -1,10 +1,10 @@
 import { test } from "@playwright/test";
+import { cleanUp } from "../../fixtures/cleanUp.ts";
+import { signedIn, uniqueTeamName, visitor } from "../../fixtures/support.ts";
 import { Attendance } from "../../pom/site/Attendance.ts";
 import { EventPage } from "../../pom/site/EventPage.ts";
-import { cleanUp } from "../../pom/studio/cleanUp.ts";
 import { EventEditor } from "../../pom/studio/EventEditor.ts";
 import { TeamsColumn } from "../../pom/studio/TeamsColumn.ts";
-import { signedIn, uniqueTeamName, visitor } from "../../pom/support.ts";
 
 test("a limit shows the places left, and a full event takes no more (AC-1, AC-7, AC-8)", async ({
   browser,

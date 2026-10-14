@@ -1,8 +1,8 @@
 import { test } from "@playwright/test";
+import { signedIn, uniqueTeamName } from "../fixtures/support.ts";
 import { EventEditor } from "../pom/studio/EventEditor.ts";
 import { EventsColumn } from "../pom/studio/EventsColumn.ts";
 import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
-import { signedIn, uniqueTeamName } from "../pom/support.ts";
 
 test("events are created in a team and listed under it", async ({
   browser,

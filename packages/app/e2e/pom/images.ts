@@ -1,5 +1,10 @@
 import { expect, type Locator, type Page } from "@playwright/test";
-import { pixel } from "./support.ts";
+
+// The smallest valid PNG: one transparent pixel.
+export const pixel = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+  "base64",
+);
 
 const pixelBase64 = pixel.toString("base64");
 

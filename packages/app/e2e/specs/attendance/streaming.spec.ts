@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test";
+import { cleanUp } from "../../fixtures/cleanUp.ts";
+import { signedIn, uniqueTeamName, visitor } from "../../fixtures/support.ts";
 import { Attendance } from "../../pom/site/Attendance.ts";
 import { EventPage } from "../../pom/site/EventPage.ts";
-import { cleanUp } from "../../pom/studio/cleanUp.ts";
 import { EventEditor } from "../../pom/studio/EventEditor.ts";
 import { TeamsColumn } from "../../pom/studio/TeamsColumn.ts";
-import { signedIn, uniqueTeamName, visitor } from "../../pom/support.ts";
 
 test("a streamed event shows its link, asks in person or online, and lists how each comes (AC-1, AC-2, AC-3, AC-4, AC-5)", async ({
   browser,

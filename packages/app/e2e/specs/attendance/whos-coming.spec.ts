@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
+import { cleanUp } from "../../fixtures/cleanUp.ts";
+import { signedIn, uniqueTeamName, visitor } from "../../fixtures/support.ts";
 import { Attendance } from "../../pom/site/Attendance.ts";
 import { EventPage } from "../../pom/site/EventPage.ts";
 import { WhoIsComing } from "../../pom/site/WhoIsComing.ts";
-import { cleanUp } from "../../pom/studio/cleanUp.ts";
 import { EventEditor } from "../../pom/studio/EventEditor.ts";
 import { TeamsColumn } from "../../pom/studio/TeamsColumn.ts";
-import { signedIn, uniqueTeamName, visitor } from "../../pom/support.ts";
 
 test("signups show up for visitors and organizers without reloading (AC-4, AC-5)", async ({
   browser,

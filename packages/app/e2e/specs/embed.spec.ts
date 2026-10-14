@@ -1,8 +1,8 @@
 import { test } from "@playwright/test";
+import { signedIn, uniqueTeamName, visitor } from "../fixtures/support.ts";
 import { Website } from "../pom/site/Website.ts";
 import { EventEditor } from "../pom/studio/EventEditor.ts";
 import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
-import { signedIn, uniqueTeamName, visitor } from "../pom/support.ts";
 
 test("the website's iframe takes the height of the embed page (AC-6)", async ({
   browser,

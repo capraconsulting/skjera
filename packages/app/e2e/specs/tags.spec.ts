@@ -1,10 +1,10 @@
 import { test } from "@playwright/test";
+import { signedIn, uniqueTeamName, visitor } from "../fixtures/support.ts";
 import { EventPage } from "../pom/site/EventPage.ts";
 import { HomePage } from "../pom/site/HomePage.ts";
 import { EventEditor } from "../pom/studio/EventEditor.ts";
 import { EventsColumn } from "../pom/studio/EventsColumn.ts";
 import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
-import { signedIn, uniqueTeamName, visitor } from "../pom/support.ts";
 
 /** Publishes the open event, public, done tagging. */
 const publish = async (editor: EventEditor) => {

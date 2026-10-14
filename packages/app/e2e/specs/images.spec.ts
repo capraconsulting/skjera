@@ -1,9 +1,10 @@
 import { expect, test } from "@playwright/test";
+import { cleanUp } from "../fixtures/cleanUp.ts";
+import { signedIn, uniqueTeamName, visitor } from "../fixtures/support.ts";
+import { pixel } from "../pom/images.ts";
 import { EventPage } from "../pom/site/EventPage.ts";
-import { cleanUp } from "../pom/studio/cleanUp.ts";
 import { EventEditor } from "../pom/studio/EventEditor.ts";
 import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
-import { pixel, signedIn, uniqueTeamName, visitor } from "../pom/support.ts";
 
 const imagePath = /^\/api\/images\/[A-Za-z0-9_-]{22}$/;
 

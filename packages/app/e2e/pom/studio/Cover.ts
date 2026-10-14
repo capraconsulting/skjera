@@ -1,6 +1,5 @@
 import { expect, type Page } from "@playwright/test";
-import { dropPng } from "../images.ts";
-import { pixel } from "../support.ts";
+import { dropPng, pixel } from "../images.ts";
 import { TextField } from "../TextField.ts";
 
 /** The event's cover image, and its description. */

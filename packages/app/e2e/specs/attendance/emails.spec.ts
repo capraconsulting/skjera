@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
+import { cleanUp } from "../../fixtures/cleanUp.ts";
+import { signedIn, uniqueTeamName, visitor } from "../../fixtures/support.ts";
 import { Mailbox } from "../../pom/Mailbox.ts";
 import { Attendance } from "../../pom/site/Attendance.ts";
 import { EventPage } from "../../pom/site/EventPage.ts";
-import { cleanUp } from "../../pom/studio/cleanUp.ts";
 import { EventEditor } from "../../pom/studio/EventEditor.ts";
 import { TeamsColumn } from "../../pom/studio/TeamsColumn.ts";
-import { signedIn, uniqueTeamName, visitor } from "../../pom/support.ts";
 
 test("moving an event emails who signed up, once the organizer agrees", async ({
   browser,

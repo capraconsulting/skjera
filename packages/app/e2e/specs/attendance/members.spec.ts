@@ -1,11 +1,11 @@
 import { test } from "@playwright/test";
+import { cleanUp } from "../../fixtures/cleanUp.ts";
+import { signedIn, uniqueTeamName, visitor } from "../../fixtures/support.ts";
 import { Attendance } from "../../pom/site/Attendance.ts";
 import { EventPage } from "../../pom/site/EventPage.ts";
 import { HomePage } from "../../pom/site/HomePage.ts";
-import { cleanUp } from "../../pom/studio/cleanUp.ts";
 import { EventEditor } from "../../pom/studio/EventEditor.ts";
 import { TeamsColumn } from "../../pom/studio/TeamsColumn.ts";
-import { signedIn, uniqueTeamName, visitor } from "../../pom/support.ts";
 
 test("members-only events are hidden from visitors", async ({ browser }) => {
   const alice = await signedIn(browser, "alice@example.com");

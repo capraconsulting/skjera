@@ -4,14 +4,8 @@ import type {
   Page,
   WebSocketRoute,
 } from "@playwright/test";
-import { Header } from "./Header.ts";
-import { LoginPage } from "./LoginPage.ts";
-
-// The smallest valid PNG: one transparent pixel.
-export const pixel = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
-  "base64",
-);
+import { Header } from "../pom/Header.ts";
+import { LoginPage } from "../pom/LoginPage.ts";
 
 /** A browser of its own, with no session. */
 export const visitor = async (

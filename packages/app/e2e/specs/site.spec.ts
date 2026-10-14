@@ -1,5 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { m } from "@skjera/i18n/messages";
+import { cleanUp } from "../fixtures/cleanUp.ts";
+import { signedIn, uniqueTeamName, visitor } from "../fixtures/support.ts";
 import { Header } from "../pom/Header.ts";
 import { LoginPage } from "../pom/LoginPage.ts";
 import { AccountPage } from "../pom/site/AccountPage.ts";
@@ -9,11 +11,9 @@ import { Footer } from "../pom/site/Footer.ts";
 import { HomePage } from "../pom/site/HomePage.ts";
 import { HubSpot, hubSpotScript } from "../pom/site/HubSpot.ts";
 import { PrivacyPage } from "../pom/site/PrivacyPage.ts";
-import { cleanUp } from "../pom/studio/cleanUp.ts";
 import { EventEditor } from "../pom/studio/EventEditor.ts";
 import { EventsColumn } from "../pom/studio/EventsColumn.ts";
 import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
-import { signedIn, uniqueTeamName, visitor } from "../pom/support.ts";
 
 test("visitors can read the site but not the studio", async ({ browser }) => {
   const page = await visitor(browser);

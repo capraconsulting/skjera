@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
-import { EventEditor } from "./EventEditor.ts";
-import { TeamsColumn } from "./TeamsColumn.ts";
+import { EventEditor } from "../pom/studio/EventEditor.ts";
+import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
 
 /** Deletes a test's events, each from its editor, and then their team. */
 export const cleanUp = async (

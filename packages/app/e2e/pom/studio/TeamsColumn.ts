@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from "@playwright/test";
-import { pixel } from "../support.ts";
+import { pixel } from "../images.ts";
 
 /** The studio's teams column, with each team's menu and dialogs. */
 export class TeamsColumn {

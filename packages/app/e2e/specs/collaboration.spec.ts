@@ -1,9 +1,9 @@
 import { test } from "@playwright/test";
-import { cleanUp } from "../pom/studio/cleanUp.ts";
+import { cleanUp } from "../fixtures/cleanUp.ts";
+import { signedIn, uniqueTeamName } from "../fixtures/support.ts";
 import { EventEditor } from "../pom/studio/EventEditor.ts";
 import { EventsColumn } from "../pom/studio/EventsColumn.ts";
 import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
-import { signedIn, uniqueTeamName } from "../pom/support.ts";
 
 test("two users edit an event live, publish it and delete it", async ({
   browser,
