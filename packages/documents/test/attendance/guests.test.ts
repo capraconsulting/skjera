@@ -1,6 +1,6 @@
 import { assert, layer } from "@effect/vitest";
 import { Effect, Option } from "effect";
-import { Attendance } from "../../src/Attendance.ts";
+import { Attendance } from "../../src/attendance/Attendance.ts";
 import {
   bob,
   organizerView,

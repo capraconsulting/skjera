@@ -1,6 +1,6 @@
 import { assert, layer } from "@effect/vitest";
 import { Effect } from "effect";
-import { Documents } from "../src/Documents.ts";
+import { Documents } from "../src/events/Documents.ts";
 import type { TeamId } from "../src/Model.ts";
 import { Teams } from "../src/Teams.ts";
 import { alice, bob, newTeam, syncedDocument, TestLayer } from "./helpers.ts";

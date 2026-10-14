@@ -1,7 +1,7 @@
 import { assert, layer } from "@effect/vitest";
 import { Effect, Option } from "effect";
 import { SqlClient } from "effect/sql";
-import { Attendance } from "../../src/Attendance.ts";
+import { Attendance } from "../../src/attendance/Attendance.ts";
 import {
   alice,
   bob,

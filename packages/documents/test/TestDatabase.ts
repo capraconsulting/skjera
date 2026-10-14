@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { PgClient } from "@effect/sql-pg";
 import { Effect, Layer, Redacted } from "effect";
 import { SqlClient } from "effect/sql";
-import * as Database from "../src/Database.ts";
+import * as Database from "../src/server/Database.ts";
 
 const serverUrl =
   process.env.DATABASE_URL ?? "postgres://skjera:skjera@localhost:5433/skjera";

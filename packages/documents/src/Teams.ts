@@ -1,9 +1,13 @@
 import type { Identity } from "@skjera/oauth/api";
 import { Context, Effect, Layer } from "effect";
 import { SqlClient, SqlError } from "effect/sql";
-import { InvalidTeamName, TeamNotEmpty, TeamNotFound } from "./errors.ts";
 import { Team, type TeamId, type TeamLogosChange } from "./Model.ts";
-import { refused } from "./Problems.ts";
+import {
+  InvalidTeamName,
+  TeamNotEmpty,
+  TeamNotFound,
+} from "./server/errors.ts";
+import { refused } from "./server/Problems.ts";
 
 type Row = {
   id: TeamId;

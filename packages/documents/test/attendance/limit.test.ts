@@ -2,8 +2,8 @@ import { assert, layer } from "@effect/vitest";
 import type { Identity } from "@skjera/oauth/api";
 import { Deferred, Effect, Fiber } from "effect";
 import { SqlClient } from "effect/sql";
-import { Attendance } from "../../src/Attendance.ts";
-import { Documents } from "../../src/Documents.ts";
+import { Attendance } from "../../src/attendance/Attendance.ts";
+import { Documents } from "../../src/events/Documents.ts";
 import {
   alice,
   bob,

@@ -1,11 +1,12 @@
 // Definitions that are safe to import from the editor.
-export * from "./ContentTypes.ts";
-export * from "./DocumentsApi.ts";
-export * from "./DraftSyncProtocol.ts";
-export * from "./errors.ts";
-export * from "./ImagesApi.ts";
+
+export * from "./api/DocumentsApi.ts";
+export * from "./api/ImagesApi.ts";
+export * from "./api/PublicApi.ts";
+export * from "./api/SyncApi.ts";
+export * from "./api/TeamsApi.ts";
+export * from "./events/ContentTypes.ts";
+export * from "./events/DraftSyncProtocol.ts";
 export * from "./Model.ts";
-export * from "./Problems.ts";
-export * from "./PublicApi.ts";
-export * from "./SyncApi.ts";
-export * from "./TeamsApi.ts";
+export * from "./server/errors.ts";
+export * from "./server/Problems.ts";
