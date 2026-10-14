@@ -12,6 +12,7 @@
     "SITE_*",
     "SIGNING_SECRET",
     "SKJERA_TEST_SERVER_URL",
+    "WEBSITE_ORIGINS",
     "MAILPIT_UI_ADDRESS",
     "CI"
   ],
