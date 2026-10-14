@@ -50,6 +50,15 @@ test("a limit shows the places left, and a full event takes no more", async ({
   await organizer.expectText("There are no more places.");
   await organizer.expectNoAttendButton();
 
+  // Those signed up can still change what they gave while it's full.
+  const gina = new Attendance(guest);
+  await gina.clickChangeAnswers();
+  await gina.answers.fillPhone("900 00 000");
+  await gina.answers.clickSaveChanges();
+  await gina.expectSignedUp();
+  await editor.goto(team, event.id);
+  await editor.attendees.expectRow("Gina", "900 00 000");
+
   // Those signed up are still let in, and cancelling frees the place.
   await member.expectAttending();
   await member.cancelAttendance();

@@ -106,10 +106,14 @@ test("an organizer writes the signed-up email's own subject and text", async ({
   await new EventPage(guest).goto(event.id);
   await new Attendance(guest).signUpAsGuest("Gina", address);
 
-  // The written subject and text, then the event, and the guest's own link.
+  // The written subject and text, in place of the standard greeting and
+  // opening; then the event, the invitation and the guest's own link.
   const signedUp = await new Mailbox().emailTo(address, wording);
   expect(signedUp.text).toContain("Bring a friend");
+  expect(signedUp.text).not.toContain("Hi Gina,");
+  expect(signedUp.text).not.toContain(`You're signed up for ${event.title}`);
   expect(signedUp.text).toContain(event.title);
+  expect(invitationOf(signedUp).location).toBe("Kantina");
   expect(signedUp.text).toMatch(
     new RegExp(`http\\S*/events/${event.id}\\?guest=\\S+`),
   );

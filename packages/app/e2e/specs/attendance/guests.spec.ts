@@ -109,6 +109,7 @@ test("guests give a phone number and a company, and organizers see and export th
 
 test("a guest's email brings their signup to another browser", async ({
   browser,
+  baseURL,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Links"));
@@ -130,6 +131,8 @@ test("a guest's email brings their signup to another browser", async ({
     new RegExp(`http\\S*/events/${event.id}\\?guest=\\S+`),
   )?.[0];
   expect(link).toBeDefined();
+  // At the server's own address, as configured.
+  expect(link?.startsWith(`${baseURL}/events/`)).toBe(true);
 
   const second = await visitor(browser);
   const page = new EventPage(second);
