@@ -600,15 +600,15 @@ test("every page of the site loads HubSpot's script, once (AC-1)", async ({
 
   const reader = await visitor(browser);
   const asked = await withHubSpot(reader);
-  for (const [n, path] of ["/", `/events/${event.id}`, "/privacy"].entries()) {
+  for (const [n, path] of [`/events/${event.id}`, "/privacy", "/"].entries()) {
     await reader.goto(path);
     await expect.poll(() => hubSpotRuns(reader)).toBe(1);
     expect(asked).toHaveLength(n + 1);
   }
   expect(asked).toEqual(Array(3).fill(hubSpotScript));
 
-  // The site's name leads to the front page, whose loader runs again: the
-  // script is not added again.
+  // The site's name, on the front page, loads it again: its loader runs
+  // again, and the script is not added again.
   const loaded = reader.waitForResponse((response) =>
     response.url().endsWith("/api/me"),
   );

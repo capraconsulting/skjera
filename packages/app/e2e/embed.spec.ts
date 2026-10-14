@@ -32,6 +32,9 @@ const website = async (
   site: string | undefined,
 ) => {
   const page = await visitor(browser);
+  // Chrome blocks a website from framing a page on this machine unless let;
+  // in production both are on the internet.
+  await page.context().grantPermissions(["local-network-access"]);
   await page.route("http://website.localhost/", (route) =>
     route.fulfill({ contentType: "text/html", body: websitePage(site ?? "") }),
   );
