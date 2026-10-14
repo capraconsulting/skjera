@@ -106,3 +106,38 @@ test("a full streamed event takes no more in person but still takes those online
 
   await cleanUp(alice, team, event.id);
 });
+
+test("everyone counts as in person once the event is no longer streamed (AC-7)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(
+    uniqueTeamName("Unstreamed"),
+  );
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({
+    public: true,
+    guests: true,
+    maxAttendees: 1,
+    streamed: {},
+  });
+
+  // Online takes no place, so the one place is still free.
+  const guest = await visitor(browser);
+  await new EventPage(guest).goto(event.id);
+  const box = new Attendance(guest);
+  await box.fillName("Gina");
+  await box.fillEmail("gina@example.org");
+  await box.checkOption("Online");
+  await box.clickSignUp();
+  await box.expectSignedUp();
+
+  // Not streamed any more: Gina counts as in person, and fills it.
+  await editor.uncheckStreamed();
+  await editor.publish();
+  const other = await visitor(browser);
+  await new EventPage(other).goto(event.id);
+  await new Attendance(other).expectText("There are no more places.");
+
+  await cleanUp(alice, team, event.id);
+});

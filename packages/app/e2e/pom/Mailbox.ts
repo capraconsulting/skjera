@@ -22,6 +22,34 @@ export interface Email {
   readonly raw: string;
 }
 
+/** What an email's calendar invitation says, where it says it. */
+export interface Invitation {
+  readonly location: string | undefined;
+  /** The whole ORGANIZER line, with the name and the address. */
+  readonly organizer: string | undefined;
+  readonly description: string | undefined;
+}
+
+/** The calendar invitation in an email, its lines unfolded. */
+export const invitationOf = (email: Email): Invitation => {
+  const begin = email.raw.indexOf("BEGIN:VCALENDAR");
+  const end = email.raw.indexOf("END:VCALENDAR", begin);
+  const ics = email.raw.slice(begin, end).replace(/\r?\n[ \t]/g, "");
+  const line = (name: string) =>
+    ics.match(new RegExp(`^${name}[;:][^\\r\\n]*`, "m"))?.[0];
+  /** A line's value, its text unescaped. */
+  const value = (name: string) =>
+    line(name)
+      ?.replace(/^[^:]*:/, "")
+      .replace(/\\n/g, "\n")
+      .replace(/\\([,;\\])/g, "$1");
+  return {
+    location: value("LOCATION"),
+    organizer: line("ORGANIZER"),
+    description: value("DESCRIPTION"),
+  };
+};
+
 /** The emails the server sends, in Mailpit. */
 export class Mailbox {
   /** The email to `address` with `subject`, once it has come. */
@@ -44,6 +72,14 @@ export class Mailbox {
     };
     const raw = (await mailpit(`/message/${found?.ID}/raw`)) as string;
     return { text: Text, raw };
+  }
+
+  /** The subjects of the emails to `address`, as they are now. */
+  async subjectsTo(address: string): Promise<ReadonlyArray<string>> {
+    const { messages } = (await mailpit(
+      `/search?query=${encodeURIComponent(`to:"${address}"`)}`,
+    )) as { messages: ReadonlyArray<MailpitSummary> };
+    return messages.map((message) => message.Subject);
   }
 
   /** Clears the emails to `address` out. */

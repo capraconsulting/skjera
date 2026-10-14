@@ -449,6 +449,82 @@ test("the open list follows a team's rename without reloading (AC-6)", async ({
   await cleanUp(alice, team, event.id);
 });
 
+test("a team's new logo shows on the open list without reloading (AC-6)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const teams = new TeamsColumn(alice);
+  const name = uniqueTeamName("Relogo");
+  const team = await teams.create(name);
+  const event = await new EventEditor(alice).createPublished({ public: true });
+  const reader = await visitor(browser);
+  const home = new HomePage(reader);
+  await home.goto();
+  await home.expectNoOrganizerLogo(event.title, "upcoming");
+  await home.expectEventSays(event.title, name);
+
+  const logo = await teams.setLogo(team, "light");
+  // Visitors' pages pull every 5 seconds.
+  await home.expectOrganizerLogo(event.title, "upcoming", name, logo);
+
+  await cleanUp(alice, team, event.id);
+});
+
+test("a link to a public event shows its title, summary and cover; others the site's name (AC-4, AC-5, AC-6)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Shared"));
+  const editor = new EventEditor(alice);
+  const shown = await editor.createPublished({ public: true });
+  const summary = `Coffee and a talk ${shown.id.slice(-6)}`;
+  await editor.summary.type(summary);
+  await editor.cover.chooseFile();
+  await editor.cover.expect(/^\/api\/images\//);
+  const cover = await editor.cover.src();
+  await editor.cover.description.type("A full room");
+  await editor.publish();
+  const membersOnly = await editor.createPublished({ public: false });
+
+  const reader = await visitor(browser);
+  const page = new EventPage(reader);
+  await page.goto(shown.id);
+  await page.expectSharingTag("og:title", shown.title);
+  await page.expectSharingTag("og:description", summary);
+  await page.expectSharingTag("og:image", new RegExp(`${cover}$`));
+  await page.expectSharingTag("og:image:alt", "A full room");
+  await page.expectSharingTag("twitter:card", "summary_large_image");
+
+  // Members only, or no such event: the site's name only.
+  for (const id of [membersOnly.id, crypto.randomUUID()]) {
+    await page.goto(id);
+    await page.expectSharingTag("og:title", "Skjera");
+    await page.expectNoSharingTag("og:description");
+    await page.expectNoSharingTag("og:image");
+  }
+
+  await cleanUp(alice, team, shown.id, membersOnly.id);
+});
+
+test("the privacy page says in each language that signups are deleted 30 days after (AC-7)", async ({
+  browser,
+}) => {
+  const reader = await visitor(browser);
+  const header = new Header(reader);
+  await new PrivacyPage(reader).goto();
+  await new PrivacyPage(reader).expectText(
+    m.privacy_keep({}, { locale: "en" }),
+  );
+  await header.selectLanguage("Bokmål");
+  await new PrivacyPage(reader, "nb").expectText(
+    m.privacy_keep({}, { locale: "nb" }),
+  );
+  await header.selectLanguage("Nynorsk", "Språk");
+  await new PrivacyPage(reader, "nn").expectText(
+    m.privacy_keep({}, { locale: "nn" }),
+  );
+});
+
 test("every page of the site loads HubSpot's script, once (AC-1)", async ({
   browser,
 }) => {
@@ -559,6 +635,23 @@ test("the privacy page names HubSpot, and opens its cookie settings (AC-5)", asy
 
   await privacy.clickCookieSettings();
   await hubSpot.expectBannerAsked();
+});
+
+test("the privacy page names HubSpot in Norwegian too (AC-5)", async ({
+  browser,
+}) => {
+  const reader = await visitor(browser);
+  await new HubSpot(reader).install();
+  const header = new Header(reader);
+  await new PrivacyPage(reader).goto();
+  await header.selectLanguage("Bokmål");
+  await new PrivacyPage(reader, "nb").expectCookiesText(
+    m.privacy_cookies_hubspot({}, { locale: "nb" }),
+  );
+  await header.selectLanguage("Nynorsk", "Språk");
+  await new PrivacyPage(reader, "nn").expectCookiesText(
+    m.privacy_cookies_hubspot({}, { locale: "nn" }),
+  );
 });
 
 test("without a HubSpot account id, the privacy page says nothing tracks you (AC-6)", async ({

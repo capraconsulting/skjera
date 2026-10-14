@@ -16,6 +16,21 @@ import { TagInput } from "./TagInput.ts";
 /** Where events are, unless a test says otherwise. */
 const defaultPlace = "Kantina";
 
+/** The emails an event sends, each with a subject and text of its own. */
+export type EventEmail =
+  | "signed up"
+  | "sign-up cancelled"
+  | "event changed"
+  | "event cancelled";
+
+/** How the studio names each email. */
+const emailNames: Record<EventEmail, string> = {
+  "signed up": "signed-up",
+  "sign-up cancelled": "sign-up cancelled",
+  "event changed": "event changed",
+  "event cancelled": "event cancelled",
+};
+
 /** What `createPublished` sets before publishing. */
 export interface EventSettings {
   readonly public: boolean;
@@ -44,8 +59,6 @@ export class EventEditor {
   readonly place: TextField;
   readonly streamLink: TextField;
   readonly whatsServed: TextField;
-  readonly signedUpSubject: TextField;
-  readonly signedUpText: TextField;
   readonly times: EventTimes;
   readonly tags: TagInput;
   readonly repeat: Repeat;
@@ -66,8 +79,6 @@ export class EventEditor {
     this.place = textbox("Place", true);
     this.streamLink = textbox("Link to the stream");
     this.whatsServed = textbox("What's served");
-    this.signedUpSubject = textbox("Subject of the signed-up email");
-    this.signedUpText = textbox("Text of the signed-up email");
     this.times = new EventTimes(page);
     this.tags = new TagInput(page);
     this.repeat = new Repeat(page);
@@ -264,9 +275,21 @@ export class EventEditor {
     await this.place.expectText(text);
   }
 
-  /** Opens an email's own subject and text, by the button's name. */
-  async openEmail(name: "Signed-up email"): Promise<void> {
-    await this.page.getByRole("button", { name }).click();
+  /** Opens one of the event's own emails, to write its subject and text. */
+  async openEmail(email: EventEmail): Promise<void> {
+    await this.page
+      .getByRole("button", { name: `${emailNames[email]} email` })
+      .click();
+  }
+
+  /** The subject an email is sent with, written for this event. */
+  emailSubject(email: EventEmail): TextField {
+    return this.field(`Subject of the ${emailNames[email]} email`);
+  }
+
+  /** The text an email is sent with, written for this event. */
+  emailText(email: EventEmail): TextField {
+    return this.field(`Text of the ${emailNames[email]} email`);
   }
 
   async checkPublic(): Promise<void> {
@@ -291,6 +314,10 @@ export class EventEditor {
 
   async checkStreamed(): Promise<void> {
     await this.checkbox(/The event is streamed/).check();
+  }
+
+  async uncheckStreamed(): Promise<void> {
+    await this.checkbox(/The event is streamed/).uncheck();
   }
 
   async expectStreamed(): Promise<void> {

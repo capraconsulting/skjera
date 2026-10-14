@@ -159,6 +159,23 @@ export class EventPage {
     else await expect(logo).toBeHidden();
   }
 
+  /** A tag a shared link to the page shows, as the page has it. */
+  async expectSharingTag(
+    name: string,
+    content: string | RegExp,
+  ): Promise<void> {
+    await expect(this.sharingTag(name)).toHaveAttribute("content", content);
+  }
+
+  async expectNoSharingTag(name: string): Promise<void> {
+    await expect(this.sharingTag(name)).toHaveCount(0);
+  }
+
+  private readonly sharingTag = (name: string) =>
+    this.page.locator(
+      `head meta[property="${name}"], head meta[name="${name}"]`,
+    );
+
   /** Asks the API for the signups, page by page, as this page's browser. */
   async pullSignups(): Promise<ReadonlyArray<string>> {
     const bodies: string[] = [];

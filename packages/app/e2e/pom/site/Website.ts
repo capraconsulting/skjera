@@ -29,15 +29,49 @@ export class Website {
   private readonly firstEvent = () =>
     this.page.frameLocator("#events").getByRole("link").first();
 
-  /** Opens the website at the address in `mise.toml`, framing `site`. */
-  async open(site: string): Promise<void> {
+  /**
+   * Opens a website framing `site`: by default the one in `mise.toml`'s
+   * `WEBSITE_ORIGINS`, or one at `origin`.
+   */
+  async open(site: string, origin = "http://website.localhost"): Promise<void> {
     // Chrome blocks a website from framing a page on this machine unless
     // let; in production both are on the internet.
     await this.page.context().grantPermissions(["local-network-access"]);
-    await this.page.route("http://website.localhost/", (route) =>
+    await this.page.route(`${origin}/`, (route) =>
       route.fulfill({ contentType: "text/html", body: websitePage(site) }),
     );
-    await this.page.goto("http://website.localhost/");
+    await this.page.goto(`${origin}/`);
+  }
+
+  /** The browser refuses to show the embed page in the website's iframe. */
+  async expectFramingRefused(): Promise<void> {
+    await expect
+      .poll(() =>
+        this.page
+          .frames()
+          .some((frame) => frame.url().startsWith("chrome-error:")),
+      )
+      .toBe(true);
+    await expect(this.firstEvent()).toHaveCount(0);
+  }
+
+  /**
+   * Asks for the site's public events from the website's page, as the
+   * websites do: the events' titles, or `null` when the browser refuses to
+   * let the page read the answer.
+   */
+  async readPublicEvents(site: string): Promise<ReadonlyArray<string> | null> {
+    return this.page.evaluate(async (url) => {
+      try {
+        const response = await fetch(url);
+        const events = (await response.json()) as ReadonlyArray<{
+          title: string;
+        }>;
+        return events.map((event) => event.title);
+      } catch {
+        return null;
+      }
+    }, `${site}/api/public/events`);
   }
 
   async expectEvents(): Promise<void> {

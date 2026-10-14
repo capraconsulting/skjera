@@ -1,5 +1,7 @@
 import { test } from "@playwright/test";
+import { m } from "@skjera/i18n/messages";
 import { signedIn, uniqueTeamName, visitor } from "../fixtures/support.ts";
+import { Header } from "../pom/Header.ts";
 import { EventPage } from "../pom/site/EventPage.ts";
 import { HomePage } from "../pom/site/HomePage.ts";
 import { EventEditor } from "../pom/studio/EventEditor.ts";
@@ -173,4 +175,24 @@ test("the site filters events open to guests and those not, with the tag too (AC
     await editor.delete(event.id);
   }
   await teams.delete(team);
+});
+
+test("the guest filters are named in Bokmål and Nynorsk too (AC-6)", async ({
+  browser,
+}) => {
+  const reader = await visitor(browser);
+  const home = new HomePage(reader);
+  const header = new Header(reader);
+  await home.goto();
+  for (const [language, locale, label] of [
+    ["Bokmål", "nb", "Language"],
+    ["Nynorsk", "nn", "Språk"],
+  ] as const) {
+    await header.selectLanguage(language, label);
+    await home.expectGuestFilterNames(
+      m.site_filter_by_guests({}, { locale }),
+      m.site_filter_open_to_guests({}, { locale }),
+      m.site_filter_not_open_to_guests({}, { locale }),
+    );
+  }
 });

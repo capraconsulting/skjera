@@ -37,9 +37,10 @@ test("dietary preferences are optional, and organizers see them without names (A
     if (dietary !== undefined) await box.fillDietaryPreferences(dietary);
     await box.clickSignUp();
     await box.expectSignedUp();
+    return box;
   };
   await signUpAsGuest("Hana");
-  await signUpAsGuest("Gina", "Fish");
+  const gina = await signUpAsGuest("Gina", "Fish");
   await signUpAsGuest("Ivar", "Vegan");
 
   // The organizer sees the two texts and how many, and no names with them.
@@ -48,6 +49,16 @@ test("dietary preferences are optional, and organizers see them without names (A
   for (const name of ["bob", "Hana", "Gina", "Ivar"]) {
     await editor.attendees.expectDietaryPreferencesWithout(name);
   }
+
+  // Nothing ties them to anyone, so cancelling, or being taken off, leaves
+  // them with the event (AC-6).
+  await gina.cancelSignup();
+  await gina.expectSignUpButton(true);
+  await member.cancelAttendance();
+  await editor.attendees.remove("Ivar");
+  await editor.attendees.expectNoText("Ivar");
+  await editor.reload();
+  await editor.attendees.expectDietaryPreferences(["Fish", "Vegan"]);
 
   // Only signed-in users can read the list.
   const stranger = await visitor(browser);

@@ -1,12 +1,16 @@
 import { expect, type Page } from "@playwright/test";
 import { m } from "@skjera/i18n/messages";
+import type { Locale } from "@skjera/i18n/runtime";
 
 /** The site's privacy page. */
 export class PrivacyPage {
   private readonly page: Page;
+  /** The language the page is read in. */
+  private readonly locale: Locale;
 
-  constructor(page: Page) {
+  constructor(page: Page, locale: Locale = "en") {
     this.page = page;
+    this.locale = locale;
   }
 
   private readonly policy = () => this.page.getByRole("article");
@@ -14,11 +18,13 @@ export class PrivacyPage {
   private readonly cookies = () =>
     this.page.locator("section").filter({
       has: this.page.getByRole("heading", {
-        name: m.privacy_cookies_heading(),
+        name: m.privacy_cookies_heading({}, { locale: this.locale }),
       }),
     });
   private readonly cookieSettings = () =>
-    this.cookies().getByRole("button", { name: m.privacy_cookie_settings() });
+    this.cookies().getByRole("button", {
+      name: m.privacy_cookie_settings({}, { locale: this.locale }),
+    });
 
   async goto(): Promise<void> {
     await this.page.goto("/privacy");
@@ -30,7 +36,10 @@ export class PrivacyPage {
 
   async expectTitle(): Promise<void> {
     await expect(
-      this.page.getByRole("heading", { name: m.privacy_title(), level: 1 }),
+      this.page.getByRole("heading", {
+        name: m.privacy_title({}, { locale: this.locale }),
+        level: 1,
+      }),
     ).toBeVisible();
   }
 

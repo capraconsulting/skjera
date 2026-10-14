@@ -65,5 +65,76 @@ test("a limit shows the places left, and a full event takes no more (AC-1, AC-7,
   await others.expectSignUpButton(true);
   await others.expectNoText("place left");
 
+  // The place Bob freed is taken by someone new.
+  await others.signUpAsGuest("Gus", "gus@example.org");
+
   await cleanUp(alice, team, event.id, unlimited.id);
+});
+
+test("a signup sent once the event is full is refused, saying it is full (AC-3)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(
+    uniqueTeamName("Last place"),
+  );
+  const event = await new EventEditor(alice).createPublished({
+    public: true,
+    guests: true,
+    maxAttendees: 1,
+  });
+
+  // Gus has the form open, and from then on his page doesn't catch up: its
+  // pulls fail.
+  const late = await visitor(browser);
+  await new EventPage(late).goto(event.id);
+  const gus = new Attendance(late);
+  await gus.fillName("Gus");
+  await gus.fillEmail("gus@example.org");
+  await late.route("**/api/sync/**", (route) => route.abort());
+
+  // Gina takes the last place first.
+  const first = await visitor(browser);
+  await new EventPage(first).goto(event.id);
+  await new Attendance(first).signUpAsGuest("Gina", "gina@example.org");
+
+  await gus.clickSignUp();
+  await gus.expectAlert("This event is full");
+  await gus.expectNotSignedUp();
+
+  await cleanUp(alice, team, event.id);
+});
+
+test("a limit below those signed up keeps them, and takes no one new (AC-9)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Lowered"));
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({ public: true, guests: true });
+
+  const bob = await signedIn(browser, "bob@example.com");
+  await new EventPage(bob).goto(event.id);
+  const member = new Attendance(bob);
+  await member.attend();
+  const guest = await visitor(browser);
+  await new EventPage(guest).goto(event.id);
+  await new Attendance(guest).signUpAsGuest("Gina", "gina@example.org");
+
+  // Lowered to one, below the two signed up: it can still be published.
+  await editor.fillMaxAttendees(1);
+  await editor.publish();
+  await editor.reload();
+  await editor.attendees.expectText("bob@example.com");
+  await editor.attendees.expectText("Gina");
+
+  const other = await visitor(browser);
+  await new EventPage(other).goto(event.id);
+  const others = new Attendance(other);
+  await others.expectText("There are no more places.");
+  await others.expectSignUpButton(false);
+  await new EventPage(bob).reload();
+  await member.expectAttending();
+
+  await cleanUp(alice, team, event.id);
 });

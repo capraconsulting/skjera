@@ -90,7 +90,7 @@ export class HomePage {
   ): Promise<void> {
     await expect(
       this.link(title, list).getByRole("img", { name: team }),
-    ).toHaveAttribute("src", src);
+    ).toHaveAttribute("src", src, pulled);
   }
 
   async expectNoOrganizerLogo(title: string, list: List): Promise<void> {
@@ -123,6 +123,20 @@ export class HomePage {
         "aria-pressed",
         String(which === chosen),
       );
+    }
+  }
+
+  /** The guest filters, as named in the page's language. */
+  async expectGuestFilterNames(
+    navigation: string,
+    open: string,
+    notOpen: string,
+  ): Promise<void> {
+    const filters = this.page.getByRole("navigation", { name: navigation });
+    for (const name of [open, notOpen]) {
+      await expect(
+        filters.getByRole("button", { name, exact: true }),
+      ).toBeVisible();
     }
   }
 
