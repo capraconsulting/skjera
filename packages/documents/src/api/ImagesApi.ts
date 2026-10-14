@@ -1,4 +1,4 @@
-// Definitions for images that are safe to import from the editor.
+// Images: where they are uploaded and served, and what can be uploaded.
 
 /**
  * Where images are uploaded to (POST, the image as the body) and served
