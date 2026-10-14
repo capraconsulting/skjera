@@ -19,16 +19,16 @@ test("events ask their own questions, and say what's served", async ({
   await editor.whatsServed.type("Pizza from Lorem");
 
   // A written answer, a checkbox that must be ticked, and a choice.
-  await editor.addQuestion(1, "Where did you hear of it?");
-  await editor.addQuestion(2, "I accept the risks of swimming", "Checkbox");
-  await editor.checkQuestionRule(2, "Must be ticked");
-  await editor.addQuestion(3, "Towel size", "One of several");
-  await editor.fillQuestionOption(3, 1, "Small");
-  await editor.fillQuestionOption(3, 2, "Large");
-  await editor.checkQuestionRule(3, "Required");
+  await editor.questions.add(1, "Where did you hear of it?");
+  await editor.questions.add(2, "I accept the risks of swimming", "Checkbox");
+  await editor.questions.checkRule(2, "Must be ticked");
+  await editor.questions.add(3, "Towel size", "One of several");
+  await editor.questions.fillOption(3, 1, "Small");
+  await editor.questions.fillOption(3, 2, "Large");
+  await editor.questions.checkRule(3, "Required");
   // The order can change.
-  await editor.moveQuestionUp(3);
-  await editor.expectQuestion(2, "Towel size");
+  await editor.questions.moveUp(3);
+  await editor.questions.expect(2, "Towel size");
 
   await editor.publish();
 
@@ -67,9 +67,9 @@ test("people change their answers; organizers export and remove them (AC-5, AC-6
     guests: true,
     dietary: true,
   });
-  await editor.addQuestion(1, "Towel size", "One of several");
-  await editor.fillQuestionOption(1, 1, "Small");
-  await editor.fillQuestionOption(1, 2, "Large");
+  await editor.questions.add(1, "Towel size", "One of several");
+  await editor.questions.fillOption(1, 1, "Small");
+  await editor.questions.fillOption(1, 2, "Large");
   await editor.publish();
 
   // A guest signs up, and changes their mind: the form starts from what

@@ -1,10 +1,17 @@
-import { expect, type Locator, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { Mailbox } from "../Mailbox.ts";
 import { EventPage } from "../site/EventPage.ts";
-import { pixel } from "../support.ts";
 import { TextField } from "../TextField.ts";
 import { Attendees } from "./Attendees.ts";
+import { BodyImages } from "./BodyImages.ts";
+import { BodyToolbar } from "./BodyToolbar.ts";
+import { Cover } from "./Cover.ts";
 import { EventsColumn } from "./EventsColumn.ts";
+import { EventTimes } from "./EventTimes.ts";
+import { Presence } from "./Presence.ts";
+import { Questions } from "./Questions.ts";
+import { Repeat } from "./Repeat.ts";
+import { TagInput } from "./TagInput.ts";
 
 /** Where events are, unless a test says otherwise. */
 const defaultPlace = "Kantina";
@@ -37,10 +44,16 @@ export class EventEditor {
   readonly place: TextField;
   readonly streamLink: TextField;
   readonly whatsServed: TextField;
-  readonly coverDescription: TextField;
   readonly signedUpSubject: TextField;
   readonly signedUpText: TextField;
+  readonly times: EventTimes;
   readonly tags: TagInput;
+  readonly repeat: Repeat;
+  readonly questions: Questions;
+  readonly toolbar: BodyToolbar;
+  readonly bodyImages: BodyImages;
+  readonly cover: Cover;
+  readonly presence: Presence;
   readonly attendees: Attendees;
 
   constructor(page: Page) {
@@ -53,10 +66,16 @@ export class EventEditor {
     this.place = textbox("Place", true);
     this.streamLink = textbox("Link to the stream");
     this.whatsServed = textbox("What's served");
-    this.coverDescription = textbox("Cover description");
     this.signedUpSubject = textbox("Subject of the signed-up email");
     this.signedUpText = textbox("Text of the signed-up email");
+    this.times = new EventTimes(page);
     this.tags = new TagInput(page);
+    this.repeat = new Repeat(page);
+    this.questions = new Questions(page);
+    this.toolbar = new BodyToolbar(page);
+    this.bodyImages = new BodyImages(page);
+    this.cover = new Cover(page);
+    this.presence = new Presence(page);
     this.attendees = new Attendees(page);
   }
 
@@ -94,8 +113,6 @@ export class EventEditor {
     this.page.getByRole("button", { name: "Publish" });
   private readonly checkbox = (name: RegExp) =>
     this.page.getByRole("checkbox", { name });
-  private readonly startDate = () =>
-    this.page.getByRole("button", { name: "Start date" });
 
   /**
    * Creates an event in the open team, fills it in and publishes it. Its
@@ -105,7 +122,7 @@ export class EventEditor {
     const id = await new EventsColumn(this.page).newEvent();
     const title = `Meetup ${id.slice(-12)}`;
     await this.title.type(title);
-    await this.pickTimes();
+    await this.times.pick();
     await this.writePlace();
     if (settings.tags !== undefined && settings.tags.length > 0) {
       for (const tag of settings.tags) await this.tags.add(tag);
@@ -247,89 +264,9 @@ export class EventEditor {
     await this.place.expectText(text);
   }
 
-  /**
-   * Sets the event to start at 18:00 on the 15th of next month, so sign-up
-   * is open; it ends two hours later. Returns the day as the site shows it
-   * ("Sunday, November 15, 2026").
-   */
-  async pickTimes(): Promise<string> {
-    const now = new Date();
-    const day = new Date(now.getFullYear(), now.getMonth() + 1, 15);
-    const month = day.toLocaleDateString("en-US", { month: "long" });
-    await this.startDate().click();
-    await this.page.getByRole("button", { name: /next month/i }).click();
-    await this.page
-      .getByRole("button", {
-        name: new RegExp(`${month} 15th, ${day.getFullYear()}`),
-      })
-      .click();
-    await this.fillStartTime("18:00");
-    const shown = day.toLocaleDateString("en-US", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-    await this.expectStartDate(shown);
-    await this.expectStartTime("18:00");
-    await this.expectEndTime("20:00");
-    return shown;
-  }
-
-  /** Sets the event to start on the 15th of last month. */
-  async pickPastStart(): Promise<void> {
-    await this.startDate().click();
-    await this.page.getByRole("button", { name: /previous month/i }).click();
-    await this.page.getByRole("button", { name: /15th, \d{4}/ }).click();
-  }
-
-  /** Opens the start date's calendar, in the page's language. */
-  async openStartDate(label = "Start date"): Promise<void> {
-    await this.page.getByRole("button", { name: label }).click();
-  }
-
-  async expectCalendarButton(name: RegExp): Promise<void> {
-    await expect(this.page.getByRole("button", { name })).toBeVisible();
-  }
-
-  async pressEscape(): Promise<void> {
-    await this.page.keyboard.press("Escape");
-  }
-
-  async expectStartDate(shown: string): Promise<void> {
-    await expect(this.startDate()).toHaveText(shown);
-  }
-
-  async fillStartTime(time: string): Promise<void> {
-    await this.page.getByLabel("Start time").fill(time);
-  }
-
-  async expectStartTime(time: string): Promise<void> {
-    await expect(this.page.getByLabel("Start time")).toHaveValue(time);
-  }
-
-  async fillEndTime(time: string): Promise<void> {
-    await this.page.getByLabel("End time").fill(time);
-  }
-
-  async expectEndTime(time: string): Promise<void> {
-    await expect(this.page.getByLabel("End time")).toHaveValue(time);
-  }
-
-  /** Sets a sign-up deadline at midnight on the 1st, which has passed. */
-  async setPassedDeadline(): Promise<void> {
-    await this.page.getByRole("button", { name: "Deadline date" }).click();
-    await this.page
-      .getByRole("button", { name: /1st, \d{4}/ })
-      .first()
-      .click();
-    await this.page.getByLabel("Deadline time").fill("00:00");
-  }
-
-  async selectTimeZone(zone: string): Promise<void> {
-    await this.page
-      .getByRole("combobox", { name: "Time zone" })
-      .selectOption(zone);
+  /** Opens an email's own subject and text, by the button's name. */
+  async openEmail(name: "Signed-up email"): Promise<void> {
+    await this.page.getByRole("button", { name }).click();
   }
 
   async checkPublic(): Promise<void> {
@@ -373,355 +310,4 @@ export class EventEditor {
       .getByRole("spinbutton", { name: "Maximum attendees" })
       .fill(String(limit));
   }
-
-  private readonly repeats = () => this.checkbox(/The event repeats/);
-  private readonly repeatEvery = () =>
-    this.page.getByRole("combobox", { name: "Repeat every" });
-  private readonly repeatUnit = () =>
-    this.page.getByRole("combobox", { name: "Repeat unit" });
-
-  async checkRepeats(): Promise<void> {
-    await this.repeats().check();
-  }
-
-  async uncheckRepeats(): Promise<void> {
-    await this.repeats().uncheck();
-  }
-
-  async selectRepeatEvery(every: string): Promise<void> {
-    await this.repeatEvery().selectOption(every);
-  }
-
-  async selectRepeatUnit(
-    unit: "day" | "week" | "month" | "year",
-  ): Promise<void> {
-    await this.repeatUnit().selectOption(unit);
-  }
-
-  async expectRepeatChoices(
-    every: ReadonlyArray<string>,
-    units: ReadonlyArray<string>,
-  ): Promise<void> {
-    await expect(this.repeatEvery().locator("option")).toHaveText([...every]);
-    await expect(this.repeatUnit().locator("option")).toHaveText([...units]);
-  }
-
-  /** Repeats every `every` `unit`s, or doesn't repeat (`null`). */
-  async expectRepeat(
-    repeat: { readonly every: string; readonly unit: string } | null,
-  ): Promise<void> {
-    if (repeat === null) {
-      await expect(this.repeatEvery()).toHaveCount(0);
-      await expect(this.repeatUnit()).toHaveCount(0);
-      return;
-    }
-    await expect(this.repeats()).toBeChecked();
-    await expect(this.repeatEvery()).toHaveValue(repeat.every);
-    await expect(this.repeatUnit()).toHaveValue(repeat.unit);
-  }
-
-  private readonly addQuestionButton = () =>
-    this.page.getByRole("button", { name: "Add question" });
-  private readonly question = (n: number) =>
-    this.page.getByRole("textbox", { name: `Question ${n}`, exact: true });
-  private readonly questionItem = (n: number) =>
-    this.page.getByRole("listitem").filter({
-      has: this.page.getByRole("combobox", { name: `Question ${n} type` }),
-    });
-
-  /** Adds a question, of a type unless it's a written answer. */
-  async addQuestion(
-    n: number,
-    text: string,
-    type?: "Checkbox" | "One of several",
-  ): Promise<void> {
-    await this.addQuestionButton().click();
-    if (type !== undefined) {
-      await this.page
-        .getByRole("combobox", { name: `Question ${n} type` })
-        .selectOption(type);
-    }
-    await this.question(n).fill(text);
-  }
-
-  async fillQuestionOption(
-    n: number,
-    option: number,
-    text: string,
-  ): Promise<void> {
-    await this.page
-      .getByRole("textbox", { name: `Question ${n} option ${option}` })
-      .fill(text);
-  }
-
-  /** Ticks a question's "Must be ticked" or "Required". */
-  async checkQuestionRule(
-    n: number,
-    rule: "Must be ticked" | "Required",
-  ): Promise<void> {
-    await this.questionItem(n).getByRole("checkbox", { name: rule }).check();
-  }
-
-  async moveQuestionUp(n: number): Promise<void> {
-    await this.page
-      .getByRole("button", { name: `Move question ${n} up` })
-      .click();
-  }
-
-  async expectQuestion(n: number, text: string): Promise<void> {
-    await expect(this.question(n)).toHaveValue(text);
-  }
-
-  /** Opens an email's own subject and text, by the button's name. */
-  async openEmail(name: "Signed-up email"): Promise<void> {
-    await this.page.getByRole("button", { name }).click();
-  }
-
-  private readonly toolbarButton = (name: string) =>
-    this.page
-      .getByRole("toolbar", { name: "Body formatting" })
-      .getByRole("button", { name, exact: true });
-
-  async clickBold(): Promise<void> {
-    await this.page.getByRole("button", { name: "Bold" }).click();
-  }
-
-  /** Links the selected text in the body to `address`. */
-  async linkSelection(address: string): Promise<void> {
-    await this.page.getByRole("button", { name: "Link", exact: true }).click();
-    await this.page
-      .getByRole("textbox", { name: "Link address" })
-      .fill(address);
-    await this.page.getByRole("button", { name: "Add link" }).click();
-  }
-
-  /** Opens the body's "Add image" dialog. */
-  async openImageDialog(): Promise<ImageDialog> {
-    await this.toolbarButton("Image").click();
-    return new ImageDialog(this.page, "Add image", "Add image");
-  }
-
-  /** Opens the dialog describing the selected image in the body. */
-  async openDescribeImageDialog(): Promise<ImageDialog> {
-    await this.toolbarButton("Describe image").click();
-    return new ImageDialog(this.page, "Describe image", "Save");
-  }
-
-  private readonly bodyImages = () =>
-    this.page
-      .getByRole("textbox", { name: "Body" })
-      .locator('img[src^="/api/images/"]');
-  private readonly bodyImage = (name: string) =>
-    this.page.getByRole("textbox", { name: "Body" }).getByRole("img", { name });
-
-  /** Pastes the PNG where the caret is in the body. */
-  async pasteImageIntoBody(): Promise<void> {
-    await pastePng(this.page.getByRole("textbox", { name: "Body" }));
-  }
-
-  /** Drops the PNG onto the middle of the body. */
-  async dropImageOntoBody(): Promise<void> {
-    await dropPng(this.page.getByRole("textbox", { name: "Body" }));
-  }
-
-  /** Undescribed images have no img role: these count them by address. */
-  async expectBodyImageCount(count: number): Promise<void> {
-    await expect(this.bodyImages()).toHaveCount(count);
-  }
-
-  async expectBodyImageAddresses(pattern: RegExp): Promise<void> {
-    await expect(this.bodyImages()).toHaveAttribute("src", pattern);
-  }
-
-  async expectBodyImage(name: string): Promise<void> {
-    await expect(this.bodyImage(name)).toBeVisible();
-  }
-
-  async bodyImageSrc(name: string): Promise<string> {
-    return (await this.bodyImage(name).getAttribute("src")) ?? "";
-  }
-
-  private readonly coverPreview = () =>
-    this.page.getByRole("img", { name: "Cover" });
-
-  async chooseCoverFile(): Promise<void> {
-    await this.page.getByLabel("Cover image file").setInputFiles({
-      name: "pixel.png",
-      mimeType: "image/png",
-      buffer: pixel,
-    });
-  }
-
-  async dropCoverImage(): Promise<void> {
-    await dropPng(this.page.getByTestId("cover-drop"));
-  }
-
-  async coverSrc(): Promise<string> {
-    return (await this.coverPreview().getAttribute("src")) ?? "";
-  }
-
-  async expectCover(src: string | RegExp): Promise<void> {
-    await expect(this.coverPreview()).toHaveAttribute("src", src);
-  }
-
-  async expectCoverNot(src: string): Promise<void> {
-    await expect(this.coverPreview()).not.toHaveAttribute("src", src);
-  }
-
-  async removeCover(): Promise<void> {
-    await this.page.getByRole("button", { name: "Remove cover image" }).click();
-  }
-
-  async expectNoCover(): Promise<void> {
-    await expect(this.coverPreview()).toHaveCount(0);
-    await this.coverDescription.expectAbsent();
-  }
-
-  private readonly avatars = () =>
-    this.page.getByRole("region", { name: "Editor" }).getByTestId("avatar");
-
-  /** Who else has the event open, by their avatar's name. */
-  async expectOthersHere(name: string): Promise<void> {
-    await expect(this.avatars()).toHaveAccessibleName(name);
-  }
-
-  async expectNobodyElseHere(): Promise<void> {
-    await expect(this.avatars()).toHaveCount(0);
-  }
-
-  /** Hovering an avatar shows the name, hidden before. */
-  async hoverAvatarShowing(name: string): Promise<void> {
-    const shown = this.avatars().getByText(name);
-    await expect(shown).toBeHidden();
-    await this.avatars().hover();
-    await expect(shown).toBeVisible();
-  }
 }
-
-/** The editor's tags field, with its suggestions and the tags added. */
-export class TagInput {
-  private readonly page: Page;
-
-  constructor(page: Page) {
-    this.page = page;
-  }
-
-  private readonly input = () =>
-    this.page.getByRole("combobox", { name: "Tags" });
-  private readonly pills = () =>
-    this.page.getByRole("list", { name: "Tags on this event" });
-
-  async fill(text: string): Promise<void> {
-    await this.input().fill(text);
-  }
-
-  async add(tag: string): Promise<void> {
-    await this.fill(tag);
-    await this.input().press("Enter");
-  }
-
-  /** Done tagging: the suggestions close. */
-  async close(): Promise<void> {
-    await this.input().press("Escape");
-  }
-
-  async expectSuggestion(name: string): Promise<void> {
-    await expect(this.page.getByRole("option", { name })).toBeVisible();
-  }
-
-  async pickSuggestion(name: string): Promise<void> {
-    await this.page.getByRole("option", { name }).click();
-  }
-
-  async remove(tag: string): Promise<void> {
-    await this.page.getByRole("button", { name: `Remove tag ${tag}` }).click();
-  }
-
-  async expectTag(tag: string): Promise<void> {
-    await expect(this.pills()).toContainText(tag);
-  }
-
-  async expectTags(tags: ReadonlyArray<RegExp>): Promise<void> {
-    await expect(this.pills().getByRole("listitem")).toHaveText([...tags]);
-  }
-
-  async expectNone(): Promise<void> {
-    await expect(this.pills()).toHaveCount(0);
-  }
-}
-
-/** A dialog about an image in the body: adding one, or describing it. */
-export class ImageDialog {
-  private readonly dialog: Locator;
-  private readonly confirm: string;
-
-  constructor(page: Page, name: string, confirm: string) {
-    this.dialog = page.getByRole("dialog", { name });
-    this.confirm = confirm;
-  }
-
-  async chooseFile(file: {
-    readonly name: string;
-    readonly mimeType: string;
-    readonly buffer: Buffer;
-  }): Promise<void> {
-    await this.dialog.getByLabel("Image file").setInputFiles(file);
-  }
-
-  async fillDescription(text: string): Promise<void> {
-    await this.dialog.getByRole("textbox", { name: "Description" }).fill(text);
-  }
-
-  async clickConfirm(): Promise<void> {
-    await this.dialog.getByRole("button", { name: this.confirm }).click();
-  }
-
-  async expectError(text: string): Promise<void> {
-    await expect(this.dialog.getByRole("alert")).toHaveText(text);
-  }
-
-  async expectClosed(): Promise<void> {
-    await expect(this.dialog).toBeHidden();
-  }
-}
-
-const pixelBase64 = pixel.toString("base64");
-
-/** A DataTransfer holding the PNG, as pasting or dropping a file gives. */
-const pngTransfer = (page: Page, name = "pixel.png") =>
-  page.evaluateHandle(
-    ({ base64, name }) => {
-      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-      const transfer = new DataTransfer();
-      transfer.items.add(new File([bytes], name, { type: "image/png" }));
-      return transfer;
-    },
-    { base64: pixelBase64, name },
-  );
-
-/** Pastes the PNG into what has focus in `target`. */
-const pastePng = async (target: Locator) => {
-  const transfer = await pngTransfer(target.page());
-  await target.evaluate((element, clipboardData) => {
-    element.dispatchEvent(
-      new ClipboardEvent("paste", {
-        clipboardData,
-        bubbles: true,
-        cancelable: true,
-      }),
-    );
-  }, transfer);
-};
-
-/** Drops the PNG onto the middle of `target`. */
-const dropPng = async (target: Locator) => {
-  const box = await target.boundingBox();
-  expect(box, "the drop target is visible").not.toBeNull();
-  const at = {
-    clientX: (box?.x ?? 0) + (box?.width ?? 0) / 2,
-    clientY: (box?.y ?? 0) + (box?.height ?? 0) / 2,
-  };
-  const dataTransfer = await pngTransfer(target.page());
-  await target.dispatchEvent("dragover", { dataTransfer, ...at });
-  await target.dispatchEvent("drop", { dataTransfer, ...at });
-};

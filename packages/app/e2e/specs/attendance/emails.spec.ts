@@ -24,7 +24,7 @@ test("moving an event emails who signed up, once the organizer agrees", async ({
   // Reminded the day before, unless turned off.
   await editor.expectRemindersOn();
   // An hour later.
-  await editor.fillStartTime("19:00");
+  await editor.times.fillStartTime("19:00");
   await editor.expectSaved();
   expect(await editor.clickPublishAnswering("dismiss")).toBe(
     "Publish the new time? The person signed up is emailed about it.",

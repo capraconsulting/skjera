@@ -179,7 +179,7 @@ test("publishing shows for others without reloading", async ({ browser }) => {
   const event = await new EventsColumn(bob).newEvent();
   const bobsEditor = new EventEditor(bob);
   await bobsEditor.title.type("Launch party");
-  await bobsEditor.pickTimes();
+  await bobsEditor.times.pick();
   await bobsEditor.writePlace();
   await bobsEditor.expectSaved();
 

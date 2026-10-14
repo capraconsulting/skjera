@@ -76,9 +76,9 @@ test("the studio speaks Nynorsk too", async ({ browser }) => {
   await editor.expectStatus("Publisert");
   await editor.expectButton("Slett");
   // The calendar, in it too.
-  await editor.openStartDate("Startdato");
-  await editor.expectCalendarButton(/neste månad/i);
-  await editor.pressEscape();
+  await editor.times.openStartDate("Startdato");
+  await editor.times.expectCalendarButton(/neste månad/i);
+  await editor.times.closeCalendar();
 
   await header.selectLanguage("English", "Språk");
   await header.expectPageLanguage("en");

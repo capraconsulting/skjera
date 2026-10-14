@@ -116,18 +116,18 @@ test("the site shows what was published, and only that (AC-1, AC-3)", async ({
   await editor.body.type("## Agenda");
   await editor.body.press("Enter");
   await editor.body.type("Doors open at ");
-  await editor.clickBold();
+  await editor.toolbar.clickBold();
   await editor.body.type("six");
-  await editor.clickBold();
+  await editor.toolbar.clickBold();
   await editor.body.type(".");
   await editor.body.press("Enter");
   await editor.body.type("- Bring snacks");
   await editor.body.press("Enter");
   await editor.body.type("Bring friends");
   for (const _ of "friends") await editor.body.press("Shift+ArrowLeft");
-  await editor.linkSelection("https://example.com/friends");
+  await editor.toolbar.linkSelection("https://example.com/friends");
   await editor.body.expectLink("friends");
-  const date = await editor.pickTimes();
+  const date = await editor.times.pick();
   await editor.writePlace("Kantina, 2. etasje");
   await editor.checkPublic();
   await editor.publish();
@@ -219,14 +219,14 @@ test("sign-up closes at the deadline, in the event's time zone", async ({
   await attendance.expectText(/Sign-up closes .* at 6:00\s*PM\./);
 
   // Moved to New York, it starts at 18:00 there: shown as such, and named.
-  await editor.selectTimeZone("America/New_York");
-  await editor.expectStartTime("18:00");
+  await editor.times.selectTimeZone("America/New_York");
+  await editor.times.expectStartTime("18:00");
   await editor.publish();
   await page.reload();
   await page.expectHours(/^6:00\s*–\s*8:00\s*PM \(ET\)$/);
 
   // A deadline that has passed closes it.
-  await editor.setPassedDeadline();
+  await editor.times.setPassedDeadline();
   await editor.publish();
   await page.reload();
   await attendance.expectText("Sign-up has closed.");
@@ -342,7 +342,7 @@ const publishedPastEvent = async (page: Page) => {
   const id = await new EventsColumn(page).newEvent();
   const past = `Was ${id.slice(-12)}`;
   await editor.title.type(past);
-  await editor.pickPastStart();
+  await editor.times.pickPastStart();
   await editor.writePlace();
   await editor.checkPublic();
   await editor.publish();

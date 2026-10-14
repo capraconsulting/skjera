@@ -17,7 +17,7 @@ test("images are uploaded into the body and shown on the site", async ({
   await editor.body.click();
 
   // Only images get in.
-  const dialog = await editor.openImageDialog();
+  const dialog = await editor.toolbar.openImageDialog();
   await dialog.chooseFile({
     name: "page.html",
     mimeType: "text/html",
@@ -34,8 +34,8 @@ test("images are uploaded into the body and shown on the site", async ({
   await dialog.fillDescription("A pixel");
   await dialog.clickConfirm();
   await dialog.expectClosed();
-  await editor.expectBodyImage("A pixel");
-  const src = await editor.bodyImageSrc("A pixel");
+  await editor.bodyImages.expect("A pixel");
+  const src = await editor.bodyImages.src("A pixel");
   expect(src).toMatch(imagePath);
 
   await editor.publish();
@@ -61,18 +61,18 @@ test("images pasted or dropped into the body are uploaded", async ({
   const event = await editor.createPublished({ public: true });
   await editor.body.type("Look:");
 
-  await editor.pasteImageIntoBody();
-  await editor.expectBodyImageCount(1);
-  await editor.expectBodyImageAddresses(imagePath);
+  await editor.bodyImages.paste();
+  await editor.bodyImages.expectCount(1);
+  await editor.bodyImages.expectAddresses(imagePath);
 
   // Selected after it lands, so it can be described right away.
-  const dialog = await editor.openDescribeImageDialog();
+  const dialog = await editor.toolbar.openDescribeImageDialog();
   await dialog.fillDescription("A pixel");
   await dialog.clickConfirm();
-  await editor.expectBodyImage("A pixel");
+  await editor.bodyImages.expect("A pixel");
 
-  await editor.dropImageOntoBody();
-  await editor.expectBodyImageCount(2);
+  await editor.bodyImages.drop();
+  await editor.bodyImages.expectCount(2);
 
   await editor.publish();
   const reader = await visitor(browser);
@@ -90,16 +90,16 @@ test("an event's cover image is shown on the site", async ({ browser }) => {
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true });
 
-  await editor.chooseCoverFile();
-  await editor.expectCover(imagePath);
-  const first = await editor.coverSrc();
-  await editor.coverDescription.type("A full room");
+  await editor.cover.chooseFile();
+  await editor.cover.expect(imagePath);
+  const first = await editor.cover.src();
+  await editor.cover.description.type("A full room");
 
   // Dropping another image replaces it, and keeps the description.
-  await editor.dropCoverImage();
-  await editor.expectCoverNot(first);
-  const cover = await editor.coverSrc();
-  await editor.coverDescription.expectText("A full room");
+  await editor.cover.drop();
+  await editor.cover.expectNot(first);
+  const cover = await editor.cover.src();
+  await editor.cover.description.expectText("A full room");
 
   await editor.publish();
 
@@ -108,8 +108,8 @@ test("an event's cover image is shown on the site", async ({ browser }) => {
   await page.goto(event.id);
   await page.expectCover("A full room", cover);
   // Taken off again.
-  await editor.removeCover();
-  await editor.expectNoCover();
+  await editor.cover.remove();
+  await editor.cover.expectNone();
   await editor.publish();
   await page.goto(event.id);
   await page.expectHeading(event.title);

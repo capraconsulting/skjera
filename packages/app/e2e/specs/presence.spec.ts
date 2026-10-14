@@ -21,11 +21,11 @@ test("an event shows who else has it open, with their cursors", async ({
   await bobsEditor.title.expectText("Hello there");
 
   // Alice sees Bob in the event, and Bob sees Alice.
-  await editor.expectOthersHere("bob");
-  await bobsEditor.expectOthersHere("alice");
+  await editor.presence.expectOthersHere("bob");
+  await bobsEditor.presence.expectOthersHere("alice");
 
   // Hovering an avatar shows the name.
-  await editor.hoverAvatarShowing("bob");
+  await editor.presence.hoverAvatarShowing("bob");
 
   // Bob's caret shows up in Alice's title, with his name.
   await bobsEditor.title.typeAt("end", "!");
@@ -45,7 +45,7 @@ test("an event shows who else has it open, with their cursors", async ({
 
   // When Bob moves on, he's gone from the event.
   await new TeamsColumn(bob).clickTeam(teamName);
-  await editor.expectNobodyElseHere();
+  await editor.presence.expectNobodyElse();
   await editor.title.expectCaretOf("bob", false);
 
   await cleanUp(alice, team, id);

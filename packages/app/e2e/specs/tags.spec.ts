@@ -27,7 +27,7 @@ test("events are tagged, and the site groups and filters them", async ({
   const coming = await events.newEvent();
   const comingTitle = `Coming ${coming.slice(-12)}`;
   await editor.title.type(comingTitle);
-  await editor.pickTimes();
+  await editor.times.pick();
   const fresh = `Pottery ${coming.slice(-6)}`;
   await editor.tags.fill(fresh);
   await editor.tags.expectSuggestion(`${fresh} (new tag)`);
@@ -45,7 +45,7 @@ test("events are tagged, and the site groups and filters them", async ({
   const past = await events.newEvent();
   const pastTitle = `Was ${past.slice(-12)}`;
   await editor.title.type(pastTitle);
-  await editor.pickPastStart();
+  await editor.times.pickPastStart();
   await editor.tags.add("Social");
   // Published tags are suggested: picked from the list, as written there.
   await editor.tags.fill("work");
@@ -107,7 +107,7 @@ test("the site filters events open to guests and those not, with the tag too (AC
   const d = await new EventsColumn(alice).newEvent();
   const dTitle = `Was ${d.slice(-12)}`;
   await editor.title.type(dTitle);
-  await editor.pickPastStart();
+  await editor.times.pickPastStart();
   await editor.tags.add(tag);
   await publish(editor);
 

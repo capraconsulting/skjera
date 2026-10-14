@@ -34,10 +34,10 @@ test("two users edit an event live, publish it and delete it", async ({
   await bobsEditor.body.expectText("First, Bob writes and Alice adds");
 
   // Alice sets the times; Bob sees them too.
-  const date = await editor.pickTimes();
-  await bobsEditor.expectStartDate(date);
-  await bobsEditor.expectStartTime("18:00");
-  await bobsEditor.expectEndTime("20:00");
+  const date = await editor.times.pick();
+  await bobsEditor.times.expectStartDate(date);
+  await bobsEditor.times.expectStartTime("18:00");
+  await bobsEditor.times.expectEndTime("20:00");
 
   await editor.writePlace();
   await editor.publish();
@@ -74,12 +74,12 @@ test("publishing needs a title, times that make sense and a place", async ({
     "Add a start time, an end time and a place before publishing",
   );
 
-  await editor.pickTimes();
+  await editor.times.pick();
   await editor.clickPublish();
   await editor.expectRefused("Add a place before publishing");
 
   await editor.writePlace();
-  await editor.fillEndTime("17:00");
+  await editor.times.fillEndTime("17:00");
   await editor.clickPublish();
   await editor.expectRefused("The event has to end after it starts");
   await editor.expectStatus("Not published");
@@ -94,22 +94,22 @@ test("an event can be set to repeat, and still repeats after a reload (AC-1)", a
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Repeating"));
   const id = await new EventsColumn(alice).newEvent();
   const editor = new EventEditor(alice);
-  await editor.expectRepeat(null);
+  await editor.repeat.expect(null);
 
-  await editor.checkRepeats();
-  await editor.selectRepeatEvery("2");
-  await editor.expectRepeatChoices(
+  await editor.repeat.check();
+  await editor.repeat.selectEvery("2");
+  await editor.repeat.expectChoices(
     ["1", "2", "3", "4", "5", "6", "7"],
     ["days", "weeks", "months", "years"],
   );
-  await editor.selectRepeatUnit("week");
+  await editor.repeat.selectUnit("week");
   await editor.expectSaved();
 
   await editor.reload();
-  await editor.expectRepeat({ every: "2", unit: "week" });
+  await editor.repeat.expect({ every: "2", unit: "week" });
 
-  await editor.uncheckRepeats();
-  await editor.expectRepeat(null);
+  await editor.repeat.uncheck();
+  await editor.repeat.expect(null);
 
   await cleanUp(alice, team, id);
 });
