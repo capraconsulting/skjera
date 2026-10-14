@@ -4,7 +4,7 @@ import { MessageChannelNetworkAdapter } from "@automerge/automerge-repo-network-
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Field } from "../components/Field.tsx";
 import { Shell } from "../components/Shell.tsx";
-import { TextEditor } from "../editor/TextEditor.tsx";
+import { TextEditor } from "../editor/text/TextEditor.tsx";
 import styles from "./Playground.module.css";
 
 type Draft = {

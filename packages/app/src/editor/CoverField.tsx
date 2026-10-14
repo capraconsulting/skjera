@@ -12,7 +12,7 @@ import {
 import { Button } from "../components/Button.tsx";
 import type { DraftPresence } from "../presence/presence.ts";
 import styles from "./CoverField.module.css";
-import { TextEditor } from "./TextEditor.tsx";
+import { TextEditor } from "./text/TextEditor.tsx";
 import { acceptedImages, imageFiles, uploadImage } from "./uploadImage.ts";
 
 const altPath = ["cover", "alt"] as const;

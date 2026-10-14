@@ -3,7 +3,7 @@ import { pmDocFromSpans } from "@automerge/prosemirror";
 import type { RichText as Spans } from "@skjera/documents/api";
 import type { Mark, Node } from "prosemirror-model";
 import { type ReactNode, useMemo } from "react";
-import { richTextAdapter } from "../editor/richText.ts";
+import { richTextAdapter } from "../editor/text/richText.ts";
 import styles from "./RichText.module.css";
 
 // Published rich text, as React elements rather than HTML, so nothing in

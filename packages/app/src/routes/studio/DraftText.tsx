@@ -2,7 +2,7 @@ import * as A from "@automerge/automerge/slim";
 import type { DocHandle } from "@automerge/automerge-repo/slim";
 import type { EventContent } from "@skjera/documents/api";
 import { useEffect, useSyncExternalStore } from "react";
-import { TextEditor } from "../../editor/TextEditor.tsx";
+import { TextEditor } from "../../editor/text/TextEditor.tsx";
 import type { DraftPresence } from "../../presence/presence.ts";
 
 /** The collaborative texts kept in a draft under a key of their own. */

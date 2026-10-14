@@ -14,7 +14,7 @@ import { EventTimes, FoodDeadline } from "../../editor/DateTimeField.tsx";
 import { QuestionsField } from "../../editor/QuestionsField.tsx";
 import { RepeatField } from "../../editor/RepeatField.tsx";
 import { TagsField } from "../../editor/TagsField.tsx";
-import { TextEditor } from "../../editor/TextEditor.tsx";
+import { TextEditor } from "../../editor/text/TextEditor.tsx";
 import {
   type DraftPresence,
   useDraftPresence,

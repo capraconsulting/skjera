@@ -2,9 +2,10 @@ import { m } from "@skjera/i18n/messages";
 import type { Command } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import { type FormEvent, type ReactNode, useState } from "react";
-import { Button } from "../components/Button.tsx";
-import { Dialog, dialogStyles } from "../components/Dialog.tsx";
-import { Input } from "../components/Input.tsx";
+import { Button } from "../../components/Button.tsx";
+import { Dialog, dialogStyles } from "../../components/Dialog.tsx";
+import { Input } from "../../components/Input.tsx";
+import { acceptedImages, uploadImage } from "../uploadImage.ts";
 import styles from "./RichTextToolbar.module.css";
 import {
   insertImage,
@@ -13,7 +14,6 @@ import {
   setLink,
   toolbarState,
 } from "./richText.ts";
-import { acceptedImages, uploadImage } from "./uploadImage.ts";
 
 /** Formatting for a rich text editor, following its selection. */
 export function RichTextToolbar(props: {

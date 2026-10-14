@@ -2,7 +2,7 @@ import { m } from "@skjera/i18n/messages";
 import type { Schema } from "prosemirror-model";
 import { NodeSelection, Plugin, PluginKey } from "prosemirror-state";
 import { Decoration, DecorationSet, type EditorView } from "prosemirror-view";
-import { imageFiles, uploadImage } from "./uploadImage.ts";
+import { imageFiles, uploadImage } from "../uploadImage.ts";
 
 // Images pasted or dropped into rich text are uploaded, with a placeholder
 // where they go until then, as in ProseMirror's upload example. The

@@ -7,7 +7,7 @@ import {
 } from "@automerge/prosemirror/dist/traversal.js";
 import { Plugin, PluginKey } from "prosemirror-state";
 import { Decoration, DecorationSet, type EditorView } from "prosemirror-view";
-import type { DraftPresence, PresenceEntry } from "../presence/presence.ts";
+import type { DraftPresence, PresenceEntry } from "../../presence/presence.ts";
 
 /**
  * Shares this editor's selection with the others on the draft, and shows
