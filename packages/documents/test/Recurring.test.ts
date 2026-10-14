@@ -599,6 +599,8 @@ layer(TestLayer, { excludeTestServices: true })("Moving events", (it) => {
         const documents = yield* Documents;
         const sql = yield* SqlClient.SqlClient;
         const deleted = yield* weekly("2047-01-04");
+        // Announced before it's deleted: a deleted event isn't announced.
+        yield* postedAbout(deleted.title);
         yield* signUp(deleted.id);
         yield* documents.delete(deleted.id, alice);
         const before = yield* publishedRow(deleted.id);
