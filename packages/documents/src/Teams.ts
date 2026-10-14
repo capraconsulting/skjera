@@ -90,6 +90,7 @@ export class Teams extends Context.Service<
             )
           : Effect.die(error);
 
+      // Writes run to their end, even if the client that asked goes away.
       const create = Effect.fn("Teams.create")(function* (
         name: string,
         creator: Identity,
@@ -109,7 +110,7 @@ export class Teams extends Context.Service<
         // Created before, by an earlier try.
         if (id !== undefined) return yield* Effect.orDie(get(id));
         return yield* Effect.die("INSERT returned no row");
-      });
+      }, Effect.uninterruptible);
 
       const rename = Effect.fn("Teams.rename")(function* (
         id: TeamId,
@@ -126,7 +127,7 @@ export class Teams extends Context.Service<
           return yield* new TeamNotFound({ id });
         }
         return toTeam(row);
-      });
+      }, Effect.uninterruptible);
 
       const setLogos = Effect.fn("Teams.setLogos")(function* (
         id: TeamId,
@@ -145,7 +146,7 @@ export class Teams extends Context.Service<
           return yield* new TeamNotFound({ id });
         }
         return toTeam(row);
-      });
+      }, Effect.uninterruptible);
 
       const deleteTeam = Effect.fn("Teams.delete")(function* (id: TeamId) {
         const deleted = yield* Effect.gen(function* () {
@@ -167,7 +168,7 @@ export class Teams extends Context.Service<
         if (deleted.length === 0) {
           return yield* new TeamNotFound({ id });
         }
-      });
+      }, Effect.uninterruptible);
 
       return Teams.of({ get, create, rename, setLogos, delete: deleteTeam });
     }),

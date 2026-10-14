@@ -294,6 +294,7 @@ export class Attendance extends Context.Service<
               )
             : Effect.succeed(value);
 
+      // Writes run to their end, even if the client that asked goes away.
       const attend = Effect.fn("Attendance.attend")(function* (
         event: DocumentId,
         user: Identity,
@@ -331,7 +332,7 @@ export class Attendance extends Context.Service<
           sql.withTransaction,
           Effect.catchIf(SqlError.isSqlError, Effect.die),
         );
-      });
+      }, Effect.uninterruptible);
 
       const leave = Effect.fn("Attendance.leave")(function* (
         event: DocumentId,
@@ -349,7 +350,7 @@ export class Attendance extends Context.Service<
             notifications.signupCancelled({ event, attendee }),
           );
         }).pipe(sql.withTransaction, Effect.orDie);
-      });
+      }, Effect.uninterruptible);
 
       const attendAsGuest = Effect.fn("Attendance.attendAsGuest")(function* (
         event: DocumentId,
@@ -394,7 +395,7 @@ export class Attendance extends Context.Service<
           ),
         );
         return token;
-      });
+      }, Effect.uninterruptible);
 
       const leaveAsGuest = Effect.fn("Attendance.leaveAsGuest")(function* (
         event: DocumentId,
@@ -418,7 +419,7 @@ export class Attendance extends Context.Service<
             notifications.signupCancelled({ event, attendee }),
           );
         }).pipe(sql.withTransaction, Effect.orDie);
-      });
+      }, Effect.uninterruptible);
 
       const change = Effect.fn("Attendance.change")(function* (
         event: DocumentId,
@@ -462,7 +463,7 @@ export class Attendance extends Context.Service<
           sql.withTransaction,
           Effect.catchIf(SqlError.isSqlError, Effect.die),
         );
-      });
+      }, Effect.uninterruptible);
 
       const remove = Effect.fn("Attendance.remove")(function* (
         attendee: string,
@@ -471,7 +472,7 @@ export class Attendance extends Context.Service<
           DELETE FROM attendees WHERE id = ${attendee} RETURNING id
         `.pipe(Effect.orDie);
         if (removed.length === 0) return yield* new SignupNotFound({});
-      });
+      }, Effect.uninterruptible);
 
       const dietaryPreferences = Effect.fn("Attendance.dietaryPreferences")(
         function* (event: DocumentId) {

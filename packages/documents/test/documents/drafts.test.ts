@@ -10,6 +10,7 @@ import {
   alice,
   bob,
   end,
+  interruptedWhileLocked,
   newTeam,
   openEditor,
   publishedAs,
@@ -675,6 +676,17 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         (yield* Effect.flip(documents.delete(id, alice)))._tag,
         "DocumentNotFound",
       );
+    }),
+  );
+
+  it.effect("finishes a delete whose caller went away part way", () =>
+    Effect.gen(function* () {
+      const documents = yield* Documents;
+      const id = yield* publishedEvent({ public: true, guests: false });
+
+      yield* interruptedWhileLocked("documents", documents.delete(id, alice));
+      assert.isUndefined(yield* publishedAs(id, "members"));
+      assert.isUndefined(yield* syncedDocument(id));
     }),
   );
 

@@ -113,6 +113,7 @@ export class Documents extends Context.Service<
       const notifications = yield* Notifications;
       const announcements = yield* Announcements;
 
+      // Writes run to their end, even if the client that asked goes away.
       const create = Effect.fn("Documents.create")(function* (
         type: ContentTypeName,
         team: TeamId,
@@ -139,7 +140,7 @@ export class Documents extends Context.Service<
         // Created before, by an earlier try.
         if (id !== undefined) return id;
         return yield* Effect.die("INSERT returned no row");
-      });
+      }, Effect.uninterruptible);
 
       const get = Effect.fn("Documents.get")(function* (id: DocumentId) {
         const [row] = yield* sql<{
@@ -288,7 +289,7 @@ export class Documents extends Context.Service<
             }
           }),
         );
-      });
+      }, Effect.uninterruptible);
 
       const publishers = {
         event: (id: DocumentId, heads: Heads, user: Identity) =>
@@ -382,7 +383,7 @@ export class Documents extends Context.Service<
           return yield* new DocumentNotFound({ id });
         }
         return toPublication(row);
-      });
+      }, Effect.uninterruptible);
 
       const deleteDocument = Effect.fn("Documents.delete")(function* (
         id: DocumentId,
@@ -415,7 +416,7 @@ export class Documents extends Context.Service<
         if (!found) {
           return yield* new DocumentNotFound({ id });
         }
-      });
+      }, Effect.uninterruptible);
 
       return Documents.of({
         create,

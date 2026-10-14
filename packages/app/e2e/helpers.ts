@@ -164,10 +164,23 @@ export const eventPath = (team: string, event: string) =>
 export const deleteTeam = async (page: Page, id: string) => {
   await page.goto(`/studio/teams/${id}`);
   await openTeamMenu(page, id);
+  const done = deleted(page, `/api/teams/${id}`);
   await page.getByRole("button", { name: "Delete team" }).click();
   await expect(page).toHaveURL(/\/studio\/teams$/);
   await expect(page.locator(`a[href="/studio/teams/${id}"]`)).toHaveCount(0);
+  await done;
 };
+
+/**
+ * The server's answer to deleting `path`. The studio shows a delete before
+ * the server has done it, and leaving the page cuts the request off.
+ */
+const deleted = (page: Page, path: string) =>
+  page.waitForResponse(
+    (response) =>
+      response.request().method() === "DELETE" &&
+      new URL(response.url()).pathname === path,
+  );
 
 /** Deletes the events, each from its editor, and then their team. */
 export const cleanUp = async (
@@ -197,10 +210,12 @@ export const deleteEvent = async (page: Page, id: string) => {
     .getByRole("heading", { name: /^Attendees \(\d+\)$/ });
   const signedUp = Number(/\d+/.exec((await heading.textContent()) ?? "")?.[0]);
   page.once("dialog", (dialog) => dialog.accept());
+  const done = deleted(page, `/api/documents/${id}`);
   await page.getByRole("button", { name: "Delete", exact: true }).click();
   // Back on the event's team, without the event.
   await expect(page).toHaveURL(/\/studio\/teams\/[0-9a-f-]+$/);
   await expect(page.locator(`a[href$="/events/${id}"]`)).toHaveCount(0);
+  await done;
 
   await page.goto(`/events/${id}`);
   await expect(page.getByText("isn't published")).toBeVisible();

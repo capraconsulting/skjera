@@ -1,6 +1,7 @@
 import * as A from "@automerge/automerge";
 import { Identity } from "@skjera/oauth/api";
-import { Effect, Layer, Option } from "effect";
+import { Deferred, Effect, Fiber, Layer, Option } from "effect";
+import { SqlClient } from "effect/sql";
 import { Announcements } from "../src/Announcements.ts";
 import { Attendance } from "../src/Attendance.ts";
 import type { EventContent } from "../src/ContentTypes.ts";
@@ -286,3 +287,36 @@ export const openEditor = Effect.fn(function* (
     },
   };
 });
+
+/**
+ * Starts `write` while `table` is locked, interrupts it as a client going
+ * away would, then lets the lock go, and waits for the interrupt to end.
+ */
+export const interruptedWhileLocked = <A, E, R>(
+  table: string,
+  write: Effect.Effect<A, E, R>,
+) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const held = yield* Deferred.make<void>();
+    const release = yield* Deferred.make<void>();
+    const holder = yield* Effect.gen(function* () {
+      yield* sql.unsafe(`LOCK TABLE ${table} IN SHARE MODE`);
+      yield* Deferred.succeed(held, undefined);
+      yield* Deferred.await(release);
+    }).pipe(sql.withTransaction, Effect.forkChild);
+    yield* Deferred.await(held);
+
+    const writing = yield* Effect.forkChild(write);
+    // Until it waits for the lock.
+    const waiting = sql<{ count: number }>`
+      SELECT count(*)::int AS count FROM pg_stat_activity
+      WHERE datname = current_database() AND wait_event_type = 'Lock'
+    `.pipe(Effect.map(([row]) => row?.count ?? 0));
+    while ((yield* waiting) < 1) yield* Effect.sleep("20 millis");
+
+    const interrupting = yield* Effect.forkChild(Fiber.interrupt(writing));
+    yield* Deferred.succeed(release, undefined);
+    yield* Fiber.join(holder);
+    yield* Fiber.join(interrupting);
+  });
