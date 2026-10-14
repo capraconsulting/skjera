@@ -1,0 +1,281 @@
+import * as A from "@automerge/automerge";
+import { assert, layer } from "@effect/vitest";
+import { Identity } from "@skjera/oauth/api";
+import { Effect, Ref } from "effect";
+import { SqlClient } from "effect/sql";
+import { Attendance } from "../src/Attendance.ts";
+import type { EventContent } from "../src/ContentTypes.ts";
+import { Documents } from "../src/Documents.ts";
+import type { DocumentId } from "../src/Model.ts";
+import { NoticesKept } from "../src/Notifications.ts";
+import {
+  alice,
+  bob,
+  openEditor,
+  organizerView,
+  publishedAs,
+  publishedEvent,
+  setPlace,
+  setTimes,
+  syncedDocument,
+  TestLayer,
+} from "./helpers.ts";
+
+// Real clock: these tests talk to a real database.
+layer(TestLayer, { excludeTestServices: true })("Attendee notices", (it) => {
+  it.effect(
+    "tells attendees when a republish gives the event another place (AC-5, AC-6)",
+    () =>
+      Effect.gen(function* () {
+        const documents = yield* Documents;
+        const attendance = yield* Attendance;
+        const kept = yield* NoticesKept;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        const carol = new Identity({
+          issuer: "https://idp.example",
+          subject: "carol",
+          email: "carol@example.com",
+          name: "Carol",
+        });
+        yield* attendance.attend(id, carol);
+        yield* attendance.attend(id, bob); // No email to tell.
+        yield* attendance.attendAsGuest(id, {
+          name: "Gina",
+          email: "gina@example.org",
+        });
+        const changes = Ref.get(kept).pipe(
+          Effect.map((all) =>
+            all
+              .filter((notice) => notice.kind === "eventChanged")
+              .filter((notice) => notice.event === id),
+          ),
+        );
+        const editor = yield* openEditor(id);
+        const republish = (edit: (event: EventContent) => void) =>
+          documents
+            .applyChanges(id, [editor.edit(edit)], alice)
+            .pipe(
+              Effect.flatMap((heads) => documents.publish(id, heads, alice)),
+            );
+
+        // Anything but its place: nobody is told.
+        yield* republish((event) => A.updateText(event, ["title"], "Meetup!"));
+        assert.deepStrictEqual(yield* changes, []);
+
+        // Another place, at the same times: everyone with an email is, once
+        // each, with the place it was.
+        const moved = yield* republish((event) => setPlace(event, "Aula"));
+        const told = yield* changes;
+        assert.deepStrictEqual(
+          told.map((notice) => notice.attendee.name).sort(),
+          ["Carol", "Gina"],
+        );
+        for (const notice of told) {
+          assert.strictEqual(
+            notice.version,
+            String(moved.publishedAt.getTime()),
+          );
+          assert.strictEqual(notice.previousPlace, "Kantina");
+          assert.isUndefined(notice.previously);
+        }
+
+        // Both at once: one notice each, with both.
+        const both = yield* republish((event) => {
+          setPlace(event, "Torget");
+          setTimes(event, {
+            start: "2036-10-16T18:00+02:00[Europe/Oslo]",
+            end: "2036-10-16T21:00+02:00[Europe/Oslo]",
+          });
+        });
+        const latest = (yield* changes).filter(
+          (notice) => notice.version === String(both.publishedAt.getTime()),
+        );
+        assert.deepStrictEqual(
+          latest.map((notice) => notice.attendee.name).sort(),
+          ["Carol", "Gina"],
+        );
+        for (const notice of latest) {
+          assert.strictEqual(notice.previousPlace, "Aula");
+          assert.deepStrictEqual(notice.previously, {
+            startsAt: "2036-10-15T16:00:00.000Z",
+            endsAt: "2036-10-15T19:00:00.000Z",
+          });
+        }
+      }),
+  );
+
+  it.effect(
+    "tells attendees of an event published before when it gets a place (AC-5)",
+    () =>
+      Effect.gen(function* () {
+        const documents = yield* Documents;
+        const attendance = yield* Attendance;
+        const sql = yield* SqlClient.SqlClient;
+        const kept = yield* NoticesKept;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        yield* attendance.attendAsGuest(id, {
+          name: "Gina",
+          email: "gina@example.org",
+        });
+        // As published before events had a place.
+        yield* sql`UPDATE events SET place = NULL WHERE id = ${id}`;
+        const editor = yield* openEditor(id);
+        const heads = yield* documents.applyChanges(
+          id,
+          [editor.edit((event) => setPlace(event, "Aula"))],
+          alice,
+        );
+        yield* documents.publish(id, heads, alice);
+        const told = (yield* Ref.get(kept))
+          .filter((notice) => notice.kind === "eventChanged")
+          .filter((notice) => notice.event === id);
+        assert.strictEqual(told.length, 1);
+        assert.strictEqual(told[0]?.previousPlace, "");
+        assert.isUndefined(told[0]?.previously);
+      }),
+  );
+
+  it.effect("keeps a deleted event, telling attendees it's cancelled", () =>
+    Effect.gen(function* () {
+      const documents = yield* Documents;
+      const attendance = yield* Attendance;
+      const sql = yield* SqlClient.SqlClient;
+      const kept = yield* NoticesKept;
+      const cancellations = (event: DocumentId) =>
+        Ref.get(kept).pipe(
+          Effect.map((all) =>
+            all.filter(
+              (notice) =>
+                notice.kind === "eventCancelled" && notice.event === event,
+            ),
+          ),
+        );
+      const id = yield* publishedEvent({ public: true, guests: true });
+      const carol = new Identity({
+        issuer: "https://idp.example",
+        subject: "carol",
+        email: "carol@example.com",
+        name: "Carol",
+      });
+      yield* attendance.attend(id, carol);
+      yield* attendance.attend(id, bob); // No email to tell.
+      const token = yield* attendance.attendAsGuest(id, {
+        name: "Gina",
+        email: "gina@example.org",
+      });
+
+      yield* documents.delete(id, bob);
+      assert.deepStrictEqual(
+        (yield* cancellations(id)).map((notice) => notice.attendee.name).sort(),
+        ["Carol", "Gina"],
+      );
+      // Kept, marked deleted, with who did it.
+      const [row] = yield* sql<{
+        deleted: boolean;
+        deleted_by_subject: string;
+        signups: number;
+      }>`
+        SELECT d.deleted_at IS NOT NULL AND e.deleted_at IS NOT NULL AS deleted,
+          d.deleted_by_subject,
+          (SELECT count(*)::int FROM attendees WHERE event_id = d.id) AS signups
+        FROM documents d JOIN events e ON e.id = d.id WHERE d.id = ${id}
+      `;
+      assert.deepStrictEqual(row, {
+        deleted: true,
+        deleted_by_subject: "bob",
+        signups: 3,
+      });
+      // Otherwise gone: from the studio, the site and signing up.
+      assert.isUndefined(yield* syncedDocument(id));
+      assert.isUndefined(yield* publishedAs(id, "members"));
+      assert.deepStrictEqual(yield* organizerView(id), []);
+      assert.strictEqual(
+        (yield* Effect.flip(attendance.attend(id, alice)))._tag,
+        "EventNotFound",
+      );
+      assert.strictEqual(
+        (yield* Effect.flip(attendance.leaveAsGuest(id, token)))._tag,
+        "SignupNotFound",
+      );
+
+      // An event that's over just goes.
+      const past = yield* publishedEvent({
+        public: true,
+        guests: true,
+        edit: (event) =>
+          setTimes(event, {
+            start: "2020-10-15T18:00+02:00[Europe/Oslo]",
+            end: "2020-10-15T21:00+02:00[Europe/Oslo]",
+          }),
+      });
+      yield* sql`
+        INSERT INTO attendees (event_id, name, email, cancel_token_hash)
+        VALUES (${past}, 'Gina', 'gina@example.org', ${crypto.randomUUID()})
+      `;
+      yield* documents.delete(past, alice);
+      assert.deepStrictEqual(yield* cancellations(past), []);
+    }),
+  );
+
+  it.effect("tells attendees when a republish moves the event", () =>
+    Effect.gen(function* () {
+      const documents = yield* Documents;
+      const attendance = yield* Attendance;
+      const kept = yield* NoticesKept;
+      const id = yield* publishedEvent({ public: true, guests: true });
+      const carol = new Identity({
+        issuer: "https://idp.example",
+        subject: "carol",
+        email: "carol@example.com",
+        name: "Carol",
+      });
+      yield* attendance.attend(id, carol);
+      yield* attendance.attend(id, bob); // No email to tell.
+      yield* attendance.attendAsGuest(id, {
+        name: "Gina",
+        email: "gina@example.org",
+      });
+      const changes = Ref.get(kept).pipe(
+        Effect.map((all) =>
+          all
+            .filter((notice) => notice.kind === "eventChanged")
+            .filter((notice) => notice.event === id),
+        ),
+      );
+      const editor = yield* openEditor(id);
+      const republish = (edit: (event: EventContent) => void) =>
+        documents
+          .applyChanges(id, [editor.edit(edit)], alice)
+          .pipe(Effect.flatMap((heads) => documents.publish(id, heads, alice)));
+
+      // Anything but its time: nobody is told.
+      yield* republish((event) => A.updateText(event, ["title"], "Meetup!"));
+      assert.deepStrictEqual(yield* changes, []);
+
+      // A day later: everyone with an email is, once each.
+      const moved = yield* republish((event) =>
+        setTimes(event, {
+          start: "2036-10-16T18:00+02:00[Europe/Oslo]",
+          end: "2036-10-16T21:00+02:00[Europe/Oslo]",
+        }),
+      );
+      const told = yield* changes;
+      assert.deepStrictEqual(
+        told.map((notice) => notice.attendee.name).sort(),
+        ["Carol", "Gina"],
+      );
+      for (const notice of told) {
+        assert.strictEqual(notice.event, id);
+        assert.strictEqual(notice.version, String(moved.publishedAt.getTime()));
+        assert.deepStrictEqual(notice.previously, {
+          startsAt: "2036-10-15T16:00:00.000Z",
+          endsAt: "2036-10-15T19:00:00.000Z",
+        });
+      }
+      assert.isTrue(
+        told.some((notice) => notice.attendee.guest),
+        "the guest's notice says so, for their link",
+      );
+    }),
+  );
+});
