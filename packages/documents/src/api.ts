@@ -1,5 +1,6 @@
-// What the browser app may import: the API's definitions, the content types
-// and the errors, with nothing that needs the database, the cluster or Node.
+// The part of the package that runs anywhere: the API's definitions, the
+// content types and the errors. Nothing exported here may need the database,
+// the cluster or Node.
 
 export * from "./api/DocumentsApi.ts";
 export * from "./api/errors.ts";
