@@ -15,6 +15,6 @@
     "@biomejs/biome": "^2.5.14",
     "@jdxcode/mise": "^2026.9.17",
     "mprocs": "^0.9.6",
-    "turbo": "^2.11.5"
+    "turbo": "^2.11.7"
   }
 }
