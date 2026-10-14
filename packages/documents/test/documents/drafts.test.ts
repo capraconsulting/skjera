@@ -2,10 +2,10 @@ import * as A from "@automerge/automerge";
 import { assert, layer } from "@effect/vitest";
 import { Effect, Ref } from "effect";
 import { SqlClient } from "effect/sql";
-import { AnnouncementsKept } from "../src/Announcements.ts";
-import type { EventContent } from "../src/ContentTypes.ts";
-import { Documents } from "../src/Documents.ts";
-import type { DocumentId } from "../src/Model.ts";
+import { AnnouncementsKept } from "../../src/Announcements.ts";
+import type { EventContent } from "../../src/ContentTypes.ts";
+import { Documents } from "../../src/Documents.ts";
+import type { DocumentId } from "../../src/Model.ts";
 import {
   alice,
   bob,
@@ -21,7 +21,7 @@ import {
   start,
   syncedDocument,
   TestLayer,
-} from "./helpers.ts";
+} from "../helpers.ts";
 
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {

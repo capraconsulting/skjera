@@ -2,8 +2,8 @@ import * as A from "@automerge/automerge";
 import { assert, layer } from "@effect/vitest";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
-import { Documents } from "../src/Documents.ts";
-import type { DocumentId } from "../src/Model.ts";
+import { Documents } from "../../src/Documents.ts";
+import type { DocumentId } from "../../src/Model.ts";
 import {
   alice,
   emailKinds,
@@ -12,7 +12,7 @@ import {
   setEmailField,
   setEmailRichText,
   TestLayer,
-} from "./helpers.ts";
+} from "../helpers.ts";
 
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Event emails", (it) => {

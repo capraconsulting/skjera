@@ -3,11 +3,11 @@ import { assert, layer } from "@effect/vitest";
 import { Identity } from "@skjera/oauth/api";
 import { Effect, Ref } from "effect";
 import { SqlClient } from "effect/sql";
-import { Attendance } from "../src/Attendance.ts";
-import type { EventContent } from "../src/ContentTypes.ts";
-import { Documents } from "../src/Documents.ts";
-import type { DocumentId } from "../src/Model.ts";
-import { NoticesKept } from "../src/Notifications.ts";
+import { Attendance } from "../../src/Attendance.ts";
+import type { EventContent } from "../../src/ContentTypes.ts";
+import { Documents } from "../../src/Documents.ts";
+import type { DocumentId } from "../../src/Model.ts";
+import { NoticesKept } from "../../src/Notifications.ts";
 import {
   alice,
   bob,
@@ -19,7 +19,7 @@ import {
   setTimes,
   syncedDocument,
   TestLayer,
-} from "./helpers.ts";
+} from "../helpers.ts";
 
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Attendee notices", (it) => {

@@ -1,13 +1,13 @@
 import { assert, layer } from "@effect/vitest";
 import { Effect, Option } from "effect";
-import { Attendance } from "../src/Attendance.ts";
+import { Attendance } from "../../src/Attendance.ts";
 import {
   bob,
   organizerView,
   publishedEvent,
   signups,
   TestLayer,
-} from "./helpers.ts";
+} from "../helpers.ts";
 
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Guests", (it) => {

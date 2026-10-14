@@ -2,8 +2,8 @@ import { assert, layer } from "@effect/vitest";
 import type { Identity } from "@skjera/oauth/api";
 import { Deferred, Effect, Fiber } from "effect";
 import { SqlClient } from "effect/sql";
-import { Attendance } from "../src/Attendance.ts";
-import { Documents } from "../src/Documents.ts";
+import { Attendance } from "../../src/Attendance.ts";
+import { Documents } from "../../src/Documents.ts";
 import {
   alice,
   bob,
@@ -15,7 +15,7 @@ import {
   publishedEvent,
   setLimit,
   TestLayer,
-} from "./helpers.ts";
+} from "../helpers.ts";
 
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Attendance limit", (it) => {

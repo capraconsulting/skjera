@@ -1,7 +1,7 @@
 import { assert, layer } from "@effect/vitest";
 import { Effect, Option } from "effect";
 import { SqlClient } from "effect/sql";
-import { Attendance } from "../src/Attendance.ts";
+import { Attendance } from "../../src/Attendance.ts";
 import {
   alice,
   bob,
@@ -14,7 +14,7 @@ import {
   setTimes,
   signups,
   TestLayer,
-} from "./helpers.ts";
+} from "../helpers.ts";
 
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Dietary preferences", (it) => {
