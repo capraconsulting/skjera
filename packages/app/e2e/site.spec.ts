@@ -28,7 +28,9 @@ test("visitors can read the site but not the studio", async ({ browser }) => {
     page.getByRole("heading", { name: "Upcoming events" }),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "Log in" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Studio" })).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "Studio", exact: true }),
+  ).toHaveCount(0);
 
   await page.goto("/studio/teams");
   await expect(page).toHaveURL(/localhost:5556\/dex/);
@@ -49,7 +51,9 @@ test("logging in from the site leads to the studio and back", async ({
 
   await page.getByRole("link", { name: "Skjera" }).click();
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole("link", { name: "Studio" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Studio", exact: true }),
+  ).toBeVisible();
   await expect(page.getByTestId("me")).toHaveAttribute(
     "title",
     "alice@example.com",
@@ -292,7 +296,7 @@ test("the account menu leads to settings, and logs out", async ({
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
   // In the studio, its link says so; on the site, it doesn't.
-  const studio = alice.getByRole("link", { name: "Studio" });
+  const studio = alice.getByRole("link", { name: "Studio", exact: true });
   await expect(studio).toHaveAttribute("aria-current", "page");
 
   // Who's signed in: their name from the login, and their email.
@@ -668,7 +672,7 @@ test("the studio never runs HubSpot's script, however it is entered (AC-2)", asy
   // From a site page that has run it, by the "Studio" link.
   await alice.getByRole("link", { name: "Skjera", exact: true }).click();
   await expect.poll(() => hubSpotRuns(alice)).toBe(1);
-  await alice.getByRole("link", { name: "Studio" }).click();
+  await alice.getByRole("link", { name: "Studio", exact: true }).click();
   await expect(teams).toBeVisible();
   await expect.poll(() => hubSpotRuns(alice)).toBe(0);
   await expect(alice.locator("script#hs-script-loader")).toHaveCount(0);

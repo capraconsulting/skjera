@@ -2,6 +2,12 @@ import { defineConfig, devices } from "@playwright/test";
 
 const ci = !!process.env.CI;
 
+// A test server of its own (`pnpm test-server`), with a new database each
+// run: the tests never see what `pnpm dev`'s database holds. The last of the
+// ports Dex lets test servers log in from.
+const port = 8806;
+const site = `${process.env.SKJERA_TEST_SERVER_URL || "http://localhost"}:${port}`;
+
 export default defineConfig({
   testDir: "e2e",
   forbidOnly: ci,
@@ -12,7 +18,7 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   timeout: 60_000,
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL: site,
     trace: "retain-on-failure",
     // Times show in the viewer's locale and zone; these pin what they read.
     locale: "en-US",
@@ -30,17 +36,13 @@ export default defineConfig({
       timeout: 180_000,
     },
     {
-      command: "pnpm --filter @skjera/server start",
-      cwd: "../..",
-      url: "http://localhost:3000/health",
-      reuseExistingServer: !ci,
-    },
-    {
       // The production build: much faster page loads than the dev server,
-      // and what users get. A running `pnpm dev` is reused instead.
-      command: "pnpm build && pnpm preview",
-      url: "http://localhost:5173",
-      reuseExistingServer: !ci,
+      // and what users get.
+      command: `PORT=${port} pnpm test-server`,
+      cwd: "../..",
+      url: `http://localhost:${port}/health/ready`,
+      reuseExistingServer: false,
+      timeout: 180_000,
     },
   ],
 });

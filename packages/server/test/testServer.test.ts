@@ -2,7 +2,11 @@ import { PgClient } from "@effect/sql-pg";
 import { Effect, Redacted } from "effect";
 import { SqlClient } from "effect/sql";
 import { afterEach, describe, expect, it } from "vitest";
-import { createDatabase, testServerEnv } from "../test-server.ts";
+import {
+  createDatabase,
+  dropUnusedDatabases,
+  testServerEnv,
+} from "../test-server.ts";
 
 const serverUrl =
   process.env.DATABASE_URL ?? "postgres://skjera:skjera@localhost:5433/skjera";
@@ -140,5 +144,36 @@ describe("createDatabase", () => {
       expect(actual.username).toBe(expected.username);
       expect(actual.password).toBe(expected.password);
     }
+  });
+
+  it("drops what earlier servers on the port left, but not a database in use", async () => {
+    const left = await createDatabase(serverUrl, 8899);
+    const inUse = await createDatabase(serverUrl, 8899);
+    const otherPort = await createDatabase(serverUrl, 8898);
+    const [leftName, inUseName, otherName] = [left, inUse, otherPort].map(
+      (url) => new URL(url).pathname.slice(1),
+    );
+    made.push(inUseName ?? "", otherName ?? "");
+
+    const names = await Effect.runPromise(
+      Effect.gen(function* () {
+        // A running server's connection.
+        const sql = yield* SqlClient.SqlClient;
+        yield* sql`SELECT 1`;
+        yield* Effect.promise(() => dropUnusedDatabases(serverUrl, 8899));
+        return yield* Effect.promise(() =>
+          onServer(
+            (sql) => sql<{ datname: string }>`SELECT datname FROM pg_database`,
+          ),
+        );
+      }).pipe(
+        Effect.scoped,
+        Effect.provide(PgClient.layer({ url: Redacted.make(inUse) })),
+      ),
+    ).then((rows) => rows.map((row) => row.datname));
+
+    expect(names).not.toContain(leftName);
+    expect(names).toContain(inUseName);
+    expect(names).toContain(otherName);
   });
 });

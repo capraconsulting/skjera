@@ -15,10 +15,10 @@ import {
 
 const resizer = "https://cdn.jsdelivr.net/npm/@open-iframe-resizer/core@2.4.1";
 
-const websitePage = `<!doctype html>
+const websitePage = (site: string) => `<!doctype html>
 <html>
 <body>
-<iframe id="events" src="http://localhost:5173/embed" style="height: 20px; width: 600px"></iframe>
+<iframe id="events" src="${site}/embed" style="height: 20px; width: 600px"></iframe>
 <script type="module">
   import { initialize } from "${resizer}/dist/index.js";
   initialize({}, "#events");
@@ -27,10 +27,13 @@ const websitePage = `<!doctype html>
 </html>`;
 
 /** The page of a website that shows the embed page, at the address in `mise.toml`. */
-const website = async (browser: Parameters<typeof visitor>[0]) => {
+const website = async (
+  browser: Parameters<typeof visitor>[0],
+  site: string | undefined,
+) => {
   const page = await visitor(browser);
   await page.route("http://website.localhost/", (route) =>
-    route.fulfill({ contentType: "text/html", body: websitePage }),
+    route.fulfill({ contentType: "text/html", body: websitePage(site ?? "") }),
   );
   await page.goto("http://website.localhost/");
   return page;
@@ -38,12 +41,13 @@ const website = async (browser: Parameters<typeof visitor>[0]) => {
 
 test("the website's iframe takes the height of the embed page (AC-6)", async ({
   browser,
+  baseURL,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
   await newTeam(alice, uniqueTeamName("Embed"));
   await publishedEvent(alice, { public: true });
 
-  const page = await website(browser);
+  const page = await website(browser, baseURL);
   const frame = page.frameLocator("#events");
   await expect(frame.getByRole("link").first()).toBeVisible();
 
@@ -64,12 +68,13 @@ test("the website's iframe takes the height of the embed page (AC-6)", async ({
 
 test("a click on an event in the iframe opens its page in a new tab (AC-3)", async ({
   browser,
+  baseURL,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
   await newTeam(alice, uniqueTeamName("Embed"));
   await publishedEvent(alice, { public: true });
 
-  const page = await website(browser);
+  const page = await website(browser, baseURL);
   const link = page.frameLocator("#events").getByRole("link").first();
   await expect(link).toBeVisible();
   const href = await link.getAttribute("href");
@@ -77,5 +82,5 @@ test("a click on an event in the iframe opens its page in a new tab (AC-3)", asy
 
   const popup = page.waitForEvent("popup");
   await link.click();
-  await expect(await popup).toHaveURL(`http://localhost:5173${href}`);
+  await expect(await popup).toHaveURL(`${baseURL}${href}`);
 });

@@ -87,6 +87,33 @@ export const createDatabase = async (
   return url.href;
 };
 
+/**
+ * Drops the databases earlier test servers on `port` left, but not one a
+ * running server is connected to.
+ */
+export const dropUnusedDatabases = async (
+  serverUrl: string,
+  port: number,
+): Promise<void> => {
+  await Effect.runPromise(
+    Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      const left = yield* sql<{ datname: string }>`
+        SELECT datname FROM pg_database d
+        WHERE datname LIKE ${`skjera\\_testserver\\_${port}\\_%`}
+          AND NOT EXISTS (
+            SELECT 1 FROM pg_stat_activity a WHERE a.datname = d.datname
+          )`;
+      for (const { datname } of left) {
+        yield* sql.unsafe(`DROP DATABASE ${datname}`).pipe(Effect.ignore);
+      }
+    }).pipe(
+      Effect.provide(PgClient.layer({ url: Redacted.make(serverUrl) })),
+      Effect.orDie,
+    ),
+  );
+};
+
 if (import.meta.main) {
   try {
     const port = Number(required(process.env, "PORT"));
@@ -95,10 +122,9 @@ if (import.meta.main) {
     // Before anything is created: refuse a malformed address.
     testServerUrl(process.env.SKJERA_TEST_SERVER_URL);
 
-    const databaseUrl = await createDatabase(
-      required(process.env, "DATABASE_URL"),
-      port,
-    );
+    const serverUrl = required(process.env, "DATABASE_URL");
+    await dropUnusedDatabases(serverUrl, port);
+    const databaseUrl = await createDatabase(serverUrl, port);
     const env = testServerEnv(process.env, {
       port,
       databaseUrl,

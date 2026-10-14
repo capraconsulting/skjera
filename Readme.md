@@ -28,7 +28,7 @@ The local Postgres is [pg_automerge](https://github.com/TheKnarf/pg-automerge)'s
 pnpm lint        # Biome
 pnpm typecheck
 pnpm test        # unit and integration tests, against the local Postgres and Mailpit
-pnpm test:e2e    # Playwright: the whole stack, started for you if it isn't running
+pnpm test:e2e    # Playwright, against a test server of its own (port 8806, a new database each run)
 ```
 
 The pre-commit hook (`.hooks/`, set by `mise run setup`) runs Biome on staged files, typechecks and the tests: Docker must be running, and mise active. There's no CI yet.
