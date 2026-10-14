@@ -9,7 +9,7 @@ const port = 8806;
 const site = `${process.env.SKJERA_TEST_SERVER_URL || "http://localhost"}:${port}`;
 
 export default defineConfig({
-  testDir: "e2e",
+  testDir: "e2e/specs",
   forbidOnly: ci,
   retries: ci ? 2 : 0,
   // In CI: annotations on the run, and a report to download when it fails.
