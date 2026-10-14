@@ -248,7 +248,7 @@ export const deleteEvent = async (page: Page, id: string) => {
  * writes its own stored selection back into the DOM, which can land after
  * the key press. So focus, wait that out, then set the selection.
  */
-export const placeCaret = (editor: Locator, where: "start" | "end") =>
+const setCaret = (editor: Locator, where: "start" | "end") =>
   editor.evaluate(async (element, atStart) => {
     (element as HTMLElement).focus();
     await new Promise((settled) => setTimeout(settled, 100));
@@ -266,6 +266,40 @@ export const placeCaret = (editor: Locator, where: "start" | "end") =>
       selection?.addRange(range);
     });
   }, where === "start");
+
+/**
+ * Puts the caret at the start or end of an editor, and checks it stays
+ * there: ProseMirror sometimes writes its own selection back right after,
+ * so it's put there again until it holds.
+ */
+export const placeCaret = async (editor: Locator, where: "start" | "end") => {
+  await expect(async () => {
+    await setCaret(editor, where);
+    await editor.page().waitForTimeout(150);
+    expect(await caretOffset(editor)).toBe(
+      where === "start"
+        ? 0
+        : await editor.evaluate(
+            (element) =>
+              (element.querySelector("p") ?? element).textContent?.length,
+          ),
+    );
+  }).toPass({ timeout: 5_000 });
+};
+
+/** Where the caret is in the editor's first paragraph, in characters. */
+const caretOffset = (editor: Locator) =>
+  editor.evaluate((element) => {
+    const selection = window.getSelection();
+    if (selection === null || selection.rangeCount === 0) return null;
+    const caret = selection.getRangeAt(0);
+    if (!caret.collapsed || !element.contains(caret.startContainer))
+      return null;
+    const before = document.createRange();
+    before.selectNodeContents(element.querySelector("p") ?? element);
+    before.setEnd(caret.startContainer, caret.startOffset);
+    return before.toString().length;
+  });
 
 /**
  * Types at the start or end of an editor. Uses the keyboard directly, since
