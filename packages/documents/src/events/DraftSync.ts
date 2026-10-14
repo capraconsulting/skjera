@@ -311,8 +311,11 @@ export const serve = (
         ) {
           return yield* receive(message.documentId, message.data);
         }
+        // Only what the editor says itself: automerge-repo also passes on
+        // what it hears from others, which the server has relayed already.
         if (
           message.type === "ephemeral" &&
+          message.senderId === editor &&
           typeof message.documentId === "string" &&
           byRepoId.has(message.documentId) &&
           typeof message.sessionId === "string" &&

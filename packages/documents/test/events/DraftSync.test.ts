@@ -165,6 +165,8 @@ const connect = Effect.gen(function* () {
         documentId: repoIdOf(id),
         data: encode(message),
       }),
+    /** Passes on another editor's message unchanged, as automerge-repo does. */
+    forward: (message: object) => send({ ...message, targetId: server }),
     close: Fiber.interrupt(connection),
   };
 });
@@ -274,6 +276,43 @@ layer(TestLayer, { excludeTestServices: true })("DraftSync", (it) => {
           : decode(goodbye.data).__presence?.type,
         "goodbye",
       );
+      yield* second.close;
+    }).pipe(Effect.timeout("20 seconds")),
+  );
+
+  it.effect("relays nothing an editor passes on from someone else", () =>
+    Effect.gen(function* () {
+      const { id, draft } = yield* newDraft;
+      const first = yield* connect;
+      const second = yield* connect;
+      yield* first.draft(id, draft).sync;
+      yield* second.draft(id, A.clone(draft)).sync;
+      const before = first.received.length;
+
+      // The second hands the first's message back to the server, as
+      // automerge-repo passes on what it hears to its other peers. Relayed
+      // as the second's, it would put the first's caret under its name.
+      yield* second.forward({
+        type: "ephemeral",
+        senderId: first.peerId,
+        sessionId: `${first.peerId}-session`,
+        count: 1,
+        documentId: repoIdOf(id),
+        data: encode({
+          __presence: {
+            type: "update",
+            channel: "selection",
+            value: { field: "title", anchor: "a", head: "a" },
+          },
+        }),
+      });
+      yield* first.listen;
+      assert.isFalse(
+        first.received
+          .slice(before)
+          .some((message) => message.type === "ephemeral"),
+      );
+      yield* first.close;
       yield* second.close;
     }).pipe(Effect.timeout("20 seconds")),
   );
