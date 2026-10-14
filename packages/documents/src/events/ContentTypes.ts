@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 import { Temporal } from "temporal-polyfill";
+import type { Problem, PublishField } from "../api/Problems.ts";
 import { Cover, Question, Tag, ZonedDateTime } from "../Model.ts";
-import type { Problem, PublishField } from "../server/Problems.ts";
 
 // Content types are safe to share with the editor. A draft must always match
 // its type's schema exactly: changes that would add unknown fields or change

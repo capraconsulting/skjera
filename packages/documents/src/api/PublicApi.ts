@@ -15,7 +15,7 @@ import {
   SignInRequired,
   SignupNotFound,
   SignupRejected,
-} from "../server/errors.ts";
+} from "./errors.ts";
 
 // The site's API for signing up to published events. Public events are
 // there for anyone; with a session, members-only events too. The events

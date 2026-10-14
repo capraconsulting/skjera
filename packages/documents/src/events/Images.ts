@@ -10,9 +10,9 @@ import {
   Stream,
 } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
+import { InvalidImage } from "../api/errors.ts";
 import { type ImageType, imagesPath, maxImageBytes } from "../api/ImagesApi.ts";
-import { InvalidImage } from "../server/errors.ts";
-import { refused } from "../server/Problems.ts";
+import { refused } from "../api/Problems.ts";
 
 // Uploaded images, in an S3-compatible bucket. The bucket stays private:
 // the server serves the images, under ids too long to guess.

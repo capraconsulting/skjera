@@ -2,11 +2,7 @@ import { Authentication } from "@skjera/oauth/api";
 import { Schema } from "effect";
 import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
 import { Team, TeamId, TeamLogosChange } from "../Model.ts";
-import {
-  InvalidTeamName,
-  TeamNotEmpty,
-  TeamNotFound,
-} from "../server/errors.ts";
+import { InvalidTeamName, TeamNotEmpty, TeamNotFound } from "./errors.ts";
 
 /** Changing teams, for signed-in users. Teams themselves are synced. */
 export class TeamsApi extends HttpApiGroup.make("teams")

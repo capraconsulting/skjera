@@ -3,11 +3,7 @@ import { Schema } from "effect";
 import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
 import { ContentTypeName } from "../events/ContentTypes.ts";
 import { DocumentId, Heads, Publication, TeamId } from "../Model.ts";
-import {
-  DocumentNotFound,
-  PublishRejected,
-  TeamNotFound,
-} from "../server/errors.ts";
+import { DocumentNotFound, PublishRejected, TeamNotFound } from "./errors.ts";
 
 /**
  * Creating, publishing and deleting documents, for signed-in users.

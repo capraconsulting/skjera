@@ -14,7 +14,9 @@ import { Sync } from "./server/Sync.ts";
 import { Teams } from "./Teams.ts";
 
 export * from "./api/DocumentsApi.ts";
+export * from "./api/errors.ts";
 export * from "./api/ImagesApi.ts";
+export * from "./api/Problems.ts";
 export * from "./api/PublicApi.ts";
 export * from "./api/SyncApi.ts";
 export * from "./api/TeamsApi.ts";
@@ -34,8 +36,6 @@ export * from "./notices/Notifications.ts";
 export * as SlackChannel from "./notices/SlackChannel.ts";
 export * as Cluster from "./server/Cluster.ts";
 export * as Database from "./server/Database.ts";
-export * from "./server/errors.ts";
-export * from "./server/Problems.ts";
 export * from "./server/Sync.ts";
 export * as CalendarFeed from "./site/CalendarFeed.ts";
 export * as Embed from "./site/Embed.ts";

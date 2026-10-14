@@ -2,6 +2,12 @@ import { createHash, createHmac, randomBytes } from "node:crypto";
 import type { Identity } from "@skjera/oauth/api";
 import { Config, Context, Effect, Layer, Option, Redacted } from "effect";
 import { SqlClient, SqlError, type Statement } from "effect/sql";
+import {
+  EventNotFound,
+  SignupNotFound,
+  SignupRejected,
+} from "../api/errors.ts";
+import { type Problem, refused } from "../api/Problems.ts";
 import type {
   Answer,
   Answers,
@@ -12,12 +18,6 @@ import type {
   Question,
 } from "../Model.ts";
 import { Notifications, type Signup, tell } from "../notices/Notifications.ts";
-import {
-  EventNotFound,
-  SignupNotFound,
-  SignupRejected,
-} from "../server/errors.ts";
-import { type Problem, refused } from "../server/Problems.ts";
 
 /** What someone signing up tells, besides who they are. */
 export interface SignupDetails {

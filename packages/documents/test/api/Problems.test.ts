@@ -1,5 +1,5 @@
 import { assert, describe as group, it } from "@effect/vitest";
-import { describe, type Problem, refused } from "../../src/server/Problems.ts";
+import { describe, type Problem, refused } from "../../src/api/Problems.ts";
 
 const question = "Towel size";
 

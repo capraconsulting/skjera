@@ -3,6 +3,15 @@ import type { Identity } from "@skjera/oauth/api";
 import { Context, Effect, Layer, Schema } from "effect";
 import { SqlClient, SqlError } from "effect/sql";
 import {
+  ActorNotAllowed,
+  DocumentNotFound,
+  InvalidChanges,
+  InvalidContent,
+  PublishRejected,
+  TeamNotFound,
+} from "../api/errors.ts";
+import { refused } from "../api/Problems.ts";
+import {
   type DocumentId,
   type Heads,
   Publication,
@@ -10,15 +19,6 @@ import {
 } from "../Model.ts";
 import { Announcements } from "../notices/Announcements.ts";
 import { Notifications, type Signup, tell } from "../notices/Notifications.ts";
-import {
-  ActorNotAllowed,
-  DocumentNotFound,
-  InvalidChanges,
-  InvalidContent,
-  PublishRejected,
-  TeamNotFound,
-} from "../server/errors.ts";
-import { refused } from "../server/Problems.ts";
 import {
   type ContentTypeName,
   cantPublish,
