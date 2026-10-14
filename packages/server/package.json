@@ -15,7 +15,6 @@
     "@skjera/documents": "workspace:*",
     "@skjera/email": "workspace:*",
     "@skjera/oauth": "workspace:*",
-    "@skjera/snapsync": "workspace:*",
     "effect": "catalog:",
     "tsx": "catalog:"
   },

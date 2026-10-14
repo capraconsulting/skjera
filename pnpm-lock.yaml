@@ -373,9 +373,6 @@ importers:
       prosemirror-commands:
         specifier: ^1.7.2
         version: 1.7.2
-      prosemirror-history:
-        specifier: ^1.5.1
-        version: 1.5.1
       prosemirror-inputrules:
         specifier: ^1.5.1
         version: 1.5.1
@@ -611,9 +608,6 @@ importers:
       '@skjera/oauth':
         specifier: workspace:*
         version: link:../oauth
-      '@skjera/snapsync':
-        specifier: workspace:*
-        version: link:../snapsync
       effect:
         specifier: 'catalog:'
         version: 4.0.0

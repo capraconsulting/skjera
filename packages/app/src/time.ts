@@ -32,7 +32,7 @@ export const localTimeZone = () =>
   Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 /** "Norway Time", to say what zone times are shown in. */
-export const timeZoneName = (timeZone: string, at = new Date()): string =>
+const timeZoneName = (timeZone: string, at = new Date()): string =>
   new Intl.DateTimeFormat(getLocale(), {
     timeZone,
     timeZoneName: "shortGeneric",
@@ -54,18 +54,6 @@ const dateTime = (timeZone: string) =>
 /** " (Norway Time)" when the viewer is elsewhere, so times aren't misread. */
 const zoneNote = (timeZone: string, at: Date) =>
   timeZone === localTimeZone() ? "" : ` (${timeZoneName(timeZone, at)})`;
-
-/**
- * When an event is, in its own time zone: "Thursday, October 15, 2026,
- * 6:00 – 9:00 PM", or both days in full when it runs past midnight.
- */
-export const formatEventTimes = (
-  startsAt: Date,
-  endsAt: Date,
-  timeZone: string,
-): string =>
-  dateTime(timeZone).formatRange(startsAt, endsAt) +
-  zoneNote(timeZone, startsAt);
 
 /** "Thursday, October 15, 2026 at 6:00 PM", in the given zone. */
 export const formatDateTime = (at: Date, timeZone: string): string =>

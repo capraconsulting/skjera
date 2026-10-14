@@ -134,9 +134,3 @@ export function RichText(props: { readonly spans: Spans }) {
   }, [props.spans]);
   return <div className={styles.content}>{content}</div>;
 }
-
-/** Rich text as plain text, e.g. for an excerpt. */
-export const plainText = (spans: Spans) => {
-  const doc = toDoc(spans);
-  return doc.textBetween(0, doc.content.size, " ", " ");
-};

@@ -18,7 +18,7 @@ const starting = new Set([502, 503, 504]);
  * `fetch`, waiting up to ten seconds for a server that is starting. A
  * streamed body can only be sent once, so such a request is not repeated.
  */
-export const fetchWhileStarting: typeof fetch = async (input, init) => {
+const fetchWhileStarting: typeof fetch = async (input, init) => {
   const giveUp = Date.now() + 10_000;
   for (;;) {
     const response = await fetch(input, init);

@@ -10,7 +10,7 @@ import { EventMail } from "./Mail.tsx";
 // deleted events too. The event itself, its content and its history stay.
 
 /** How long sign-up data is kept after its event has ended. */
-export const keptFor = 30 * 24 * 60 * 60 * 1000;
+const keptFor = 30 * 24 * 60 * 60 * 1000;
 
 /** Every day at 01:00 UTC; the zone is given, else `Cron` reads the process's. */
 export const schedule = Cron.parseUnsafe("0 1 * * *", "UTC");

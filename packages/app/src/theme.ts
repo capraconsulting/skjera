@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export type Theme = "light" | "dark";
+type Theme = "light" | "dark";
 
 /** A theme picked, or the system's, whichever it is. */
 export type ThemeChoice = Theme | "system";

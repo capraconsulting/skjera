@@ -38,9 +38,6 @@ export const loadSite = async () => {
   document.documentElement.lang = getLocale();
 };
 
-/** What the site is called: SITE_NAME. */
-export const siteName = () => site.name;
-
 /** The site as configured: its name, logo, footer and privacy. */
 export const currentSite = () => site;
 
@@ -51,4 +48,4 @@ export const languages: ReadonlyArray<{ locale: Locale; name: string }> = [
   { locale: "nn", name: "Nynorsk" },
 ];
 
-export { getLocale, setLocale };
+export { setLocale };

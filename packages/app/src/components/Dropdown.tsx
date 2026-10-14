@@ -108,8 +108,6 @@ export function DropdownNote({ children }: { readonly children: ReactNode }) {
   return <p className={styles.note}>{children}</p>;
 }
 
-export const dropdownStyles = { form: styles.form, error: styles.error };
-
 const DotsIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
     <circle cx="5" cy="12" r="2" fill="currentColor" />
