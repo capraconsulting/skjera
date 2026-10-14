@@ -33,7 +33,7 @@ const problems: ReadonlyArray<Problem> = [
 ];
 
 group("Problems", () => {
-  it("are said in every language, EventFull among them (AC-3)", () => {
+  it("are said in every language, EventFull among them", () => {
     for (const locale of ["en", "nb", "nn"] as const) {
       const said = problems.map((problem) => describe(problem, locale));
       for (const text of said) assert.isAbove(text.length, 3);

@@ -28,7 +28,7 @@ const day = 24 * 60 * 60 * 1000;
 const hour = 60 * 60 * 1000;
 
 describe("The schedule", () => {
-  it("runs at 01:00 UTC whatever zone the process is in (AC-1)", () => {
+  it("runs at 01:00 UTC whatever zone the process is in", () => {
     const before = process.env.TZ;
     process.env.TZ = "Europe/Oslo";
     try {
@@ -284,7 +284,7 @@ const kept = (event: DocumentId) =>
 
 // Real clock: these tests talk to a real database and a real cluster.
 layer(TestLayer, { excludeTestServices: true })("Signup retention", (it) => {
-  it.effect("deletes the signups of events ended long ago (AC-1)", () =>
+  it.effect("deletes the signups of events ended long ago", () =>
     Effect.gen(function* () {
       const now = new Date("2041-06-01T01:00:00Z");
       const old = yield* withSignup(new Date(now.getTime() - 365 * day));
@@ -299,7 +299,7 @@ layer(TestLayer, { excludeTestServices: true })("Signup retention", (it) => {
   );
 
   it.effect(
-    "deletes members' and guests' signups after 30 days and a second (AC-2)",
+    "deletes members' and guests' signups after 30 days and a second",
     () =>
       Effect.gen(function* () {
         const now = new Date("2042-06-01T01:00:00Z");
@@ -315,7 +315,7 @@ layer(TestLayer, { excludeTestServices: true })("Signup retention", (it) => {
   );
 
   it.effect(
-    "forgets the emails kept for a guest, and the replies to them (AC-2)",
+    "forgets the emails kept for a guest, and the replies to them",
     () =>
       Effect.gen(function* () {
         const event = yield* comingEvent;
@@ -333,7 +333,7 @@ layer(TestLayer, { excludeTestServices: true })("Signup retention", (it) => {
   );
 
   it.effect(
-    "tells the emails kept under an id in capitals from the event's (AC-2)",
+    "tells the emails kept under an id in capitals from the event's",
     () =>
       Effect.gen(function* () {
         const event = yield* comingEvent;
@@ -354,7 +354,7 @@ layer(TestLayer, { excludeTestServices: true })("Signup retention", (it) => {
       }),
   );
 
-  it.effect("forgets the emails of an event gone with its team (AC-2)", () =>
+  it.effect("forgets the emails of an event gone with its team", () =>
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
       const event = yield* comingEvent;
@@ -382,7 +382,7 @@ layer(TestLayer, { excludeTestServices: true })("Signup retention", (it) => {
     }),
   );
 
-  it.effect("deletes an event's dietary list (AC-3)", () =>
+  it.effect("deletes an event's dietary list", () =>
     Effect.gen(function* () {
       const now = new Date("2043-06-01T01:00:00Z");
       const event = yield* insertEvent({
@@ -398,7 +398,7 @@ layer(TestLayer, { excludeTestServices: true })("Signup retention", (it) => {
     }),
   );
 
-  it.effect("deletes the sign-up data of a deleted event too (AC-4)", () =>
+  it.effect("deletes the sign-up data of a deleted event too", () =>
     Effect.gen(function* () {
       const now = new Date("2044-06-01T01:00:00Z");
       const event = yield* withSignup(new Date(now.getTime() - 31 * day), true);
@@ -410,25 +410,20 @@ layer(TestLayer, { excludeTestServices: true })("Signup retention", (it) => {
     }),
   );
 
-  it.effect(
-    "keeps the sign-up data of a deleted event for 30 days (AC-4)",
-    () =>
-      Effect.gen(function* () {
-        const now = new Date("2045-06-01T01:00:00Z");
-        const event = yield* withSignup(
-          new Date(now.getTime() - 10 * day),
-          true,
-        );
+  it.effect("keeps the sign-up data of a deleted event for 30 days", () =>
+    Effect.gen(function* () {
+      const now = new Date("2045-06-01T01:00:00Z");
+      const event = yield* withSignup(new Date(now.getTime() - 10 * day), true);
 
-        yield* SignupRetention.deleteSignups(now);
+      yield* SignupRetention.deleteSignups(now);
 
-        assert.strictEqual(yield* signupsOf(event), 2);
-        assert.strictEqual(yield* dietaryOf(event), 1);
-      }),
+      assert.strictEqual(yield* signupsOf(event), 2);
+      assert.strictEqual(yield* dietaryOf(event), 1);
+    }),
   );
 
   it.effect(
-    "keeps the data of events that ended 30 days ago or less, or have not ended (AC-5)",
+    "keeps the data of events that ended 30 days ago or less, or have not ended",
     () =>
       Effect.gen(function* () {
         const now = new Date("2046-06-01T01:00:00Z");
@@ -449,7 +444,7 @@ layer(TestLayer, { excludeTestServices: true })("Signup retention", (it) => {
   );
 
   it.effect(
-    "keeps the emails of an event that has not ended, or ended 30 days ago (AC-5)",
+    "keeps the emails of an event that has not ended, or ended 30 days ago",
     () =>
       Effect.gen(function* () {
         const event = yield* comingEvent;
@@ -466,22 +461,18 @@ layer(TestLayer, { excludeTestServices: true })("Signup retention", (it) => {
       }),
   );
 
-  it.effect(
-    "leaves the event, its draft and its actors as they were (AC-6)",
-    () =>
-      Effect.gen(function* () {
-        const event = yield* publishFromDraft(
-          `Retention ${crypto.randomUUID()}`,
-        );
-        yield* addSignups(event);
-        yield* addDietary(event, ["Vegan"]);
-        const before = yield* kept(event);
-        assert.isDefined(before.published);
+  it.effect("leaves the event, its draft and its actors as they were", () =>
+    Effect.gen(function* () {
+      const event = yield* publishFromDraft(`Retention ${crypto.randomUUID()}`);
+      yield* addSignups(event);
+      yield* addDietary(event, ["Vegan"]);
+      const before = yield* kept(event);
+      assert.isDefined(before.published);
 
-        yield* SignupRetention.deleteSignups(new Date("2036-11-15T01:00:00Z"));
+      yield* SignupRetention.deleteSignups(new Date("2036-11-15T01:00:00Z"));
 
-        assert.strictEqual(yield* signupsOf(event), 0);
-        assert.deepStrictEqual(yield* kept(event), before);
-      }),
+      assert.strictEqual(yield* signupsOf(event), 0);
+      assert.deepStrictEqual(yield* kept(event), before);
+    }),
   );
 });

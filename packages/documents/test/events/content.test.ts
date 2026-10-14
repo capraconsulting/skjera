@@ -52,7 +52,7 @@ layer(TestLayer, { excludeTestServices: true })("Event content", (it) => {
   );
 
   it.effect(
-    "takes a repeat of 1 to 7 days, weeks, months or years, and refuses the rest (AC-1)",
+    "takes a repeat of 1 to 7 days, weeks, months or years, and refuses the rest",
     () =>
       Effect.gen(function* () {
         const documents = yield* Documents;
@@ -96,7 +96,7 @@ layer(TestLayer, { excludeTestServices: true })("Event content", (it) => {
       }),
   );
 
-  it.effect("publishes whether the event is streamed and its link (AC-1)", () =>
+  it.effect("publishes whether the event is streamed and its link", () =>
     Effect.gen(function* () {
       const streamed = yield* publishedEvent({
         public: true,
@@ -117,7 +117,7 @@ layer(TestLayer, { excludeTestServices: true })("Event content", (it) => {
   );
 
   it.effect(
-    "refuses a link that is not a web address, and takes none or a blank one (AC-1)",
+    "refuses a link that is not a web address, and takes none or a blank one",
     () =>
       Effect.gen(function* () {
         const documents = yield* Documents;
@@ -157,7 +157,7 @@ layer(TestLayer, { excludeTestServices: true })("Event content", (it) => {
       }),
   );
 
-  it.effect("publishes the summary trimmed (AC-1)", () =>
+  it.effect("publishes the summary trimmed", () =>
     Effect.gen(function* () {
       const id = yield* publishedEvent({
         public: true,
@@ -171,7 +171,7 @@ layer(TestLayer, { excludeTestServices: true })("Event content", (it) => {
   );
 
   it.effect(
-    "publishes a blank summary, or none from an older draft, as none (AC-1)",
+    "publishes a blank summary, or none from an older draft, as none",
     () =>
       Effect.gen(function* () {
         for (const text of ["", " \t \n"]) {
@@ -195,7 +195,7 @@ layer(TestLayer, { excludeTestServices: true })("Event content", (it) => {
       }),
   );
 
-  it.effect("syncs an event without a summary with summary null (AC-2)", () =>
+  it.effect("syncs an event without a summary with summary null", () =>
     Effect.gen(function* () {
       const id = yield* publishedEvent({ public: false, guests: false });
       const row = yield* publishedAs(id, "members");
@@ -203,7 +203,7 @@ layer(TestLayer, { excludeTestServices: true })("Event content", (it) => {
     }),
   );
 
-  it.effect("publishes no link for an event that is not streamed (AC-1)", () =>
+  it.effect("publishes no link for an event that is not streamed", () =>
     Effect.gen(function* () {
       const id = yield* publishedEvent({
         public: true,
@@ -217,7 +217,7 @@ layer(TestLayer, { excludeTestServices: true })("Event content", (it) => {
     }),
   );
 
-  it.effect("takes a place in a draft from before events had one (AC-1)", () =>
+  it.effect("takes a place in a draft from before events had one", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
       const id = yield* documents.create("event", yield* newTeam, alice);

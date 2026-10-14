@@ -62,7 +62,7 @@ layer(TestLayer, { excludeTestServices: true })("Guests", (it) => {
     }),
   );
 
-  it.effect("keeps a guest's phone number and company, trimmed (AC-2)", () =>
+  it.effect("keeps a guest's phone number and company, trimmed", () =>
     Effect.gen(function* () {
       const attendance = yield* Attendance;
       const id = yield* publishedEvent({ public: true, guests: true });
@@ -79,29 +79,24 @@ layer(TestLayer, { excludeTestServices: true })("Guests", (it) => {
     }),
   );
 
-  it.effect(
-    "keeps nothing for a phone number and company left blank (AC-2)",
-    () =>
-      Effect.gen(function* () {
-        const attendance = yield* Attendance;
-        const id = yield* publishedEvent({ public: true, guests: true });
-        yield* attendance.attendAsGuest(id, {
-          name: "Gina",
-          email: "gina@example.org",
-          company: "  ",
-        });
-        assert.deepStrictEqual(
-          (yield* organizerView(id)).map((each) => [
-            each?.phone,
-            each?.company,
-          ]),
-          [[null, null]],
-        );
-      }),
+  it.effect("keeps nothing for a phone number and company left blank", () =>
+    Effect.gen(function* () {
+      const attendance = yield* Attendance;
+      const id = yield* publishedEvent({ public: true, guests: true });
+      yield* attendance.attendAsGuest(id, {
+        name: "Gina",
+        email: "gina@example.org",
+        company: "  ",
+      });
+      assert.deepStrictEqual(
+        (yield* organizerView(id)).map((each) => [each?.phone, each?.company]),
+        [[null, null]],
+      );
+    }),
   );
 
   it.effect(
-    "lets a guest change their phone number and company, and keeps them when left out (AC-3)",
+    "lets a guest change their phone number and company, and keeps them when left out",
     () =>
       Effect.gen(function* () {
         const attendance = yield* Attendance;
@@ -132,7 +127,7 @@ layer(TestLayer, { excludeTestServices: true })("Guests", (it) => {
       }),
   );
 
-  it.effect("gives a member's signup no phone number or company (AC-5)", () =>
+  it.effect("gives a member's signup no phone number or company", () =>
     Effect.gen(function* () {
       const attendance = yield* Attendance;
       const id = yield* publishedEvent({ public: true, guests: true });

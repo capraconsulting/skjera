@@ -18,7 +18,7 @@ const times = (start: string, end: string) => ({
 });
 
 describe("The next date", () => {
-  it("is the first date in the series whose end has not passed (AC-2)", () => {
+  it("is the first date in the series whose end has not passed", () => {
     const next = nextDate(
       times(
         "2026-11-10T18:00+01:00[Europe/Oslo]",
@@ -36,7 +36,7 @@ describe("The next date", () => {
     );
   });
 
-  it("moves the start, end and both deadlines a week, keeping their time of day across winter time (AC-3)", () => {
+  it("moves the start, end and both deadlines a week, keeping their time of day across winter time", () => {
     const next = nextDate(
       {
         start: "2026-10-22T18:00+02:00[Europe/Oslo]",
@@ -55,7 +55,7 @@ describe("The next date", () => {
     });
   });
 
-  it("keeps 18:00 across the change to summer time (AC-3)", () => {
+  it("keeps 18:00 across the change to summer time", () => {
     const next = nextDate(
       times(
         "2027-03-25T18:00+01:00[Europe/Oslo]",
@@ -68,7 +68,7 @@ describe("The next date", () => {
     assert.strictEqual(next.end, "2027-04-01T21:00+02:00[Europe/Oslo]");
   });
 
-  it("keeps each deadline's distance to the start on the clock when the clocks change between them (AC-3)", () => {
+  it("keeps each deadline's distance to the start on the clock when the clocks change between them", () => {
     const before = nextDate(
       {
         start: "2026-10-19T18:00+02:00[Europe/Oslo]",
@@ -104,7 +104,7 @@ describe("The next date", () => {
     );
   });
 
-  it("leaves a deadline that is not set not set (AC-3)", () => {
+  it("leaves a deadline that is not set not set", () => {
     const next = nextDate(
       times(
         "2026-10-22T18:00+02:00[Europe/Oslo]",
@@ -117,7 +117,7 @@ describe("The next date", () => {
     assert.isNull(next.foodDeadline);
   });
 
-  it("takes the last day of a month that is shorter (AC-4)", () => {
+  it("takes the last day of a month that is shorter", () => {
     const monthly = nextDate(
       times(
         "2027-01-31T18:00+01:00[Europe/Oslo]",
@@ -149,7 +149,7 @@ describe("The next date", () => {
     assert.strictEqual(everyTwo.start, "2028-02-29T18:00+01:00[Europe/Oslo]");
   });
 
-  it("keeps a deadline before the start when the month is shorter (AC-4)", () => {
+  it("keeps a deadline before the start when the month is shorter", () => {
     const next = nextDate(
       {
         start: "2027-01-31T18:00+01:00[Europe/Oslo]",
@@ -166,7 +166,7 @@ describe("The next date", () => {
 });
 
 describe("The schedule", () => {
-  it("runs at 06:30 UTC whatever zone the process is in (AC-2)", () => {
+  it("runs at 06:30 UTC whatever zone the process is in", () => {
     const before = process.env.TZ;
     process.env.TZ = oslo;
     try {

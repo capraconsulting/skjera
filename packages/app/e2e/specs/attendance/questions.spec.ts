@@ -56,7 +56,7 @@ test("events ask their own questions, and say what's served", async ({
   await cleanUp(alice, team, event.id);
 });
 
-test("people change their answers; organizers export and remove them (AC-5, AC-6)", async ({
+test("people change their answers; organizers export and remove them", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");

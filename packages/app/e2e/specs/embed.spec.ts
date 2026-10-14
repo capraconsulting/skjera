@@ -7,7 +7,7 @@ import { Website } from "../pom/site/Website.ts";
 import { EventEditor } from "../pom/studio/EventEditor.ts";
 import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
 
-test("the website's iframe takes the height of the embed page (AC-6)", async ({
+test("the website's iframe takes the height of the embed page", async ({
   browser,
   baseURL,
 }) => {
@@ -21,7 +21,7 @@ test("the website's iframe takes the height of the embed page (AC-6)", async ({
   await website.expectFramedAtFullHeight();
 });
 
-test("a click on an event in the iframe opens its page in a new tab (AC-3)", async ({
+test("a click on an event in the iframe opens its page in a new tab", async ({
   browser,
   baseURL,
 }) => {
@@ -35,7 +35,7 @@ test("a click on an event in the iframe opens its page in a new tab (AC-3)", asy
   await website.clickFirstEventOpeningIn(baseURL ?? "");
 });
 
-test("only the websites set up may frame the embed page (AC-5)", async ({
+test("only the websites set up may frame the embed page", async ({
   browser,
   baseURL,
 }) => {
@@ -44,7 +44,7 @@ test("only the websites set up may frame the embed page (AC-5)", async ({
   await website.expectFramingRefused();
 });
 
-test("the websites set up may read the public events from the browser, others not (AC-7, AC-8)", async ({
+test("the websites set up may read the public events from the browser, others not", async ({
   browser,
   baseURL,
 }) => {
@@ -65,9 +65,7 @@ test("the websites set up may read the public events from the browser, others no
   await cleanUp(alice, team, event.id);
 });
 
-test("the embed page loads nothing from HubSpot (AC-2)", async ({
-  browser,
-}) => {
+test("the embed page loads nothing from HubSpot", async ({ browser }) => {
   const alice = await signedIn(browser, "alice@example.com");
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("No HubSpot"),

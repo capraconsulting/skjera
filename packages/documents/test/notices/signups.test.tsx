@@ -68,7 +68,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: signups", (it) => {
     }),
   );
 
-  it.effect("carries the summary in a guest's invitations (AC-3)", () =>
+  it.effect("carries the summary in a guest's invitations", () =>
     Effect.gen(function* () {
       const attendance = yield* Attendance;
       const event = yield* publishedEvent({ summary: "Coffee and a talk." });

@@ -29,7 +29,7 @@ describe("messages", () => {
   });
 
   for (const locale of locales.filter((each) => each !== baseLocale)) {
-    it(`are all in ${locale}, with the same placeholders (AC-6)`, () => {
+    it(`are all in ${locale}, with the same placeholders`, () => {
       const translated = read(locale);
       expect(Object.keys(translated).sort()).toEqual(Object.keys(base).sort());
       for (const [key, message] of Object.entries(base)) {

@@ -19,7 +19,7 @@ import {
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("In person or online", (it) => {
   it.effect(
-    "refuses a signup to a streamed event without in person or online (AC-3)",
+    "refuses a signup to a streamed event without in person or online",
     () =>
       Effect.gen(function* () {
         const attendance = yield* Attendance;
@@ -50,7 +50,7 @@ layer(TestLayer, { excludeTestServices: true })("In person or online", (it) => {
       }),
   );
 
-  it.effect("stores whether each signup is in person or online (AC-3)", () =>
+  it.effect("stores whether each signup is in person or online", () =>
     Effect.gen(function* () {
       const attendance = yield* Attendance;
       const id = yield* publishedEvent({
@@ -71,7 +71,7 @@ layer(TestLayer, { excludeTestServices: true })("In person or online", (it) => {
     }),
   );
 
-  it.effect("takes a signup to an event not streamed as in person (AC-3)", () =>
+  it.effect("takes a signup to an event not streamed as in person", () =>
     Effect.gen(function* () {
       const attendance = yield* Attendance;
       const id = yield* publishedEvent({ public: true, guests: true });
@@ -88,7 +88,7 @@ layer(TestLayer, { excludeTestServices: true })("In person or online", (it) => {
   );
 
   it.effect(
-    "lets those signed up change between in person and online, and keeps the choice when left out (AC-4)",
+    "lets those signed up change between in person and online, and keeps the choice when left out",
     () =>
       Effect.gen(function* () {
         const attendance = yield* Attendance;
@@ -123,7 +123,7 @@ layer(TestLayer, { excludeTestServices: true })("In person or online", (it) => {
       }),
   );
 
-  it.effect("refuses a change to online after sign-up closes (AC-4)", () =>
+  it.effect("refuses a change to online after sign-up closes", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
       const attendance = yield* Attendance;
@@ -160,7 +160,7 @@ layer(TestLayer, { excludeTestServices: true })("In person or online", (it) => {
   );
 
   it.effect(
-    "counts only those in person against the limit of a streamed event (AC-6)",
+    "counts only those in person against the limit of a streamed event",
     () =>
       Effect.gen(function* () {
         const attendance = yield* Attendance;
@@ -201,7 +201,7 @@ layer(TestLayer, { excludeTestServices: true })("In person or online", (it) => {
   );
 
   it.effect(
-    "takes someone in person when only those online fill the limit (AC-6)",
+    "takes someone in person when only those online fill the limit",
     () =>
       Effect.gen(function* () {
         const attendance = yield* Attendance;
@@ -225,7 +225,7 @@ layer(TestLayer, { excludeTestServices: true })("In person or online", (it) => {
   );
 
   it.effect(
-    "refuses a change to in person when no place is left, until one is free (AC-6)",
+    "refuses a change to in person when no place is left, until one is free",
     () =>
       Effect.gen(function* () {
         const attendance = yield* Attendance;
@@ -260,7 +260,7 @@ layer(TestLayer, { excludeTestServices: true })("In person or online", (it) => {
   );
 
   it.effect(
-    "lets someone in person on a full streamed event stay, saying in person again (AC-6)",
+    "lets someone in person on a full streamed event stay, saying in person again",
     () =>
       Effect.gen(function* () {
         const attendance = yield* Attendance;
@@ -305,7 +305,7 @@ layer(TestLayer, { excludeTestServices: true })("In person or online", (it) => {
   );
 
   it.effect(
-    "counts everyone in person once the event is published as not streamed (AC-7)",
+    "counts everyone in person once the event is published as not streamed",
     () =>
       Effect.gen(function* () {
         const documents = yield* Documents;
@@ -342,7 +342,7 @@ layer(TestLayer, { excludeTestServices: true })("In person or online", (it) => {
   );
 
   it.effect(
-    "counts a signup that says online as in person when not streamed (AC-7)",
+    "counts a signup that says online as in person when not streamed",
     () =>
       Effect.gen(function* () {
         const attendance = yield* Attendance;

@@ -97,7 +97,7 @@ const websites = ["https://www.capraconsulting.no", "https://liflig.no"];
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Public events", (it) => {
   it.effect(
-    "gives every event shown to everyone that has not ended, soonest first, more than three (AC-1)",
+    "gives every event shown to everyone that has not ended, soonest first, more than three",
     () =>
       Effect.gen(function* () {
         const now = new Date("2040-01-10T12:00:00Z");
@@ -124,7 +124,7 @@ layer(TestLayer, { excludeTestServices: true })("Public events", (it) => {
   );
 
   it.effect(
-    "leaves out an event shown only to members, a deleted one, one that has ended and one never published (AC-6)",
+    "leaves out an event shown only to members, a deleted one, one that has ended and one never published",
     () =>
       Effect.gen(function* () {
         const now = new Date("2040-01-10T12:00:00Z");
@@ -165,7 +165,7 @@ layer(TestLayer, { excludeTestServices: true })("Public events", (it) => {
   );
 
   it.effect(
-    "reads each event's place, summary, streaming, guests and team as published (AC-2)",
+    "reads each event's place, summary, streaming, guests and team as published",
     () =>
       Effect.gen(function* () {
         const startsAt = new Date("2060-01-11T17:00:00Z");
@@ -217,28 +217,26 @@ layer(TestLayer, { excludeTestServices: true })("Public events", (it) => {
       }),
   );
 
-  it.effect(
-    "puts an event in Skjer's format with its eleven fields (AC-2)",
-    () =>
-      Effect.sync(() => {
-        assert.deepStrictEqual(PublicEvents.publicEvent(comingEvent(), site), {
-          id: "6f1c2d1e-7a0b-4f7e-9d63-0a1b2c3d4e5f",
-          title: "Launch",
-          start: "2036-11-15T17:00:00.000Z",
-          end: "2036-11-15T19:00:00.000Z",
-          place: "Bryggen",
-          summary: "An evening",
-          category: null,
-          organisers: "Platform",
-          isDigital: true,
-          openForExternals: true,
-          url: "https://skjera.example/events/6f1c2d1e-7a0b-4f7e-9d63-0a1b2c3d4e5f",
-        });
-      }),
+  it.effect("puts an event in Skjer's format with its eleven fields", () =>
+    Effect.sync(() => {
+      assert.deepStrictEqual(PublicEvents.publicEvent(comingEvent(), site), {
+        id: "6f1c2d1e-7a0b-4f7e-9d63-0a1b2c3d4e5f",
+        title: "Launch",
+        start: "2036-11-15T17:00:00.000Z",
+        end: "2036-11-15T19:00:00.000Z",
+        place: "Bryggen",
+        summary: "An evening",
+        category: null,
+        organisers: "Platform",
+        isDigital: true,
+        openForExternals: true,
+        url: "https://skjera.example/events/6f1c2d1e-7a0b-4f7e-9d63-0a1b2c3d4e5f",
+      });
+    }),
   );
 
   it.effect(
-    "gives the place as an empty string for an event published before events had a place (AC-2)",
+    "gives the place as an empty string for an event published before events had a place",
     () =>
       Effect.sync(() => {
         const event = PublicEvents.publicEvent(
@@ -250,7 +248,7 @@ layer(TestLayer, { excludeTestServices: true })("Public events", (it) => {
   );
 
   it.effect(
-    'gives organisers as "Alle" for the team "Capra Gruppen" in any case and the team\'s name for others (AC-3)',
+    'gives organisers as "Alle" for the team "Capra Gruppen" in any case and the team\'s name for others',
     () =>
       Effect.sync(() => {
         const organisers = [
@@ -275,7 +273,7 @@ layer(TestLayer, { excludeTestServices: true })("Public events", (it) => {
   );
 
   it.effect(
-    "gives summary as null when there is none and category as null always (AC-4)",
+    "gives summary as null when there is none and category as null always",
     () =>
       Effect.sync(() => {
         const without = PublicEvents.publicEvent(
@@ -291,7 +289,7 @@ layer(TestLayer, { excludeTestServices: true })("Public events", (it) => {
   );
 
   it.effect(
-    "gives isDigital and openForExternals as false when the event is neither (AC-5)",
+    "gives isDigital and openForExternals as false when the event is neither",
     () =>
       Effect.sync(() => {
         const event = PublicEvents.publicEvent(
@@ -304,7 +302,7 @@ layer(TestLayer, { excludeTestServices: true })("Public events", (it) => {
   );
 
   it.effect(
-    "lets a listed website read the answer, and keeps one answer per origin (AC-7)",
+    "lets a listed website read the answer, and keeps one answer per origin",
     () =>
       Effect.sync(() => {
         assert.deepStrictEqual(
@@ -324,7 +322,7 @@ layer(TestLayer, { excludeTestServices: true })("Public events", (it) => {
       }),
   );
 
-  it.effect("lets no other website read the answer (AC-8)", () =>
+  it.effect("lets no other website read the answer", () =>
     Effect.sync(() => {
       for (const origin of [
         "https://capraconsulting.no",
@@ -408,7 +406,7 @@ const skjerHeaders =
 
 layer(TestLayer, { excludeTestServices: true })("Public events route", (it) => {
   it.effect(
-    "answers with the coming events in Skjer's format, beside the app's fallback (AC-1)",
+    "answers with the coming events in Skjer's format, beside the app's fallback",
     () =>
       Effect.gen(function* () {
         // The route reads the real clock.
@@ -465,7 +463,7 @@ layer(TestLayer, { excludeTestServices: true })("Public events route", (it) => {
   );
 
   it.effect(
-    "gives no event, and leaves the path to the app's fallback, without SITE_URL (AC-5)",
+    "gives no event, and leaves the path to the app's fallback, without SITE_URL",
     () =>
       Effect.gen(function* () {
         yield* publishedEvent({
@@ -486,78 +484,72 @@ layer(TestLayer, { excludeTestServices: true })("Public events route", (it) => {
       }),
   );
 
-  it.effect(
-    "lets a listed website read the answer and the preflight (AC-7)",
-    () =>
-      withApi(listed, (request) =>
-        Effect.gen(function* () {
-          const origin = "https://www.capraconsulting.no";
-          const get = yield* request("GET", { Origin: origin });
-          assert.strictEqual(get.status, 200);
-          assert.strictEqual(
-            get.headers.get("access-control-allow-origin"),
-            origin,
-          );
-          assert.strictEqual(
-            get.headers.get("access-control-allow-credentials"),
-            "true",
-          );
-          const preflight = yield* request("OPTIONS", {
-            Origin: origin,
-            "Access-Control-Request-Method": "GET",
-          });
-          assert.strictEqual(preflight.status, 204);
-          assert.strictEqual(
-            preflight.headers.get("access-control-allow-origin"),
-            origin,
-          );
-          assert.strictEqual(
-            preflight.headers.get("access-control-allow-methods"),
-            "GET",
-          );
-          assert.strictEqual(
-            preflight.headers.get("access-control-allow-headers"),
-            skjerHeaders,
-          );
-        }),
-      ),
+  it.effect("lets a listed website read the answer and the preflight", () =>
+    withApi(listed, (request) =>
+      Effect.gen(function* () {
+        const origin = "https://www.capraconsulting.no";
+        const get = yield* request("GET", { Origin: origin });
+        assert.strictEqual(get.status, 200);
+        assert.strictEqual(
+          get.headers.get("access-control-allow-origin"),
+          origin,
+        );
+        assert.strictEqual(
+          get.headers.get("access-control-allow-credentials"),
+          "true",
+        );
+        const preflight = yield* request("OPTIONS", {
+          Origin: origin,
+          "Access-Control-Request-Method": "GET",
+        });
+        assert.strictEqual(preflight.status, 204);
+        assert.strictEqual(
+          preflight.headers.get("access-control-allow-origin"),
+          origin,
+        );
+        assert.strictEqual(
+          preflight.headers.get("access-control-allow-methods"),
+          "GET",
+        );
+        assert.strictEqual(
+          preflight.headers.get("access-control-allow-headers"),
+          skjerHeaders,
+        );
+      }),
+    ),
   );
 
-  it.effect(
-    "lets no other website read the answer or the preflight (AC-8)",
-    () =>
-      withApi(listed, (request) =>
-        Effect.gen(function* () {
-          const headers = { Origin: "https://evil.example" };
-          const get = yield* request("GET", headers);
-          assert.strictEqual(get.status, 200);
-          assert.isNull(get.headers.get("access-control-allow-origin"));
-          const preflight = yield* request("OPTIONS", {
-            ...headers,
-            "Access-Control-Request-Method": "GET",
-          });
-          assert.isNull(preflight.headers.get("access-control-allow-origin"));
-        }),
-      ),
+  it.effect("lets no other website read the answer or the preflight", () =>
+    withApi(listed, (request) =>
+      Effect.gen(function* () {
+        const headers = { Origin: "https://evil.example" };
+        const get = yield* request("GET", headers);
+        assert.strictEqual(get.status, 200);
+        assert.isNull(get.headers.get("access-control-allow-origin"));
+        const preflight = yield* request("OPTIONS", {
+          ...headers,
+          "Access-Control-Request-Method": "GET",
+        });
+        assert.isNull(preflight.headers.get("access-control-allow-origin"));
+      }),
+    ),
   );
 
-  it.effect(
-    "allows the answer to be cached for five minutes, per origin (AC-9)",
-    () =>
-      withApi(listed, (request) =>
-        Effect.gen(function* () {
-          for (const origin of [
-            "https://www.capraconsulting.no",
-            "https://evil.example",
-          ]) {
-            const response = yield* request("GET", { Origin: origin });
-            assert.strictEqual(
-              response.headers.get("cache-control"),
-              "public, max-age=300",
-            );
-            assert.strictEqual(response.headers.get("vary"), "Origin");
-          }
-        }),
-      ),
+  it.effect("allows the answer to be cached for five minutes, per origin", () =>
+    withApi(listed, (request) =>
+      Effect.gen(function* () {
+        for (const origin of [
+          "https://www.capraconsulting.no",
+          "https://evil.example",
+        ]) {
+          const response = yield* request("GET", { Origin: origin });
+          assert.strictEqual(
+            response.headers.get("cache-control"),
+            "public, max-age=300",
+          );
+          assert.strictEqual(response.headers.get("vary"), "Origin");
+        }
+      }),
+    ),
   );
 });

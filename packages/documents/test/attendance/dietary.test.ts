@@ -19,7 +19,7 @@ import {
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Dietary preferences", (it) => {
   it.effect(
-    "keeps dietary preferences for the event, trimmed, in the order of the text (AC-2)",
+    "keeps dietary preferences for the event, trimmed, in the order of the text",
     () =>
       Effect.gen(function* () {
         const attendance = yield* Attendance;
@@ -50,7 +50,7 @@ layer(TestLayer, { excludeTestServices: true })("Dietary preferences", (it) => {
   );
 
   it.effect(
-    "keeps a dietary preference once, and none from a refused signup (AC-2)",
+    "keeps a dietary preference once, and none from a refused signup",
     () =>
       Effect.gen(function* () {
         const attendance = yield* Attendance;
@@ -81,7 +81,7 @@ layer(TestLayer, { excludeTestServices: true })("Dietary preferences", (it) => {
   );
 
   it.effect(
-    "keeps nothing that says who gave a dietary preference or when (AC-2)",
+    "keeps nothing that says who gave a dietary preference or when",
     () =>
       Effect.gen(function* () {
         const sql = yield* SqlClient.SqlClient;
@@ -103,7 +103,7 @@ layer(TestLayer, { excludeTestServices: true })("Dietary preferences", (it) => {
   );
 
   it.effect(
-    "refuses a dietary preference over 500 characters, and keeps nothing (AC-2)",
+    "refuses a dietary preference over 500 characters, and keeps nothing",
     () =>
       Effect.gen(function* () {
         const attendance = yield* Attendance;
@@ -133,7 +133,7 @@ layer(TestLayer, { excludeTestServices: true })("Dietary preferences", (it) => {
       }),
   );
 
-  it.effect("signs up without a dietary preference (AC-3)", () =>
+  it.effect("signs up without a dietary preference", () =>
     Effect.gen(function* () {
       const attendance = yield* Attendance;
       const id = yield* publishedEvent({
@@ -153,66 +153,62 @@ layer(TestLayer, { excludeTestServices: true })("Dietary preferences", (it) => {
     }),
   );
 
-  it.effect(
-    "takes dietary preferences only while the event serves food (AC-1)",
-    () =>
-      Effect.gen(function* () {
-        const attendance = yield* Attendance;
-        const plain = yield* publishedEvent({ public: true, guests: true });
-        yield* attendance.attend(plain, alice, { dietary: "Vegan" });
-        yield* attendance.attendAsGuest(
-          plain,
-          { name: "Gus", email: "gus@example.org" },
-          { dietary: "Vegan" },
-        );
+  it.effect("takes dietary preferences only while the event serves food", () =>
+    Effect.gen(function* () {
+      const attendance = yield* Attendance;
+      const plain = yield* publishedEvent({ public: true, guests: true });
+      yield* attendance.attend(plain, alice, { dietary: "Vegan" });
+      yield* attendance.attendAsGuest(
+        plain,
+        { name: "Gus", email: "gus@example.org" },
+        { dietary: "Vegan" },
+      );
 
-        const late = yield* publishedEvent({
-          public: true,
-          guests: true,
-          dietary: true,
-          edit: (event) =>
-            setTimes(event, {
-              foodDeadline: "2020-01-15T12:00+01:00[Europe/Oslo]",
-            }),
-        });
-        const published = yield* publishedAs(late, "anyone");
-        assert.strictEqual(
-          published?.foodDeadline?.toISOString(),
-          "2020-01-15T11:00:00.000Z",
-        );
-        // Still open to sign up; dietary preferences are no longer taken.
-        yield* attendance.attend(late, alice);
-        yield* attendance.attend(late, bob, { dietary: "Vegan" });
+      const late = yield* publishedEvent({
+        public: true,
+        guests: true,
+        dietary: true,
+        edit: (event) =>
+          setTimes(event, {
+            foodDeadline: "2020-01-15T12:00+01:00[Europe/Oslo]",
+          }),
+      });
+      const published = yield* publishedAs(late, "anyone");
+      assert.strictEqual(
+        published?.foodDeadline?.toISOString(),
+        "2020-01-15T11:00:00.000Z",
+      );
+      // Still open to sign up; dietary preferences are no longer taken.
+      yield* attendance.attend(late, alice);
+      yield* attendance.attend(late, bob, { dietary: "Vegan" });
 
-        assert.strictEqual((yield* organizerView(plain)).length, 2);
-        assert.strictEqual((yield* organizerView(late)).length, 2);
-        assert.deepStrictEqual(yield* dietaryList(plain), []);
-        assert.deepStrictEqual(yield* dietaryList(late), []);
-      }),
+      assert.strictEqual((yield* organizerView(plain)).length, 2);
+      assert.strictEqual((yield* organizerView(late)).length, 2);
+      assert.deepStrictEqual(yield* dietaryList(plain), []);
+      assert.deepStrictEqual(yield* dietaryList(late), []);
+    }),
   );
 
-  it.effect(
-    "lists dietary preferences by the text, not the order given (AC-4)",
-    () =>
-      Effect.gen(function* () {
-        const attendance = yield* Attendance;
-        const id = yield* publishedEvent({
-          public: true,
-          guests: true,
-          dietary: true,
-        });
-        yield* attendance.attend(id, alice, { dietary: "Vegan" });
-        yield* attendance.attend(id, bob, { dietary: "fish" });
-        yield* attendance.attend(id, dana, { dietary: "Apple" });
-        assert.deepStrictEqual(yield* dietaryList(id), [
-          "Apple",
-          "fish",
-          "Vegan",
-        ]);
-      }),
+  it.effect("lists dietary preferences by the text, not the order given", () =>
+    Effect.gen(function* () {
+      const attendance = yield* Attendance;
+      const id = yield* publishedEvent({
+        public: true,
+        guests: true,
+        dietary: true,
+      });
+      yield* attendance.attend(id, alice, { dietary: "Vegan" });
+      yield* attendance.attend(id, bob, { dietary: "fish" });
+      yield* attendance.attend(id, dana, { dietary: "Apple" });
+      assert.deepStrictEqual(yield* dietaryList(id), [
+        "Apple",
+        "fish",
+        "Vegan",
+      ]);
+    }),
   );
 
-  it.effect("gives no dietary preference with a signup's details (AC-5)", () =>
+  it.effect("gives no dietary preference with a signup's details", () =>
     Effect.gen(function* () {
       const attendance = yield* Attendance;
       const id = yield* publishedEvent({
@@ -230,7 +226,7 @@ layer(TestLayer, { excludeTestServices: true })("Dietary preferences", (it) => {
   );
 
   it.effect(
-    "leaves dietary preferences as they are when signups change, cancel or are removed (AC-6)",
+    "leaves dietary preferences as they are when signups change, cancel or are removed",
     () =>
       Effect.gen(function* () {
         const attendance = yield* Attendance;

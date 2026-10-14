@@ -24,7 +24,7 @@ const upTo = (id: number) =>
 
 layer(TestLayer, { excludeTestServices: true })("Migrations", (it) => {
   it.effect(
-    "moves the dietary preferences on signups to their events and drops the column (AC-7)",
+    "moves the dietary preferences on signups to their events and drops the column",
     () =>
       Effect.gen(function* () {
         const sql = yield* SqlClient.SqlClient;

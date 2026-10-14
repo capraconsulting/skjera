@@ -179,42 +179,40 @@ layer(TestLayer, { excludeTestServices: true })("Sync", (it) => {
     }),
   );
 
-  it.effect(
-    "pulls an event's place, and events published without one (AC-3, AC-7)",
-    () =>
-      Effect.gen(function* () {
-        const sync = yield* Sync;
-        const teams = yield* Teams;
-        const documents = yield* Documents;
-        const sql = yield* SqlClient.SqlClient;
-        const team = yield* teams.create(teamName(), alice);
-        const publish = (place: string | null) =>
-          Effect.gen(function* () {
-            const id = yield* documents.create("event", team.id, alice);
-            yield* sql`
+  it.effect("pulls an event's place, and events published without one", () =>
+    Effect.gen(function* () {
+      const sync = yield* Sync;
+      const teams = yield* Teams;
+      const documents = yield* Documents;
+      const sql = yield* SqlClient.SqlClient;
+      const team = yield* teams.create(teamName(), alice);
+      const publish = (place: string | null) =>
+        Effect.gen(function* () {
+          const id = yield* documents.create("event", team.id, alice);
+          yield* sql`
             INSERT INTO events (id, title, starts_at, ends_at, time_zone, body, is_public,
               allow_guests, ask_dietary, place, published_heads,
               published_by_issuer, published_by_subject)
             VALUES (${id}, 'Event', '2036-10-15T18:00+02', '2036-10-15T21:00+02', 'Europe/Oslo', '[]', true, false,
               false, ${place}, '{}', 'test', 'test')
           `;
-            return id;
-          });
-        const placed = yield* publish("Kantina");
-        const before = yield* publish(null);
+          return id;
+        });
+      const placed = yield* publish("Kantina");
+      const before = yield* publish(null);
 
-        const visitor = replica((since) => sync.events(since, "anyone"));
-        yield* visitor.pull;
-        assert.strictEqual(visitor.rows.get(placed)?.place, "Kantina");
-        assert.isTrue(visitor.rows.has(before));
-        assert.isNull(visitor.rows.get(before)?.place);
+      const visitor = replica((since) => sync.events(since, "anyone"));
+      yield* visitor.pull;
+      assert.strictEqual(visitor.rows.get(placed)?.place, "Kantina");
+      assert.isTrue(visitor.rows.has(before));
+      assert.isNull(visitor.rows.get(before)?.place);
 
-        // A blank place is refused by the table, not kept.
-        const blank = yield* Effect.flip(
-          sql`UPDATE events SET place = '  ' WHERE id = ${placed}`,
-        );
-        assert.isDefined(blank);
-      }),
+      // A blank place is refused by the table, not kept.
+      const blank = yield* Effect.flip(
+        sql`UPDATE events SET place = '  ' WHERE id = ${placed}`,
+      );
+      assert.isDefined(blank);
+    }),
   );
 
   it.effect("hides attendees with their event, and who they are", () =>
@@ -301,7 +299,7 @@ layer(TestLayer, { excludeTestServices: true })("Sync", (it) => {
     }),
   );
 
-  it.effect("pulls a team with its logos (AC-1)", () =>
+  it.effect("pulls a team with its logos", () =>
     Effect.gen(function* () {
       const sync = yield* Sync;
       const teams = yield* Teams;
@@ -320,7 +318,7 @@ layer(TestLayer, { excludeTestServices: true })("Sync", (it) => {
     }),
   );
 
-  it.effect("pulls each event with its team as its organizer (AC-2)", () =>
+  it.effect("pulls each event with its team as its organizer", () =>
     Effect.gen(function* () {
       const sync = yield* Sync;
       const teams = yield* Teams;
@@ -346,7 +344,7 @@ layer(TestLayer, { excludeTestServices: true })("Sync", (it) => {
   );
 
   it.effect(
-    "pulls a team's events again when its name or a logo changes, and no others (AC-6)",
+    "pulls a team's events again when its name or a logo changes, and no others",
     () =>
       Effect.gen(function* () {
         const sync = yield* Sync;
@@ -396,24 +394,22 @@ layer(TestLayer, { excludeTestServices: true })("Sync", (it) => {
       }),
   );
 
-  it.effect(
-    "pulls an event published later with its team as it is now (AC-6)",
-    () =>
-      Effect.gen(function* () {
-        const sync = yield* Sync;
-        const teams = yield* Teams;
-        const team = yield* teams.create(teamName(), alice);
-        yield* teams.rename(team.id, `${team.name} renamed`);
-        yield* teams.setLogos(team.id, { logo: light, logoDark: dark });
-        const event = yield* publishedEvent(team.id);
+  it.effect("pulls an event published later with its team as it is now", () =>
+    Effect.gen(function* () {
+      const sync = yield* Sync;
+      const teams = yield* Teams;
+      const team = yield* teams.create(teamName(), alice);
+      yield* teams.rename(team.id, `${team.name} renamed`);
+      yield* teams.setLogos(team.id, { logo: light, logoDark: dark });
+      const event = yield* publishedEvent(team.id);
 
-        const reader = replica((since) => sync.events(since, "anyone"));
-        yield* reader.pull;
-        assert.deepStrictEqual(reader.rows.get(event)?.organizer, {
-          name: `${team.name} renamed`,
-          logo: light,
-          logoDark: dark,
-        });
-      }),
+      const reader = replica((since) => sync.events(since, "anyone"));
+      yield* reader.pull;
+      assert.deepStrictEqual(reader.rows.get(event)?.organizer, {
+        name: `${team.name} renamed`,
+        logo: light,
+        logoDark: dark,
+      });
+    }),
   );
 });

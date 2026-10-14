@@ -6,7 +6,7 @@ import { EventPage } from "../../pom/site/EventPage.ts";
 import { EventEditor } from "../../pom/studio/EventEditor.ts";
 import { TeamsColumn } from "../../pom/studio/TeamsColumn.ts";
 
-test("a limit shows the places left, and a full event takes no more (AC-1, AC-7, AC-8)", async ({
+test("a limit shows the places left, and a full event takes no more", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -71,7 +71,7 @@ test("a limit shows the places left, and a full event takes no more (AC-1, AC-7,
   await cleanUp(alice, team, event.id, unlimited.id);
 });
 
-test("a signup sent once the event is full is refused, saying it is full (AC-3)", async ({
+test("a signup sent once the event is full is refused, saying it is full", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -105,7 +105,7 @@ test("a signup sent once the event is full is refused, saying it is full (AC-3)"
   await cleanUp(alice, team, event.id);
 });
 
-test("a limit below those signed up keeps them, and takes no one new (AC-9)", async ({
+test("a limit below those signed up keeps them, and takes no one new", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");

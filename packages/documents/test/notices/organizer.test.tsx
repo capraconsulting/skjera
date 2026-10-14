@@ -32,57 +32,53 @@ layer(TestLayer, { excludeTestServices: true })("Mail: organizer", (it) => {
     }),
   );
 
-  it.effect(
-    "names the event's team as the organizer of its invitations (AC-5)",
-    () =>
-      Effect.gen(function* () {
-        const attendance = yield* Attendance;
-        const { id: event, team } = yield* publishedEventOf();
-        const address = `team-${crypto.randomUUID()}@example.org`;
-        const token = yield* attendance.attendAsGuest(event, {
-          name: "Tora",
-          email: address,
-        });
-        const [signedUp] = yield* emailsTo(address, 1);
-        const sender = /<([^>]+)>/.exec(process.env.EMAIL_FROM ?? "")?.[1];
-        assert.match(
-          organizerOf(signedUp?.message.calendar?.content ?? "") ?? "",
-          new RegExp(`^ORGANIZER;CN="?${team.name}"?:mailto:${sender}$`),
-        );
+  it.effect("names the event's team as the organizer of its invitations", () =>
+    Effect.gen(function* () {
+      const attendance = yield* Attendance;
+      const { id: event, team } = yield* publishedEventOf();
+      const address = `team-${crypto.randomUUID()}@example.org`;
+      const token = yield* attendance.attendAsGuest(event, {
+        name: "Tora",
+        email: address,
+      });
+      const [signedUp] = yield* emailsTo(address, 1);
+      const sender = /<([^>]+)>/.exec(process.env.EMAIL_FROM ?? "")?.[1];
+      assert.match(
+        organizerOf(signedUp?.message.calendar?.content ?? "") ?? "",
+        new RegExp(`^ORGANIZER;CN="?${team.name}"?:mailto:${sender}$`),
+      );
 
-        yield* attendance.leaveAsGuest(event, token);
-        const [, cancelled] = yield* emailsTo(address, 2);
-        assert.strictEqual(cancelled?.message.calendar?.method, "CANCEL");
-        assert.match(
-          organizerOf(cancelled?.message.calendar?.content ?? "") ?? "",
-          new RegExp(`^ORGANIZER;CN="?${team.name}"?:mailto:${sender}$`),
-        );
-        // The email itself still comes from the site's address.
-        assert.strictEqual(cancelled?.message.from, process.env.EMAIL_FROM);
-      }),
+      yield* attendance.leaveAsGuest(event, token);
+      const [, cancelled] = yield* emailsTo(address, 2);
+      assert.strictEqual(cancelled?.message.calendar?.method, "CANCEL");
+      assert.match(
+        organizerOf(cancelled?.message.calendar?.content ?? "") ?? "",
+        new RegExp(`^ORGANIZER;CN="?${team.name}"?:mailto:${sender}$`),
+      );
+      // The email itself still comes from the site's address.
+      assert.strictEqual(cancelled?.message.from, process.env.EMAIL_FROM);
+    }),
   );
 
-  it.effect(
-    "names the team by its name now, when the team is renamed (AC-5)",
-    () =>
-      Effect.gen(function* () {
-        const attendance = yield* Attendance;
-        const { id: event, team } = yield* publishedEventOf();
-        const address = `renamed-${crypto.randomUUID()}@example.org`;
-        const token = yield* attendance.attendAsGuest(event, {
-          name: "Rolf",
-          email: address,
-        });
-        yield* emailsTo(address, 1);
+  it.effect("names the team by its name now, when the team is renamed", () =>
+    Effect.gen(function* () {
+      const attendance = yield* Attendance;
+      const { id: event, team } = yield* publishedEventOf();
+      const address = `renamed-${crypto.randomUUID()}@example.org`;
+      const token = yield* attendance.attendAsGuest(event, {
+        name: "Rolf",
+        email: address,
+      });
+      yield* emailsTo(address, 1);
 
-        const renamed = `${team.name} renamed`;
-        yield* (yield* Teams).rename(team.id, renamed);
-        yield* attendance.leaveAsGuest(event, token);
-        const [, cancelled] = yield* emailsTo(address, 2);
-        assert.include(
-          organizerOf(cancelled?.message.calendar?.content ?? "") ?? "",
-          renamed,
-        );
-      }),
+      const renamed = `${team.name} renamed`;
+      yield* (yield* Teams).rename(team.id, renamed);
+      yield* attendance.leaveAsGuest(event, token);
+      const [, cancelled] = yield* emailsTo(address, 2);
+      assert.include(
+        organizerOf(cancelled?.message.calendar?.content ?? "") ?? "",
+        renamed,
+      );
+    }),
   );
 });

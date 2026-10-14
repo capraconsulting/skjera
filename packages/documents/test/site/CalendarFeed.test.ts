@@ -135,7 +135,7 @@ layer(TestLayer, { excludeTestServices: true })(
   "Calendar feed events",
   (it) => {
     it.effect(
-      "reads events for members only and ones going on, soonest first (AC-2)",
+      "reads events for members only and ones going on, soonest first",
       () =>
         Effect.gen(function* () {
           const now = new Date("2040-01-10T12:00:00Z");
@@ -163,46 +163,40 @@ layer(TestLayer, { excludeTestServices: true })(
         }),
     );
 
-    it.effect(
-      "leaves out ended, deleted and never published events (AC-3)",
-      () =>
-        Effect.gen(function* () {
-          const now = new Date("2040-01-10T12:00:00Z");
-          const ended = yield* publishedEvent({
-            title: "Ended",
-            startsAt: new Date(now.getTime() - 2 * day),
-            endsAt: new Date(now.getTime() - day),
-          });
-          const endedMembers = yield* publishedEvent({
-            title: "Ended, members only",
-            startsAt: new Date(now.getTime() - 2 * day),
-            endsAt: new Date(now.getTime() - day),
-            public: false,
-          });
-          const deleted = yield* publishedEvent({
-            title: "Deleted",
-            startsAt: new Date(now.getTime() + 2 * day),
-            endsAt: new Date(now.getTime() + 2 * day + hour),
-            deleted: true,
-          });
-          const team = yield* (yield* Teams).create("Never published", alice);
-          const draft = yield* (yield* Documents).create(
-            "event",
-            team.id,
-            alice,
-          );
-          const events = yield* feedAmong(now, [
-            ended,
-            endedMembers,
-            deleted,
-            draft,
-          ]);
-          assert.deepStrictEqual(events, []);
-        }),
+    it.effect("leaves out ended, deleted and never published events", () =>
+      Effect.gen(function* () {
+        const now = new Date("2040-01-10T12:00:00Z");
+        const ended = yield* publishedEvent({
+          title: "Ended",
+          startsAt: new Date(now.getTime() - 2 * day),
+          endsAt: new Date(now.getTime() - day),
+        });
+        const endedMembers = yield* publishedEvent({
+          title: "Ended, members only",
+          startsAt: new Date(now.getTime() - 2 * day),
+          endsAt: new Date(now.getTime() - day),
+          public: false,
+        });
+        const deleted = yield* publishedEvent({
+          title: "Deleted",
+          startsAt: new Date(now.getTime() + 2 * day),
+          endsAt: new Date(now.getTime() + 2 * day + hour),
+          deleted: true,
+        });
+        const team = yield* (yield* Teams).create("Never published", alice);
+        const draft = yield* (yield* Documents).create("event", team.id, alice);
+        const events = yield* feedAmong(now, [
+          ended,
+          endedMembers,
+          deleted,
+          draft,
+        ]);
+        assert.deepStrictEqual(events, []);
+      }),
     );
 
     it.effect(
-      "gives an event its title, times, place, summary and page, and leaves out what it lacks (AC-4)",
+      "gives an event its title, times, place, summary and page, and leaves out what it lacks",
       () =>
         Effect.gen(function* () {
           const now = new Date("2060-01-10T12:00:00Z");
@@ -246,7 +240,7 @@ layer(TestLayer, { excludeTestServices: true })(
 
 layer(TestLayer, { excludeTestServices: true })("Calendar feed route", (it) => {
   it.effect(
-    "answers anyone with the calendar, members-only events too, beside the app's fallback (AC-1)",
+    "answers anyone with the calendar, members-only events too, beside the app's fallback",
     () =>
       Effect.gen(function* () {
         // The route reads the real clock.
@@ -279,7 +273,7 @@ layer(TestLayer, { excludeTestServices: true })("Calendar feed route", (it) => {
   );
 
   it.effect(
-    "gives no calendar, and leaves the path to the app's fallback, without SITE_URL (AC-1)",
+    "gives no calendar, and leaves the path to the app's fallback, without SITE_URL",
     () =>
       Effect.gen(function* () {
         yield* publishedEvent({

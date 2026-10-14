@@ -87,7 +87,7 @@ test("events are tagged, and the site groups and filters them", async ({
   await teams.delete(team);
 });
 
-test("the site filters events open to guests and those not, with the tag too (AC-1, AC-2, AC-3, AC-4, AC-5)", async ({
+test("the site filters events open to guests and those not, with the tag too", async ({
   browser,
 }) => {
   test.slow();
@@ -116,36 +116,36 @@ test("the site filters events open to guests and those not, with the tag too (AC
   const reader = await visitor(browser);
   const home = new HomePage(reader);
 
-  // Neither filter chosen: everything shows (AC-1, AC-2).
+  // Neither filter chosen: everything shows.
   await home.goto();
   await home.expectGuestFilter(null);
   await home.expectEvents("upcoming", [a, b, c]);
 
-  // Choosing one keeps its events and puts it in the address (AC-2, AC-5).
+  // Choosing one keeps its events and puts it in the address.
   await home.clickGuestFilter("open");
   await home.expectQuery("yes", null);
   await home.expectGuestFilter("open");
   await home.expectEvents("upcoming", [a, c], [b]);
 
-  // Choosing the other replaces it (AC-2, AC-3).
+  // Choosing the other replaces it.
   await home.clickGuestFilter("not open");
   await home.expectQuery("no", null);
   await home.expectGuestFilter("not open");
   await home.expectEvents("upcoming", [b], [a, c]);
 
-  // Choosing the chosen one again removes it (AC-3).
+  // Choosing the chosen one again removes it.
   await home.clickGuestFilter("not open");
   await home.expectQuery(null, null);
   await home.expectGuestFilter(null);
   await home.expectEvents("upcoming", [a, b, c]);
 
-  // Opening the address shows the same lists (AC-5).
+  // Opening the address shows the same lists.
   await home.goto("?guests=yes");
   await home.expectGuestFilter("open");
   await home.expectEvents("upcoming", [a, c], [b]);
 
   // The tag alone, then the guest filter chosen beside it, then the tag
-  // removed (AC-4).
+  // removed.
   await home.goto(`?tag=${encodeURIComponent(tag)}`);
   await home.expectEvents("upcoming", [a, b], [c]);
   await home.clickGuestFilter("open");
@@ -155,8 +155,7 @@ test("the site filters events open to guests and those not, with the tag too (AC
   await home.expectQuery("yes", null);
   await home.expectEvents("upcoming", [a, c], [b]);
 
-  // Both in the address: the events matching both, in both lists (AC-2,
-  // AC-4).
+  // Both in the address: the events matching both, in both lists.
   await home.goto(`?tag=${encodeURIComponent(tag)}&guests=yes`);
   await home.expectEvents("upcoming", [a], [b, c]);
   await home.expectNoEvent(dTitle);
@@ -164,7 +163,7 @@ test("the site filters events open to guests and those not, with the tag too (AC
   await home.expectEvents("upcoming", [b], [a, c]);
   await home.expectEvent(dTitle, "past");
 
-  // An unknown value is no choice (AC-5).
+  // An unknown value is no choice.
   await home.goto("?guests=maybe");
   await home.expectGuestFilter(null);
   await home.expectEvents("upcoming", [a, b, c]);
@@ -177,7 +176,7 @@ test("the site filters events open to guests and those not, with the tag too (AC
   await teams.delete(team);
 });
 
-test("the guest filters are named in Bokmål and Nynorsk too (AC-6)", async ({
+test("the guest filters are named in Bokmål and Nynorsk too", async ({
   browser,
 }) => {
   const reader = await visitor(browser);

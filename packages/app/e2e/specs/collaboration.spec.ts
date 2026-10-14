@@ -87,7 +87,7 @@ test("publishing needs a title, times that make sense and a place", async ({
   await cleanUp(alice, team, id);
 });
 
-test("an event can be set to repeat, and still repeats after a reload (AC-1)", async ({
+test("an event can be set to repeat, and still repeats after a reload", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");

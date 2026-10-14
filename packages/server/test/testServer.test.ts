@@ -43,18 +43,18 @@ describe("testServerEnv", () => {
     expect(env.NODE_ENV).toBe("production");
   });
 
-  it("uses the database it is given (AC-2)", () => {
+  it("uses the database it is given", () => {
     const url =
       "postgres://skjera:skjera@localhost:5433/skjera_testserver_8801_cd";
     expect(settings(undefined, 8801, url).DATABASE_URL).toBe(url);
   });
 
-  it("is at http://localhost when no address is set (AC-3)", () => {
+  it("is at http://localhost when no address is set", () => {
     expect(settings(undefined).SITE_URL).toBe("http://localhost:8801");
     expect(settings("").SITE_URL).toBe("http://localhost:8801");
   });
 
-  it("is at the address that is set, with the port (AC-3)", () => {
+  it("is at the address that is set, with the port", () => {
     expect(settings("https://box.example.ts.net").SITE_URL).toBe(
       "https://box.example.ts.net:8801",
     );
@@ -76,11 +76,11 @@ describe("testServerEnv", () => {
     "https://box.lan/",
     "https://box.lan/path",
     "ftp://box.lan",
-  ])("refuses the address %s and names the setting (AC-3)", (address) => {
+  ])("refuses the address %s and names the setting", (address) => {
     expect(() => settings(address)).toThrow(/SKJERA_TEST_SERVER_URL/);
   });
 
-  it("sends the browser to Dex at the address that is set, and keeps the issuer (AC-4)", () => {
+  it("sends the browser to Dex at the address that is set, and keeps the issuer", () => {
     const env = settings("https://box.example.ts.net");
     expect(env.OAUTH_REDIRECT_URI).toBe(
       "https://box.example.ts.net:8801/auth/callback",
@@ -91,7 +91,7 @@ describe("testServerEnv", () => {
     expect(Object.keys(env)).not.toContain("OAUTH_ISSUER");
   });
 
-  it("logs in at localhost when no address is set (AC-4)", () => {
+  it("logs in at localhost when no address is set", () => {
     const env = settings(undefined);
     expect(env.OAUTH_REDIRECT_URI).toBe("http://localhost:8801/auth/callback");
     expect(env.OAUTH_AUTHORIZATION_ENDPOINT).toBe(
@@ -99,7 +99,7 @@ describe("testServerEnv", () => {
     );
   });
 
-  it("refuses to start without the development login settings (AC-4)", () => {
+  it("refuses to start without the development login settings", () => {
     expect(() =>
       testServerEnv(
         {},
@@ -118,7 +118,7 @@ describe("createDatabase", () => {
     }
   });
 
-  it("makes a new database each time, never the development one (AC-2)", async () => {
+  it("makes a new database each time, never the development one", async () => {
     const first = await createDatabase(serverUrl, 8801);
     const second = await createDatabase(serverUrl, 8801);
     const names = [first, second].map((url) => new URL(url).pathname.slice(1));

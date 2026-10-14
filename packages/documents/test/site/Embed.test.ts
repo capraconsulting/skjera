@@ -73,7 +73,7 @@ const publishedEvent = (options: {
   }).pipe(Effect.orDie);
 
 /**
- * The events of the first acceptance criterion, around `now`: one going on,
+ * Events around `now` for choosing the next three: one going on,
  * four starting in 1, 3, 4 and 5 days; and, in 2 days, one shown only to
  * members and one deleted; and one that ended yesterday. Returns the ids of
  * the three that are next, soonest first, and of the others.
@@ -207,7 +207,7 @@ const frame =
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Embed", (it) => {
   it.effect(
-    "reads the next three events shown to everyone, soonest first (AC-1)",
+    "reads the next three events shown to everyone, soonest first",
     () =>
       Effect.gen(function* () {
         const now = new Date("2040-01-10T12:00:00Z");
@@ -230,7 +230,7 @@ layer(TestLayer, { excludeTestServices: true })("Embed", (it) => {
       }),
   );
 
-  it.effect("reads fewer than three when there are fewer (AC-1)", () =>
+  it.effect("reads fewer than three when there are fewer", () =>
     Effect.gen(function* () {
       const later = yield* publishedEvent({
         title: "Later",
@@ -250,7 +250,7 @@ layer(TestLayer, { excludeTestServices: true })("Embed", (it) => {
     }),
   );
 
-  it.effect("reads the team and the time zone of each event (AC-2)", () =>
+  it.effect("reads the team and the time zone of each event", () =>
     Effect.gen(function* () {
       const id = yield* publishedEvent({
         title: "With a team",
@@ -268,7 +268,7 @@ layer(TestLayer, { excludeTestServices: true })("Embed", (it) => {
     }),
   );
 
-  it.effect("says today's events by the time, others by the day (AC-2)", () =>
+  it.effect("says today's events by the time, others by the day", () =>
     Effect.sync(() => {
       const team = { name: "Platform", logo: null, logoDark: null };
       // 18:00 in Oslo is 17:00 UTC in November.
@@ -289,7 +289,7 @@ layer(TestLayer, { excludeTestServices: true })("Embed", (it) => {
     }),
   );
 
-  it.effect("takes today to be the day in the event's own zone (AC-2)", () =>
+  it.effect("takes today to be the day in the event's own zone", () =>
     Effect.sync(() => {
       const team = { name: "Platform", logo: null, logoDark: null };
       // 18:00 on 16 November in Oslo; at 23:30 UTC it is 00:30 there on the 16th.
@@ -301,38 +301,33 @@ layer(TestLayer, { excludeTestServices: true })("Embed", (it) => {
     }),
   );
 
-  it.effect(
-    "shows the organiser by the team's light logo or its name (AC-2)",
-    () =>
-      Effect.sync(() => {
-        const item = (logos: {
-          logo: string | null;
-          logoDark: string | null;
-        }) =>
-          Embed.embedItem(withTeam({ name: "Platform", ...logos }), {
-            locale: "nb",
-            now: new Date("2036-11-10T08:00:00Z"),
-          });
-        assert.deepStrictEqual(item({ logo, logoDark: null }).organizer, {
-          name: "Platform",
-          logo,
+  it.effect("shows the organiser by the team's light logo or its name", () =>
+    Effect.sync(() => {
+      const item = (logos: { logo: string | null; logoDark: string | null }) =>
+        Embed.embedItem(withTeam({ name: "Platform", ...logos }), {
+          locale: "nb",
+          now: new Date("2036-11-10T08:00:00Z"),
         });
-        // The dark logo is made for a dark background; the page is light.
-        assert.deepStrictEqual(
-          item({ logo: null, logoDark: darkLogo }).organizer,
-          {
-            name: "Platform",
-            logo: null,
-          },
-        );
-        assert.deepStrictEqual(item({ logo: null, logoDark: null }).organizer, {
+      assert.deepStrictEqual(item({ logo, logoDark: null }).organizer, {
+        name: "Platform",
+        logo,
+      });
+      // The dark logo is made for a dark background; the page is light.
+      assert.deepStrictEqual(
+        item({ logo: null, logoDark: darkLogo }).organizer,
+        {
           name: "Platform",
           logo: null,
-        });
-      }),
+        },
+      );
+      assert.deepStrictEqual(item({ logo: null, logoDark: null }).organizer, {
+        name: "Platform",
+        logo: null,
+      });
+    }),
   );
 
-  it.effect("links an event to its page (AC-3)", () =>
+  it.effect("links an event to its page", () =>
     Effect.sync(() => {
       const item = Embed.embedItem(
         withTeam({ name: "Platform", logo: null, logoDark: null }),
@@ -345,33 +340,25 @@ layer(TestLayer, { excludeTestServices: true })("Embed", (it) => {
     }),
   );
 
-  it.effect(
-    "escapes an event's title and a team's name in the page (AC-2)",
-    () =>
-      Effect.sync(() => {
-        const now = new Date("2036-11-10T08:00:00Z");
-        const items = [
-          withTeam({ name: nasty, logo, logoDark: null }, { title: nasty }),
-          withTeam(
-            { name: nasty, logo: null, logoDark: null },
-            { title: nasty },
-          ),
-        ].map((event) => Embed.embedItem(event, { locale: "nb", now }));
-        const html = Embed.embedPage({
-          site: { name: nasty, locale: "nb" },
-          items,
-        });
-        assert.notInclude(html, "<script>alert");
-        assert.notInclude(html, "</script> &");
-        assert.notInclude(html, 'alert("x")');
-        assert.include(
-          html,
-          "&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;",
-        );
-      }),
+  it.effect("escapes an event's title and a team's name in the page", () =>
+    Effect.sync(() => {
+      const now = new Date("2036-11-10T08:00:00Z");
+      const items = [
+        withTeam({ name: nasty, logo, logoDark: null }, { title: nasty }),
+        withTeam({ name: nasty, logo: null, logoDark: null }, { title: nasty }),
+      ].map((event) => Embed.embedItem(event, { locale: "nb", now }));
+      const html = Embed.embedPage({
+        site: { name: nasty, locale: "nb" },
+        items,
+      });
+      assert.notInclude(html, "<script>alert");
+      assert.notInclude(html, "</script> &");
+      assert.notInclude(html, 'alert("x")');
+      assert.include(html, "&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;");
+    }),
   );
 
-  it.effect("writes an empty list for no events (AC-4)", () =>
+  it.effect("writes an empty list for no events", () =>
     Effect.gen(function* () {
       assert.deepStrictEqual(
         yield* Embed.nextEvents(new Date("2100-01-01T00:00:00Z")),
@@ -385,7 +372,7 @@ layer(TestLayer, { excludeTestServices: true })("Embed", (it) => {
     }),
   );
 
-  it.effect("reads the websites as their origins (AC-5)", () =>
+  it.effect("reads the websites as their origins", () =>
     Effect.gen(function* () {
       const exit = yield* origins({ WEBSITE_ORIGINS: websites });
       assert.isTrue(Exit.isSuccess(exit));
@@ -406,7 +393,7 @@ layer(TestLayer, { excludeTestServices: true })("Embed", (it) => {
     }),
   );
 
-  it.effect("allows no website to frame the page when none is set (AC-5)", () =>
+  it.effect("allows no website to frame the page when none is set", () =>
     Effect.gen(function* () {
       for (const env of [
         {},
@@ -425,7 +412,7 @@ layer(TestLayer, { excludeTestServices: true })("Embed", (it) => {
     }),
   );
 
-  it.effect("refuses a website that is not a bare origin (AC-5)", () =>
+  it.effect("refuses a website that is not a bare origin", () =>
     Effect.gen(function* () {
       for (const value of [
         "capraconsulting.no",
@@ -445,7 +432,7 @@ layer(TestLayer, { excludeTestServices: true })("Embed", (it) => {
 });
 
 layer(TestLayer, { excludeTestServices: true })("Embed route", (it) => {
-  it.effect("answers with an empty list when no event matches (AC-4)", () =>
+  it.effect("answers with an empty list when no event matches", () =>
     withPages({ WEBSITE_ORIGINS: websites }, (page) =>
       Effect.gen(function* () {
         const response = yield* page("/embed");
@@ -458,7 +445,7 @@ layer(TestLayer, { excludeTestServices: true })("Embed route", (it) => {
   );
 
   it.effect(
-    "answers with the next three events, beside the app's fallback (AC-1)",
+    "answers with the next three events, beside the app's fallback",
     () =>
       Effect.gen(function* () {
         // The route reads the real clock.
@@ -502,7 +489,7 @@ layer(TestLayer, { excludeTestServices: true })("Embed route", (it) => {
       }),
   );
 
-  it.effect("lets only the websites frame the page (AC-5)", () =>
+  it.effect("lets only the websites frame the page", () =>
     Effect.gen(function* () {
       yield* withPages({ WEBSITE_ORIGINS: websites }, (page) =>
         Effect.gen(function* () {
@@ -525,7 +512,7 @@ layer(TestLayer, { excludeTestServices: true })("Embed route", (it) => {
     }),
   );
 
-  it.effect("loads nothing from HubSpot, also where the site does (AC-2)", () =>
+  it.effect("loads nothing from HubSpot, also where the site does", () =>
     withPages({ HUBSPOT_ACCOUNT_ID: "146072525" }, (page) =>
       Effect.gen(function* () {
         const response = yield* page("/embed");

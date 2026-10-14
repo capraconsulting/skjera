@@ -17,7 +17,7 @@ import {
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Event emails", (it) => {
   it.effect(
-    "publishes each email's own subject trimmed and its text as spans (AC-1)",
+    "publishes each email's own subject trimmed and its text as spans",
     () =>
       Effect.gen(function* () {
         const sql = yield* SqlClient.SqlClient;
@@ -61,7 +61,7 @@ layer(TestLayer, { excludeTestServices: true })("Event emails", (it) => {
       }),
   );
 
-  it.effect("publishes a changed email subject again (AC-1)", () =>
+  it.effect("publishes a changed email subject again", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
       const sql = yield* SqlClient.SqlClient;
@@ -89,7 +89,7 @@ layer(TestLayer, { excludeTestServices: true })("Event emails", (it) => {
   );
 
   it.effect(
-    "publishes blank subjects and texts, and an older draft's, as none (AC-4)",
+    "publishes blank subjects and texts, and an older draft's, as none",
     () =>
       Effect.gen(function* () {
         const sql = yield* SqlClient.SqlClient;

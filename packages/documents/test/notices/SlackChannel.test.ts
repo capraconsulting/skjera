@@ -55,7 +55,7 @@ describe("The messages", () => {
     place: "Kantina",
   };
 
-  it("announces an event with its cover, summary, link, time and place (AC-1)", () => {
+  it("announces an event with its cover, summary, link, time and place", () => {
     const message = SlackChannel.announcement(launch, site);
     const heading = "*Launch | <!here> :loudspeaker:*";
     assert.strictEqual(message.text, heading);
@@ -83,7 +83,7 @@ describe("The messages", () => {
     assert.include(words, "*Where:*\nKantina");
   });
 
-  it("marks an event moved on to its next date with :repeat: in place of :loudspeaker:, and changes nothing else (AC-6)", () => {
+  it("marks an event moved on to its next date with :repeat: in place of :loudspeaker:, and changes nothing else", () => {
     const first = SlackChannel.announcement(launch, site);
     const repeated = SlackChannel.announcement(launch, site, {
       repeated: true,
@@ -98,7 +98,7 @@ describe("The messages", () => {
     assert.deepStrictEqual(repeated.blocks.slice(1), first.blocks.slice(1));
   });
 
-  it("leaves out what the event lacks, and names a cover by the title when its alt is blank (AC-1)", () => {
+  it("leaves out what the event lacks, and names a cover by the title when its alt is blank", () => {
     const bare = SlackChannel.announcement(
       { ...launch, summary: null, cover: null, place: null },
       site,
@@ -120,7 +120,7 @@ describe("The messages", () => {
     assert.strictEqual(blockOfType(blank.blocks, "image")?.alt_text, "Launch");
   });
 
-  it("escapes the event's words for Slack, so a title cannot mention the channel (AC-1)", () => {
+  it("escapes the event's words for Slack, so a title cannot mention the channel", () => {
     const message = SlackChannel.announcement(
       { ...launch, title: "Q&A <!channel>", place: "R&D <lab>" },
       site,
@@ -134,7 +134,7 @@ describe("The messages", () => {
     assert.isFalse(words.some((word) => word.includes("<!channel>")));
   });
 
-  it("lists the deadlines in the order given, each in Norwegian time (AC-3)", () => {
+  it("lists the deadlines in the order given, each in Norwegian time", () => {
     const first = {
       id: "0190a000-0000-7000-8000-000000000002",
       title: "Early",
@@ -164,7 +164,7 @@ describe("The messages", () => {
     assert.include(lines[1] ?? "", "4:00 PM");
   });
 
-  it("runs at 07:00 UTC whatever zone the process is in (AC-3)", () => {
+  it("runs at 07:00 UTC whatever zone the process is in", () => {
     const before = process.env.TZ;
     process.env.TZ = oslo;
     try {
@@ -350,7 +350,7 @@ const workspace = newWorkspace();
 layer(channelLayer(workspace), { excludeTestServices: true })(
   "The channel",
   (it) => {
-    it.effect("posts an event published for the first time (AC-1)", () =>
+    it.effect("posts an event published for the first time", () =>
       Effect.gen(function* () {
         const title = newTitle();
         yield* publishFromDraft(title);
@@ -361,7 +361,7 @@ layer(channelLayer(workspace), { excludeTestServices: true })(
     );
 
     it.effect(
-      "reads the deadlines due within a day, soonest first, members-only ones too (AC-3)",
+      "reads the deadlines due within a day, soonest first, members-only ones too",
       () =>
         Effect.gen(function* () {
           const now = new Date("2041-03-05T07:00:00Z");
@@ -391,31 +391,29 @@ layer(channelLayer(workspace), { excludeTestServices: true })(
         }),
     );
 
-    it.effect(
-      "leaves out events without a deadline set and deleted ones (AC-5)",
-      () =>
-        Effect.gen(function* () {
-          const now = new Date("2042-03-05T07:00:00Z");
-          const due = yield* dueIn(now, 2);
-          const unset = yield* insertEvent({
-            deadline: null,
-            startsAt: new Date(now.getTime() + 2 * 60 * 60 * 1000),
-          });
-          const deleted = yield* insertEvent({
-            deadline: new Date(now.getTime() + 2 * 60 * 60 * 1000),
-            startsAt: new Date(now.getTime() + 3 * 60 * 60 * 1000),
-            deleted: true,
-          });
-          const found = (yield* SlackChannel.dueDeadlines(now)).map(
-            ({ id }) => id,
-          );
-          assert.include(found, due.id);
-          assert.notInclude(found, unset.id);
-          assert.notInclude(found, deleted.id);
-        }),
+    it.effect("leaves out events without a deadline set and deleted ones", () =>
+      Effect.gen(function* () {
+        const now = new Date("2042-03-05T07:00:00Z");
+        const due = yield* dueIn(now, 2);
+        const unset = yield* insertEvent({
+          deadline: null,
+          startsAt: new Date(now.getTime() + 2 * 60 * 60 * 1000),
+        });
+        const deleted = yield* insertEvent({
+          deadline: new Date(now.getTime() + 2 * 60 * 60 * 1000),
+          startsAt: new Date(now.getTime() + 3 * 60 * 60 * 1000),
+          deleted: true,
+        });
+        const found = (yield* SlackChannel.dueDeadlines(now)).map(
+          ({ id }) => id,
+        );
+        assert.include(found, due.id);
+        assert.notInclude(found, unset.id);
+        assert.notInclude(found, deleted.id);
+      }),
     );
 
-    it.effect("posts one message listing the deadlines due (AC-3)", () =>
+    it.effect("posts one message listing the deadlines due", () =>
       Effect.gen(function* () {
         const now = new Date("2043-03-05T07:00:00Z");
         const first = yield* dueIn(now, 2);
@@ -434,7 +432,7 @@ layer(channelLayer(workspace), { excludeTestServices: true })(
       }),
     );
 
-    it.effect("posts no deadline message when none is due (AC-4)", () =>
+    it.effect("posts no deadline message when none is due", () =>
       Effect.gen(function* () {
         const now = new Date("2044-03-05T07:00:00Z");
         const far = yield* dueIn(now, 25);
@@ -449,7 +447,7 @@ layer(channelLayer(workspace), { excludeTestServices: true })(
     );
 
     it.effect(
-      "posts a day's deadline message once, however often it is sent (AC-6)",
+      "posts a day's deadline message once, however often it is sent",
       () =>
         Effect.gen(function* () {
           const now = new Date("2045-03-05T07:00:00Z");
@@ -480,33 +478,29 @@ const failingLog: Array<string> = [];
 layer(channelLayer(failing, failingLog), { excludeTestServices: true })(
   "The channel when Slack fails",
   (it) => {
-    it.effect(
-      "still publishes, logs a refusal, and posts the next event (AC-8)",
-      () =>
-        Effect.gen(function* () {
-          failing.failNext(
-            "postMessage",
-            new SlackApiError({
-              method: "chat.postMessage",
-              code: "not_in_channel",
-            }),
-          );
-          const refused = newTitle();
-          const { publication } = yield* publishFromDraft(refused);
-          assert.isDefined(publication);
-          yield* logged(failingLog, "not_in_channel");
-          assert.isFalse(
-            textsOf(failing).some((text) => text.includes(refused)),
-          );
+    it.effect("still publishes, logs a refusal, and posts the next event", () =>
+      Effect.gen(function* () {
+        failing.failNext(
+          "postMessage",
+          new SlackApiError({
+            method: "chat.postMessage",
+            code: "not_in_channel",
+          }),
+        );
+        const refused = newTitle();
+        const { publication } = yield* publishFromDraft(refused);
+        assert.isDefined(publication);
+        yield* logged(failingLog, "not_in_channel");
+        assert.isFalse(textsOf(failing).some((text) => text.includes(refused)));
 
-          const next = newTitle();
-          yield* publishFromDraft(next);
-          yield* postedAbout(failing, next);
-        }),
+        const next = newTitle();
+        yield* publishFromDraft(next);
+        yield* postedAbout(failing, next);
+      }),
     );
 
     it.effect(
-      "posts after a retry when Slack is unreachable once (AC-8)",
+      "posts after a retry when Slack is unreachable once",
       () =>
         Effect.gen(function* () {
           const title = newTitle();
@@ -526,7 +520,7 @@ layer(channelLayer(failing, failingLog), { excludeTestServices: true })(
     );
 
     it.effect(
-      "posts the event again without its cover when Slack refuses the blocks (AC-8)",
+      "posts the event again without its cover when Slack refuses the blocks",
       () =>
         Effect.gen(function* () {
           const title = newTitle();
@@ -575,7 +569,7 @@ for (const [name, env] of [
   layer(unconfiguredLayer(env, log), { excludeTestServices: true })(
     `Without ${name}`,
     (it) => {
-      it.effect("warns, publishes as before and posts nothing (AC-7)", () =>
+      it.effect("warns, publishes as before and posts nothing", () =>
         Effect.gen(function* () {
           const { publication } = yield* publishFromDraft(newTitle());
           assert.isDefined(publication);

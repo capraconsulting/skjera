@@ -50,7 +50,7 @@ test("guests sign up with their name and email", async ({ browser }) => {
   await cleanUp(alice, team, event.id, closed.id);
 });
 
-test("guests give a phone number and a company, and organizers see and export them (AC-1, AC-3, AC-4)", async ({
+test("guests give a phone number and a company, and organizers see and export them", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");

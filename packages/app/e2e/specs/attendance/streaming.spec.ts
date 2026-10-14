@@ -6,7 +6,7 @@ import { EventPage } from "../../pom/site/EventPage.ts";
 import { EventEditor } from "../../pom/studio/EventEditor.ts";
 import { TeamsColumn } from "../../pom/studio/TeamsColumn.ts";
 
-test("a streamed event shows its link, asks in person or online, and lists how each comes (AC-1, AC-2, AC-3, AC-4, AC-5)", async ({
+test("a streamed event shows its link, asks in person or online, and lists how each comes", async ({
   browser,
 }) => {
   const link = "https://stream.example/meetup";
@@ -72,7 +72,7 @@ test("a streamed event shows its link, asks in person or online, and lists how e
   await cleanUp(alice, team, event.id);
 });
 
-test("a full streamed event takes no more in person but still takes those online (AC-6)", async ({
+test("a full streamed event takes no more in person but still takes those online", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -107,7 +107,7 @@ test("a full streamed event takes no more in person but still takes those online
   await cleanUp(alice, team, event.id);
 });
 
-test("everyone counts as in person once the event is no longer streamed (AC-7)", async ({
+test("everyone counts as in person once the event is no longer streamed", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");

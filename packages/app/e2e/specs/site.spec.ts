@@ -92,7 +92,7 @@ test("the theme follows the system until the user picks one", async ({
   await header.expectBackground("rgb(9, 9, 11)");
 });
 
-test("the site shows what was published, and only that (AC-1, AC-3)", async ({
+test("the site shows what was published, and only that", async ({
   browser,
 }) => {
   const alice = await visitor(browser);
@@ -164,7 +164,7 @@ test("the site shows what was published, and only that (AC-1, AC-3)", async ({
   await teams.delete(team);
 });
 
-test("an event's summary is written in the studio and shown on its page (AC-1, AC-2)", async ({
+test("an event's summary is written in the studio and shown on its page", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -271,7 +271,7 @@ test("the account menu leads to settings, and logs out", async ({
   await header.expectLogIn();
 });
 
-test("the header subscribes to the coming events in Google Calendar, beside the account menu (AC-6)", async ({
+test("the header subscribes to the coming events in Google Calendar, beside the account menu", async ({
   browser,
 }) => {
   const reader = await visitor(browser);
@@ -300,7 +300,7 @@ test("the header subscribes to the coming events in Google Calendar, beside the 
   );
 });
 
-test("the header keeps «Abonner» and the account menu in a phone's window (AC-6)", async ({
+test("the header keeps «Abonner» and the account menu in a phone's window", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -349,7 +349,7 @@ const publishedPastEvent = async (page: Page) => {
   return { id, title: past };
 };
 
-test("the site's list shows each event's team as its organizer (AC-2)", async ({
+test("the site's list shows each event's team as its organizer", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -378,9 +378,7 @@ test("the site's list shows each event's team as its organizer (AC-2)", async ({
   await cleanUp(alice, branded, was.id, coming.id);
 });
 
-test("the event page shows the team as its organizer (AC-3)", async ({
-  browser,
-}) => {
+test("the event page shows the team as its organizer", async ({ browser }) => {
   const alice = await signedIn(browser, "alice@example.com");
   const teams = new TeamsColumn(alice);
   const editor = new EventEditor(alice);
@@ -405,7 +403,7 @@ test("the event page shows the team as its organizer (AC-3)", async ({
   await cleanUp(alice, branded, withLogo.id);
 });
 
-test("the dark theme shows the team's dark logo, the light one the light logo (AC-4)", async ({
+test("the dark theme shows the team's dark logo, the light one the light logo", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -428,7 +426,7 @@ test("the dark theme shows the team's dark logo, the light one the light logo (A
   await cleanUp(alice, team, event.id);
 });
 
-test("the open list follows a team's rename without reloading (AC-6)", async ({
+test("the open list follows a team's rename without reloading", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -449,7 +447,7 @@ test("the open list follows a team's rename without reloading (AC-6)", async ({
   await cleanUp(alice, team, event.id);
 });
 
-test("a team's new logo shows on the open list without reloading (AC-6)", async ({
+test("a team's new logo shows on the open list without reloading", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -470,7 +468,7 @@ test("a team's new logo shows on the open list without reloading (AC-6)", async 
   await cleanUp(alice, team, event.id);
 });
 
-test("a link to a public event shows its title, summary and cover; others the site's name (AC-4, AC-5, AC-6)", async ({
+test("a link to a public event shows its title, summary and cover; others the site's name", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -506,7 +504,7 @@ test("a link to a public event shows its title, summary and cover; others the si
   await cleanUp(alice, team, shown.id, membersOnly.id);
 });
 
-test("the privacy page says in each language that signups are deleted 30 days after (AC-7)", async ({
+test("the privacy page says in each language that signups are deleted 30 days after", async ({
   browser,
 }) => {
   const reader = await visitor(browser);
@@ -525,7 +523,7 @@ test("the privacy page says in each language that signups are deleted 30 days af
   );
 });
 
-test("every page of the site loads HubSpot's script, once (AC-1)", async ({
+test("every page of the site loads HubSpot's script, once", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -558,7 +556,7 @@ test("every page of the site loads HubSpot's script, once (AC-1)", async ({
   await cleanUp(alice, team, event.id);
 });
 
-test("the way from the studio to the site loads HubSpot's script (AC-1)", async ({
+test("the way from the studio to the site loads HubSpot's script", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -573,7 +571,7 @@ test("the way from the studio to the site loads HubSpot's script (AC-1)", async 
   await hubSpot.expectRuns(1);
 });
 
-test("the studio never runs HubSpot's script, however it is entered (AC-2)", async ({
+test("the studio never runs HubSpot's script, however it is entered", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -607,7 +605,7 @@ test("the studio never runs HubSpot's script, however it is entered (AC-2)", asy
   await hubSpot.expectLoaders(0);
 });
 
-test("without a HubSpot account id, nothing goes to HubSpot (AC-3)", async ({
+test("without a HubSpot account id, nothing goes to HubSpot", async ({
   browser,
 }) => {
   const reader = await visitor(browser);
@@ -622,7 +620,7 @@ test("without a HubSpot account id, nothing goes to HubSpot (AC-3)", async ({
   expect(asked).toEqual([]);
 });
 
-test("the privacy page names HubSpot, and opens its cookie settings (AC-5)", async ({
+test("the privacy page names HubSpot, and opens its cookie settings", async ({
   browser,
 }) => {
   const reader = await visitor(browser);
@@ -637,9 +635,7 @@ test("the privacy page names HubSpot, and opens its cookie settings (AC-5)", asy
   await hubSpot.expectBannerAsked();
 });
 
-test("the privacy page names HubSpot in Norwegian too (AC-5)", async ({
-  browser,
-}) => {
+test("the privacy page names HubSpot in Norwegian too", async ({ browser }) => {
   const reader = await visitor(browser);
   await new HubSpot(reader).install();
   const header = new Header(reader);
@@ -654,7 +650,7 @@ test("the privacy page names HubSpot in Norwegian too (AC-5)", async ({
   );
 });
 
-test("without a HubSpot account id, the privacy page says nothing tracks you (AC-6)", async ({
+test("without a HubSpot account id, the privacy page says nothing tracks you", async ({
   browser,
 }) => {
   const reader = await visitor(browser);

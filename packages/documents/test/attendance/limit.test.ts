@@ -20,7 +20,7 @@ import {
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Attendance limit", (it) => {
   it.effect(
-    "publishes the limit and whether places left are hidden, none and shown when unset (AC-1)",
+    "publishes the limit and whether places left are hidden, none and shown when unset",
     () =>
       Effect.gen(function* () {
         const limited = yield* publishedEvent({
@@ -43,7 +43,7 @@ layer(TestLayer, { excludeTestServices: true })("Attendance limit", (it) => {
       }),
   );
 
-  it.effect("takes a limit that is a whole number of at least one (AC-1)", () =>
+  it.effect("takes a limit that is a whole number of at least one", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
       const id = yield* documents.create("event", yield* newTeam, alice);
@@ -73,7 +73,7 @@ layer(TestLayer, { excludeTestServices: true })("Attendance limit", (it) => {
     }),
   );
 
-  it.effect("counts members and guests together against the limit (AC-2)", () =>
+  it.effect("counts members and guests together against the limit", () =>
     Effect.gen(function* () {
       const attendance = yield* Attendance;
       const id = yield* publishedEvent({
@@ -97,7 +97,7 @@ layer(TestLayer, { excludeTestServices: true })("Attendance limit", (it) => {
     }),
   );
 
-  it.effect("refuses a signup to a full event, saying it is full (AC-3)", () =>
+  it.effect("refuses a signup to a full event, saying it is full", () =>
     Effect.gen(function* () {
       const attendance = yield* Attendance;
       const id = yield* publishedEvent({
@@ -126,60 +126,58 @@ layer(TestLayer, { excludeTestServices: true })("Attendance limit", (it) => {
     }),
   );
 
-  it.effect(
-    "gives the last place to one of two who sign up at once (AC-4)",
-    () =>
-      Effect.gen(function* () {
-        const attendance = yield* Attendance;
-        const sql = yield* SqlClient.SqlClient;
-        const id = yield* publishedEvent({
-          public: false,
-          guests: false,
-          edit: (event) => setLimit(event, 1),
-        });
+  it.effect("gives the last place to one of two who sign up at once", () =>
+    Effect.gen(function* () {
+      const attendance = yield* Attendance;
+      const sql = yield* SqlClient.SqlClient;
+      const id = yield* publishedEvent({
+        public: false,
+        guests: false,
+        edit: (event) => setLimit(event, 1),
+      });
 
-        // A held lock on attendees stops inserts, so both signups have read
-        // the event before either inserts.
-        const held = yield* Deferred.make<void>();
-        const release = yield* Deferred.make<void>();
-        const holder = yield* Effect.gen(function* () {
-          yield* sql`LOCK TABLE attendees IN SHARE MODE`;
-          yield* Deferred.succeed(held, undefined);
-          yield* Deferred.await(release);
-        }).pipe(sql.withTransaction, Effect.forkChild);
-        yield* Deferred.await(held);
+      // A held lock on attendees stops inserts, so both signups have read
+      // the event before either inserts.
+      const held = yield* Deferred.make<void>();
+      const release = yield* Deferred.make<void>();
+      const holder = yield* Effect.gen(function* () {
+        yield* sql`LOCK TABLE attendees IN SHARE MODE`;
+        yield* Deferred.succeed(held, undefined);
+        yield* Deferred.await(release);
+      }).pipe(sql.withTransaction, Effect.forkChild);
+      yield* Deferred.await(held);
 
-        const outcome = (who: Identity) =>
-          attendance.attend(id, who).pipe(
-            Effect.as("signed up"),
-            Effect.catchTag("SignupRejected", (error) =>
-              Effect.succeed(error.problem._tag),
-            ),
-            Effect.orDie,
-          );
-        const both = yield* Effect.all([outcome(alice), outcome(bob)], {
-          concurrency: "unbounded",
-        }).pipe(Effect.forkChild);
+      const outcome = (who: Identity) =>
+        attendance.attend(id, who).pipe(
+          Effect.as("signed up"),
+          Effect.catchTag("SignupRejected", (error) =>
+            Effect.succeed(error.problem._tag),
+          ),
+          Effect.orDie,
+        );
+      const both = yield* Effect.all([outcome(alice), outcome(bob)], {
+        concurrency: "unbounded",
+      }).pipe(Effect.forkChild);
 
-        // Wait until both are held up: one on the lock, one on the event.
-        const waiting = sql<{ count: number }>`
+      // Wait until both are held up: one on the lock, one on the event.
+      const waiting = sql<{ count: number }>`
           SELECT count(*)::int AS count FROM pg_stat_activity
           WHERE datname = current_database() AND wait_event_type = 'Lock'
         `.pipe(Effect.map(([row]) => row?.count ?? 0));
-        while ((yield* waiting) < 2) yield* Effect.sleep("50 millis");
-        yield* Deferred.succeed(release, undefined);
-        yield* Fiber.join(holder);
+      while ((yield* waiting) < 2) yield* Effect.sleep("50 millis");
+      yield* Deferred.succeed(release, undefined);
+      yield* Fiber.join(holder);
 
-        assert.deepStrictEqual((yield* Fiber.join(both)).sort(), [
-          "EventFull",
-          "signed up",
-        ]);
-        assert.strictEqual((yield* organizerView(id)).length, 1);
-      }).pipe(Effect.timeout("10 seconds")),
+      assert.deepStrictEqual((yield* Fiber.join(both)).sort(), [
+        "EventFull",
+        "signed up",
+      ]);
+      assert.strictEqual((yield* organizerView(id)).length, 1);
+    }).pipe(Effect.timeout("10 seconds")),
   );
 
   it.effect(
-    "lets those signed up to a full event sign up again, change and cancel (AC-5)",
+    "lets those signed up to a full event sign up again, change and cancel",
     () =>
       Effect.gen(function* () {
         const attendance = yield* Attendance;
@@ -208,7 +206,7 @@ layer(TestLayer, { excludeTestServices: true })("Attendance limit", (it) => {
       }),
   );
 
-  it.effect("accepts a signup for a place a cancel freed (AC-6)", () =>
+  it.effect("accepts a signup for a place a cancel freed", () =>
     Effect.gen(function* () {
       const attendance = yield* Attendance;
       const id = yield* publishedEvent({
@@ -230,7 +228,7 @@ layer(TestLayer, { excludeTestServices: true })("Attendance limit", (it) => {
   );
 
   it.effect(
-    "publishes a limit below those signed up, and refuses until enough cancel (AC-9)",
+    "publishes a limit below those signed up, and refuses until enough cancel",
     () =>
       Effect.gen(function* () {
         const documents = yield* Documents;

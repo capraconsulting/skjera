@@ -128,7 +128,7 @@ const withPages = <A, E, R>(
 
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Sharing", (it) => {
-  it.effect("gives the tags of an event shown to everyone (AC-4)", () =>
+  it.effect("gives the tags of an event shown to everyone", () =>
     Effect.gen(function* () {
       const id = yield* publishedEvent({
         title: "Launch",
@@ -155,23 +155,21 @@ layer(TestLayer, { excludeTestServices: true })("Sharing", (it) => {
     }),
   );
 
-  it.effect(
-    "gives an event without a summary or a cover only its title (AC-4)",
-    () =>
-      Effect.gen(function* () {
-        const id = yield* publishedEvent({ title: "Launch" });
-        const event = yield* Sharing.sharedEvent(id);
-        const meta = metaOf(Sharing.sharingTags({ site, event }));
-        assert.strictEqual(meta.get("og:title"), "Launch");
-        for (const key of ["description", "og:description", "og:image"]) {
-          assert.isFalse(meta.has(key), key);
-        }
-        assert.isFalse(meta.has("og:image:alt"));
-        assert.strictEqual(meta.get("twitter:card"), "summary");
-      }),
+  it.effect("gives an event without a summary or a cover only its title", () =>
+    Effect.gen(function* () {
+      const id = yield* publishedEvent({ title: "Launch" });
+      const event = yield* Sharing.sharedEvent(id);
+      const meta = metaOf(Sharing.sharingTags({ site, event }));
+      assert.strictEqual(meta.get("og:title"), "Launch");
+      for (const key of ["description", "og:description", "og:image"]) {
+        assert.isFalse(meta.has(key), key);
+      }
+      assert.isFalse(meta.has("og:image:alt"));
+      assert.strictEqual(meta.get("twitter:card"), "summary");
+    }),
   );
 
-  it.effect("escapes the event's text in the tags (AC-4)", () =>
+  it.effect("escapes the event's text in the tags", () =>
     Effect.gen(function* () {
       const nasty = `<script>alert("x")</script> & 'q'`;
       const id = yield* publishedEvent({
@@ -196,28 +194,26 @@ layer(TestLayer, { excludeTestServices: true })("Sharing", (it) => {
     }),
   );
 
-  it.effect(
-    "leaves the address and the image out without SITE_URL (AC-4)",
-    () =>
-      Effect.gen(function* () {
-        const id = yield* publishedEvent({
-          title: "Launch",
-          summary: "Coffee and a talk.",
-          cover,
-        });
-        const event = yield* Sharing.sharedEvent(id);
-        const meta = metaOf(
-          Sharing.sharingTags({ site: { name: "Skjera Test" }, event }),
-        );
-        assert.strictEqual(meta.get("og:title"), "Launch");
-        assert.strictEqual(meta.get("og:description"), "Coffee and a talk.");
-        assert.isFalse(meta.has("og:url"));
-        assert.isFalse(meta.has("og:image"));
-        assert.isFalse(meta.has("og:image:alt"));
-      }),
+  it.effect("leaves the address and the image out without SITE_URL", () =>
+    Effect.gen(function* () {
+      const id = yield* publishedEvent({
+        title: "Launch",
+        summary: "Coffee and a talk.",
+        cover,
+      });
+      const event = yield* Sharing.sharedEvent(id);
+      const meta = metaOf(
+        Sharing.sharingTags({ site: { name: "Skjera Test" }, event }),
+      );
+      assert.strictEqual(meta.get("og:title"), "Launch");
+      assert.strictEqual(meta.get("og:description"), "Coffee and a talk.");
+      assert.isFalse(meta.has("og:url"));
+      assert.isFalse(meta.has("og:image"));
+      assert.isFalse(meta.has("og:image:alt"));
+    }),
   );
 
-  it.effect("leaves a blank alt text out (AC-4)", () =>
+  it.effect("leaves a blank alt text out", () =>
     Effect.gen(function* () {
       const id = yield* publishedEvent({ cover: { ...cover, alt: "  " } });
       const event = yield* Sharing.sharedEvent(id);
@@ -227,7 +223,7 @@ layer(TestLayer, { excludeTestServices: true })("Sharing", (it) => {
     }),
   );
 
-  it.effect("shows nothing of an event shown only to members (AC-5)", () =>
+  it.effect("shows nothing of an event shown only to members", () =>
     Effect.gen(function* () {
       const id = yield* publishedEvent({
         title: "Secret launch",
@@ -239,7 +235,7 @@ layer(TestLayer, { excludeTestServices: true })("Sharing", (it) => {
     }),
   );
 
-  it.effect("shows nothing of an event that is gone (AC-6)", () =>
+  it.effect("shows nothing of an event that is gone", () =>
     Effect.gen(function* () {
       const deleted = yield* publishedEvent({ deleted: true });
       assert.isTrue(Option.isNone(yield* Sharing.sharedEvent(deleted)));
@@ -250,7 +246,7 @@ layer(TestLayer, { excludeTestServices: true })("Sharing", (it) => {
     }),
   );
 
-  it.effect("names only the site when there is no event (AC-5, AC-6)", () =>
+  it.effect("names only the site when there is no event", () =>
     Effect.sync(() => {
       const meta = metaOf(Sharing.sharingTags({ site, event: Option.none() }));
       assert.deepStrictEqual(Object.fromEntries(meta), {
@@ -261,7 +257,7 @@ layer(TestLayer, { excludeTestServices: true })("Sharing", (it) => {
   );
 
   it.effect(
-    "puts the tags right before the end of the head, changing nothing else (AC-7)",
+    "puts the tags right before the end of the head, changing nothing else",
     () =>
       Effect.sync(() => {
         // Whatever the tags say, `$&` and the like included.
@@ -275,7 +271,7 @@ layer(TestLayer, { excludeTestServices: true })("Sharing", (it) => {
       }),
   );
 
-  it.effect("answers an event's page with its tags (AC-4, AC-7)", () =>
+  it.effect("answers an event's page with its tags", () =>
     Effect.gen(function* () {
       const id = yield* publishedEvent({
         title: "Launch",
@@ -314,7 +310,7 @@ layer(TestLayer, { excludeTestServices: true })("Sharing", (it) => {
   );
 
   it.effect(
-    "answers a members-only event's page with the site's name only (AC-5)",
+    "answers a members-only event's page with the site's name only",
     () =>
       Effect.gen(function* () {
         const id = yield* publishedEvent({
@@ -344,7 +340,7 @@ layer(TestLayer, { excludeTestServices: true })("Sharing", (it) => {
   );
 
   it.effect(
-    "answers a page that names no event with the site's name only (AC-6)",
+    "answers a page that names no event with the site's name only",
     () =>
       Effect.gen(function* () {
         const deleted = yield* publishedEvent({ title: "Gone", deleted: true });
@@ -362,7 +358,7 @@ layer(TestLayer, { excludeTestServices: true })("Sharing", (it) => {
       }),
   );
 
-  it.effect("leaves the app's other pages to its fallback (AC-7)", () =>
+  it.effect("leaves the app's other pages to its fallback", () =>
     Effect.gen(function* () {
       yield* withPages((page) =>
         Effect.gen(function* () {

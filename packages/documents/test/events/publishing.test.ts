@@ -22,19 +22,17 @@ import {
 
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Publishing", (it) => {
-  it.effect(
-    "tells Announcements once when an event is first published (AC-1)",
-    () =>
-      Effect.gen(function* () {
-        const kept = yield* AnnouncementsKept;
-        const id = yield* publishedEvent({ public: true, guests: true });
-        const told = (yield* Ref.get(kept)).filter((event) => event === id);
-        assert.deepStrictEqual(told, [id]);
-      }),
+  it.effect("tells Announcements once when an event is first published", () =>
+    Effect.gen(function* () {
+      const kept = yield* AnnouncementsKept;
+      const id = yield* publishedEvent({ public: true, guests: true });
+      const told = (yield* Ref.get(kept)).filter((event) => event === id);
+      assert.deepStrictEqual(told, [id]);
+    }),
   );
 
   it.effect(
-    "tells Announcements nothing when a published event is published again (AC-2)",
+    "tells Announcements nothing when a published event is published again",
     () =>
       Effect.gen(function* () {
         const documents = yield* Documents;
@@ -214,7 +212,7 @@ layer(TestLayer, { excludeTestServices: true })("Publishing", (it) => {
   );
 
   it.effect(
-    "refuses to publish without a title, times or a place, or an unknown version (AC-2)",
+    "refuses to publish without a title, times or a place, or an unknown version",
     () =>
       Effect.gen(function* () {
         const documents = yield* Documents;

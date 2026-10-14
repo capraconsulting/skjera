@@ -23,7 +23,7 @@ import {
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Mail: own texts", (it) => {
   it.effect(
-    "sends the written subject of each email, to guests in either language (AC-2)",
+    "sends the written subject of each email, to guests in either language",
     () =>
       Effect.gen(function* () {
         for (const locale of ["en", "nb"] as const) {
@@ -48,7 +48,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: own texts", (it) => {
   );
 
   it.effect(
-    "shows the written text in place of the standard heading and opening (AC-3)",
+    "shows the written text in place of the standard heading and opening",
     () =>
       Effect.gen(function* () {
         const attendance = yield* Attendance;
@@ -86,7 +86,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: own texts", (it) => {
   );
 
   it.effect(
-    "keeps only web links and images in a written text, with images from the site (AC-3)",
+    "keeps only web links and images in a written text, with images from the site",
     () =>
       Effect.gen(function* () {
         const attendance = yield* Attendance;
@@ -132,7 +132,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: own texts", (it) => {
   );
 
   it.effect(
-    "uses the standard wording for what is not written, in the guest's language (AC-4)",
+    "uses the standard wording for what is not written, in the guest's language",
     () =>
       Effect.gen(function* () {
         const attendance = yield* Attendance;
@@ -168,7 +168,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: own texts", (it) => {
   );
 
   it.effect(
-    "keeps the details, the invitation and the links around a written text (AC-5)",
+    "keeps the details, the invitation and the links around a written text",
     () =>
       Effect.gen(function* () {
         const event = yield* publishedEvent({
@@ -226,7 +226,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: own texts", (it) => {
   );
 
   it.effect(
-    "sends the subject and text the event was published with, not the draft's (AC-6)",
+    "sends the subject and text the event was published with, not the draft's",
     () =>
       Effect.gen(function* () {
         const documents = yield* Documents;
@@ -256,7 +256,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: own texts", (it) => {
   );
 
   it.effect(
-    "sends the subject of the version published, while the draft holds a later one (AC-6)",
+    "sends the subject of the version published, while the draft holds a later one",
     () =>
       Effect.gen(function* () {
         const documents = yield* Documents;

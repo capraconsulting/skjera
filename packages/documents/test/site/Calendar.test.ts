@@ -65,18 +65,18 @@ describe("Calendar", () => {
     assert.include(ics, "STATUS:CANCELLED");
   });
 
-  it("puts the place in the invitation, to add and to cancel (AC-4)", () => {
+  it("puts the place in the invitation, to add and to cancel", () => {
     for (const method of ["REQUEST", "CANCEL"] as const) {
       const ics = invite(method, 1, false, "Kantina").replace(/\r\n /g, "");
       assert.include(ics, "LOCATION:Kantina");
     }
   });
 
-  it("leaves the location out of an event without a place (AC-4, AC-7)", () => {
+  it("leaves the location out of an event without a place", () => {
     assert.notInclude(invite("REQUEST"), "LOCATION");
   });
 
-  it("describes the event by its summary, then its link, to add and to cancel (AC-3)", () => {
+  it("describes the event by its summary, then its link, to add and to cancel", () => {
     for (const method of ["REQUEST", "CANCEL"] as const) {
       const ics = invite(method, 1, false, undefined, "Coffee, and a talk.");
       // Unfolded, and read as iCalendar writes text: \n and \, escaped.
@@ -93,7 +93,7 @@ describe("Calendar", () => {
     }
   });
 
-  it("describes an event without a summary by its link, as before (AC-3)", () => {
+  it("describes an event without a summary by its link, as before", () => {
     const ics = invite("REQUEST");
     assert.include(ics, "DESCRIPTION:https://skjera.test/events/launch");
   });
@@ -133,7 +133,7 @@ const property = (ics: string, name: string) =>
     .replace(/\\,/g, ",");
 
 describe("Calendar feed", () => {
-  it("is a published calendar named Skjer, with one event each (AC-1)", () => {
+  it("is a published calendar named Skjer, with one event each", () => {
     const ics = feed({
       events: [launch(), launch({ id: "party", title: "Party" })],
       site: feedSite,
@@ -143,7 +143,7 @@ describe("Calendar feed", () => {
     assert.strictEqual(ics.match(/BEGIN:VEVENT/g)?.length, 2);
   });
 
-  it("gives an event its id, title, place, times in UTC, page and description (AC-4)", () => {
+  it("gives an event its id, title, place, times in UTC, page and description", () => {
     const ics = feed({
       events: [launch({ place: "Kantina", summary: "Coffee, and a talk." })],
       site: feedSite,
@@ -160,7 +160,7 @@ describe("Calendar feed", () => {
     );
   });
 
-  it("describes an event without a summary by the sentence alone, and has no place (AC-4)", () => {
+  it("describes an event without a summary by the sentence alone, and has no place", () => {
     const ics = feed({ events: [launch()], site: feedSite });
     assert.strictEqual(
       property(ics, "DESCRIPTION"),
@@ -169,7 +169,7 @@ describe("Calendar feed", () => {
     assert.notInclude(ics, "LOCATION");
   });
 
-  it("marks every event as not taking up time (AC-5)", () => {
+  it("marks every event as not taking up time", () => {
     const ics = feed({
       events: [launch(), launch({ id: "party", title: "Party" })],
       site: feedSite,

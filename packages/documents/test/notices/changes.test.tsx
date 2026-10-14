@@ -50,7 +50,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: changes", (it) => {
   );
 
   it.effect(
-    "tells attendees the new place when the event is somewhere else (AC-5)",
+    "tells attendees the new place when the event is somewhere else",
     () =>
       Effect.gen(function* () {
         const sql = yield* SqlClient.SqlClient;
@@ -82,7 +82,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: changes", (it) => {
   );
 
   it.effect(
-    "tells attendees of both in one email when time and place change (AC-6)",
+    "tells attendees of both in one email when time and place change",
     () =>
       Effect.gen(function* () {
         const sql = yield* SqlClient.SqlClient;
@@ -121,26 +121,24 @@ layer(TestLayer, { excludeTestServices: true })("Mail: changes", (it) => {
       }),
   );
 
-  it.effect(
-    "names no old place when an event published before gets one (AC-5)",
-    () =>
-      Effect.gen(function* () {
-        const notifications = yield* Notifications;
-        const event = yield* publishedEvent({ place: "Aula" });
-        const signup = crypto.randomUUID();
-        const address = `gina-${signup}@example.org`;
-        yield* notifications.eventChanged({
-          event,
-          attendee: { id: signup, name: "Gina", email: address, guest: true },
-          version: "1",
-          previousPlace: "",
-        });
+  it.effect("names no old place when an event published before gets one", () =>
+    Effect.gen(function* () {
+      const notifications = yield* Notifications;
+      const event = yield* publishedEvent({ place: "Aula" });
+      const signup = crypto.randomUUID();
+      const address = `gina-${signup}@example.org`;
+      yield* notifications.eventChanged({
+        event,
+        attendee: { id: signup, name: "Gina", email: address, guest: true },
+        version: "1",
+        previousPlace: "",
+      });
 
-        const [moved] = yield* emailsTo(address, 1);
-        assert.strictEqual(moved?.message.subject, "New place: Launch");
-        assert.include(moved?.message.text ?? "", "It's now at Aula.");
-        assert.notInclude(moved?.message.text ?? "", "It was at");
-      }),
+      const [moved] = yield* emailsTo(address, 1);
+      assert.strictEqual(moved?.message.subject, "New place: Launch");
+      assert.include(moved?.message.text ?? "", "It's now at Aula.");
+      assert.notInclude(moved?.message.text ?? "", "It was at");
+    }),
   );
 
   it.effect("tells attendees a deleted event is cancelled, and no more", () =>

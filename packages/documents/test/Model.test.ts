@@ -12,23 +12,23 @@ const decode = Schema.decodeUnknownOption(GuestDetails);
 const gina = { name: "Gina", email: "gina@example.org" };
 
 describe("GuestDetails", () => {
-  it("takes a guest without a phone number or a company (AC-1)", () => {
+  it("takes a guest without a phone number or a company", () => {
     assert.deepStrictEqual(Option.getOrNull(decode(gina)), gina);
   });
 
-  it("takes a phone number and a company within their limits (AC-1)", () => {
+  it("takes a phone number and a company within their limits", () => {
     const given = { ...gina, phone: "+47 900 00 000", company: "Acme" };
     assert.deepStrictEqual(Option.getOrNull(decode(given)), given);
   });
 
-  it("refuses a phone number over 50 characters and a company over 100 (AC-2)", () => {
+  it("refuses a phone number over 50 characters and a company over 100", () => {
     assert.isTrue(Option.isNone(decode({ ...gina, phone: "1".repeat(51) })));
     assert.isTrue(Option.isNone(decode({ ...gina, company: "A".repeat(101) })));
     assert.isTrue(Option.isSome(decode({ ...gina, phone: "1".repeat(50) })));
     assert.isTrue(Option.isSome(decode({ ...gina, company: "A".repeat(100) })));
   });
 
-  it("does not check that a phone number is a number (AC-2)", () => {
+  it("does not check that a phone number is a number", () => {
     assert.isTrue(Option.isSome(decode({ ...gina, phone: "ring me" })));
   });
 });
@@ -39,7 +39,7 @@ const uploaded = "/api/images/AAAAAAAAAAAAAAAAAAAAAA";
 const other = "/api/images/BBBBBBBBBBBBBBBBBBBBBB";
 
 describe("TeamLogosChange", () => {
-  it("takes uploaded images' addresses, null, and leaving a logo out (AC-1)", () => {
+  it("takes uploaded images' addresses, null, and leaving a logo out", () => {
     for (const given of [
       {},
       { logo: uploaded },
@@ -51,7 +51,7 @@ describe("TeamLogosChange", () => {
     }
   });
 
-  it("refuses an address that is not an uploaded image's (AC-1)", () => {
+  it("refuses an address that is not an uploaded image's", () => {
     assert.isTrue(
       Option.isNone(decodeChange({ logo: "https://example.com/logo.png" })),
     );
@@ -62,7 +62,7 @@ describe("TeamLogosChange", () => {
 });
 
 describe("organizerLogos", () => {
-  it("shows the light logo in the light theme, and never the dark one (AC-2)", () => {
+  it("shows the light logo in the light theme, and never the dark one", () => {
     assert.strictEqual(
       organizerLogos({ logo: uploaded, logoDark: other }).light,
       uploaded,
@@ -71,7 +71,7 @@ describe("organizerLogos", () => {
     assert.isNull(organizerLogos({ logo: null, logoDark: null }).light);
   });
 
-  it("shows the dark logo in the dark theme, else the light one, else none (AC-4)", () => {
+  it("shows the dark logo in the dark theme, else the light one, else none", () => {
     assert.strictEqual(
       organizerLogos({ logo: uploaded, logoDark: other }).dark,
       other,
@@ -93,7 +93,7 @@ const readSite = (env: Record<string, string>) =>
   ).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(env))));
 
 describe("SiteConfig", () => {
-  it.effect("gives the app the HubSpot account id (AC-1)", () =>
+  it.effect("gives the app the HubSpot account id", () =>
     Effect.gen(function* () {
       const site = yield* readSite({ HUBSPOT_ACCOUNT_ID: "146072525" });
       assert.isTrue(Exit.isSuccess(site));
@@ -103,7 +103,7 @@ describe("SiteConfig", () => {
     }),
   );
 
-  it.effect("refuses an account id that is not digits (AC-1)", () =>
+  it.effect("refuses an account id that is not digits", () =>
     Effect.gen(function* () {
       for (const given of ["abc", "1460/72525", "146072525.js", "14 6"]) {
         const site = yield* readSite({ HUBSPOT_ACCOUNT_ID: given });
@@ -113,7 +113,7 @@ describe("SiteConfig", () => {
   );
 
   it.effect(
-    "has no HubSpot key without an account id, or with a blank one (AC-3)",
+    "has no HubSpot key without an account id, or with a blank one",
     () =>
       Effect.gen(function* () {
         for (const env of [

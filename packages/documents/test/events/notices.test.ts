@@ -24,7 +24,7 @@ import {
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Attendee notices", (it) => {
   it.effect(
-    "tells attendees when a republish gives the event another place (AC-5, AC-6)",
+    "tells attendees when a republish gives the event another place",
     () =>
       Effect.gen(function* () {
         const documents = yield* Documents;
@@ -105,7 +105,7 @@ layer(TestLayer, { excludeTestServices: true })("Attendee notices", (it) => {
   );
 
   it.effect(
-    "tells attendees of an event published before when it gets a place (AC-5)",
+    "tells attendees of an event published before when it gets a place",
     () =>
       Effect.gen(function* () {
         const documents = yield* Documents;

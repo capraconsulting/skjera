@@ -45,7 +45,7 @@ test("moving an event emails who signed up, once the organizer agrees", async ({
   await cleanUp(alice, team, event.id);
 });
 
-test("a new place emails who signed up, once the organizer agrees (AC-5)", async ({
+test("a new place emails who signed up, once the organizer agrees", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -80,7 +80,7 @@ test("a new place emails who signed up, once the organizer agrees (AC-5)", async
   await cleanUp(alice, team, event.id);
 });
 
-test("an organizer writes the signed-up email's own subject and text (AC-1)", async ({
+test("an organizer writes the signed-up email's own subject and text", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -214,7 +214,7 @@ test("a new time and a new place at once send one email about both", async ({
   await cleanUp(alice, team, event.id);
 });
 
-test("the cancelled, changed and cancelled-event emails go out as written for the event (AC-1, AC-2)", async ({
+test("the cancelled, changed and cancelled-event emails go out as written for the event", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -276,7 +276,7 @@ test("the cancelled, changed and cancelled-event emails go out as written for th
   await cleanUp(alice, team);
 });
 
-test("a cancelled event's email has the subject published, not a later draft's (AC-6)", async ({
+test("a cancelled event's email has the subject published, not a later draft's", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");

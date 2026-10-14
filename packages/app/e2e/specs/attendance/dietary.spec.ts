@@ -6,7 +6,7 @@ import { EventPage } from "../../pom/site/EventPage.ts";
 import { EventEditor } from "../../pom/studio/EventEditor.ts";
 import { TeamsColumn } from "../../pom/studio/TeamsColumn.ts";
 
-test("dietary preferences are optional, and organizers see them without names (AC-1, AC-4)", async ({
+test("dietary preferences are optional, and organizers see them without names", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -51,7 +51,7 @@ test("dietary preferences are optional, and organizers see them without names (A
   }
 
   // Nothing ties them to anyone, so cancelling, or being taken off, leaves
-  // them with the event (AC-6).
+  // them with the event.
   await gina.cancelSignup();
   await gina.expectSignUpButton(true);
   await member.cancelAttendance();

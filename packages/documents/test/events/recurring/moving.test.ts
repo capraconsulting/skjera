@@ -246,7 +246,7 @@ const TestLayer = Layer.mergeAll(
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Moving events", (it) => {
   it.effect(
-    "moves an ended weekly event a week on, in the draft and as published, and publishes it again (AC-2)",
+    "moves an ended weekly event a week on, in the draft and as published, and publishes it again",
     () =>
       Effect.gen(function* () {
         const { id } = yield* weekly("2040-01-05");
@@ -276,7 +276,7 @@ layer(TestLayer, { excludeTestServices: true })("Moving events", (it) => {
   );
 
   it.effect(
-    "moves neither an event that is not marked as recurring nor one with recurring off (AC-1)",
+    "moves neither an event that is not marked as recurring nor one with recurring off",
     () =>
       Effect.gen(function* () {
         const bare = yield* weekly("2041-01-04", { setting: {} });
@@ -304,7 +304,7 @@ layer(TestLayer, { excludeTestServices: true })("Moving events", (it) => {
   );
 
   it.effect(
-    "moves a recurring event with no interval or unit chosen one week on (AC-1)",
+    "moves a recurring event with no interval or unit chosen one week on",
     () =>
       Effect.gen(function* () {
         const { id } = yield* weekly("2042-01-03", {
@@ -320,7 +320,7 @@ layer(TestLayer, { excludeTestServices: true })("Moving events", (it) => {
   );
 
   it.effect(
-    "does not move a recurring event whose end is after now, and keeps its signups (AC-2)",
+    "does not move a recurring event whose end is after now, and keeps its signups",
     () =>
       Effect.gen(function* () {
         const { id, title } = yield* weekly("2043-01-02");
@@ -336,7 +336,7 @@ layer(TestLayer, { excludeTestServices: true })("Moving events", (it) => {
   );
 
   it.effect(
-    "moves the sign-up and food deadlines with the start, in the draft and as published (AC-3)",
+    "moves the sign-up and food deadlines with the start, in the draft and as published",
     () =>
       Effect.gen(function* () {
         const { id } = yield* weekly("2044-01-07", {
@@ -367,7 +367,7 @@ layer(TestLayer, { excludeTestServices: true })("Moving events", (it) => {
   );
 
   it.effect(
-    "removes the signups and the dietary preferences, and emails nobody (AC-5)",
+    "removes the signups and the dietary preferences, and emails nobody",
     () =>
       Effect.gen(function* () {
         const kept = yield* NoticesKept;
@@ -390,7 +390,7 @@ layer(TestLayer, { excludeTestServices: true })("Moving events", (it) => {
   );
 
   it.effect(
-    "posts the move to the channel with @here, :repeat: and the new start in Norwegian time (AC-6)",
+    "posts the move to the channel with @here, :repeat: and the new start in Norwegian time",
     () =>
       Effect.gen(function* () {
         const { title } = yield* weekly("2046-01-05");
@@ -411,7 +411,7 @@ layer(TestLayer, { excludeTestServices: true })("Moving events", (it) => {
   );
 
   it.effect(
-    "moves neither a deleted event nor a draft that was never published (AC-7)",
+    "moves neither a deleted event nor a draft that was never published",
     () =>
       Effect.gen(function* () {
         const documents = yield* Documents;
@@ -460,7 +460,7 @@ layer(TestLayer, { excludeTestServices: true })("Moving events", (it) => {
   );
 
   it.effect(
-    "moves an event once however many runs find it, and again a week later (AC-8)",
+    "moves an event once however many runs find it, and again a week later",
     () =>
       Effect.gen(function* () {
         const { id, title } = yield* weekly("2048-01-03");

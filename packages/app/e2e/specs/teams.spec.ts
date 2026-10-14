@@ -204,7 +204,7 @@ test("publishing shows for others without reloading", async ({ browser }) => {
   await new TeamsColumn(alice).delete(team);
 });
 
-test("a team's logos are chosen, replaced and removed in its logo dialog (AC-1)", async ({
+test("a team's logos are chosen, replaced and removed in its logo dialog", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");

@@ -85,48 +85,46 @@ layer(TestLayer, { excludeTestServices: true })("Teams", (it) => {
     }),
   );
 
-  it.effect(
-    "sets, replaces and removes a team's logos on their own (AC-1)",
-    () =>
-      Effect.gen(function* () {
-        const teams = yield* Teams;
-        const id = yield* newTeam;
-        const light = "/api/images/AAAAAAAAAAAAAAAAAAAAAA";
-        const dark = "/api/images/BBBBBBBBBBBBBBBBBBBBBB";
-        const darker = "/api/images/CCCCCCCCCCCCCCCCCCCCCC";
-        const logos = (team: {
-          logo: string | null;
-          logoDark: string | null;
-        }) => [team.logo, team.logoDark];
+  it.effect("sets, replaces and removes a team's logos on their own", () =>
+    Effect.gen(function* () {
+      const teams = yield* Teams;
+      const id = yield* newTeam;
+      const light = "/api/images/AAAAAAAAAAAAAAAAAAAAAA";
+      const dark = "/api/images/BBBBBBBBBBBBBBBBBBBBBB";
+      const darker = "/api/images/CCCCCCCCCCCCCCCCCCCCCC";
+      const logos = (team: {
+        logo: string | null;
+        logoDark: string | null;
+      }) => [team.logo, team.logoDark];
 
-        assert.deepStrictEqual(logos(yield* teams.get(id)), [null, null]);
+      assert.deepStrictEqual(logos(yield* teams.get(id)), [null, null]);
 
-        // The light logo alone.
-        assert.deepStrictEqual(
-          logos(yield* teams.setLogos(id, { logo: light })),
-          [light, null],
-        );
-        // The dark logo replaced, the light one left as it is.
-        yield* teams.setLogos(id, { logoDark: dark });
-        assert.deepStrictEqual(
-          logos(yield* teams.setLogos(id, { logoDark: darker })),
-          [light, darker],
-        );
-        // Removed one by one.
-        assert.deepStrictEqual(
-          logos(yield* teams.setLogos(id, { logo: null })),
-          [null, darker],
-        );
-        assert.deepStrictEqual(
-          logos(yield* teams.setLogos(id, { logoDark: null })),
-          [null, null],
-        );
-        assert.deepStrictEqual(logos(yield* teams.get(id)), [null, null]);
+      // The light logo alone.
+      assert.deepStrictEqual(
+        logos(yield* teams.setLogos(id, { logo: light })),
+        [light, null],
+      );
+      // The dark logo replaced, the light one left as it is.
+      yield* teams.setLogos(id, { logoDark: dark });
+      assert.deepStrictEqual(
+        logos(yield* teams.setLogos(id, { logoDark: darker })),
+        [light, darker],
+      );
+      // Removed one by one.
+      assert.deepStrictEqual(logos(yield* teams.setLogos(id, { logo: null })), [
+        null,
+        darker,
+      ]);
+      assert.deepStrictEqual(
+        logos(yield* teams.setLogos(id, { logoDark: null })),
+        [null, null],
+      );
+      assert.deepStrictEqual(logos(yield* teams.get(id)), [null, null]);
 
-        const missing = yield* Effect.flip(
-          teams.setLogos(crypto.randomUUID() as TeamId, { logo: light }),
-        );
-        assert.strictEqual(missing._tag, "TeamNotFound");
-      }),
+      const missing = yield* Effect.flip(
+        teams.setLogos(crypto.randomUUID() as TeamId, { logo: light }),
+      );
+      assert.strictEqual(missing._tag, "TeamNotFound");
+    }),
   );
 });

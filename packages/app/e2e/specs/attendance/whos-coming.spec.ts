@@ -7,7 +7,7 @@ import { WhoIsComing } from "../../pom/site/WhoIsComing.ts";
 import { EventEditor } from "../../pom/studio/EventEditor.ts";
 import { TeamsColumn } from "../../pom/studio/TeamsColumn.ts";
 
-test("signups show up for visitors and organizers without reloading (AC-4, AC-5)", async ({
+test("signups show up for visitors and organizers without reloading", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -53,7 +53,7 @@ test("signups show up for visitors and organizers without reloading (AC-4, AC-5)
   await cleanUp(alice, team, event.id);
 });
 
-test("members see who's coming, members and guests apart, without reloading (AC-1, AC-2, AC-3, AC-6)", async ({
+test("members see who's coming, members and guests apart, without reloading", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -100,9 +100,7 @@ test("members see who's coming, members and guests apart, without reloading (AC-
   await cleanUp(alice, team, event.id);
 });
 
-test("an event not open to guests lists only members (AC-2)", async ({
-  browser,
-}) => {
+test("an event not open to guests lists only members", async ({ browser }) => {
   const alice = await signedIn(browser, "alice@example.com");
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("Members list"),
