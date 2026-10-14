@@ -6,6 +6,7 @@ import { Header } from "../pom/Header.ts";
 import { LoginPage } from "../pom/LoginPage.ts";
 import { AccountPage } from "../pom/site/AccountPage.ts";
 import { Attendance } from "../pom/site/Attendance.ts";
+import { CalendarFeed } from "../pom/site/CalendarFeed.ts";
 import { EventPage } from "../pom/site/EventPage.ts";
 import { Footer } from "../pom/site/Footer.ts";
 import { HomePage } from "../pom/site/HomePage.ts";
@@ -298,6 +299,26 @@ test("the header subscribes to the coming events in Google Calendar, beside the 
   await header.clickSubscribeOpening(
     `https://www.google.com/calendar/render?cid=webcal://${new URL(alice.url()).host}/api/subscribe`,
   );
+});
+
+test("the calendar to subscribe to holds the coming events, members-only too, to anyone", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Feed"));
+  const editor = new EventEditor(alice);
+  const open = await editor.createPublished({ public: true });
+  const membersOnly = await editor.createPublished({ public: false });
+  const deleted = await editor.createPublished({ public: true });
+  await editor.delete(deleted.id);
+
+  // Fetched without a session, as Google Calendar does.
+  const calendar = await new CalendarFeed(await visitor(browser)).fetch();
+  calendar.expectEvent(open.title);
+  calendar.expectEvent(membersOnly.title);
+  calendar.expectNoEvent(deleted.title);
+
+  await cleanUp(alice, team, open.id, membersOnly.id);
 });
 
 test("the header keeps «Abonner» and the account menu in a phone's window", async ({

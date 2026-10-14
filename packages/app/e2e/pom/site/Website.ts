@@ -57,17 +57,18 @@ export class Website {
 
   /**
    * Asks for the site's public events from the website's page, as the
-   * websites do: the events' titles, or `null` when the browser refuses to
+   * websites do: the events as given, or `null` when the browser refuses to
    * let the page read the answer.
    */
-  async readPublicEvents(site: string): Promise<ReadonlyArray<string> | null> {
+  async readPublicEvents(
+    site: string,
+  ): Promise<ReadonlyArray<Record<string, unknown>> | null> {
     return this.page.evaluate(async (url) => {
       try {
         const response = await fetch(url);
-        const events = (await response.json()) as ReadonlyArray<{
-          title: string;
-        }>;
-        return events.map((event) => event.title);
+        return (await response.json()) as ReadonlyArray<
+          Record<string, unknown>
+        >;
       } catch {
         return null;
       }
