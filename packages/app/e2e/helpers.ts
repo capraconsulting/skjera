@@ -169,6 +169,19 @@ export const deleteTeam = async (page: Page, id: string) => {
   await expect(page.locator(`a[href="/studio/teams/${id}"]`)).toHaveCount(0);
 };
 
+/** Deletes the events, each from its editor, and then their team. */
+export const cleanUp = async (
+  page: Page,
+  team: string,
+  ...events: ReadonlyArray<string>
+) => {
+  for (const event of events) {
+    await page.goto(eventPath(team, event));
+    await deleteEvent(page, event);
+  }
+  await deleteTeam(page, team);
+};
+
 /**
  * Deletes the event open in the editor, and checks it's gone from the studio
  * and the site. Its attendees are emailed that it's cancelled: once they
