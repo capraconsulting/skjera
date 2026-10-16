@@ -481,7 +481,9 @@ function AttendanceInput(props: {
           disabled={props.inPersonDisabled}
           defaultChecked={props.defaultOnline === false}
         />
-        {m.attend_in_person()}
+        {props.inPersonDisabled
+          ? m.attend_in_person_full()
+          : m.attend_in_person()}
       </label>
       <label className={styles.check}>
         <input

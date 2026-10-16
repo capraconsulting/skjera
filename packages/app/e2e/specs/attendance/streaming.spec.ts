@@ -97,7 +97,7 @@ test("a full streamed event takes no more in person but still takes those online
   await new EventPage(guest).goto(event.id);
   const box = new Attendance(guest);
   await box.expectText("no more places in person");
-  await box.expectOption("In person", "disabled");
+  await box.expectOption("In person (full)", "disabled");
   await box.fillName("Gina");
   await box.fillEmail("gina@example.org");
   await box.checkOption("Online");

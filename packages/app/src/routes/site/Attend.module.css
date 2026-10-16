@@ -81,6 +81,12 @@
   font-size: 0.9375rem;
 }
 
+/* The browser's own dimming of a disabled radio barely shows in dark mode. */
+.check:has(input:disabled) {
+  cursor: default;
+  opacity: 0.5;
+}
+
 .choice {
   display: grid;
   gap: 0.25rem;
