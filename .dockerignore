@@ -8,3 +8,15 @@
 .hooks
 mise.local.toml
 mprocs.log
+
+# Infrastructure contains local state, plans and provider caches.
+infra/
+deploy/
+.env
+.env.*
+.aws/
+.ssh/
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx

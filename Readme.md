@@ -92,6 +92,9 @@ It installs, builds the app and the server from the working tree, creates a new 
 
 ## Deploying
 
+The shared AWS foundation (EKS Auto Mode, networking, IAM and ECR) is in
+[infra](infra/Readme.md), managed with OpenTofu in `eu-north-1`.
+
 The [Dockerfile](Dockerfile) builds one image: the server, serving the built app too, on port 3000.
 
 ```bash

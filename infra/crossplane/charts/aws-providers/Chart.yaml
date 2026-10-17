@@ -1,0 +1,5 @@
+apiVersion: v2
+name: crossplane-aws-providers
+description: AWS S3 provider packages and Pod Identity runtime configuration
+type: application
+version: 0.1.0

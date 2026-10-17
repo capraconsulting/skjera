@@ -1,0 +1,7 @@
+aws_region     = "eu-north-1"
+aws_account_id = "123456789012"
+environment    = "dev"
+
+# Existing IAM roles/users allowed to operate the common infrastructure.
+# SSO: use the underlying IAM role ARN, not an STS assumed-role session ARN.
+trusted_principal_arns = ["arn:aws:iam::123456789012:role/YourAdminRole"]

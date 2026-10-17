@@ -1,0 +1,5 @@
+apiVersion: v2
+name: crossplane-aws-config
+description: Use EKS Pod Identity for S3 managed resources
+type: application
+version: 0.1.0

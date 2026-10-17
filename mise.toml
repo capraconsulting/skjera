@@ -1,5 +1,7 @@
 [tools]
+go-jsonnet = "0.22.0"
 node = "24.21.0"
+opentofu = "1.13.1"
 pnpm = "12.8.1"
 
 [env]
@@ -116,6 +118,17 @@ run = "node --import tsx testdata.ts fill"
 description = "Remove the teams and events of docs/acceptance from the local database"
 dir = "{{config_root}}/packages/server"
 run = "node --import tsx testdata.ts clear"
+[tasks.argocd]
+description = "Access Argo CD at https://localhost:8080 (requires AWS login)"
+run = [
+  "aws eks update-kubeconfig --region eu-north-1 --name skjera-dev --alias skjera-dev",
+  "mise exec kubectl@1.35 -- kubectl --context skjera-dev -n argocd port-forward svc/argocd-server 8080:443 --address 127.0.0.1",
+]
+
+[tasks."preview:render"]
+description = "Render the bucket and PostgreSQL resources for a PR"
+usage = 'arg "<pr>" help="Pull request number"'
+run = 'jsonnet --tla-str prNumber="$usage_pr" deploy/preview/main.jsonnet'
 
 [tasks.setup]
 description = "Install dependencies, git hooks and Playwright's browser"
