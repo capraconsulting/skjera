@@ -1,0 +1,9 @@
+bucket              = "skjera-dev-tofu-440027025698-eu-north-1"
+key                 = "argocd/terraform.tfstate"
+region              = "eu-north-1"
+encrypt             = true
+use_lockfile        = true
+allowed_account_ids = ["440027025698"]
+assume_role = {
+  role_arn = "arn:aws:iam::440027025698:role/skjera-dev-opentofu"
+}

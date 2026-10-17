@@ -1,0 +1,92 @@
+# A single-instance installation for the development cluster.
+# TLS stays enabled on the server. Access uses kubectl port-forward.
+server:
+  replicas: 1
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+controller:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+repoServer:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+applicationSet:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+redis:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Enable these when configuring SSO and notification destinations.
+dex:
+  enabled: false
+notifications:
+  enabled: false
+
+# Wait for Crossplane to finish AWS reconciliation before later sync waves.
+configs:
+  cm:
+    resource.customizations: |
+      "s3.aws.m.upbound.io/*":
+        health.lua: |
+          local health = { status = "Progressing", message = "Waiting for Crossplane" }
+          local ready = false
+          local synced = false
+          if obj.status and obj.status.conditions then
+            for _, condition in ipairs(obj.status.conditions) do
+              if condition.type == "Synced" and condition.status == "False" then
+                return { status = "Degraded", message = condition.message or condition.reason or "Reconciliation failed" }
+              end
+              if condition.type == "Synced" and condition.status == "True" then synced = true end
+              if condition.type == "Ready" and condition.status == "True" then ready = true end
+            end
+          end
+          if ready and synced then
+            health.status = "Healthy"
+            health.message = "Crossplane resource is ready and synced"
+          end
+          return health
+      postgresql.cnpg.io/Cluster:
+        health.lua: |
+          local health = { status = "Progressing", message = "Waiting for PostgreSQL" }
+          if obj.status and obj.status.conditions then
+            for _, condition in ipairs(obj.status.conditions) do
+              if condition.type == "Ready" and condition.status == "True" then
+                return { status = "Healthy", message = "PostgreSQL cluster is ready" }
+              end
+            end
+          end
+          return health
+      postgresql.cnpg.io/Database:
+        health.lua: |
+          local health = { status = "Progressing", message = "Waiting for database and extensions" }
+          if not obj.status or not obj.status.applied then return health end
+          if obj.status.observedGeneration ~= obj.metadata.generation then return health end
+          for _, desired in ipairs((obj.spec and obj.spec.extensions) or {}) do
+            local applied = false
+            for _, actual in ipairs(obj.status.extensions or {}) do
+              if actual.name == desired.name and actual.applied then applied = true end
+            end
+            if not applied then return health end
+          end
+          return { status = "Healthy", message = "Database and extensions are applied" }

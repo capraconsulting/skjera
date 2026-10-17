@@ -8,3 +8,73 @@ dist/
 # The server build copies snapsync's SQL here (see packages/server/build.ts).
 packages/server/extension/
 /.idea/
+
+# OpenTofu/Terraform: keep .terraform.lock.hcl and example inputs in Git.
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.*
+*.tfvars.json
+*.tfplan
+*.tfplan.*
+tfplan
+tfplan.*
+terraform.plan
+terraform.plan.*
+*.tfbackend
+*.tfbackend.*
+!*.tfvars.example
+!*.tfvars.json.example
+!*.tfbackend.example
+# Shared common configuration contains identifiers only, never credentials.
+!/infra/common/backend.s3.tfbackend
+!/infra/common/bootstrap.auto.tfvars.json
+!/infra/argocd/backend.s3.tfbackend
+!/infra/argocd/bootstrap.auto.tfvars.json
+!/infra/crossplane/backend.s3.tfbackend
+!/infra/crossplane/bootstrap.auto.tfvars.json
+!/infra/cloudnativepg/backend.s3.tfbackend
+!/infra/cloudnativepg/bootstrap.auto.tfvars.json
+!/infra/gateway/backend.s3.tfbackend
+!/infra/gateway/bootstrap.auto.tfvars.json
+crash.log
+crash.*.log
+
+# Local environment and tool credentials; examples remain shareable.
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+.aws/
+.ssh/
+.terraformrc
+terraform.rc
+credentials.tfrc.json
+
+# Private keys and credential bundles (public .pub keys remain visible).
+*.pem
+*.pem.*
+*.key
+*.key.*
+*.p12
+*.p12.*
+*.pfx
+*.pfx.*
+id_rsa
+id_rsa.*
+id_dsa
+id_dsa.*
+id_ecdsa
+id_ecdsa.*
+id_ed25519
+id_ed25519.*
+!id_rsa.pub
+!id_dsa.pub
+!id_ecdsa.pub
+!id_ed25519.pub
+
+# Python verification scripts
+__pycache__/
+*.py[cod]
