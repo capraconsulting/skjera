@@ -35,7 +35,7 @@ Run `pnpm dev` on `main`, as in the [Readme](../../Readme.md). Then:
 - **Emails** arrive in Mailpit at http://localhost:8025, whatever address they are sent to.
 - **The language** is picked in the site's header. The site starts in English.
 
-Each feature file starts with the events it needs. Create them in a team of their own named after the feature, such as «F02: Maximum attendees», and title each event after the criterion it is for, such as «AC-3: A full event refuses new sign-ups». An event is published with **Publish** in the studio, and must have a title, a time and a place.
+Each feature file starts with the events it needs. Create them in a team of their own named after the feature, such as «F02: Maximum number of attendees», and title each event after the criterion it is for, such as «AC-3: A full event refuses new sign-ups». An event is published with **Publish** in the studio, and must have a title, a time and a place.
 
 ## Reading a criterion
 
