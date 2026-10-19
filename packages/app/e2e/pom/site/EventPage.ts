@@ -74,6 +74,16 @@ export class EventPage {
     ).toHaveAttribute("href", link);
   }
 
+  /** Says the event is streamed, with no link to the stream. */
+  async expectStreamedWithoutLink(): Promise<void> {
+    await expect(
+      this.article().getByText("Streamed", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      this.article().getByRole("link", { name: /^https?:\/\// }),
+    ).toHaveCount(0);
+  }
+
   async clickTag(name: string): Promise<void> {
     await this.page
       .getByRole("list", { name: "Tags" })

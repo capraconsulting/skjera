@@ -424,7 +424,7 @@ test("the event page shows the team as its organizer", async ({ browser }) => {
   await cleanUp(alice, branded, withLogo.id);
 });
 
-test("the dark theme shows the team's dark logo, the light one the light logo", async ({
+test("the dark theme shows the team's dark logo, or its light one when it has none", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -433,18 +433,28 @@ test("the dark theme shows the team's dark logo, the light one the light logo", 
   const light = await teams.setLogo(team, "light");
   const dark = await teams.setLogo(team, "dark");
   const event = await new EventEditor(alice).createPublished({ public: true });
+  // A team with no dark logo keeps its light one in the dark theme.
+  const lightOnlyTeam = await teams.create(uniqueTeamName("Light only"));
+  const lightOnly = await teams.setLogo(lightOnlyTeam, "light");
+  const lightOnlyEvent = await new EventEditor(alice).createPublished({
+    public: true,
+  });
 
   const reader = await visitor(browser, { colorScheme: "dark" });
   const page = new EventPage(reader);
   await page.goto(event.id);
   await page.expectLogo(dark, true);
   await page.expectLogo(light, false);
+  await page.goto(lightOnlyEvent.id);
+  await page.expectLogo(lightOnly, true);
 
+  await page.goto(event.id);
   await new Header(reader).switchToLightMode();
   await page.expectLogo(light, true);
   await page.expectLogo(dark, false);
 
   await cleanUp(alice, team, event.id);
+  await cleanUp(alice, lightOnlyTeam, lightOnlyEvent.id);
 });
 
 test("the open list follows a team's rename without reloading", async ({

@@ -72,6 +72,32 @@ test("a streamed event shows its link, asks in person or online, and lists how e
   await cleanUp(alice, team, event.id);
 });
 
+test("a streamed event without a link only says so; the link, once given, shows to members and guests", async ({
+  browser,
+}) => {
+  const link = "https://stream.example/later";
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Stream"));
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({ public: true, streamed: {} });
+
+  const guest = new EventPage(await visitor(browser));
+  await guest.goto(event.id);
+  await guest.expectStreamedWithoutLink();
+
+  await editor.streamLink.type(link);
+  await editor.streamLink.expectText(link);
+  await editor.publish();
+
+  const bob = new EventPage(await signedIn(browser, "bob@example.com"));
+  await bob.goto(event.id);
+  await bob.expectStreamLink(link);
+  await guest.goto(event.id);
+  await guest.expectStreamLink(link);
+
+  await cleanUp(alice, team, event.id);
+});
+
 test("a full streamed event takes no more in person but still takes those online", async ({
   browser,
 }) => {
