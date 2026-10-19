@@ -33,6 +33,8 @@ pnpm test:e2e    # Playwright, against a test server of its own (port 8806, a ne
 
 The browser tests are in `packages/app/e2e/specs`, and work the pages through page objects in `packages/app/e2e/pom`, one class per page or part of one: a test calls `new EventEditor(page).publish()`, not Playwright's locators. A page object missing what a test needs gets it added there. Setting a test up (browsers signed in or not, unique names, cleaning up after) is in `packages/app/e2e/fixtures`.
 
+[docs/acceptance](docs/acceptance/README.md) has each feature's acceptance criteria, how a person tests each one by hand, and the tests that check it.
+
 The pre-commit hook (`.hooks/`, set by `mise run setup`) runs Biome on staged files, typechecks and the tests: Docker must be running, and mise active. There's no CI yet.
 
 ## Test servers
