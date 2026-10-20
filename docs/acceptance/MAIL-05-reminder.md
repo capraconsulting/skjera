@@ -1,0 +1,57 @@
+# MAIL-05: Reminder the day before
+
+Those signed up get a reminder in the day before the event. The **Remind attendees** setting, when the reminder is sent and who gets one are in STU-13 AC-4 to AC-6.
+
+**Events:**
+
+- «AC-1 to AC-3: Reminded», public and open to guests, starting tomorrow, an hour later in the day than now, with **Remind attendees** ticked. Sign up bob, and one guest in a private window, right away.
+- «AC-4: Deleted», the same, with bob signed up right away.
+
+## AC-1: It says how to cancel
+
+The reminder SHALL tell the person how to cancel, so others can take their place: a member on the event's page, a guest by their own link.
+
+**Test**
+
+- **Given** «Reminded», with bob and the guest signed up
+- **When** two full hours have passed
+- **Then** bob's «Reminder: AC-1 to AC-3: Reminded» says «Can't make it after all? You can cancel your signup on the event's page, so others can take your place.», with **See the event**
+- **And** the guest's says «Can't make it after all? Your own link cancels your signup, so others can take your place.», with **Your signup**
+
+**Automated:** none
+
+## AC-2: No invitation
+
+The reminder SHALL carry no calendar invitation, as the event is already in the calendar.
+
+**Test**
+
+- **Given** bob's reminder from AC-1
+- **When** you open it in Mailpit
+- **Then** nothing is attached
+
+**Automated:** `packages/documents/test/notices/changes.test.tsx`
+
+## AC-3: A moved event is reminded again
+
+WHEN an event is moved after its reminder was sent, to a time still less than a day away, Skjera SHALL remind those signed up again, of the new time.
+
+**Test**
+
+- **Given** «Reminded», with bob's reminder from AC-1
+- **When** you change **Start time** an hour later in the studio, click **Publish**, answer OK, and wait until the next full hour has passed
+- **Then** bob has a second «Reminder: AC-1 to AC-3: Reminded», with the new time
+
+**Automated:** none
+
+## AC-4: No reminder for a deleted event
+
+IF an event is deleted before its reminder is sent, THEN Skjera SHALL send no reminder for it.
+
+**Test**
+
+- **Given** «Deleted», with bob signed up
+- **When** you delete it right away, and two full hours pass
+- **Then** bob has «Cancelled: AC-4: Deleted» in Mailpit, and no «Reminder: AC-4: Deleted»
+
+**Automated:** none
