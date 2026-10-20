@@ -89,7 +89,7 @@ These files say what to test and how. Which criteria have passed in a round of t
 
 | Feature | File |
 | --- | --- |
-| EXT-01 | [Calendar invitations](EXT-01-calendar-invitations.md) |
+| EXT-01 | [Calendar invitations that calendar apps understand](EXT-01-calendar-invitations.md) |
 | EXT-02 | [Calendar subscription](EXT-02-calendar-subscription.md) |
 | EXT-03 | [The embed page](EXT-03-embed.md) |
 | EXT-04 | [The public events API](EXT-04-public-events-api.md) |
