@@ -22,8 +22,23 @@ const backend = {
   },
 };
 
-export default defineConfig({
+/**
+ * Whether the app has the /playground page, which is for developers: always
+ * on the dev server, and in a build only with SKJERA_PLAYGROUND=true, which
+ * `pnpm test-server` sets. The image's build leaves it out.
+ */
+export const includesPlayground = (
+  command: "build" | "serve",
+  env: Readonly<Record<string, string | undefined>>,
+): boolean => command === "serve" || env.SKJERA_PLAYGROUND === "true";
+
+export default defineConfig(({ command }) => ({
   plugins: [react()],
   server: backend,
   preview: backend,
-});
+  define: {
+    "import.meta.env.PLAYGROUND": JSON.stringify(
+      includesPlayground(command, process.env),
+    ),
+  },
+}));

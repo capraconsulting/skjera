@@ -1,12 +1,12 @@
 # OPS-08: The /playground page
 
-`/playground` is a page for developers: two copies of a draft, kept in the browser, syncing with each other with no server and no login. It shows how the studio's drafts merge.
+`/playground` is a page for developers: two copies of a draft, kept in the browser, syncing with each other with no server and no login. It shows how the studio's drafts merge. It is served by `pnpm dev` and on test servers (`pnpm test-server`, [OPS-07](OPS-07-test-servers.md)), and not in production.
 
 **Set-up:** `pnpm dev` running.
 
 ## AC-1: Two copies, without a login
 
-Skjera SHALL serve a page at `/playground` with two copies of a draft, «Replica 1» and «Replica 2», each with a **Title** and a **Body**, to anyone, without a login.
+Skjera SHALL serve a page at `/playground` with two copies of a draft, «Replica 1» and «Replica 2», each with a **Title** and a **Body**, in development and on test servers, to anyone, without a login.
 
 **Test**
 
@@ -53,3 +53,15 @@ The draft SHALL hold the title on one line and the body with its line breaks, as
 - **Then** what Replica 2 holds reads `{"title":"One line","body":"First\nSecond"}`
 
 **Automated:** `packages/app/e2e/specs/playground.spec.ts`
+
+## AC-5: Not in production
+
+The production build SHALL NOT serve the page at `/playground`, and the path SHALL answer as any unknown path does.
+
+**Test**
+
+- **Given** the image built as in [OPS-03](OPS-03-image.md) and running
+- **When** you open `/playground` and `/no-such-page`
+- **Then** both show the same: the app's page for an unknown path, and no «Replica 1» or «Replica 2»
+
+**Automated:** `packages/app/test/playground.test.ts`

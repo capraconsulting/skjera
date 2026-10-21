@@ -8,7 +8,6 @@ import { RouterProvider } from "react-router/dom";
 import { Loading } from "./components/Loading.tsx";
 import { loadSite } from "./i18n.ts";
 import { Account, accountLoader } from "./routes/account/Account.tsx";
-import { Playground } from "./routes/Playground.tsx";
 import { Privacy } from "./routes/privacy/Privacy.tsx";
 import {
   EventError,
@@ -108,7 +107,18 @@ const router = createBrowserRouter([
         ],
       },
       // Two local replicas syncing with each other, no server or login needed.
-      { path: "/playground", Component: Playground },
+      // For developers: only in `pnpm dev` and test servers (vite.config.ts),
+      // and loaded on its own, so other builds leave it out entirely.
+      ...(import.meta.env.PLAYGROUND
+        ? [
+            {
+              path: "/playground",
+              lazy: async () => ({
+                Component: (await import("./routes/Playground.tsx")).Playground,
+              }),
+            },
+          ]
+        : []),
     ],
   },
 ]);
