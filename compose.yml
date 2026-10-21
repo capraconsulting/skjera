@@ -1,3 +1,8 @@
+# One set of services for every checkout of the repository, whatever its
+# folder is called, worktrees and throwaway test trees included: they all
+# use the same ports.
+name: skjera
+
 services:
   postgres:
     # Postgres 18 with pg_automerge (https://github.com/TheKnarf/pg-automerge),
