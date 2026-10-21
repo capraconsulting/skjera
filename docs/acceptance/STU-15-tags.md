@@ -11,17 +11,17 @@ For a tag nobody has used before, take a word and today's date, such as «Potter
 
 ## AC-1: A tag is added as typed
 
-The studio SHALL let an organiser add a tag by typing it and pressing Enter, offering it as a new tag when no published event has it.
+The studio SHALL let an organiser add a tag by typing it and pressing Enter, offering it as a new tag when no published event has it, and marking it so to screen readers in the interface's language.
 
 **Test**
 
 - **Given** «AC-1 to AC-3: Tagged» open in the studio
 - **When** you type a new tag in **Tags**
-- **Then** the list offers it with a «+» in front, as a new tag
+- **Then** the list offers it with a «+» in front, as a new tag; to a screen reader it reads «(new tag)», «(ny emneknagg)» in Bokmål and Nynorsk
 - **When** you press Enter
 - **Then** it is shown as a pill above the field, and the field is empty again
 
-**Automated:** `packages/app/e2e/specs/tags.spec.ts`
+**Automated:** `packages/app/e2e/specs/tags.spec.ts`, `packages/app/e2e/specs/language.spec.ts`
 
 ## AC-2: A tag is removed
 

@@ -1,7 +1,7 @@
-import { Clock, Config, Effect, Layer, Option } from "effect";
+import { Clock, Config, Effect, Layer } from "effect";
 import { HttpRouter, HttpServerResponse } from "effect/http";
 import { SqlClient } from "effect/sql";
-import { SiteConfig } from "../Model.ts";
+import { optionalSetting, SiteConfig } from "../Model.ts";
 import { type FeedEvent, feed } from "./Calendar.ts";
 
 // The coming events as a calendar to subscribe to (`GET /api/subscribe`), as
@@ -54,9 +54,7 @@ export const layerHttp = Layer.unwrap(
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const { name, locale } = yield* SiteConfig;
-    const siteUrl = Option.getOrUndefined(
-      yield* Config.option(Config.String("SITE_URL")),
-    );
+    const siteUrl = yield* optionalSetting("SITE_URL", Config.String);
     if (siteUrl === undefined) {
       yield* Effect.logWarning("SITE_URL not set: /api/subscribe isn't served");
       return Layer.empty;

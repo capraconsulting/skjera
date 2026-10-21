@@ -19,7 +19,7 @@ WHILE anyone is signed up for an event, the studio SHALL offer **Download CSV**,
 
 ## AC-2: The columns
 
-The spreadsheet SHALL have the columns Name, Email, Guest, Signed up, Changed, Phone and Company, then one for each question, named by its wording.
+The spreadsheet SHALL have the columns Name, Email, Guest, Signed up, Changed, Phone and Company, then one for each question, named by the words its answers were given to.
 
 **Test**
 
@@ -74,5 +74,17 @@ IF an answer starts like a spreadsheet formula, THEN the spreadsheet SHALL keep 
 - **Given** the event
 - **When** a guest signs up with «=1+1» for «Where did you hear of it?», and you click **Download CSV**
 - **Then** the file has «'=1+1», and a spreadsheet program opening it shows the text, not 2
+
+**Automated:** `packages/app/test/attendeesCsv.test.ts`
+
+## AC-7: Answers to earlier words have a column of their own
+
+WHERE a question's words were changed after people answered it, the spreadsheet SHALL give the answers to the earlier words a column of their own, headed with those words, after the other columns.
+
+**Test**
+
+- **Given** bob signed up with an answer to «Towel size»
+- **When** you change that question to «Towel size?» in the studio, **Publish**, and gina signs up with an answer to it, and you click **Download CSV**
+- **Then** the columns end «Towel size?», «Towel size»; gina's answer is under «Towel size?» and bob's under «Towel size»
 
 **Automated:** `packages/app/test/attendeesCsv.test.ts`

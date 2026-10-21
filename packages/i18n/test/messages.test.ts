@@ -39,4 +39,14 @@ describe("messages", () => {
       }
     });
   }
+
+  for (const locale of locales) {
+    it(`names the image tool with the words it shows, in ${locale} (AC-2)`, () => {
+      expect(
+        m
+          .editor_alt_text_tool({}, { locale })
+          .startsWith(m.editor_alt_text({}, { locale })),
+      ).toBe(true);
+    });
+  }
 });

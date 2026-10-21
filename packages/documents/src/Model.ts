@@ -161,9 +161,20 @@ const HubSpotAccountIdText = Schema.String.check(
   ),
 );
 
-const optional = (config: Config.Config<string>) =>
-  Config.option(config).pipe(
-    Config.map((value) => Option.getOrUndefined(value)),
+/**
+ * An optional setting: not there, or blank (empty or only spaces), is not
+ * set (`undefined`); else it's read with `read`.
+ */
+export const optionalSetting = <A>(
+  name: string,
+  read: (name: string) => Config.Config<A>,
+) =>
+  Config.option(Config.String(name)).pipe(
+    Config.flatMap((text) =>
+      Option.isNone(text) || text.value.trim() === ""
+        ? Config.succeed<A | undefined>(undefined)
+        : read(name),
+    ),
   );
 
 /** Only what's there: no keys for what isn't. */
@@ -175,17 +186,15 @@ const defined = <A extends object>(fields: A) =>
 export const SiteConfig = Config.all({
   name: Config.String("SITE_NAME").pipe(Config.withDefault("Skjera")),
   locale: SiteLocale,
-  logo: optional(Config.String("SITE_LOGO")),
-  logoDark: optional(Config.String("SITE_LOGO_DARK")),
-  logoIncludesName: Config.Boolean("SITE_LOGO_INCLUDES_NAME").pipe(
-    Config.withDefault(false),
+  logo: optionalSetting("SITE_LOGO", Config.String),
+  logoDark: optionalSetting("SITE_LOGO_DARK", Config.String),
+  logoIncludesName: optionalSetting("SITE_LOGO_INCLUDES_NAME", Config.Boolean),
+  footer: optionalSetting("SITE_FOOTER", (name) =>
+    Config.schema(Schema.fromJsonString(SiteFooter), name),
   ),
-  footer: Config.option(
-    Config.schema(Schema.fromJsonString(SiteFooter), "SITE_FOOTER"),
-  ),
-  operator: optional(Config.String("SITE_OPERATOR")),
-  contact: optional(Config.String("SITE_CONTACT_EMAIL")),
-  privacyUrl: optional(Config.String("SITE_PRIVACY_URL")),
+  operator: optionalSetting("SITE_OPERATOR", Config.String),
+  contact: optionalSetting("SITE_CONTACT_EMAIL", Config.String),
+  privacyUrl: optionalSetting("SITE_PRIVACY_URL", Config.String),
   hubSpot: Config.schema(HubSpotAccountIdText, "HUBSPOT_ACCOUNT_ID").pipe(
     Config.withDefault(""),
   ),
@@ -200,13 +209,10 @@ export const SiteConfig = Config.all({
             logo: defined({
               src: config.logo,
               darkSrc: config.logoDark,
-              includesName: config.logoIncludesName,
+              includesName: config.logoIncludesName ?? false,
             }),
           }),
-      ...Option.match(config.footer, {
-        onNone: () => ({}),
-        onSome: (footer) => ({ footer }),
-      }),
+      ...(config.footer === undefined ? {} : { footer: config.footer }),
       privacy: defined({
         operator: config.operator ?? config.name,
         contact: config.contact,

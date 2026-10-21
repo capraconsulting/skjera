@@ -1,17 +1,26 @@
 import { expect, type Page } from "@playwright/test";
+import { m } from "@skjera/i18n/messages";
+import type { Locale } from "@skjera/i18n/runtime";
 
 /** The editor's tags field, with its suggestions and the tags added. */
 export class TagInput {
   private readonly page: Page;
+  /** The language the field is read in. */
+  private readonly locale: Locale;
 
-  constructor(page: Page) {
+  constructor(page: Page, locale: Locale = "en") {
     this.page = page;
+    this.locale = locale;
   }
 
   private readonly input = () =>
-    this.page.getByRole("combobox", { name: "Tags" });
+    this.page.getByRole("combobox", {
+      name: m.site_tags({}, { locale: this.locale }),
+    });
   private readonly pills = () =>
-    this.page.getByRole("list", { name: "Tags on this event" });
+    this.page.getByRole("list", {
+      name: m.editor_tags_on_event({}, { locale: this.locale }),
+    });
 
   async fill(text: string): Promise<void> {
     await this.input().fill(text);
@@ -36,7 +45,11 @@ export class TagInput {
   }
 
   async remove(tag: string): Promise<void> {
-    await this.page.getByRole("button", { name: `Remove tag ${tag}` }).click();
+    await this.page
+      .getByRole("button", {
+        name: m.editor_remove_tag({ tag }, { locale: this.locale }),
+      })
+      .click();
   }
 
   async expectTag(tag: string): Promise<void> {

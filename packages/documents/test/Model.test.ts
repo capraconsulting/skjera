@@ -1,7 +1,8 @@
 import { assert, describe, it } from "@effect/vitest";
-import { ConfigProvider, Effect, Exit, Option, Schema } from "effect";
+import { Config, ConfigProvider, Effect, Exit, Option, Schema } from "effect";
 import {
   GuestDetails,
+  optionalSetting,
   organizerLogos,
   SiteConfig,
   TeamLogosChange,
@@ -127,4 +128,96 @@ describe("SiteConfig", () => {
         }
       }),
   );
+
+  it.effect("reads a blank optional site setting as not set (AC-7, AC-8)", () =>
+    Effect.gen(function* () {
+      for (const blank of ["", "  "]) {
+        const site = yield* readSite({
+          SITE_NAME: "Example Events",
+          SITE_LOGO: blank,
+          SITE_LOGO_DARK: blank,
+          SITE_LOGO_INCLUDES_NAME: blank,
+          SITE_FOOTER: blank,
+          SITE_OPERATOR: blank,
+          SITE_CONTACT_EMAIL: blank,
+          SITE_PRIVACY_URL: blank,
+        });
+        assert.isTrue(Exit.isSuccess(site), JSON.stringify(blank));
+        if (Exit.isSuccess(site)) {
+          assert.notProperty(site.value, "logo");
+          assert.notProperty(site.value, "footer");
+          assert.deepStrictEqual(site.value.privacy, {
+            operator: "Example Events",
+          });
+        }
+      }
+    }),
+  );
+
+  it.effect("leaves a blank dark logo and name flag out of a logo (AC-7)", () =>
+    Effect.gen(function* () {
+      const site = yield* readSite({
+        SITE_LOGO: "/site-assets/logo.svg",
+        SITE_LOGO_DARK: "  ",
+        SITE_LOGO_INCLUDES_NAME: "  ",
+      });
+      assert.isTrue(Exit.isSuccess(site));
+      if (Exit.isSuccess(site)) {
+        assert.deepStrictEqual(site.value.logo, {
+          src: "/site-assets/logo.svg",
+          includesName: false,
+        });
+      }
+    }),
+  );
+
+  it.effect("reads a set optional site setting as before (AC-7)", () =>
+    Effect.gen(function* () {
+      const site = yield* readSite({
+        SITE_LOGO: "/site-assets/logo.svg",
+        SITE_LOGO_DARK: "/site-assets/logo-dark.svg",
+        SITE_LOGO_INCLUDES_NAME: "true",
+        SITE_FOOTER: '{"text":"Hello"}',
+        SITE_OPERATOR: "Example Ltd",
+        SITE_CONTACT_EMAIL: "privacy@example.org",
+        SITE_PRIVACY_URL: "https://example.org/privacy",
+      });
+      assert.isTrue(Exit.isSuccess(site));
+      if (Exit.isSuccess(site)) {
+        assert.deepStrictEqual(site.value.logo, {
+          src: "/site-assets/logo.svg",
+          darkSrc: "/site-assets/logo-dark.svg",
+          includesName: true,
+        });
+        assert.deepStrictEqual(site.value.footer, { text: "Hello" });
+        assert.deepStrictEqual(site.value.privacy, {
+          operator: "Example Ltd",
+          contact: "privacy@example.org",
+          url: "https://example.org/privacy",
+        });
+      }
+    }),
+  );
+});
+
+describe("optionalSetting", () => {
+  const read = (env: Record<string, string>) =>
+    Effect.runSync(
+      Effect.provide(
+        Effect.gen(function* () {
+          return yield* optionalSetting("SITE_URL", Config.String);
+        }),
+        ConfigProvider.layer(ConfigProvider.fromUnknown(env)),
+      ),
+    );
+
+  it("reads a blank SITE_URL, or none, as not set (AC-7)", () => {
+    for (const env of [{}, { SITE_URL: "" }, { SITE_URL: "  " }]) {
+      assert.isUndefined(read(env));
+    }
+    assert.strictEqual(
+      read({ SITE_URL: "https://example.org" }),
+      "https://example.org",
+    );
+  });
 });

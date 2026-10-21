@@ -55,13 +55,13 @@ WHEN an image is pasted or dropped into the body, the editor SHALL upload it, pu
 
 ## AC-5: Describing an image afterwards
 
-WHILE an image in the body is selected, the toolbar SHALL offer to describe it.
+WHILE an image in the body is selected, the toolbar SHALL offer to describe it, with a button that shows **Alt text** and is named «Alt text: describe the image» for screen readers.
 
 **Test**
 
 - **Given** a pasted image from AC-4, selected
-- **When** you click **Alt text** (tooltip «Describe image»), write «A screenshot» in **Description** and click **Save**
+- **When** you click **Alt text** (tooltip «Alt text: describe the image»), write «A screenshot» in **Description** and click **Save**
 - **And** you click **Publish**, and open the event on the site
 - **Then** the site's image has «A screenshot» as its alternative text
 
-**Automated:** `packages/app/e2e/specs/images.spec.ts`
+**Automated:** `packages/app/e2e/specs/images.spec.ts`, `packages/i18n/test/messages.test.ts`

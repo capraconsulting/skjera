@@ -8,7 +8,7 @@ import { RouterProvider } from "react-router/dom";
 import { Loading } from "./components/Loading.tsx";
 import { loadSite } from "./i18n.ts";
 import { Account, accountLoader } from "./routes/account/Account.tsx";
-import { Privacy } from "./routes/privacy/Privacy.tsx";
+import { Privacy, privacyLoader } from "./routes/privacy/Privacy.tsx";
 import {
   EventError,
   EventPage,
@@ -67,7 +67,7 @@ const router = createBrowserRouter([
           },
           // The signed-in user's own settings.
           { path: "account", Component: Account, loader: accountLoader },
-          { path: "privacy", Component: Privacy },
+          { path: "privacy", Component: Privacy, loader: privacyLoader },
           // A failed login, which the server answers at the address of
           // OAUTH_REDIRECT_URI: the path must be the same.
           { path: "auth/callback", loader: loginFailedRedirect },

@@ -308,6 +308,17 @@ export class EventEditor {
     await this.checkbox(/Guests can sign up/).check();
   }
 
+  async uncheckGuests(): Promise<void> {
+    await this.checkbox(/Guests can sign up/).uncheck();
+  }
+
+  /** Guests can sign up shows ticked or not, and can be changed or not. */
+  async expectGuests(ticked: boolean, changeable: boolean): Promise<void> {
+    const guests = this.checkbox(/Guests can sign up/);
+    await expect(guests).toBeChecked({ checked: ticked });
+    await expect(guests).toBeEnabled({ enabled: changeable });
+  }
+
   async checkFoodServed(): Promise<void> {
     await this.checkbox(/Food is served/).check();
   }

@@ -1,7 +1,12 @@
 import { Config, Effect, FileSystem, Layer, Option, Schema } from "effect";
 import { HttpRouter, HttpServerResponse } from "effect/http";
 import { SqlClient } from "effect/sql";
-import { type Cover, DocumentId, SiteConfig } from "../Model.ts";
+import {
+  type Cover,
+  DocumentId,
+  optionalSetting,
+  SiteConfig,
+} from "../Model.ts";
 
 // What a link to an event shows when it is shared: LinkedIn, Slack and the
 // like fetch the page without logging in and without running its scripts,
@@ -121,9 +126,7 @@ export const layerHttp = (options: { readonly index: string }) =>
       const sql = yield* SqlClient.SqlClient;
       const page = yield* fs.readFileString(options.index);
       const { name } = yield* SiteConfig;
-      const url = Option.getOrUndefined(
-        yield* Config.option(Config.String("SITE_URL")),
-      );
+      const url = yield* optionalSetting("SITE_URL", Config.String);
       const site: Site = url === undefined ? { name } : { name, url };
 
       return HttpRouter.add(

@@ -174,7 +174,10 @@ export function TagsField(props: { readonly handle: DocHandle<EventContent> }) {
                   {item.isNew ? (
                     <span className={`${styles.pill} ${styles.new}`}>
                       <span aria-hidden="true">+</span> {item.name}
-                      <span className={styles.hidden}> (new tag)</span>
+                      <span className={styles.hidden}>
+                        {" "}
+                        {m.editor_new_tag()}
+                      </span>
                     </span>
                   ) : (
                     item.name

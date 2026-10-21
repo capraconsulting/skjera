@@ -111,7 +111,7 @@ export function RichTextToolbar(props: {
       />
       {tools.image === null ? null : (
         <Tool
-          label={m.editor_describe_image()}
+          label={m.editor_alt_text_tool()}
           onClick={() => setDescribing(true)}
         >
           {m.editor_alt_text()}

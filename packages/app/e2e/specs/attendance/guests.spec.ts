@@ -50,6 +50,37 @@ test("guests sign up with their name and email", async ({ browser }) => {
   await cleanUp(alice, team, event.id, closed.id);
 });
 
+test("Guests can sign up shows unticked on a members-only event, and as it was set once public again", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Visible"));
+  const editor = new EventEditor(alice);
+  const open = await editor.createPublished({ public: true, guests: true });
+
+  // A public event: it can be changed, and stays as it is set.
+  await editor.expectGuests(true, true);
+  await editor.uncheckGuests();
+  await editor.expectGuests(false, true);
+  await editor.checkGuests();
+
+  // Members only: off, and unchangeable.
+  await editor.uncheckPublic();
+  await editor.expectGuests(false, false);
+  // Public again: as the organizer left it.
+  await editor.checkPublic();
+  await editor.expectGuests(true, true);
+
+  // Set off, it stays off through members only and back.
+  await editor.uncheckGuests();
+  await editor.uncheckPublic();
+  await editor.expectGuests(false, false);
+  await editor.checkPublic();
+  await editor.expectGuests(false, true);
+
+  await cleanUp(alice, team, open.id);
+});
+
 test("guests give a phone number and a company, and organizers see and export them", async ({
   browser,
 }) => {

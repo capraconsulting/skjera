@@ -216,19 +216,19 @@ const DocumentsHandlers = HttpApiBuilder.group(Api, "documents", (handlers) =>
  */
 const App = Layer.unwrap(
   Effect.gen(function* () {
-    const root = yield* Config.option(Config.String("STATIC_DIR"));
-    if (Option.isNone(root)) return Layer.empty;
+    const root = yield* Documents.optionalSetting("STATIC_DIR", Config.String);
+    if (root === undefined) return Layer.empty;
     return Layer.mergeAll(
       // Named by their content, so they never change.
       HttpStaticServer.layer({
-        root: `${root.value}/assets`,
+        root: `${root}/assets`,
         prefix: "/assets",
         cacheControl: "public, max-age=31536000, immutable",
       }),
       // An event's page, with what a shared link shows.
-      Documents.Sharing.layerHttp({ index: `${root.value}/index.html` }),
+      Documents.Sharing.layerHttp({ index: `${root}/index.html` }),
       HttpStaticServer.layer({
-        root: root.value,
+        root: root,
         spa: true,
         cacheControl: "no-cache",
       }),
@@ -253,10 +253,10 @@ const loginFailureTags = (failure: LoginFailure) => {
  */
 const LoginFailurePage = Layer.unwrap(
   Effect.gen(function* () {
-    const root = yield* Config.option(Config.String("STATIC_DIR"));
-    if (Option.isNone(root)) return Layer.empty;
+    const root = yield* Documents.optionalSetting("STATIC_DIR", Config.String);
+    if (root === undefined) return Layer.empty;
     const fs = yield* FileSystem.FileSystem;
-    const page = yield* fs.readFileString(`${root.value}/index.html`);
+    const page = yield* fs.readFileString(`${root}/index.html`);
     return Layer.succeed(OAuth.LoginFailurePage, (failure) =>
       Effect.succeed(
         HttpServerResponse.text(
@@ -277,11 +277,14 @@ const LoginFailurePage = Layer.unwrap(
  */
 const SiteAssets = Layer.unwrap(
   Effect.gen(function* () {
-    const root = yield* Config.option(Config.String("SITE_ASSETS_DIR"));
-    return Option.isNone(root)
+    const root = yield* Documents.optionalSetting(
+      "SITE_ASSETS_DIR",
+      Config.String,
+    );
+    return root === undefined
       ? Layer.empty
       : HttpStaticServer.layer({
-          root: root.value,
+          root,
           prefix: "/site-assets",
           cacheControl: "public, max-age=300",
         });
@@ -329,10 +332,10 @@ const Server = Layer.unwrap(
   Effect.gen(function* () {
     const port = yield* Config.Port("PORT").pipe(Config.withDefault(3000));
     // Unset: every interface.
-    const host = yield* Config.option(Config.String("HOST"));
+    const host = yield* Documents.optionalSetting("HOST", Config.String);
     return NodeHttpServer.layer(
       createServer,
-      Option.isNone(host) ? { port } : { port, host: host.value },
+      host === undefined ? { port } : { port, host },
     );
   }),
 );

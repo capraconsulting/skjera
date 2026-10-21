@@ -1,6 +1,7 @@
-import { Clock, Config, Effect, Layer, Option } from "effect";
+import { Clock, Config, Effect, Layer } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import { SqlClient } from "effect/sql";
+import { optionalSetting } from "../Model.ts";
 import { WebsiteOrigins } from "./Embed.ts";
 
 // The coming events as JSON (`GET /api/public/events`), in the format of
@@ -145,9 +146,7 @@ export const layerHttp = Layer.unwrap(
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const websites = yield* WebsiteOrigins;
-    const siteUrl = Option.getOrUndefined(
-      yield* Config.option(Config.String("SITE_URL")),
-    );
+    const siteUrl = yield* optionalSetting("SITE_URL", Config.String);
     if (siteUrl === undefined) {
       yield* Effect.logWarning(
         "SITE_URL not set: /api/public/events isn't served",

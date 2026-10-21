@@ -47,19 +47,21 @@ WHILE an event is not public, Skjera SHALL show it to anyone logged in, marked a
 
 ## AC-4: Guests only on public events
 
-WHILE an event is not public, Skjera SHALL not let guests sign up for it, and the studio SHALL say so at **Guests can sign up**.
+WHILE an event is not public, Skjera SHALL not let guests sign up for it, and the studio SHALL say so at **Guests can sign up**, shown unticked and unchangeable; WHEN the event is made public again, the studio SHALL show it as the organiser last set it.
 
 **Test**
 
 - **Given** «AC-4 and AC-5: Open to guests» open in the studio
 - **When** you untick **Public event**
-- **Then** **Guests can sign up** can't be changed, and its hint says «Only public events can take guest signups.»
+- **Then** **Guests can sign up** shows unticked and can't be changed, and its hint says «Only public events can take guest signups.»
 - **When** you click **Publish**, and open the event in a private window
 - **Then** it says «This event doesn't exist, or isn't published.», with no form to sign up
 - **When** you tick **Public event** again and click **Publish**
-- **Then** **Guests can sign up** is still ticked, and the private window offers the guest form again
+- **Then** **Guests can sign up** shows ticked again, and the private window offers the guest form again
+- **When** you untick **Guests can sign up**, untick **Public event**, and tick **Public event** again
+- **Then** **Guests can sign up** shows unticked
 
-**Automated:** `packages/documents/test/attendance/signups.test.ts`
+**Automated:** `packages/documents/test/attendance/signups.test.ts`, `packages/app/e2e/specs/attendance/guests.spec.ts`
 
 ## AC-5: Guests sign up, or are asked to log in
 

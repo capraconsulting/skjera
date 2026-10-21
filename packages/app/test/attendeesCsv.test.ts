@@ -103,4 +103,46 @@ describe("attendeesCsv", () => {
     expect(rows[0]?.["Towel size"]).toBe("'=1+1");
     expect(rows[1]?.["Towel size"]).toBe("Small");
   });
+
+  it("heads a question's column with the words its answers were given to (AC-5)", () => {
+    const { rows, columns } = read([
+      attendee("Alice", [answer(towelSize, "Towel size?", "Large")]),
+      attendee("Gina", [answer(towelSize, "Towel size", "Small")]),
+    ]);
+    expect(rows[1]?.["Towel size"]).toBe("Small");
+    expect(rows[0]?.["Towel size"]).toBe("");
+    expect(columns.indexOf("Towel size")).toBeLessThan(
+      columns.indexOf("Towel size?"),
+    );
+
+    const same = read([
+      attendee("Alice", [answer(towelSize, "Towel size", "Large")]),
+      attendee("Gina", [answer(towelSize, "Towel size", "Small")]),
+    ]);
+    expect(same.columns.slice(columns.indexOf("Towel size"))).toEqual([
+      "Towel size",
+    ]);
+    expect(same.rows.map((row) => row["Towel size"])).toEqual([
+      "Large",
+      "Small",
+    ]);
+  });
+
+  it("gives answers to a question's earlier words a column of their own, after the others (AC-6)", () => {
+    const { rows, columns } = read([
+      attendee("Alice", [
+        answer(heardOf, "Where did you hear of it?", "A friend"),
+        answer(towelSize, "Towel size?", "Large"),
+      ]),
+      attendee("Gina", [answer(towelSize, "Towel size", "Small")]),
+    ]);
+    expect(columns.slice(-3)).toEqual([
+      "Towel size",
+      "Where did you hear of it?",
+      "Towel size?",
+    ]);
+    expect(rows[0]?.["Towel size?"]).toBe("Large");
+    expect(rows[1]?.["Towel size?"]).toBe("");
+    expect(rows[0]?.["Towel size"]).toBe("");
+  });
 });

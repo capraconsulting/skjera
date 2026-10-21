@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { m } from "@skjera/i18n/messages";
 import { cleanUp } from "../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName, visitor } from "../fixtures/support.ts";
 import { Header } from "../pom/Header.ts";
@@ -6,6 +7,7 @@ import { Mailbox } from "../pom/Mailbox.ts";
 import { Attendance } from "../pom/site/Attendance.ts";
 import { EventPage } from "../pom/site/EventPage.ts";
 import { EventEditor } from "../pom/studio/EventEditor.ts";
+import { TagInput } from "../pom/studio/TagInput.ts";
 import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
 
 test("visitors pick their language, and get emails in it", async ({
@@ -79,6 +81,14 @@ test("the studio speaks Nynorsk too", async ({ browser }) => {
   await editor.times.openStartDate("Startdato");
   await editor.times.expectCalendarButton(/neste månad/i);
   await editor.times.closeCalendar();
+  // A new tag's suggestion is marked in it too, for screen readers.
+  const tags = new TagInput(alice, "nn");
+  const fresh = `Keramikk ${event.id.slice(-6)}`;
+  await tags.fill(fresh);
+  await tags.expectSuggestion(
+    `${fresh} ${m.editor_new_tag({}, { locale: "nn" })}`,
+  );
+  await tags.close();
 
   await header.selectLanguage("English", "Språk");
   await header.expectPageLanguage("en");

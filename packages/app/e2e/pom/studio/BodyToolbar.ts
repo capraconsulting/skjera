@@ -34,7 +34,7 @@ export class BodyToolbar {
 
   /** Opens the dialog describing the selected image in the body. */
   async openDescribeImageDialog(): Promise<ImageDialog> {
-    await this.button("Describe image").click();
+    await this.button("Alt text: describe the image").click();
     return new ImageDialog(this.page, "Describe image", "Save");
   }
 }

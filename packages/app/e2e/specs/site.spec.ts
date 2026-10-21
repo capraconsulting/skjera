@@ -357,6 +357,23 @@ test("the site has its logo, its footer and a privacy page", async ({
   await privacy.expectContactEmail("privacy@skjera.localhost");
 });
 
+test("with a policy kept elsewhere, /privacy sends the visitor there", async ({
+  browser,
+}) => {
+  const policy = "https://privacy.example/policy";
+  const page = await visitor(browser);
+  const privacy = new PrivacyPage(page);
+  await privacy.keptElsewhere(policy);
+  const home = new HomePage(page);
+  await home.goto();
+
+  await privacy.goto();
+  await privacy.expectSentTo(policy);
+  // Back leaves it: /privacy is not in the history to send on again.
+  await page.goBack();
+  await home.expectAt();
+});
+
 /** Publishes an event in the open team, a month ago. Returns its title. */
 const publishedPastEvent = async (page: Page) => {
   const editor = new EventEditor(page);

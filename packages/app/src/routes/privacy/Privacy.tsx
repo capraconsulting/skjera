@@ -6,6 +6,18 @@ import { showCookieSettings } from "../../site/hubSpot.ts";
 import styles from "./Privacy.module.css";
 
 /**
+ * With a policy kept elsewhere (SITE_PRIVACY_URL), /privacy sends the
+ * visitor there, in its place in the history: Back leaves it.
+ */
+export const privacyLoader = () => {
+  const { url } = currentSite().privacy;
+  if (url === undefined) return null;
+  window.location.replace(url);
+  // The page is leaving: nothing to show meanwhile.
+  return new Promise<null>(() => {});
+};
+
+/**
  * What personal data the site keeps, why, and who to ask: the operator
  * (SITE_OPERATOR) and their address (SITE_CONTACT_EMAIL). Written for what
  * Skjera does; keep it so when that changes.

@@ -30,6 +30,36 @@ export class PrivacyPage {
     await this.page.goto("/privacy");
   }
 
+  /**
+   * Gives the page's browser the site as configured with its privacy policy
+   * kept at `url`, and answers `url` here with a page of its own.
+   */
+  async keptElsewhere(url: string): Promise<void> {
+    const context = this.page.context();
+    await context.route("/api/site", async (route) => {
+      const response = await route.fetch();
+      const site = (await response.json()) as {
+        privacy: Record<string, string>;
+      };
+      await route.fulfill({
+        response,
+        json: { ...site, privacy: { ...site.privacy, url } },
+      });
+    });
+    await context.route(url, (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        body: "<!doctype html><title>The policy</title><p>Kept elsewhere</p>",
+      }),
+    );
+  }
+
+  /** The visitor has been sent on to `url`. */
+  async expectSentTo(url: string): Promise<void> {
+    await expect(this.page).toHaveURL(url);
+    await expect(this.page.getByText("Kept elsewhere")).toBeVisible();
+  }
+
   async expectAt(): Promise<void> {
     await expect(this.page).toHaveURL(/\/privacy$/);
   }

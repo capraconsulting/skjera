@@ -2,22 +2,30 @@ import type { Answer, AttendeeRow, EventRow } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import Papa from "papaparse";
 
+/** A column: a question, by its id, in the words its answers were given to. */
+const column = (id: string, words: string) => JSON.stringify([id, words]);
+
 /**
  * The attendees as a spreadsheet: who they are, how each attends when the
  * event is streamed, a guest's phone number and company, and a column for
- * each question. Questions taken off the event since still
- * show, after the others, as they were asked.
+ * each question, headed with the words its answers were given to. Answers
+ * given to a question's earlier words, and to questions taken off the event
+ * since, still show, after the others, each under the words it was asked in.
  */
 export const attendeesCsv = (
   event: Pick<EventRow, "questions" | "isStreamed"> | undefined,
   attendees: ReadonlyArray<AttendeeRow>,
 ): string => {
   const columns = new Map<string, string>(
-    (event?.questions ?? []).map((question) => [question.id, question.text]),
+    (event?.questions ?? []).map((question) => [
+      column(question.id, question.text),
+      question.text,
+    ]),
   );
   for (const attendee of attendees) {
     for (const answer of attendee.details?.answers ?? []) {
-      if (!columns.has(answer.id)) columns.set(answer.id, answer.question);
+      const key = column(answer.id, answer.question);
+      if (!columns.has(key)) columns.set(key, answer.question);
     }
   }
   const streamed = event?.isStreamed === true;
@@ -25,7 +33,10 @@ export const attendeesCsv = (
     ({ details, online, signedUpAt, changedAt }) => {
       if (details === null) return [];
       const answers = new Map(
-        details.answers.map((answer) => [answer.id, answerText(answer)]),
+        details.answers.map((answer) => [
+          column(answer.id, answer.question),
+          answerText(answer),
+        ]),
       );
       return [
         [
@@ -39,7 +50,7 @@ export const attendeesCsv = (
           changedAt.toISOString(),
           details.phone ?? "",
           details.company ?? "",
-          ...[...columns.keys()].map((id) => answers.get(id) ?? ""),
+          ...[...columns.keys()].map((key) => answers.get(key) ?? ""),
         ],
       ];
     },

@@ -45,6 +45,7 @@ export function CheckboxField(props: {
   readonly field: BooleanField;
   readonly label: string;
   readonly hint?: string;
+  /** Can't be changed, and shows off: the draft keeps its value for later. */
   readonly disabled?: boolean;
 }) {
   const checked = useBooleanField(props.handle, props.field);
@@ -56,7 +57,7 @@ export function CheckboxField(props: {
     >
       <input
         type="checkbox"
-        checked={checked}
+        checked={checked && props.disabled !== true}
         disabled={props.disabled}
         onChange={(event) => {
           const value = event.target.checked;
