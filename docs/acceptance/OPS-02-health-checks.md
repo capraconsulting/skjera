@@ -14,7 +14,7 @@ WHILE the server is running, `GET /health` SHALL answer `ok`.
 - **When** you run `curl -i http://localhost:3000/health`
 - **Then** it answers `200` with `ok`
 
-**Automated:** none
+**Automated:** `packages/server/test/health.test.ts`
 
 ## AC-2: Ready while the database answers
 
@@ -26,7 +26,7 @@ WHILE the database answers, `GET /health/ready` SHALL answer `ok`.
 - **When** you run `curl -i http://localhost:3000/health/ready`
 - **Then** it answers `200` with `ok`
 
-**Automated:** none; every run of `pnpm test:e2e` waits for it before the browser tests start, without checking its answer.
+**Automated:** `packages/server/test/health.test.ts`
 
 ## AC-3: Not ready without the database
 
@@ -39,7 +39,7 @@ IF the database does not answer within two seconds, THEN `GET /health/ready` SHA
 - **Then** the first answers `503` with `unavailable` after at most about two seconds, and the second `200` with `ok`
 - **And** run `docker compose start postgres` afterwards
 
-**Automated:** none
+**Automated:** `packages/server/test/health.test.ts`
 
 ## AC-4: The Readme names them
 

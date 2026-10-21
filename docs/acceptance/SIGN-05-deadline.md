@@ -59,7 +59,7 @@ WHILE an event serves food and its food deadline has not passed, the event page 
 - **When** it is opened in a private window
 - **Then** after «Sign-up closes …» it says «Dietary preferences by …» with the food deadline
 
-**Automated:** none
+**Automated:** `packages/app/e2e/specs/attendance/dietary.spec.ts`
 
 ## AC-6: After the food deadline, no dietary preferences
 

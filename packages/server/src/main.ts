@@ -22,7 +22,7 @@ import {
   HttpApiGroup,
 } from "effect/http-api";
 import { KeyValueStore } from "effect/persistence";
-import { SqlClient } from "effect/sql";
+import { Health } from "./health.ts";
 
 class Api extends HttpApi.make("skjera")
   .add(
@@ -263,22 +263,6 @@ const site = Layer.unwrap(
   ),
 );
 
-/** Ready to serve: the database answers. (`/health`: the process does.) */
-const ready = HttpRouter.add(
-  "GET",
-  "/health/ready",
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    yield* sql`SELECT 1`;
-    return HttpServerResponse.text("ok");
-  }).pipe(
-    Effect.timeout("2 seconds"),
-    Effect.catch(() =>
-      Effect.succeed(HttpServerResponse.text("unavailable", { status: 503 })),
-    ),
-  ),
-);
-
 const Routes = Layer.mergeAll(
   HttpApiBuilder.layer(Api).pipe(
     Layer.provide([
@@ -299,8 +283,7 @@ const Routes = Layer.mergeAll(
   Documents.PublicEvents.layerHttp,
   // The coming events as a calendar to subscribe to, members only ones too.
   Documents.CalendarFeed.layerHttp,
-  HttpRouter.add("GET", "/health", HttpServerResponse.text("ok")),
-  ready,
+  Health,
   site,
   SiteAssets,
   App,
