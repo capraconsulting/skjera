@@ -12,7 +12,12 @@ import { Button } from "../../components/Button.tsx";
 import { Input } from "../../components/Input.tsx";
 import { currentSite } from "../../i18n.ts";
 import { loginUrl } from "../../site/client.ts";
-import { guestSignup, rememberGuestSignup } from "../../site/guestSignups.ts";
+import {
+  type GuestSignup,
+  guestSignup,
+  rememberGuestSignup,
+  storedGuestSignup,
+} from "../../site/guestSignups.ts";
 import {
   attendees,
   type Signup,
@@ -48,6 +53,8 @@ export function Attend(props: {
   /** Everyone signed up for the event. */
   readonly signups: ReadonlyArray<AttendeeRow>;
   readonly signedIn: boolean;
+  /** The guest's link, just opened, led to no signup. */
+  readonly linkGone: boolean;
 }) {
   const { event, signups } = props;
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +68,11 @@ export function Attend(props: {
   // Changing one's answers.
   const [editing, setEditing] = useState(false);
   const mine = signups.find((signup) => signup.mine);
+  // What the server has for this guest, read each time the form opens: a
+  // change made from another browser is there too.
+  const [stored, setStored] = useState<Given | null>(null);
+  // Said until they sign up.
+  const [signedUpSince, setSignedUpSince] = useState(false);
   // What this member last gave, here: their row has it only once synced.
   const [given, setGiven] = useState<Given | null>(null);
   const closesAt = event.signupDeadline ?? event.startsAt;
@@ -81,6 +93,7 @@ export function Attend(props: {
 
   const signUp = (submitted: FormEvent<HTMLFormElement>, asGuest: boolean) => {
     submitted.preventDefault();
+    setSignedUpSince(true);
     const form = new FormData(submitted.currentTarget);
     const dietary = form.get("dietary");
     const online = onlineFrom(event, form);
@@ -153,6 +166,28 @@ export function Attend(props: {
     );
   };
 
+  /** Opens a guest's form from what the server has stored for them. */
+  const changeAsGuest = (signup: GuestSignup) => {
+    setError(null);
+    storedGuestSignup(event.id, signup.cancelToken).then(
+      (found) => {
+        if (found === null) {
+          // Cancelled or taken off elsewhere: forgotten here too.
+          rememberGuestSignup(event.id, null);
+          setGuest(null);
+          return;
+        }
+        setStored({
+          answers: found.answers,
+          phone: found.phone ?? undefined,
+          company: found.company ?? undefined,
+        });
+        setEditing(true);
+      },
+      () => setError(m.common_something_wrong()),
+    );
+  };
+
   const cancel = (id: string) => {
     if (attendees.collection.has(id)) {
       settle(attendees.collection.delete(id));
@@ -167,6 +202,11 @@ export function Attend(props: {
     signups.length === 0
       ? m.attend_nobody()
       : m.attend_count({ count: signups.length });
+  // The link just opened led to no signup, and none is shown.
+  const gone =
+    props.linkGone && !signedUpSince && guest === null && mine === undefined ? (
+      <p className={styles.status}>{m.attend_link_gone()}</p>
+    ) : null;
   const failure =
     error === null ? null : (
       <p role="alert" className={styles.error}>
@@ -208,6 +248,7 @@ export function Attend(props: {
       <section className={styles.box} aria-label={m.attend_region()}>
         <h2 className={styles.heading}>{m.attend_region()}</h2>
         <p className={styles.count}>{count}</p>
+        {gone}
         {mine !== undefined || guest !== null ? (
           <p className={styles.status}>
             {mine !== undefined
@@ -271,7 +312,13 @@ export function Attend(props: {
       <div className={styles.row}>
         <p className={styles.status}>{status}</p>
         {changeable || asGuest ? (
-          <Button onClick={() => setEditing(true)}>
+          <Button
+            onClick={() =>
+              asGuest && guest !== null
+                ? changeAsGuest(guest)
+                : setEditing(true)
+            }
+          >
             {m.attend_change_answers()}
           </Button>
         ) : null}
@@ -288,6 +335,7 @@ export function Attend(props: {
       <section className={styles.box} aria-label={m.attend_region()}>
         <h2 className={styles.heading}>{m.attend_region()}</h2>
         <p className={styles.count}>{count}</p>
+        {gone}
         {closes}
         {places}
         {mine !== undefined ? (
@@ -326,6 +374,7 @@ export function Attend(props: {
       <section className={styles.box} aria-label={m.attend_region()}>
         <h2 className={styles.heading}>{m.attend_region()}</h2>
         <p className={styles.count}>{count}</p>
+        {gone}
         {closes}
         {places}
         {noMore ? (
@@ -345,6 +394,7 @@ export function Attend(props: {
     <section className={styles.box} aria-label={m.attend_region()}>
       <h2 className={styles.heading}>{m.attend_region()}</h2>
       <p className={styles.count}>{count}</p>
+      {gone}
       {closes}
       {places}
       {guest === null && noMore ? (
@@ -390,7 +440,7 @@ export function Attend(props: {
           guest.id,
           m.attend_you_signed_up(),
           {
-            ...(guest.given ?? {}),
+            ...(stored ?? {}),
             online: signups.find((signup) => signup.id === guest.id)?.online,
           },
           true,

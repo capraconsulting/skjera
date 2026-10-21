@@ -81,3 +81,15 @@ WHILE sign-up has closed, Skjera SHALL NOT let anyone change their answers.
 - **Then** there is no **Change answers**, as in SIGN-05 AC-2
 
 **Automated:** `packages/documents/test/attendance/signups.test.ts`
+
+## AC-8: From another browser too
+
+WHEN a guest opens **Change answers** in a browser other than the one they signed up in, the form SHALL start from what they gave, and saving it unchanged SHALL keep it.
+
+**Test**
+
+- **Given** the event with a required question, and a guest who signed up with a phone number, a company and an answer
+- **When** the guest opens **Your signup** from the email in a new private window, clicks **Change answers** and then **Save changes**
+- **Then** the form held the phone number, company and answer, and the studio's **Attendees** still shows them
+
+**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/documents/test/attendance/guests.test.ts`

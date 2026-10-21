@@ -31,6 +31,17 @@ const SignupChange = Schema.Struct({
   company: Schema.optionalKey(GuestCompany),
 });
 
+/** A guest's own signup, as stored: to start changing it from. */
+export const StoredGuestSignup = Schema.Struct({
+  /** The attendee row. */
+  id: Schema.String,
+  phone: Schema.NullOr(Schema.String),
+  company: Schema.NullOr(Schema.String),
+  /** By question id, as when signing up. */
+  answers: Answers,
+});
+export type StoredGuestSignup = typeof StoredGuestSignup.Type;
+
 export class EventsApi extends HttpApiGroup.make("events").add(
   /**
    * Signs up the signed-in user, or, without a session, a guest with the
@@ -62,6 +73,12 @@ export class EventsApi extends HttpApiGroup.make("events").add(
   HttpApiEndpoint.delete("leaveAsGuest", "/api/events/:id/attendance/:token", {
     params: { id: DocumentId, token: Schema.String },
     error: [SignupNotFound, SignupRejected],
+  }),
+  /** A guest's own signup, with the token they were given. */
+  HttpApiEndpoint.get("guestSignup", "/api/events/:id/attendance/:token", {
+    params: { id: DocumentId, token: Schema.String },
+    success: StoredGuestSignup,
+    error: SignupNotFound,
   }),
   /**
    * Changes the signed-in user's answers, until the sign-up deadline.
