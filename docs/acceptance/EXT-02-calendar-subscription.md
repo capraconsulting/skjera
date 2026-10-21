@@ -6,13 +6,13 @@ A calendar of all coming events can be subscribed to from Google Calendar.
 
 ## AC-1: A calendar without logging in
 
-When anyone requests `GET /api/subscribe`, without being logged in, the server shall answer with an iCalendar feed (`text/calendar`) named «Skjer».
+When anyone requests `GET /api/subscribe`, without being logged in, the server shall answer with an iCalendar feed (`text/calendar`) named after the site, as `SITE_NAME` says («Skjera» when it is not set).
 
 **Test**
 
 - **Given** the events above
 - **When** you run `curl -si http://localhost:3000/api/subscribe`
-- **Then** it has `content-type: text/calendar` and `X-WR-CALNAME:Skjer`
+- **Then** it has `content-type: text/calendar` and `X-WR-CALNAME:Skjera`
 
 **Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/documents/test/site/Calendar.test.ts`, `packages/documents/test/site/CalendarFeed.test.ts`
 

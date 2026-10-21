@@ -114,7 +114,11 @@ describe("Calendar", () => {
   });
 });
 
-const feedSite = { host: "skjera.test", locale: "nb" } as const;
+const feedSite = {
+  name: "Example Events",
+  host: "skjera.test",
+  locale: "nb",
+} as const;
 
 const launch = (fields: Partial<FeedEvent> = {}): FeedEvent => ({
   id: "launch",
@@ -133,12 +137,12 @@ const property = (ics: string, name: string) =>
     .replace(/\\,/g, ",");
 
 describe("Calendar feed", () => {
-  it("is a published calendar named Skjer, with one event each", () => {
+  it("is a published calendar named after the site, with one event each (AC-1)", () => {
     const ics = feed({
       events: [launch(), launch({ id: "party", title: "Party" })],
       site: feedSite,
     });
-    assert.include(ics, "X-WR-CALNAME:Skjer");
+    assert.strictEqual(property(ics, "X-WR-CALNAME"), "Example Events");
     assert.include(ics, "METHOD:PUBLISH");
     assert.strictEqual(ics.match(/BEGIN:VEVENT/g)?.length, 2);
   });

@@ -240,7 +240,7 @@ layer(TestLayer, { excludeTestServices: true })(
 
 layer(TestLayer, { excludeTestServices: true })("Calendar feed route", (it) => {
   it.effect(
-    "answers anyone with the calendar, members-only events too, beside the app's fallback",
+    "answers anyone with the calendar, named after SITE_NAME, members-only events too, beside the app's fallback (AC-1)",
     () =>
       Effect.gen(function* () {
         // The route reads the real clock.
@@ -253,7 +253,7 @@ layer(TestLayer, { excludeTestServices: true })("Calendar feed route", (it) => {
         yield* withApi(
           {
             SITE_URL: siteUrl,
-            SITE_NAME: "Skjer",
+            SITE_NAME: "Example Events",
             SITE_LOCALE: "nb",
           },
           (request) =>
@@ -265,11 +265,24 @@ layer(TestLayer, { excludeTestServices: true })("Calendar feed route", (it) => {
                 "text/calendar; charset=utf-8",
               );
               const body = yield* Effect.promise(() => response.text());
-              assert.include(body, "X-WR-CALNAME:Skjer");
+              assert.match(body, /^X-WR-CALNAME:Example Events\r?$/m);
               assert.include(body, `UID:${members}@skjera.example`);
             }),
         );
       }),
+  );
+
+  it.effect("names the calendar Skjera without SITE_NAME (AC-2)", () =>
+    Effect.gen(function* () {
+      yield* withApi({ SITE_URL: siteUrl }, (request) =>
+        Effect.gen(function* () {
+          const response = yield* request("GET");
+          assert.strictEqual(response.status, 200);
+          const body = yield* Effect.promise(() => response.text());
+          assert.match(body, /^X-WR-CALNAME:Skjera\r?$/m);
+        }),
+      );
+    }),
   );
 
   it.effect(
