@@ -417,7 +417,7 @@
   "account_name": "Namn",
   "account_email": "E-post",
   "account_profile_hint": "Namnet og e-postadressa di kjem frå der du loggar inn, og blir endra der.",
-  "account_language_hint": "Nettstaden er på dette språket, og det same er e-postar om arrangement du melder deg på.",
+  "account_language_hint": "Nettstaden er på dette språket, og det same er e-postar om arrangement du melder deg på frå no av. E-postar om arrangement du alt er påmeld, kjem framleis på språket du melde deg på med.",
   "account_theme": "Tema",
   "account_theme_system": "Same som systemet",
   "account_theme_light": "Ljos",
