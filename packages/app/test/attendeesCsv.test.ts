@@ -73,6 +73,12 @@ describe("attendeesCsv", () => {
     expect(rows[0]?.[m.csv_changed()]).toBe("2026-10-20T08:20:00.000Z");
   });
 
+  it("gives the same time in both columns for someone who changed nothing (AC-10)", () => {
+    const { rows } = read([attendee("Alice", [])]);
+    expect(rows[0]?.[m.csv_signed_up()]).toBe("2026-10-20T08:15:00.000Z");
+    expect(rows[0]?.[m.csv_changed()]).toBe(rows[0]?.[m.csv_signed_up()]);
+  });
+
   it("keeps the column of a question taken off the event, last (AC-11)", () => {
     const { rows, columns } = read([
       attendee("Alice", [
