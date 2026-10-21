@@ -2,3 +2,4 @@
 // API's authentication. Nothing exported here may need the server.
 export * from "./Authentication.ts";
 export * from "./Identity.ts";
+export * from "./LoginFailure.ts";

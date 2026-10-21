@@ -8,6 +8,7 @@ import {
 import { Authentication, CurrentUser, Unauthorized } from "./Authentication.ts";
 import type { Identity } from "./Identity.ts";
 import { sanitizeReturnTo } from "./internal/returnTo.ts";
+import type { LoginFailure, LoginFailureKind } from "./LoginFailure.ts";
 import { OAuthClient } from "./OAuthClient.ts";
 import { OAuthConfig } from "./OAuthConfig.ts";
 import { loginAttemptTtl, Sessions } from "./Sessions.ts";
@@ -33,6 +34,9 @@ const makeCookies = (config: OAuthConfig["Service"]) => {
   return {
     session: `${prefix}skjera_session`,
     login: `${prefix}skjera_login`,
+    // Where the login is going. It outlives the login cookie, so a login
+    // that expired still knows where to return to.
+    returnTo: `${prefix}skjera_return`,
     options,
   };
 };
@@ -41,6 +45,27 @@ const requestUrl = (
   request: HttpServerRequest.HttpServerRequest,
   config: OAuthConfig["Service"],
 ) => new URL(request.url, config.redirectUri);
+
+const failureStatus = { denied: 403, expired: 400, failed: 401 } as const;
+
+const plainAnswers: Record<LoginFailureKind, string> = {
+  denied: "This account is not allowed to sign in.",
+  expired: "Login expired or was already used. Please try again.",
+  failed: "Login failed.",
+};
+
+/**
+ * What the callback answers a failed login with; the route sets the status.
+ * By default a line of text: a server with a page to show provides its own.
+ */
+export const LoginFailurePage = Context.Reference<
+  (
+    failure: LoginFailure,
+  ) => Effect.Effect<HttpServerResponse.HttpServerResponse>
+>("@skjera/oauth/LoginFailurePage", {
+  defaultValue: () => (failure) =>
+    Effect.succeed(HttpServerResponse.text(plainAnswers[failure.kind])),
+});
 
 /**
  * Routes for the server-side login flow:
@@ -55,6 +80,11 @@ export const AuthRoutes = HttpRouter.use(
     const client = yield* OAuthClient;
     const sessions = yield* Sessions;
     const cookies = makeCookies(config);
+    const failurePage = yield* LoginFailurePage;
+    const fail = (failure: LoginFailure) =>
+      failurePage(failure).pipe(
+        Effect.map(HttpServerResponse.setStatus(failureStatus[failure.kind])),
+      );
 
     yield* router.add(
       "GET",
@@ -72,6 +102,13 @@ export const AuthRoutes = HttpRouter.use(
             loginId,
             cookies.options(loginAttemptTtl),
           ),
+          Effect.flatMap(
+            HttpServerResponse.setCookie(
+              cookies.returnTo,
+              returnTo,
+              cookies.options(),
+            ),
+          ),
         );
       }).pipe(Effect.orDie),
     );
@@ -87,10 +124,12 @@ export const AuthRoutes = HttpRouter.use(
             ? Option.none()
             : yield* sessions.takeLogin(loginId);
         if (Option.isNone(attempt)) {
-          return HttpServerResponse.text(
-            "Login expired or was already used. Please try again.",
-            { status: 400 },
-          );
+          // The attempt is gone, and with it where it was going: the return
+          // cookie outlives it.
+          return yield* fail({
+            kind: "expired",
+            returnTo: sanitizeReturnTo(request.cookies[cookies.returnTo]),
+          });
         }
 
         const result = yield* client
@@ -102,12 +141,10 @@ export const AuthRoutes = HttpRouter.use(
             Effect.result,
           );
         if (Result.isFailure(result)) {
-          return result.failure._tag === "AccessDenied"
-            ? HttpServerResponse.text(
-                "This account is not allowed to sign in.",
-                { status: 403 },
-              )
-            : HttpServerResponse.text("Login failed.", { status: 401 });
+          return yield* fail({
+            kind: result.failure._tag === "AccessDenied" ? "denied" : "failed",
+            returnTo: attempt.value.returnTo,
+          });
         }
 
         // Always issue a fresh session id on login, and drop any previous one.

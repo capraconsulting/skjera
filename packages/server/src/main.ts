@@ -7,7 +7,8 @@ import { NodeCrypto, NodeHttpServer, NodeRuntime } from "@effect/platform-node";
 import * as Documents from "@skjera/documents";
 import * as Email from "@skjera/email";
 import * as OAuth from "@skjera/oauth";
-import { Config, Effect, Layer, Option } from "effect";
+import { type LoginFailure, loginFailureMeta } from "@skjera/oauth/api";
+import { Config, Effect, FileSystem, Layer, Option } from "effect";
 import {
   FetchHttpClient,
   HttpRouter,
@@ -235,6 +236,41 @@ const App = Layer.unwrap(
   }),
 );
 
+/** The meta tags that tell the app what failed, every value escaped. */
+const loginFailureTags = (failure: LoginFailure) => {
+  const tag = (name: string, content: string) =>
+    `<meta name="${name}" content="${Documents.Sharing.escapeHtml(content)}">`;
+  return [
+    tag(loginFailureMeta.kind, failure.kind),
+    tag(loginFailureMeta.returnTo, failure.returnTo),
+  ].join("\n");
+};
+
+/**
+ * A failed login's page: the built app, with what failed in its head, for
+ * the app to say so in the visitor's language. Without STATIC_DIR (in
+ * development) the login routes keep their plain answers.
+ */
+const LoginFailurePage = Layer.unwrap(
+  Effect.gen(function* () {
+    const root = yield* Config.option(Config.String("STATIC_DIR"));
+    if (Option.isNone(root)) return Layer.empty;
+    const fs = yield* FileSystem.FileSystem;
+    const page = yield* fs.readFileString(`${root.value}/index.html`);
+    return Layer.succeed(OAuth.LoginFailurePage, (failure) =>
+      Effect.succeed(
+        HttpServerResponse.text(
+          Documents.Sharing.withSharing(page, loginFailureTags(failure)),
+          {
+            contentType: "text/html; charset=utf-8",
+            headers: { "Cache-Control": "no-cache" },
+          },
+        ),
+      ),
+    );
+  }),
+);
+
 /**
  * The site's own files, e.g. its logo, from `SITE_ASSETS_DIR`: so they can be
  * mounted beside the image (a ConfigMap) instead of hosted elsewhere.
@@ -287,7 +323,7 @@ const Routes = Layer.mergeAll(
   site,
   SiteAssets,
   App,
-).pipe(Layer.provideMerge(OAuth.routes));
+).pipe(Layer.provideMerge(OAuth.routes.pipe(Layer.provide(LoginFailurePage))));
 
 const Server = Layer.unwrap(
   Effect.gen(function* () {

@@ -1,0 +1,29 @@
+/* A failed login: what went wrong, and the way back. */
+.failed {
+  padding-block: 2rem;
+}
+
+.title {
+  margin: 0 0 1rem;
+  font-size: 1.875rem;
+  font-weight: 600;
+}
+
+.text {
+  margin: 0 0 1.5rem;
+  color: var(--color-text-muted);
+  font-size: 1.25rem;
+  font-weight: 300;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.front {
+  color: var(--color-text);
+  font-weight: 700;
+}

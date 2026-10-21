@@ -4,17 +4,19 @@ Only accounts from the company's own domains may log in. The domains are set in 
 
 ## AC-1: An account outside the domains is refused
 
-IF an account from a domain that is not allowed logs in, THEN Skjera SHALL refuse it with «This account is not allowed to sign in.», and SHALL not log it in.
+IF an account from a domain that is not allowed logs in, THEN Skjera SHALL show a page of the site, in the visitor's language, saying that only the company's accounts can log in, with a link to the front page, and SHALL not log it in.
+
+The page is only served by the built app, not by `pnpm dev`. Test it on a test server ([OPS-07](OPS-07-test-servers.md)): `PORT=8801 mise exec -- pnpm test-server`, then http://localhost:8801.
 
 **Test**
 
-- **Given** a private window at http://localhost:5173
+- **Given** a private window at http://localhost:8801
 - **When** you click **Log in** and log in at Dex as `mallory@other.example`, password `password`
-- **Then** the page says «This account is not allowed to sign in.»
-- **When** you open http://localhost:5173 again
+- **Then** you see a page of the site, with its header, saying that only the company's accounts can log in, with a link to the front page
+- **When** you click the link to the front page
 - **Then** the header still shows **Log in**
 
-**Automated:** `packages/oauth/e2e/specs/login.spec.ts`, `packages/oauth/test/OAuthClient.domains.test.ts`, `packages/oauth/test/allowedDomains.test.ts`
+**Automated:** `packages/app/e2e/specs/login.spec.ts`, `packages/oauth/test/AuthRoutes.test.ts`, `packages/oauth/e2e/specs/login.spec.ts`, `packages/oauth/test/OAuthClient.domains.test.ts`, `packages/oauth/test/allowedDomains.test.ts`
 
 ## AC-2: An account in the domains logs in
 

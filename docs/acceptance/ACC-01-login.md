@@ -53,9 +53,9 @@ IF the address to come back to after a login is on another site, THEN Skjera SHA
 
 ## AC-5: A login is used once
 
-IF the login provider's answer for a login arrives a second time, THEN Skjera SHALL refuse it, and log nobody in with it.
+IF the login provider's answer for a login arrives a second time, THEN Skjera SHALL show a page of the site, in the visitor's language, saying that the login took too long or was already used, with a button to log in again that returns to where the login was going and a link to the front page, and SHALL log nobody in with it.
 
-**Automated only:** the provider's answer passes through the browser in a moment, and can't reasonably be caught and sent again by hand. `packages/oauth/e2e/specs/login.spec.ts`, `packages/oauth/test/Sessions.test.ts`
+**Automated only:** the provider's answer passes through the browser in a moment, and can't reasonably be caught and sent again by hand. `packages/app/e2e/specs/login.spec.ts`, `packages/oauth/test/AuthRoutes.test.ts`, `packages/oauth/e2e/specs/login.spec.ts`, `packages/oauth/test/Sessions.test.ts`
 
 ## AC-6: Log out from the account menu
 
@@ -68,3 +68,9 @@ WHEN a logged-in user clicks **Log out** in the account menu, Skjera SHALL end t
 - **Then** you are on the front page, the header shows **Log in**, and the account menu and the **Studio** link are gone
 
 **Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/oauth/e2e/specs/login.spec.ts`, `packages/oauth/test/Sessions.test.ts`
+
+## AC-7: A login that didn't work has a way back
+
+IF the login provider's answer can't be used, THEN Skjera SHALL show a page of the site, in the visitor's language, saying that the login did not work, with a button to log in again that returns to where the login was going and a link to the front page.
+
+**Automated only:** the provider's answer can't reasonably be changed by hand on its way through the browser. `packages/app/e2e/specs/login.spec.ts`, `packages/oauth/test/AuthRoutes.test.ts`

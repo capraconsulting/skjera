@@ -16,6 +16,10 @@ import {
   eventLoader,
 } from "./routes/site/EventPage.tsx";
 import { Home, homeLoader } from "./routes/site/Home.tsx";
+import {
+  LoginFailed,
+  loginFailedRedirect,
+} from "./routes/site/LoginFailed.tsx";
 import { SiteLayout, siteLoader } from "./routes/site/SiteLayout.tsx";
 import { EventEditor } from "./routes/studio/EventEditor.tsx";
 import { StudioLayout, studioLoader } from "./routes/studio/StudioLayout.tsx";
@@ -65,6 +69,10 @@ const router = createBrowserRouter([
           // The signed-in user's own settings.
           { path: "account", Component: Account, loader: accountLoader },
           { path: "privacy", Component: Privacy },
+          // A failed login, which the server answers at the address of
+          // OAUTH_REDIRECT_URI: the path must be the same.
+          { path: "auth/callback", loader: loginFailedRedirect },
+          { path: "login-failed", Component: LoginFailed },
         ],
       },
       // The studio: everything else, behind login. Its columns nest: teams,
