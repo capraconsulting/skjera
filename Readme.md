@@ -35,7 +35,7 @@ The browser tests are in `packages/app/e2e/specs`, and work the pages through pa
 
 [docs/acceptance](docs/acceptance/README.md) has each feature's acceptance criteria, how a person tests each one by hand, and the tests that check it.
 
-The pre-commit hook (`.hooks/`, set by `mise run setup`) runs Biome on staged files, typechecks and the tests: Docker must be running, and mise active. There's no CI yet.
+The pre-commit hook (`.hooks/`, set by `mise run setup`) runs Biome on staged files, typechecks and the tests: Docker must be running, and mise active. GitHub (`.github/workflows/ci.yml`) runs the same checks, the browser tests and an image build on every push to main and every pull request.
 
 ## Test servers
 
