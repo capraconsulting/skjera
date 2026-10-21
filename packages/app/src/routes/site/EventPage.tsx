@@ -25,7 +25,10 @@ import {
 } from "react-router";
 import { Organizer } from "../../components/Organizer.tsx";
 import { RichText } from "../../components/RichText.tsx";
-import { rememberGuestSignup } from "../../site/guestSignups.ts";
+import {
+  rememberGuestSignup,
+  storedGuestSignup,
+} from "../../site/guestSignups.ts";
 import { attendees, events } from "../../sync/tables.ts";
 import { formatDaysIn, formatHoursIn } from "../../time.ts";
 import { Attend } from "./Attend.tsx";
@@ -33,17 +36,25 @@ import styles from "./EventPage.module.css";
 import { Signups } from "./Signups.tsx";
 import type { siteLoader } from "./SiteLayout.tsx";
 
+/** The event whose link, just opened, led to no signup: said once. */
+let goneLink: DocumentId | null = null;
+
 export const eventLoader = async ({ params, request }: LoaderFunctionArgs) => {
   const id = params.id as DocumentId;
-  // A guest's link to their signup, from an email: remembered here, so
-  // they can change or cancel it, then out of the address.
+  // A guest's link to their signup, from an email: checked with the server
+  // and remembered here, so they can change or cancel it, then out of the
+  // address. A link that leads to no signup is not remembered.
   const url = new URL(request.url);
   const guest = url.searchParams.get("guest");
   const token = url.searchParams.get("token");
   if (guest !== null && token !== null) {
-    rememberGuestSignup(id, { id: guest, cancelToken: token });
+    const stored = await storedGuestSignup(id, token);
+    if (stored === null) goneLink = id;
+    else rememberGuestSignup(id, { id: stored.id, cancelToken: token });
     throw redirect(url.pathname);
   }
+  const linkGone = goneLink === id;
+  goneLink = null;
   await Promise.all([
     events.collection.preload(),
     attendees.collection.preload(),
@@ -53,7 +64,7 @@ export const eventLoader = async ({ params, request }: LoaderFunctionArgs) => {
   if (!events.collection.has(id)) {
     throw data("Event not found", { status: 404 });
   }
-  return { id };
+  return { id, linkGone };
 };
 
 /** Everyone signed up for the event. */
@@ -66,7 +77,7 @@ const useSignups = (id: DocumentId) =>
   }).data;
 
 export function EventPage() {
-  const { id } = useLoaderData<typeof eventLoader>();
+  const { id, linkGone } = useLoaderData<typeof eventLoader>();
   const signups = useSignups(id);
   const me = useRouteLoaderData<typeof siteLoader>("site");
   const signedIn = me !== null && me !== undefined;
@@ -177,7 +188,12 @@ export function EventPage() {
       <div className={styles.body} data-testid="event-body">
         <RichText spans={event.body} />
       </div>
-      <Attend event={event} signups={signups} signedIn={signedIn} />
+      <Attend
+        event={event}
+        signups={signups}
+        signedIn={signedIn}
+        linkGone={linkGone}
+      />
       {signedIn ? <Signups event={event} signups={signups} /> : null}
     </article>
   );

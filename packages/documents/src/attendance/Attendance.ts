@@ -8,6 +8,7 @@ import {
   SignupRejected,
 } from "../api/errors.ts";
 import { type Problem, refused } from "../api/Problems.ts";
+import type { StoredGuestSignup } from "../api/PublicApi.ts";
 import type {
   Answer,
   Answers,
@@ -148,6 +149,15 @@ export class Attendance extends Context.Service<
       event: DocumentId,
       cancelToken: string,
     ) => Effect.Effect<void, SignupNotFound | SignupRejected>;
+    /**
+     * A guest's own signup, for the token they were given: what they told,
+     * to change it from any browser. None for another token, a cancelled or
+     * removed signup, or a deleted event.
+     */
+    readonly guestSignup: (
+      event: DocumentId,
+      cancelToken: string,
+    ) => Effect.Effect<StoredGuestSignup, SignupNotFound>;
     /**
      * Changes a signup's answers until the sign-up deadline. A member's
      * signup is theirs; a guest's goes with its cancel token.
@@ -425,6 +435,33 @@ export class Attendance extends Context.Service<
         }).pipe(sql.withTransaction, Effect.orDie);
       }, Effect.uninterruptible);
 
+      const guestSignup = Effect.fn("Attendance.guestSignup")(function* (
+        event: DocumentId,
+        cancelToken: string,
+      ) {
+        const [found] = yield* sql<{
+          id: string;
+          phone: string | null;
+          company: string | null;
+          answers: ReadonlyArray<Answer>;
+        }>`
+          SELECT a.id, a.phone, a.company, a.answers
+          FROM attendees a JOIN events e ON e.id = a.event_id
+          WHERE a.event_id = ${event} AND a.cancel_token_hash = ${hash(cancelToken)}
+            AND e.deleted_at IS NULL
+        `.pipe(Effect.orDie);
+        if (found === undefined) return yield* new SignupNotFound({});
+        return {
+          id: found.id,
+          phone: found.phone,
+          company: found.company,
+          // As the form gives them, by question id: sent back unchanged, they stay.
+          answers: Object.fromEntries(
+            found.answers.map((answer) => [answer.id, answer.value]),
+          ),
+        };
+      });
+
       const change = Effect.fn("Attendance.change")(function* (
         event: DocumentId,
         who: { readonly user: Identity } | { readonly cancelToken: string },
@@ -494,6 +531,7 @@ export class Attendance extends Context.Service<
         leave,
         attendAsGuest,
         leaveAsGuest,
+        guestSignup,
         change,
         remove,
         dietaryPreferences,

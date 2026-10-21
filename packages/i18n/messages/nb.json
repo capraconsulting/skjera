@@ -84,6 +84,7 @@
   "attend_no_guests": "Ingen gjester har meldt seg på ennå.",
   "attend_you_attending": "Du er påmeldt.",
   "attend_you_signed_up": "Du er påmeldt.",
+  "attend_link_gone": "Denne lenken fører ikke lenger til en påmelding.",
   "attend_closed": "Påmeldingen er stengt.",
   "attend_closes": "Påmeldingen stenger {when}.",
   "attend_places_left": [

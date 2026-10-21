@@ -1,10 +1,14 @@
 import { assert, layer } from "@effect/vitest";
 import { Effect, Option } from "effect";
 import { Attendance } from "../../src/attendance/Attendance.ts";
+import { Documents } from "../../src/events/Documents.ts";
+import type { DocumentId } from "../../src/Model.ts";
 import {
+  alice,
   bob,
   organizerView,
   publishedEvent,
+  setQuestions,
   signups,
   TestLayer,
 } from "../helpers.ts";
@@ -142,5 +146,168 @@ layer(TestLayer, { excludeTestServices: true })("Guests", (it) => {
         [[null, null]],
       );
     }),
+  );
+
+  it.effect(
+    "gives a guest their own signup for their token, and no one else's",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const [where, size] = [crypto.randomUUID(), crypto.randomUUID()];
+        const [small, large] = [crypto.randomUUID(), crypto.randomUUID()];
+        const id = yield* publishedEvent({
+          public: true,
+          guests: true,
+          edit: (event) =>
+            setQuestions(event, [
+              { id: where, type: "text", text: "Where did you hear of it?" },
+              {
+                id: size,
+                type: "choice",
+                text: "Towel size",
+                required: true,
+                options: [
+                  { id: small, text: "Small" },
+                  { id: large, text: "Large" },
+                ],
+              },
+            ]),
+        });
+        const gina = yield* attendance.attendAsGuest(
+          id,
+          {
+            name: "Gina",
+            email: "gina@example.org",
+            phone: "111",
+            company: "Acme",
+          },
+          { answers: { [where]: "A poster", [size]: small } },
+        );
+        const gus = yield* attendance.attendAsGuest(
+          id,
+          { name: "Gus", email: "gus@example.org" },
+          { answers: { [size]: large } },
+        );
+
+        const ginas = yield* attendance.guestSignup(id, gina);
+        const guss = yield* attendance.guestSignup(id, gus);
+        assert.deepStrictEqual(
+          { ...ginas, id: undefined },
+          {
+            id: undefined,
+            phone: "111",
+            company: "Acme",
+            answers: { [where]: "A poster", [size]: small },
+          },
+        );
+        assert.deepStrictEqual(
+          { ...guss, id: undefined },
+          {
+            id: undefined,
+            phone: null,
+            company: null,
+            answers: { [size]: large },
+          },
+        );
+        assert.notStrictEqual(ginas.id, guss.id);
+
+        // A token that was not given, or the guest's own on another event.
+        const other = yield* publishedEvent({ public: true, guests: true });
+        for (const [event, token] of [
+          [id, "guess"],
+          [other, gina],
+        ] as const) {
+          const error = yield* Effect.flip(
+            attendance.guestSignup(event, token),
+          );
+          assert.strictEqual(error._tag, "SignupNotFound");
+        }
+      }),
+  );
+
+  it.effect(
+    "finds no signup once it is cancelled, removed or its event deleted",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        const notFound = (event: DocumentId, token: string) =>
+          Effect.map(
+            Effect.flip(attendance.guestSignup(event, token)),
+            (error) => error._tag,
+          );
+        const guest = (name: string) =>
+          attendance.attendAsGuest(id, {
+            name,
+            email: `${name.toLowerCase()}@example.org`,
+          });
+
+        const cancelled = yield* guest("Gina");
+        yield* attendance.guestSignup(id, cancelled);
+        yield* attendance.leaveAsGuest(id, cancelled);
+        assert.strictEqual(yield* notFound(id, cancelled), "SignupNotFound");
+
+        const removed = yield* guest("Gus");
+        yield* attendance.remove(
+          (yield* attendance.guestSignup(id, removed)).id,
+        );
+        assert.strictEqual(yield* notFound(id, removed), "SignupNotFound");
+
+        const staying = yield* guest("Greta");
+        yield* attendance.guestSignup(id, staying);
+        yield* (yield* Documents).delete(id, alice);
+        assert.strictEqual(yield* notFound(id, staying), "SignupNotFound");
+      }),
+  );
+
+  it.effect(
+    "keeps a guest's signup as it was when what was read is saved back",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const [where, swim] = [crypto.randomUUID(), crypto.randomUUID()];
+        const id = yield* publishedEvent({
+          public: true,
+          guests: true,
+          edit: (event) =>
+            setQuestions(event, [
+              { id: where, type: "text", text: "Where did you hear of it?" },
+              {
+                id: swim,
+                type: "checkbox",
+                text: "I accept the risks of swimming",
+                required: true,
+              },
+            ]),
+        });
+        const token = yield* attendance.attendAsGuest(
+          id,
+          { name: "Gina", email: "gina@example.org", phone: "111" },
+          { answers: { [where]: "A poster", [swim]: true } },
+        );
+
+        const before = yield* attendance.guestSignup(id, token);
+        yield* attendance.change(
+          id,
+          { cancelToken: token },
+          {
+            answers: before.answers,
+            phone: before.phone ?? "",
+            company: before.company ?? "",
+          },
+        );
+
+        assert.deepStrictEqual(
+          yield* attendance.guestSignup(id, token),
+          before,
+        );
+        assert.deepStrictEqual(
+          (yield* organizerView(id)).map((each) => [
+            each?.phone,
+            each?.company,
+          ]),
+          [["111", null]],
+        );
+      }),
   );
 });
