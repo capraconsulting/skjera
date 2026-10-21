@@ -312,6 +312,10 @@ export class EventEditor {
     await this.checkbox(/Food is served/).check();
   }
 
+  async uncheckFoodServed(): Promise<void> {
+    await this.checkbox(/Food is served/).uncheck();
+  }
+
   async checkStreamed(): Promise<void> {
     await this.checkbox(/The event is streamed/).check();
   }

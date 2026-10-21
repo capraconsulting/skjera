@@ -65,7 +65,7 @@ WHERE an event serves food, the studio SHALL let an organiser set a food deadlin
 - **And** you click **Clear** beside it
 - **Then** the food deadline is set at 12:00 on the day picked, and is empty again after **Clear**
 
-**Automated:** none
+**Automated:** `packages/app/e2e/specs/attendance/dietary.spec.ts`
 
 ## AC-6: Only times that exist
 

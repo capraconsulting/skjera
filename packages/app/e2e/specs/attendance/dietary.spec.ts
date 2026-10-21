@@ -68,3 +68,67 @@ test("dietary preferences are optional, and organizers see them without names", 
 
   await cleanUp(alice, team, event.id);
 });
+
+test("the food deadline is set and cleared in the studio, and the event page says by when (AC-8, AC-9)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Food"));
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({
+    public: true,
+    guests: true,
+    dietary: true,
+  });
+  const reader = await visitor(browser);
+  const page = new EventPage(reader);
+  const attendance = new Attendance(reader);
+  const byWhen = "Dietary preferences by";
+
+  // The event starts on the 15th of next month: the 14th is before that.
+  const now = new Date();
+  const day = new Date(now.getFullYear(), now.getMonth() + 1, 14);
+  const shown = day.toLocaleDateString("en-US", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  // No food deadline: the page says nothing about by when.
+  await page.goto(event.id);
+  await attendance.expectText(/Sign-up closes/);
+  await attendance.expectNoText(byWhen);
+
+  // Set, it shows under the sign-up's own deadline.
+  await editor.times.pickFoodDeadline(day, "next");
+  await editor.times.expectFoodDeadline(shown, "12:00");
+  await editor.publish();
+  await page.reload();
+  await attendance.expectText(new RegExp(`${byWhen} ${shown}.*12:00\\s*PM`));
+
+  // Cleared, the field is empty and the page says nothing again.
+  await editor.times.clearFoodDeadline();
+  await editor.times.expectNoFoodDeadline();
+  await editor.publish();
+  await page.reload();
+  await attendance.expectText(/Sign-up closes/);
+  await attendance.expectNoText(byWhen);
+
+  // One that has passed is not announced.
+  await editor.times.setPassedFoodDeadline("previous");
+  await editor.publish();
+  await page.reload();
+  await attendance.expectText(/Sign-up closes/);
+  await attendance.expectNoText(byWhen);
+
+  // Food not served: no one is asked, whatever the deadline.
+  await editor.times.pickFoodDeadline(day, "next");
+  await editor.uncheckFoodServed();
+  await editor.publish();
+  await page.reload();
+  await attendance.expectText(/Sign-up closes/);
+  await attendance.expectNoText(byWhen);
+
+  await cleanUp(alice, team, event.id);
+});

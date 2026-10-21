@@ -246,90 +246,119 @@ layer(TestLayer, { excludeTestServices: true })("Attendance", (it) => {
     }),
   );
 
-  it.effect("lets people change their answers until sign-up closes", () =>
-    Effect.gen(function* () {
-      const documents = yield* Documents;
-      const attendance = yield* Attendance;
-      const size = crypto.randomUUID();
-      const [small, large] = [crypto.randomUUID(), crypto.randomUUID()];
-      const id = yield* publishedEvent({
-        public: true,
-        guests: true,
-        dietary: true,
-        edit: (event) =>
-          setQuestions(event, [
-            {
-              id: size,
-              type: "choice",
-              text: "Towel size",
-              required: true,
-              options: [
-                { id: small, text: "Small" },
-                { id: large, text: "Large" },
-              ],
-            },
-          ]),
-      });
-      yield* attendance.attend(id, alice, { answers: { [size]: small } });
-      const token = yield* attendance.attendAsGuest(
-        id,
-        { name: "Gina", email: "gina@example.org" },
-        { answers: { [size]: small } },
-      );
-      const view = Effect.map(organizerView(id), (rows) =>
-        rows.map((each) => each?.answers[0]?.answer),
-      );
-
-      yield* attendance.change(
-        id,
-        { user: alice },
-        { answers: { [size]: large } },
-      );
-      yield* attendance.change(
-        id,
-        { cancelToken: token },
-        { answers: { [size]: large } },
-      );
-      assert.deepStrictEqual(yield* view, ["Large", "Large"]);
-
-      // Changes are checked like signups, and need a signup to change.
-      const invalid = yield* Effect.flip(
-        attendance.change(id, { user: alice }, { answers: {} }),
-      );
-      assert.strictEqual(invalid.message, "Answer “Towel size”");
-      const nobody = yield* Effect.flip(
-        attendance.change(id, { user: bob }, { answers: { [size]: small } }),
-      );
-      assert.strictEqual(nobody._tag, "SignupNotFound");
-      const wrongToken = yield* Effect.flip(
-        attendance.change(
+  it.effect(
+    "lets people change their answers until sign-up closes (AC-10)",
+    () =>
+      Effect.gen(function* () {
+        const documents = yield* Documents;
+        const attendance = yield* Attendance;
+        const size = crypto.randomUUID();
+        const [small, large] = [crypto.randomUUID(), crypto.randomUUID()];
+        const id = yield* publishedEvent({
+          public: true,
+          guests: true,
+          dietary: true,
+          edit: (event) =>
+            setQuestions(event, [
+              {
+                id: size,
+                type: "choice",
+                text: "Towel size",
+                required: true,
+                options: [
+                  { id: small, text: "Small" },
+                  { id: large, text: "Large" },
+                ],
+              },
+            ]),
+        });
+        yield* attendance.attend(id, alice, { answers: { [size]: small } });
+        const token = yield* attendance.attendAsGuest(
           id,
-          { cancelToken: "guess" },
+          { name: "Gina", email: "gina@example.org" },
           { answers: { [size]: small } },
-        ),
-      );
-      assert.strictEqual(wrongToken._tag, "SignupNotFound");
+        );
+        const view = Effect.map(organizerView(id), (rows) =>
+          rows.map((each) => each?.answers[0]?.answer),
+        );
 
-      const editor = yield* openEditor(id);
+        // Nobody has changed anything: the change time is the sign-up time.
+        const before = yield* signups(id, Option.some(alice));
+        assert.strictEqual(before.length, 2);
+        for (const row of before) {
+          assert.strictEqual(row.changedAt.getTime(), row.signedUpAt.getTime());
+        }
 
-      // Not after sign-up closes.
-      const closing = yield* documents.applyChanges(
-        id,
-        [
-          editor.edit((event) =>
-            setTimes(event, {
-              deadline: "2020-01-15T12:00+01:00[Europe/Oslo]",
-            }),
+        // The clock ticks in milliseconds: let it.
+        yield* Effect.sleep("20 millis");
+        yield* attendance.change(
+          id,
+          { user: alice },
+          { answers: { [size]: large } },
+        );
+        const [member] = (yield* signups(id, Option.some(alice))).filter(
+          (row) => row.mine,
+        );
+        const first = before.find((row) => row.mine);
+        assert.isDefined(member);
+        assert.isDefined(first);
+        assert.strictEqual(
+          member?.signedUpAt.getTime(),
+          first?.signedUpAt.getTime(),
+        );
+        assert.isAbove(
+          member?.changedAt.getTime() ?? 0,
+          member?.signedUpAt.getTime() ?? 0,
+        );
+        yield* attendance.change(
+          id,
+          { cancelToken: token },
+          { answers: { [size]: large } },
+        );
+        assert.deepStrictEqual(yield* view, ["Large", "Large"]);
+
+        // Changes are checked like signups, and need a signup to change.
+        const invalid = yield* Effect.flip(
+          attendance.change(id, { user: alice }, { answers: {} }),
+        );
+        assert.strictEqual(invalid.message, "Answer “Towel size”");
+        const nobody = yield* Effect.flip(
+          attendance.change(id, { user: bob }, { answers: { [size]: small } }),
+        );
+        assert.strictEqual(nobody._tag, "SignupNotFound");
+        const wrongToken = yield* Effect.flip(
+          attendance.change(
+            id,
+            { cancelToken: "guess" },
+            { answers: { [size]: small } },
           ),
-        ],
-        alice,
-      );
-      yield* documents.publish(id, closing, alice);
-      const closed = yield* Effect.flip(
-        attendance.change(id, { user: alice }, { answers: { [size]: large } }),
-      );
-      assert.strictEqual(closed.message, "Sign-up for this event has closed");
-    }),
+        );
+        assert.strictEqual(wrongToken._tag, "SignupNotFound");
+
+        const editor = yield* openEditor(id);
+
+        // Not after sign-up closes.
+        const closing = yield* documents.applyChanges(
+          id,
+          [
+            editor.edit((event) =>
+              setTimes(event, {
+                deadline: "2020-01-15T12:00+01:00[Europe/Oslo]",
+              }),
+            ),
+          ],
+          alice,
+        );
+        yield* documents.publish(id, closing, alice);
+        const closed = yield* Effect.flip(
+          attendance.change(
+            id,
+            { user: alice },
+            { answers: { [size]: large } },
+          ),
+        );
+        assert.strictEqual(closed.message, "Sign-up for this event has closed");
+      }),
   );
 
   it.effect("lets organizers take people off, whenever", () =>

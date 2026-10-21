@@ -35,7 +35,7 @@ The front page SHALL list upcoming events the soonest first, and past events the
 - **When** you open http://localhost:5173 and then http://localhost:5173/?tag=Past%207
 - **Then** «AC-1: Coming» is above «AC-1: Later», and «AC-7: Past 7» comes first of the past events, «AC-7: Past 1» last
 
-**Automated:** none
+**Automated:** `packages/app/test/frontPage.test.ts`
 
 ## AC-3: Who it's for, on each row
 
@@ -47,7 +47,7 @@ The front page SHALL mark each upcoming event «Open to all» or «Members only�
 - **When** bob opens the front page
 - **Then** the public events say «Open to all», «AC-3: Members only» says «Members only», and «AC-4: Today» shows «#Workshop»
 
-**Automated:** none
+**Automated:** `packages/app/test/frontPage.test.ts`
 
 ## AC-4: The day, or today's time
 
@@ -59,7 +59,7 @@ The front page SHALL show the day each upcoming event starts, in its own time zo
 - **When** you open the front page
 - **Then** «AC-4: Today» says «Today at» and its start time, and «AC-1: Coming» says tomorrow's date
 
-**Automated:** none
+**Automated:** `packages/app/test/frontPage.test.ts`
 
 ## AC-5: An event going on now
 
@@ -71,7 +71,7 @@ WHILE an event is going on, the front page SHALL keep it under «Upcoming events
 - **When** you open the front page
 - **Then** it is under «Upcoming events», marked «Happening now», and «AC-1: Coming» isn't
 
-**Automated:** none
+**Automated:** `packages/app/test/frontPage.test.ts`
 
 ## AC-6: Your own sign-ups are marked
 

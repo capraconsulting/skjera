@@ -1,5 +1,12 @@
 import { expect, type Page } from "@playwright/test";
 
+/** 1 as "1st", 14 as "14th": how the calendar names its days. */
+const ordinal = (day: number): string => {
+  const suffixes = ["th", "st", "nd", "rd"];
+  const rest = day % 100;
+  return `${day}${suffixes[(rest - 20) % 10] ?? suffixes[rest] ?? suffixes[0]}`;
+};
+
 /** The editor's times: start and end, deadlines, and the time zone. */
 export class EventTimes {
   private readonly page: Page;
@@ -88,6 +95,62 @@ export class EventTimes {
       .first()
       .click();
     await this.page.getByLabel("Deadline time").fill("00:00");
+  }
+
+  private readonly foodDate = () =>
+    this.page.getByRole("button", { name: "Food deadline date" });
+
+  /**
+   * Picks `day` under the food deadline. The calendar keeps the month it last
+   * showed, so it is moved `towards` the day's month until the day shows.
+   */
+  async pickFoodDeadline(
+    day: Date,
+    towards: "next" | "previous",
+  ): Promise<void> {
+    const month = day.toLocaleDateString("en-US", { month: "long" });
+    const target = this.page.getByRole("button", {
+      name: new RegExp(
+        `${month} ${ordinal(day.getDate())}, ${day.getFullYear()}`,
+      ),
+    });
+    await this.foodDate().click();
+    const move = this.page.getByRole("button", {
+      name: towards === "next" ? /next month/i : /previous month/i,
+    });
+    for (let step = 0; step < 3 && (await target.count()) === 0; step++) {
+      await move.click();
+    }
+    await target.click();
+  }
+
+  /** Sets the food deadline to midnight on the 1st of this month, which has passed. */
+  async setPassedFoodDeadline(towards: "next" | "previous"): Promise<void> {
+    const now = new Date();
+    await this.pickFoodDeadline(
+      new Date(now.getFullYear(), now.getMonth(), 1),
+      towards,
+    );
+    await this.page.getByLabel("Food deadline time").fill("00:00");
+  }
+
+  async expectFoodDeadline(shown: string, time: string): Promise<void> {
+    await expect(this.foodDate()).toHaveText(shown);
+    await expect(this.page.getByLabel("Food deadline time")).toHaveValue(time);
+  }
+
+  async clearFoodDeadline(): Promise<void> {
+    await this.page
+      .getByRole("button", { name: "Clear food deadline" })
+      .click();
+  }
+
+  async expectNoFoodDeadline(): Promise<void> {
+    await expect(this.foodDate()).toHaveText("Pick a date");
+    await expect(this.page.getByLabel("Food deadline time")).toHaveValue("");
+    await expect(
+      this.page.getByRole("button", { name: "Clear food deadline" }),
+    ).toHaveCount(0);
   }
 
   async selectTimeZone(zone: string): Promise<void> {

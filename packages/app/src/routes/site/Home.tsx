@@ -9,10 +9,10 @@ import { Link } from "react-router";
 import { Badge } from "../../components/Badge.tsx";
 import { Button } from "../../components/Button.tsx";
 import { Organizer } from "../../components/Organizer.tsx";
+import { rowMarks, upcomingAndPast } from "../../site/frontPage.ts";
 import { guestSignup } from "../../site/guestSignups.ts";
 import { attendees, events as eventsTable } from "../../sync/tables.ts";
 import { sameTag, uniqueTags } from "../../tags.ts";
-import { formatClockIn, formatDayIn, sameDayIn } from "../../time.ts";
 import styles from "./Home.module.css";
 
 /** Waits for the copies of the published events and signups. */
@@ -90,12 +90,7 @@ export function Home() {
   const pickGuests = (next: GuestChoice) =>
     void setGuests(guests === next ? null : next);
 
-  const upcoming = shown
-    .filter((event) => event.endsAt > now)
-    .toSorted((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
-  const past = shown
-    .filter((event) => event.endsAt <= now)
-    .toSorted((a, b) => b.startsAt.getTime() - a.startsAt.getTime());
+  const { upcoming, past } = upcomingAndPast(shown, now);
 
   const upcomingId = useId();
   const pastId = useId();
@@ -218,7 +213,7 @@ function Row(props: {
   readonly signedUp: boolean;
 }) {
   const { event, now } = props;
-  const ongoing = event.startsAt <= now && now < event.endsAt;
+  const marks = rowMarks(event, now);
   return (
     <Link to={`/events/${event.id}`} className={styles.row}>
       <span className={styles.rowTitle}>{event.title}</span>
@@ -226,25 +221,17 @@ function Row(props: {
         <Organizer organizer={event.organizer} />
       </span>
       <span className={styles.rowBadges}>
-        {ongoing ? (
+        {marks.happeningNow ? (
           <Badge tone="success">{m.site_happening_now()}</Badge>
         ) : null}
-        <Badge tone="neutral">
-          {event.isPublic ? m.site_open_to_all() : m.common_members_only()}
-        </Badge>
-        {event.tags.map((tag) => (
+        <Badge tone="neutral">{marks.audience}</Badge>
+        {marks.tags.map((tag) => (
           <Badge key={tag.toLowerCase()} tone="neutral">
-            #{tag}
+            {tag}
           </Badge>
         ))}
         <Badge tone="neutral">
-          <time dateTime={event.startsAt.toISOString()}>
-            {sameDayIn(event.startsAt, now, event.timeZone)
-              ? m.site_today_at({
-                  time: formatClockIn(event.startsAt, event.timeZone),
-                })
-              : formatDayIn(event.startsAt, event.timeZone)}
-          </time>
+          <time dateTime={event.startsAt.toISOString()}>{marks.when}</time>
         </Badge>
         {props.signedUp ? (
           <Badge tone="highlight">{m.site_signed_up()}</Badge>

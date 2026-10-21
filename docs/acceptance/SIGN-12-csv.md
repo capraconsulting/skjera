@@ -51,7 +51,7 @@ The spreadsheet SHALL give, for each person, when they signed up and when they l
 - **When** you click **Download CSV**
 - **Then** his Signed up and Changed are those two times, as UTC (such as «2026-10-20T08:15:00.000Z»), and a guest who changed nothing has the same time in both
 
-**Automated:** none
+**Automated:** `packages/app/test/attendeesCsv.test.ts`, `packages/documents/test/attendance/signups.test.ts`
 
 ## AC-5: Questions taken off still have their column
 
@@ -63,7 +63,7 @@ WHERE a question has been taken off the event after people answered it, the spre
 - **When** you remove that question in the studio, **Publish**, and click **Download CSV**
 - **Then** «Where did you hear of it?» is the last column, with bob's answer
 
-**Automated:** none
+**Automated:** `packages/app/test/attendeesCsv.test.ts`
 
 ## AC-6: Answers can't run as formulas
 
@@ -75,4 +75,4 @@ IF an answer starts like a spreadsheet formula, THEN the spreadsheet SHALL keep 
 - **When** a guest signs up with «=1+1» for «Where did you hear of it?», and you click **Download CSV**
 - **Then** the file has «'=1+1», and a spreadsheet program opening it shows the text, not 2
 
-**Automated:** none
+**Automated:** `packages/app/test/attendeesCsv.test.ts`
