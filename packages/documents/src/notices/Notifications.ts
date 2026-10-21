@@ -2,8 +2,9 @@ import { Context, Effect, Layer, Ref, Schema } from "effect";
 import { type DocumentId, Locale } from "../Model.ts";
 
 // What attendees are told of, by email (see Mail.tsx): signing up and
-// cancelling tell it, and so do republishing an event at a new time or place
-// and deleting it, in their transaction.
+// cancelling tell it, and so do an organizer taking someone off an event,
+// republishing an event at a new time or place and deleting it, in their
+// transaction.
 
 /** Who an email is to. */
 export const Recipient = Schema.Struct({
@@ -41,7 +42,11 @@ export interface ChangeNotice extends Notice {
 
 export type Kept =
   | (Notice & {
-      readonly kind: "signedUp" | "signupCancelled" | "eventCancelled";
+      readonly kind:
+        | "signedUp"
+        | "signupCancelled"
+        | "signupRemoved"
+        | "eventCancelled";
     })
   | (ChangeNotice & { readonly kind: "eventChanged" });
 
@@ -62,6 +67,8 @@ export class Notifications extends Context.Service<
   {
     readonly signedUp: (notice: Notice) => Effect.Effect<void>;
     readonly signupCancelled: (notice: Notice) => Effect.Effect<void>;
+    /** An organizer took them off an event that has not ended. */
+    readonly signupRemoved: (notice: Notice) => Effect.Effect<void>;
     /** The event moved, or is at another place. */
     readonly eventChanged: (notice: ChangeNotice) => Effect.Effect<void>;
     /** The event was deleted before it was over: it won't happen. */
@@ -79,6 +86,7 @@ export class Notifications extends Context.Service<
         signedUp: (notice) => keep({ kind: "signedUp", ...notice }),
         signupCancelled: (notice) =>
           keep({ kind: "signupCancelled", ...notice }),
+        signupRemoved: (notice) => keep({ kind: "signupRemoved", ...notice }),
         eventChanged: (notice) => keep({ kind: "eventChanged", ...notice }),
         eventCancelled: (notice) => keep({ kind: "eventCancelled", ...notice }),
       };

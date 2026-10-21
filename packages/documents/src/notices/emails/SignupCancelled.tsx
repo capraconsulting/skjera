@@ -10,8 +10,9 @@ import {
   type WrittenText,
 } from "./OrganizerText.tsx";
 
-// Sent when someone cancels their signup, with a calendar cancellation that
-// takes the event out of their calendar.
+// Sent when someone cancels their signup, or the organizers take them off the
+// event, with a calendar cancellation that takes the event out of their
+// calendar.
 
 export interface SignupCancelledProps {
   readonly locale: Locale;
@@ -20,6 +21,8 @@ export interface SignupCancelledProps {
   readonly title: string;
   readonly when: string;
   readonly url: string;
+  /** The organizers took them off the event; else they cancelled. */
+  readonly removed?: boolean;
   /** The organiser's own text, in place of the standard opening. */
   readonly text?: WrittenText;
 }
@@ -35,7 +38,10 @@ export function SignupCancelled(props: SignupCancelledProps) {
           ? m.email_left_preview({ title }, { locale })
           : plainText(props.text.spans)
       }
-      reason={m.email_reason_left({ title, site: props.siteName }, { locale })}
+      reason={(props.removed ? m.email_reason_removed : m.email_reason_left)(
+        { title, site: props.siteName },
+        { locale },
+      )}
     >
       {props.text === undefined ? (
         <>

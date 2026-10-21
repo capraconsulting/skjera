@@ -25,8 +25,8 @@ import {
   tell,
 } from "./Notifications.ts";
 
-// Emails about an event to its attendees. Signing up, cancelling, and
-// moving or deleting the event tell `Notifications`, in their transaction; on the server, that
+// Emails about an event to its attendees. Signing up, cancelling, an organizer
+// taking someone off, and moving or deleting the event tell `Notifications`, in their transaction; on the server, that
 // leaves a message for the event's mailer (a cluster entity, one per event,
 // so its emails go out in order), kept in the database and deduplicated, so
 // each email is sent once it's committed, and once only. Reminders are sent
@@ -39,6 +39,7 @@ const Send = Rpc.make("Send", {
     kind: Schema.Literals([
       "signedUp",
       "signupCancelled",
+      "signupRemoved",
       "eventChanged",
       "eventCancelled",
       "reminder",
@@ -73,6 +74,12 @@ export const layerNotifications = Layer.effect(
         send(event, {
           key: `signupCancelled/${attendee.id}`,
           kind: "signupCancelled",
+          attendee,
+        }),
+      signupRemoved: ({ event, attendee }) =>
+        send(event, {
+          key: `signupRemoved/${attendee.id}`,
+          kind: "signupRemoved",
           attendee,
         }),
       eventChanged: ({ event, attendee, version, previously, previousPlace }) =>
@@ -285,6 +292,7 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                     calendar: calendar("REQUEST"),
                   };
                 case "signupCancelled":
+                case "signupRemoved":
                   return {
                     subject: subjectOf(
                       "signupCancelled",
@@ -298,6 +306,7 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                         title={event.title}
                         when={when}
                         url={url}
+                        removed={payload.kind === "signupRemoved"}
                         {...textOf("signupCancelled")}
                       />
                     ),

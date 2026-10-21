@@ -1,11 +1,14 @@
 import { assert, layer } from "@effect/vitest";
-import { Effect, Option } from "effect";
+import { Effect, Option, Ref } from "effect";
+import { SqlClient } from "effect/sql";
 import { Attendance } from "../../src/attendance/Attendance.ts";
 import { Documents } from "../../src/events/Documents.ts";
-import type { Answers } from "../../src/Model.ts";
+import type { Answers, DocumentId } from "../../src/Model.ts";
+import { NoticesKept } from "../../src/notices/Notifications.ts";
 import {
   alice,
   bob,
+  interruptedWhileLocked,
   openEditor,
   organizerView,
   publishedAs,
@@ -15,6 +18,18 @@ import {
   signups,
   TestLayer,
 } from "../helpers.ts";
+
+/** The notices that told `signup` it was taken off `event`. */
+const removalsOf = (event: DocumentId, signup: string) =>
+  Effect.gen(function* () {
+    const kept = yield* NoticesKept;
+    return (yield* Ref.get(kept)).filter(
+      (notice) =>
+        notice.kind === "signupRemoved" &&
+        notice.event === event &&
+        notice.attendee.id === signup,
+    );
+  });
 
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Attendance", (it) => {
@@ -366,11 +381,13 @@ layer(TestLayer, { excludeTestServices: true })("Attendance", (it) => {
       const documents = yield* Documents;
       const attendance = yield* Attendance;
       const id = yield* publishedEvent({ public: true, guests: true });
+      const gina = crypto.randomUUID();
       yield* attendance.attend(id, alice);
-      yield* attendance.attendAsGuest(id, {
-        name: "Gina",
-        email: "gina@example.org",
-      });
+      yield* attendance.attendAsGuest(
+        id,
+        { name: "Gina", email: "gina@example.org" },
+        { id: gina, locale: "nb" },
+      );
       const editor = yield* openEditor(id);
       const heads = yield* documents.applyChanges(
         id,
@@ -394,6 +411,87 @@ layer(TestLayer, { excludeTestServices: true })("Attendance", (it) => {
       );
       const again = yield* Effect.flip(attendance.remove(first?.id ?? ""));
       assert.strictEqual(again._tag, "SignupNotFound");
+
+      // Alice has no email to tell; Gina is told, in the language she
+      // signed up in.
+      assert.deepStrictEqual(yield* removalsOf(id, first?.id ?? ""), []);
+      yield* attendance.remove(gina);
+      const [told, ...more] = yield* removalsOf(id, gina);
+      assert.deepStrictEqual(more, []);
+      assert.strictEqual(told?.attendee.email, "gina@example.org");
+      assert.strictEqual(told?.attendee.locale, "nb");
+      assert.isTrue(told?.attendee.guest);
     }),
+  );
+
+  it.effect("tells no one taken off an event that has ended (AC-5)", () =>
+    Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      const attendance = yield* Attendance;
+      const id = yield* publishedEvent({ public: true, guests: true });
+      const gina = crypto.randomUUID();
+      yield* attendance.attendAsGuest(
+        id,
+        { name: "Gina", email: "gina@example.org" },
+        { id: gina },
+      );
+      // Both at once: an event must end after it starts.
+      yield* sql`
+        UPDATE events
+        SET starts_at = now() - interval '2 hours',
+            ends_at = now() - interval '1 hour'
+        WHERE id = ${id}
+      `;
+
+      yield* attendance.remove(gina);
+      assert.deepStrictEqual(yield* organizerView(id), []);
+      assert.deepStrictEqual(yield* removalsOf(id, gina), []);
+    }),
+  );
+
+  it.effect("tells someone taken off an event that is under way (AC-5)", () =>
+    Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      const attendance = yield* Attendance;
+      const id = yield* publishedEvent({ public: true, guests: true });
+      const gina = crypto.randomUUID();
+      yield* attendance.attendAsGuest(
+        id,
+        { name: "Gina", email: "gina@example.org" },
+        { id: gina },
+      );
+      yield* sql`
+        UPDATE events
+        SET starts_at = now() - interval '1 hour',
+            ends_at = now() + interval '1 hour'
+        WHERE id = ${id}
+      `;
+
+      yield* attendance.remove(gina);
+      assert.strictEqual((yield* removalsOf(id, gina)).length, 1);
+    }),
+  );
+
+  it.effect(
+    "finishes a removal whose caller went away part way, telling once (AC-6)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        const gina = crypto.randomUUID();
+        yield* attendance.attendAsGuest(
+          id,
+          { name: "Gina", email: "gina@example.org" },
+          { id: gina },
+        );
+
+        yield* interruptedWhileLocked("attendees", attendance.remove(gina));
+        assert.deepStrictEqual(yield* organizerView(id), []);
+        assert.strictEqual((yield* removalsOf(id, gina)).length, 1);
+
+        const again = yield* Effect.flip(attendance.remove(gina));
+        assert.strictEqual(again._tag, "SignupNotFound");
+        assert.strictEqual((yield* removalsOf(id, gina)).length, 1);
+      }),
   );
 });

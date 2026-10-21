@@ -2,7 +2,7 @@
 
 The studio lists who has signed up for an event, with their answers, and lets an organiser take someone off. A guest's phone and company are in SIGN-03, in person or online in SIGN-07, and dietary preferences, kept apart from the list, in SIGN-08. What the site shows of who's coming is in SITE-06.
 
-**Events:** one public event open to guests, with the questions «Towel size», **One of several** with the options «Small» and «Large», and «I bring a friend», a **Checkbox**.
+**Events:** one public event open to guests, with the questions «Towel size», **One of several** with the options «Small» and «Large», and «I bring a friend», a **Checkbox**; and «AC-8: Ended», a public event open to guests, starting in a few minutes and ending a few minutes later, with one guest signed up before it starts.
 
 ## AC-1: Everyone signed up, with a count
 
@@ -75,5 +75,29 @@ WHILE sign-up has closed, Skjera SHALL still let an organiser take attendees off
 - **Given** bob signed up
 - **When** you set **Sign-up deadline** to a time that has passed, **Publish**, and remove bob
 - **Then** he is gone from the list
+
+**Automated:** `packages/documents/test/attendance/signups.test.ts`
+
+## AC-7: The person taken off is told
+
+WHEN an organiser takes someone off an event that has not ended, Skjera SHALL email them that the organiser took them off, with a cancellation that takes the event out of their calendar. The email is MAIL-02's.
+
+**Test**
+
+- **Given** a guest signed up in a private window
+- **When** you click **Remove** on the guest's row in the studio, and say OK
+- **Then** the guest gets «Signup cancelled: …» in Mailpit, saying that the organisers took them off the event, and its attached cancellation (`.ics`) has `METHOD:CANCEL`
+
+**Automated:** `packages/documents/test/attendance/signups.test.ts`, `packages/documents/test/notices/signups.test.tsx`
+
+## AC-8: Not when the event has ended
+
+IF an organiser takes someone off an event that has ended, THEN Skjera SHALL not email them.
+
+**Test**
+
+- **Given** «AC-8: Ended», after it has ended, open in the studio
+- **When** you click **Remove** on the guest's row, and say OK
+- **Then** the guest is gone from the list, and has no «Signup cancelled: …» in Mailpit
 
 **Automated:** `packages/documents/test/attendance/signups.test.ts`

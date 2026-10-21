@@ -287,4 +287,39 @@ layer(TestLayer, { excludeTestServices: true })("Mail: own texts", (it) => {
         assert.strictEqual(moved?.message.subject, "Subject C");
       }),
   );
+  it.effect(
+    "sends the written subject and text to someone an organizer took off the event (AC-3)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const event = yield* publishedEvent({
+          emailTexts: {
+            signupCancelledSubject: "Written for signupCancelled",
+            signupCancelledText: writtenText,
+          },
+        });
+        const signup = crypto.randomUUID();
+        const address = `removed-${signup}@example.org`;
+        yield* attendance.attendAsGuest(
+          event,
+          { name: "Gina", email: address },
+          { id: signup },
+        );
+        yield* emailsTo(address, 1);
+
+        yield* attendance.remove(signup);
+        const [, removed] = yield* emailsTo(address, 2);
+        assert.strictEqual(
+          removed?.message.subject,
+          "Written for signupCancelled",
+        );
+        const html = removed?.message.html ?? "";
+        assert.match(html, /<h2[^>]*>Big news<\/h2>/);
+        assert.notMatch(html, /<h1/);
+        assert.notInclude(
+          html,
+          m.email_greeting({ name: "Gina" }, { locale: "en" }),
+        );
+      }),
+  );
 });

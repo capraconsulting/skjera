@@ -6,6 +6,7 @@
   "email_reason_signed_up": "Du melde deg på {title} på {site}.",
   "email_reason_attending": "Du er påmeld {title} på {site}.",
   "email_reason_left": "Du melde deg av {title} på {site}.",
+  "email_reason_removed": "Arrangørane av {title} på {site} fjerna deg frå arrangementet.",
   "email_signed_up_subject": "Du er påmeld: {title}",
   "email_signed_up_preview": "Vi sest på {title}",
   "email_signed_up_heading": "Du er påmeld",

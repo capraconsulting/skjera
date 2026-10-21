@@ -1,4 +1,5 @@
 import { assert, layer } from "@effect/vitest";
+import { m } from "@skjera/i18n/messages";
 import { Identity } from "@skjera/oauth/api";
 import { Effect } from "effect";
 import { Attendance } from "../../src/attendance/Attendance.ts";
@@ -150,5 +151,65 @@ layer(TestLayer, { excludeTestServices: true })("Mail: signups", (it) => {
       const [, cancelled] = yield* emailsTo(member.email ?? "", 2);
       assert.strictEqual(cancelled?.message.calendar?.method, "CANCEL");
     }),
+  );
+  it.effect(
+    "tells a guest an organizer took off the event, and takes it out of their calendar (AC-1, AC-2, AC-4)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const event = yield* publishedEvent();
+        const site = process.env.SITE_NAME ?? "Skjera";
+        const [left, removed] = [crypto.randomUUID(), crypto.randomUUID()];
+        const leaver = `leaver-${left}@example.org`;
+        const address = `gina-${removed}@example.org`;
+        const token = yield* attendance.attendAsGuest(
+          event,
+          { name: "Lise", email: leaver },
+          { id: left },
+        );
+        yield* attendance.attendAsGuest(
+          event,
+          { name: "Gina", email: address },
+          { id: removed },
+        );
+        const [invitation] = yield* emailsTo(address, 1);
+
+        yield* attendance.remove(removed);
+        const [, told] = yield* emailsTo(address, 2);
+        assert.strictEqual(
+          told?.message.subject,
+          m.email_left_subject({ title: "Launch" }, { locale: "en" }),
+        );
+        assert.strictEqual(told?.message.calendar?.method, "CANCEL");
+        const uid = `UID:${event}@${new URL(process.env.SITE_URL ?? "").host}`;
+        assert.include(told?.message.calendar?.content ?? "", "METHOD:CANCEL");
+        assert.include(told?.message.calendar?.content ?? "", uid);
+        assert.include(invitation?.message.calendar?.content ?? "", uid);
+        // The organizers' doing, not hers; the way back stays.
+        const text = told?.message.text ?? "";
+        assert.include(
+          text,
+          m.email_reason_removed({ title: "Launch", site }, { locale: "en" }),
+        );
+        assert.notInclude(
+          text,
+          m.email_reason_left({ title: "Launch", site }, { locale: "en" }),
+        );
+        assert.include(text, m.email_left_again({}, { locale: "en" }));
+        assert.include(text, `${process.env.SITE_URL}/events/${event}`);
+
+        // Cancelling oneself still says so.
+        yield* attendance.leaveAsGuest(event, token);
+        const [, cancelled] = yield* emailsTo(leaver, 2);
+        const cancelledText = cancelled?.message.text ?? "";
+        assert.include(
+          cancelledText,
+          m.email_reason_left({ title: "Launch", site }, { locale: "en" }),
+        );
+        assert.notInclude(
+          cancelledText,
+          m.email_reason_removed({ title: "Launch", site }, { locale: "en" }),
+        );
+      }),
   );
 });

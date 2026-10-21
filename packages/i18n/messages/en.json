@@ -6,6 +6,7 @@
   "email_reason_signed_up": "You signed up for {title} on {site}.",
   "email_reason_attending": "You're signed up for {title} on {site}.",
   "email_reason_left": "You cancelled your signup for {title} on {site}.",
+  "email_reason_removed": "The organizers of {title} on {site} took you off the event.",
   "email_signed_up_subject": "You're signed up: {title}",
   "email_signed_up_preview": "See you at {title}",
   "email_signed_up_heading": "You're signed up",

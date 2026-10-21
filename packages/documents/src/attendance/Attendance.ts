@@ -167,7 +167,10 @@ export class Attendance extends Context.Service<
       who: { readonly user: Identity } | { readonly cancelToken: string },
       details: SignupDetails,
     ) => Effect.Effect<void, EventNotFound | SignupNotFound | SignupRejected>;
-    /** Takes someone off an event, as its organizers: any time. */
+    /**
+     * Takes someone off an event, as its organizers: any time. Tells them,
+     * unless the event has ended.
+     */
     readonly remove: (attendee: string) => Effect.Effect<void, SignupNotFound>;
     /** What people can't eat, for an event's organizers: the texts alone. */
     readonly dietaryPreferences: (
@@ -509,10 +512,31 @@ export class Attendance extends Context.Service<
       const remove = Effect.fn("Attendance.remove")(function* (
         attendee: string,
       ) {
-        const removed = yield* sql`
-          DELETE FROM attendees WHERE id = ${attendee} RETURNING id
-        `.pipe(Effect.orDie);
-        if (removed.length === 0) return yield* new SignupNotFound({});
+        const found = yield* Effect.gen(function* () {
+          const [removed] = yield* sql<
+            Signup & {
+              readonly event_id: DocumentId;
+              readonly upcoming: boolean;
+            }
+          >`
+            DELETE FROM attendees a USING events e
+            WHERE a.id = ${attendee} AND e.id = a.event_id
+            RETURNING a.id, a.name, a.email, a.user_issuer IS NULL AS guest,
+              a.locale, a.event_id, e.ends_at > now() AS upcoming
+          `;
+          if (removed === undefined) return false;
+          // Taken off what's still to come: told, and out of their calendar.
+          if (removed.upcoming) {
+            yield* tell([removed], (recipient) =>
+              notifications.signupRemoved({
+                event: removed.event_id,
+                attendee: recipient,
+              }),
+            );
+          }
+          return true;
+        }).pipe(sql.withTransaction, Effect.orDie);
+        if (!found) return yield* new SignupNotFound({});
       }, Effect.uninterruptible);
 
       const dietaryPreferences = Effect.fn("Attendance.dietaryPreferences")(
