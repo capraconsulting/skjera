@@ -141,6 +141,7 @@ test("a guest's email brings their signup to another browser", async ({
   await page.expectAt(event.id);
   const there = new Attendance(second);
   await there.expectSignedUp();
+  await there.expectNoText("no longer leads to a signup");
   await there.cancelSignup();
   await there.expectSignUpButton(true);
   await editor.attendees.expectEmpty();
@@ -149,6 +150,132 @@ test("a guest's email brings their signup to another browser", async ({
     `Signup cancelled: ${event.title}`,
   );
   expect(cancelled.raw).toMatch(/Content-Type: text\/calendar;.*method=CANCEL/);
+
+  await cleanUp(alice, team, event.id);
+});
+
+/** The link in the email a guest got on signing up. */
+const linkFrom = async (
+  address: string,
+  event: { id: string; title: string },
+) => {
+  const email = await new Mailbox().emailTo(
+    address,
+    `You're signed up: ${event.title}`,
+  );
+  const link = email.text.match(
+    new RegExp(`http\\S*/events/${event.id}\\?guest=\\S+`),
+  )?.[0];
+  expect(link).toBeDefined();
+  return link ?? "";
+};
+
+test("a guest changes their answers from another browser", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Elsewhere"));
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({ public: true, guests: true });
+  await editor.questions.add(1, "Where did you hear of it?");
+  await editor.questions.checkRule(1, "Required");
+  await editor.publish();
+  const address = `gina-${crypto.randomUUID()}@example.org`;
+
+  // Gina signs up in one browser...
+  const first = await visitor(browser);
+  await new EventPage(first).goto(event.id);
+  const here = new Attendance(first);
+  await here.fillName("Gina");
+  await here.fillEmail(address);
+  await here.fillPhone("900 00 000");
+  await here.fillCompany("Acme");
+  await here.fillAnswer(/Where did you hear of it/, "A poster");
+  await here.clickSignUp();
+  await here.expectSignedUp();
+  const link = await linkFrom(address, event);
+
+  // ...and opens her link in another: the form has what she gave.
+  const second = await visitor(browser);
+  await new EventPage(second).gotoLink(link);
+  const there = new Attendance(second);
+  await there.expectSignedUp();
+  await there.clickChangeAnswers();
+  await there.answers.expectFieldValue("Your phone number", "900 00 000");
+  await there.answers.expectFieldValue("Your company", "Acme");
+  await there.answers.expectFieldValue("Where did you hear of it?", "A poster");
+
+  // Saving it as it is keeps what she gave.
+  await there.answers.clickSaveChanges();
+  await there.expectSignedUp();
+  await editor.reload();
+  await editor.attendees.expectRow("Gina", "900 00 000");
+  await editor.attendees.expectRow("Gina", "Acme");
+  await editor.attendees.expectAnswer("Where did you hear of it?", "A poster");
+
+  // A change from there is what the first browser shows, without a reload.
+  await there.clickChangeAnswers();
+  await there.answers.fillCompany("Initech");
+  await there.answers.clickSaveChanges();
+  await there.expectSignedUp();
+  await here.clickChangeAnswers();
+  await here.answers.expectFieldValue("Your company", "Initech");
+  await here.answers.clickSaveChanges();
+  await here.expectSignedUp();
+
+  // Taken off by the organizers while her page is open and held back, she
+  // is not shown as signed up.
+  await first.route("**/api/sync/**", (route) => route.abort());
+  await editor.attendees.remove("Gina");
+  await editor.reload();
+  await editor.attendees.expectEmpty();
+  await here.clickChangeAnswers();
+  await here.expectSignUpButton(true);
+  await here.expectNotSignedUp();
+
+  await cleanUp(alice, team, event.id);
+});
+
+test("a link that leads to no signup says so", async ({ browser }) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Gone"));
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({ public: true, guests: true });
+  const address = `gina-${crypto.randomUUID()}@example.org`;
+  const gone = "This link no longer leads to a signup.";
+
+  const first = await visitor(browser);
+  await new EventPage(first).goto(event.id);
+  const here = new Attendance(first);
+  await here.fillName("Gina");
+  await here.fillEmail(address);
+  await here.clickSignUp();
+  await here.expectSignedUp();
+  const link = await linkFrom(address, event);
+
+  // Another token: the page says so, and offers the usual sign-up.
+  const second = await visitor(browser);
+  const page = new EventPage(second);
+  await page.gotoLink(link.replace(/token=[^&\s]*/, "token=not-hers"));
+  const there = new Attendance(second);
+  await there.expectText(gone);
+  await there.expectNotSignedUp();
+  await there.expectSignUpButton(true);
+  // Nothing was remembered from it.
+  await page.reload();
+  await there.expectNoText(gone);
+  await there.expectNotSignedUp();
+  await there.expectSignUpButton(true);
+
+  // Once she has cancelled, her own link leads nowhere either.
+  await here.cancelSignup();
+  await here.expectSignUpButton(true);
+  await editor.attendees.expectEmpty();
+  const third = await visitor(browser);
+  await new EventPage(third).gotoLink(link);
+  const after = new Attendance(third);
+  await after.expectText(gone);
+  await after.expectNotSignedUp();
 
   await cleanUp(alice, team, event.id);
 });

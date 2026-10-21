@@ -96,6 +96,9 @@ const EventsHandlers = HttpApiBuilder.group(Api, "events", (handlers) =>
       .handle("leaveAsGuest", ({ params }) =>
         attendance.leaveAsGuest(params.id, params.token),
       )
+      .handle("guestSignup", ({ params }) =>
+        attendance.guestSignup(params.id, params.token),
+      )
       .handle("change", ({ params, payload }) =>
         Effect.flatMap(signedIn, (user) =>
           attendance.change(params.id, { user }, payload),

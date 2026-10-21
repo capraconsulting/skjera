@@ -84,6 +84,7 @@
   "attend_no_guests": "No guests have signed up yet.",
   "attend_you_attending": "You're attending.",
   "attend_you_signed_up": "You're signed up.",
+  "attend_link_gone": "This link no longer leads to a signup.",
   "attend_closed": "Sign-up has closed.",
   "attend_closes": "Sign-up closes {when}.",
   "attend_places_left": [

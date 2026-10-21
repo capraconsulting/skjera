@@ -211,15 +211,6 @@ export const attendees = syncedTable({
                 rememberGuestSignup(attendee.eventId, {
                   id: attendee.id,
                   cancelToken: signup.cancelToken,
-                  given: {
-                    ...(answers === undefined ? {} : { answers }),
-                    ...(guest?.phone === undefined
-                      ? {}
-                      : { phone: guest.phone }),
-                    ...(guest?.company === undefined
-                      ? {}
-                      : { company: guest.company }),
-                  },
                 });
               }),
             ),
@@ -232,21 +223,10 @@ export const attendees = syncedTable({
       const guest = guestSignup(attendee.eventId);
       if (guest?.id === attendee.id) {
         return sendPublic((client) =>
-          client.events
-            .changeAsGuest({
-              params: { id: attendee.eventId, token: guest.cancelToken },
-              payload: change,
-            })
-            .pipe(
-              Effect.tap(() =>
-                Effect.sync(() =>
-                  rememberGuestSignup(attendee.eventId, {
-                    ...guest,
-                    given: change,
-                  }),
-                ),
-              ),
-            ),
+          client.events.changeAsGuest({
+            params: { id: attendee.eventId, token: guest.cancelToken },
+            payload: change,
+          }),
         );
       }
       return sendPublic((client) =>

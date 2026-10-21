@@ -1,4 +1,6 @@
-import type { Answers } from "@skjera/documents/api";
+import type { DocumentId } from "@skjera/documents/api";
+import { Effect } from "effect";
+import { runPublic } from "./client.ts";
 
 // A guest's signup stays in their browser: only they can change or cancel
 // it, with the token they were given.
@@ -7,12 +9,6 @@ export interface GuestSignup {
   /** The attendee row. */
   readonly id: string;
   readonly cancelToken: string;
-  /** What they told, to start from when changing it. */
-  readonly given?: {
-    readonly answers?: Answers;
-    readonly phone?: string;
-    readonly company?: string;
-  };
 }
 
 const key = (eventId: string) => `skjera-signup-${eventId}`;
@@ -29,13 +25,7 @@ export const guestSignup = (eventId: string): GuestSignup | null => {
     ) {
       return null;
     }
-    return {
-      id: signup.id,
-      cancelToken: signup.cancelToken,
-      ...(typeof signup.given === "object" && signup.given !== null
-        ? { given: signup.given }
-        : {}),
-    };
+    return { id: signup.id, cancelToken: signup.cancelToken };
   } catch {
     return null;
   }
@@ -52,3 +42,14 @@ export const rememberGuestSignup = (
     // Private browsing: the signup stands, cancelling needs the organizers.
   }
 };
+
+/**
+ * What the server has stored for the guest with `cancelToken`: null when it
+ * leads to no signup. Other failures reject.
+ */
+export const storedGuestSignup = (eventId: DocumentId, cancelToken: string) =>
+  runPublic((client) =>
+    client.events
+      .guestSignup({ params: { id: eventId, token: cancelToken } })
+      .pipe(Effect.catchTag("SignupNotFound", () => Effect.succeed(null))),
+  );
