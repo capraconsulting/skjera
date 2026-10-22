@@ -50,7 +50,7 @@ It installs, builds the app and the server from the working tree, creates a new 
 - **Its address** is `SKJERA_TEST_SERVER_URL`: `http://<host>` or `https://<host>`, without a port, and `http://localhost` when it isn't set. It belongs to the machine, so set it in the machine's own mise config (`~/.config/mise/config.toml`, `[env]`) or its shell, not in this repository. The test server's links, including the ones in its emails, use it with the port. With `https://` it listens on `127.0.0.1` only, since the TLS proxy holds the port on the machine's other addresses. Restart `pnpm dev` (or the services) after changing it.
 - **Logging in** works from other machines on ports 8801–8806, the callbacks Dex knows. Cookies are per host, not per port, so logging in on one test server logs you out of another at the same host.
 - **Email** is read in Mailpit at the same address on port 8025, which is open to other machines while the address is set. Dex is at the same address on port 5556. With `https://`, both need the same TLS proxy as the test servers, for example `tailscale serve --bg --https 5556 http://127.0.0.1:5556` and `tailscale serve --bg --https 8025 http://127.0.0.1:8025`.
-- **The databases** are not dropped when a test server stops. List them with `psql "$DATABASE_URL"` and `\l skjera_testserver_*`, and drop one with `DROP DATABASE <name>`.
+- **The databases** are not dropped when a test server stops, but the next test server on the same port drops those no running server uses. List them with `psql "$DATABASE_URL"` and `\l skjera_testserver_*`, and drop one with `DROP DATABASE <name>`.
 
 ## What's where
 
