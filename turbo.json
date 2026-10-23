@@ -31,6 +31,10 @@
     "test": {
       "dependsOn": ["compile", "^compile"]
     },
+    "@skjera/server#test": {
+      "dependsOn": ["compile", "^compile"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/docs/acceptance/**"]
+    },
     "test:e2e": {
       "cache": false,
       "dependsOn": ["^test:e2e"]

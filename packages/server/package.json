@@ -19,9 +19,12 @@
     "tsx": "catalog:"
   },
   "devDependencies": {
+    "@automerge/automerge": "catalog:",
     "@effect/sql-pg": "catalog:",
     "@types/node": "catalog:",
+    "aws4fetch": "catalog:",
     "esbuild": "catalog:",
+    "temporal-polyfill": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

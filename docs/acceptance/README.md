@@ -122,7 +122,15 @@ Run `pnpm dev` on `main`, as in the [Readme](../../Readme.md). Then:
 - **Emails** arrive in Mailpit at http://localhost:8025, whatever address they are sent to.
 - **The language** is picked in the site's header. The site starts in English.
 
-Each feature file starts with the events it needs. Create them in a team of their own named after the feature, such as «SIGN-06: Maximum number of attendees», and title each event after the criterion it is for, such as «AC-3: A full event refuses new sign-ups». An event is published with **Publish** in the studio, and must have a title, a time and a place.
+Each feature file starts with the events it needs. They are in a team of their own named after the feature, such as «SIGN-06: Maximum number of attendees», and each event is titled after the criterion it is for, such as «AC-3: A full event refuses new sign-ups». An event made by hand is published with **Publish** in the studio, and must have a title, a time and a place.
+
+**Filling and emptying the test data.** With `pnpm dev` running, `mise run testdata` makes every file's teams, events and signups in the local database, published or as drafts as the file says, with times set from when it runs. Running it again starts them over. `mise run testdata:clear` removes them, and tells nobody. Both stop and change nothing unless `DATABASE_URL` is a database on `localhost` or `127.0.0.1`, which mise sets from `mise.toml`.
+
+- **What goes.** Every team named after a feature file, with all that is in it, a team of that name made by hand too. Other teams and events stay, and so does a hand-made «Capra Gruppen» with its events.
+- **All files at once.** Every file's events exist together, so lists such as the front page, `/embed` and the calendar show other files' events too: count them in.
+- **No emails, no Slack posts.** Signups are made without them, so a criterion that reads the email sent when someone signs up has bob, or the guest, cancel and sign up again first. Only the events of MAIL-05 and «AC-5: Reminded» of STU-13 remind those signed up, and the running server sends their reminders later.
+- **Changing a file.** A change to an **Events:** section is made in `packages/server/testdata/catalogue.ts` too: a test fails when a team or event the sections name is not made there.
+- **Left to the tester.** Settings in `mise.local.toml`, then restarting `pnpm dev`; bob in a second browser; guests in a private window; the images and texts a criterion has you bring; and the steps a criterion itself takes.
 
 ## Reading a criterion
 

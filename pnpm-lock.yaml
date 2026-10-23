@@ -618,15 +618,24 @@ importers:
         specifier: 'catalog:'
         version: 4.23.15
     devDependencies:
+      '@automerge/automerge':
+        specifier: 'catalog:'
+        version: 3.5.0
       '@effect/sql-pg':
         specifier: 'catalog:'
         version: 4.0.0(effect@4.0.0)
       '@types/node':
         specifier: 'catalog:'
         version: 24.19.0
+      aws4fetch:
+        specifier: 'catalog:'
+        version: 1.0.20
       esbuild:
         specifier: 'catalog:'
         version: 0.28.2
+      temporal-polyfill:
+        specifier: 'catalog:'
+        version: 1.0.5
       typescript:
         specifier: 'catalog:'
         version: 7.0.2

@@ -22,6 +22,8 @@ Commands need mise's environment: [activate mise](https://mise.jdx.dev/getting-s
 
 The local Postgres is [pg_automerge](https://github.com/TheKnarf/pg-automerge)'s released image (Postgres 18 with the extension). Table syncing uses [snapsync](packages/snapsync), pure SQL in this repository, which the server's migrations install: Postgres needs nothing of ours beyond pg_automerge. Local data is test data: `docker compose down -v` starts it over.
 
+With `pnpm dev` running, `mise run testdata` fills the local database with the teams and events [docs/acceptance](docs/acceptance/README.md) describes, and `mise run testdata:clear` takes them out again: teams and events made by hand stay. `docker compose down -v` still starts everything over. What the commands leave to the tester is under [Setting up](docs/acceptance/README.md#setting-up).
+
 ## Checks and tests
 
 ```bash

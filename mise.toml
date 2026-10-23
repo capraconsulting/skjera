@@ -63,6 +63,16 @@ MAILPIT_UI_ADDRESS = "{% if env.SKJERA_TEST_SERVER_URL | default(value='') %}0.0
 description = "Activate git hooks in .hooks/"
 run = "git config core.hooksPath .hooks"
 
+[tasks.testdata]
+description = "Fill the local database with the teams and events docs/acceptance describes"
+dir = "{{config_root}}/packages/server"
+run = "node --import tsx testdata.ts fill"
+
+[tasks."testdata:clear"]
+description = "Remove the teams and events of docs/acceptance from the local database"
+dir = "{{config_root}}/packages/server"
+run = "node --import tsx testdata.ts clear"
+
 [tasks.setup]
 description = "Install dependencies, git hooks and Playwright's browser"
 depends = ["hooks"]
