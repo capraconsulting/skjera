@@ -459,6 +459,22 @@ layer(TestLayer, { excludeTestServices: true })("Moving events", (it) => {
       }),
   );
 
+  it.effect("does not move an unpublished event (AC-10)", () =>
+    Effect.gen(function* () {
+      const documents = yield* Documents;
+      const { id } = yield* weekly("2049-01-03");
+      const before = yield* publishedRow(id);
+      const draftBefore = yield* draftTimes(id);
+      yield* documents.unpublish(id);
+
+      yield* Recurring.moveEnded(new Date("2049-01-04T06:30:00Z"));
+
+      const row = yield* publishedRow(id);
+      assert.strictEqual(row.starts_at.getTime(), before.starts_at.getTime());
+      assert.deepStrictEqual(yield* draftTimes(id), draftBefore);
+    }),
+  );
+
   it.effect(
     "moves an event once however many runs find it, and again a week later",
     () =>

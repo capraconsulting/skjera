@@ -100,6 +100,10 @@ export class EventEditor {
     await expect(this.page.getByRole("button", { name })).toBeVisible();
   }
 
+  async expectNoButton(name: string): Promise<void> {
+    await expect(this.page.getByRole("button", { name })).toHaveCount(0);
+  }
+
   /** The studio address of an event. */
   static path(team: string, event: string): string {
     return `/studio/teams/${team}/events/${event}`;
@@ -259,6 +263,37 @@ export class EventEditor {
     );
     const clicked = this.page
       .getByRole("button", { name: "Delete", exact: true })
+      .click();
+    return { question: clicked.then(() => question), done };
+  }
+
+  /**
+   * Clicks Unpublish, answering the question it asks. Its `question` is what
+   * was asked; `done` the server's answer to the unpublish, which only an
+   * accepted question sends.
+   */
+  clickUnpublishAnswering(answer: "accept" | "dismiss"): {
+    readonly question: Promise<string>;
+    readonly done: Promise<unknown>;
+  } {
+    const question = new Promise<string>((resolve) => {
+      this.page.once("dialog", (dialog) => {
+        resolve(dialog.message());
+        return answer === "accept" ? dialog.accept() : dialog.dismiss();
+      });
+    });
+    const done =
+      answer === "accept"
+        ? this.page.waitForResponse(
+            (response) =>
+              response.request().method() === "DELETE" &&
+              /^\/api\/documents\/[0-9a-f-]+\/publication$/.test(
+                new URL(response.url()).pathname,
+              ),
+          )
+        : Promise.resolve();
+    const clicked = this.page
+      .getByRole("button", { name: "Unpublish", exact: true })
       .click();
     return { question: clicked.then(() => question), done };
   }

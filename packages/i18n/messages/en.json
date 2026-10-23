@@ -244,6 +244,8 @@
   "studio_guests_hint": "People without an account can attend with their name and email.",
   "studio_guests_public_only": "Only public events can take guest signups.",
   "studio_confirm_delete": "Delete this event? It is also taken off the site.",
+  "studio_unpublish": "Unpublish",
+  "studio_confirm_unpublish": "Unpublish this event? It's taken off the site and kept here as a draft.",
   "studio_saving": "Saving…",
   "studio_saved": "Saved",
   "studio_not_published": "Not published",
@@ -263,6 +265,7 @@
   "studio_save_refused": "Couldn't save your changes: {reason}",
   "studio_publish_unsaved": "Couldn't publish: your edits haven't been saved yet",
   "studio_publish_failed": "Publishing failed",
+  "studio_unpublish_failed": "Unpublishing failed",
   "studio_document_missing": "Document not found",
   "csv_name": "Name",
   "csv_email": "Email",
@@ -385,6 +388,16 @@
       "match": {
         "countPlural=one": "Delete this event? It's taken off the site, and the person signed up is emailed that it's cancelled.",
         "countPlural=other": "Delete this event? It's taken off the site, and the {count} people signed up are emailed that it's cancelled."
+      }
+    }
+  ],
+  "studio_confirm_unpublish_cancels": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Unpublish this event? It's taken off the site and kept here as a draft, and the person signed up is emailed that it's cancelled.",
+        "countPlural=other": "Unpublish this event? It's taken off the site and kept here as a draft, and the {count} people signed up are emailed that it's cancelled."
       }
     }
   ],

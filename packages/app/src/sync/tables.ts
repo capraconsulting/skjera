@@ -154,6 +154,19 @@ export const publishDraft = (id: DocumentId, heads: ReadonlyArray<string>) =>
   );
 
 /**
+ * Takes a published event off the site, keeping its draft. The row of
+ * `events` leaves with it.
+ */
+export const unpublishDocument = (id: DocumentId) =>
+  provideHttp(
+    makeClient.pipe(
+      Effect.flatMap((client) =>
+        client.documents.unpublish({ params: { id } }),
+      ),
+    ),
+  );
+
+/**
  * What people can't eat at an event, for its organizers: the texts, sorted,
  * with nothing that says who gave them.
  */

@@ -96,6 +96,14 @@ export class Documents extends Context.Service<
       user: Identity,
     ) => Effect.Effect<Publication, DocumentNotFound | PublishRejected>;
     /**
+     * Takes the published version off the site and keeps the draft. When the
+     * event hasn't ended, its signups are removed and told it's cancelled.
+     * Not published, or unpublished already: nothing to do.
+     */
+    readonly unpublish: (
+      id: DocumentId,
+    ) => Effect.Effect<void, DocumentNotFound>;
+    /**
      * Deletes the document, taking its published version off the site. It's
      * kept, marked deleted. An event's attendees are told it's cancelled,
      * unless it's over.
@@ -344,6 +352,14 @@ export class Documents extends Context.Service<
                 }),
               );
             }
+            // Unpublished before: back on the site. Never a document deleted
+            // meanwhile.
+            yield* sql`
+              UPDATE events e SET deleted_at = NULL
+              FROM documents d
+              WHERE e.id = ${id} AND d.id = e.id
+                AND e.deleted_at IS NOT NULL AND d.deleted_at IS NULL
+            `;
             return rows;
           }).pipe(sql.withTransaction),
       } satisfies Record<ContentTypeName, unknown>;
@@ -385,6 +401,41 @@ export class Documents extends Context.Service<
         return toPublication(row);
       }, Effect.uninterruptible);
 
+      const unpublish = Effect.fn("Documents.unpublish")(function* (
+        id: DocumentId,
+      ) {
+        const found = yield* Effect.gen(function* () {
+          // The document first, then the event: the order `delete` locks them in.
+          const [document] = yield* sql`
+            SELECT id FROM documents WHERE id = ${id} AND deleted_at IS NULL FOR UPDATE
+          `;
+          if (document === undefined) return false;
+          // Off the site as a deleted event is, everywhere `events.deleted_at`
+          // is read; the draft stays, and publishing clears it.
+          const [event] = yield* sql<{ upcoming: boolean }>`
+            UPDATE events SET deleted_at = now()
+            WHERE id = ${id} AND deleted_at IS NULL
+            RETURNING ends_at > now() AS upcoming
+          `;
+          // Signed up for what won't happen now: cancelled, in calendars too,
+          // and removed, so sign-up starts empty when it's published again.
+          if (event?.upcoming) {
+            const removed = yield* sql<Signup>`
+              DELETE FROM attendees WHERE event_id = ${id}
+              RETURNING id, name, email, user_issuer IS NULL AS guest, locale
+            `;
+            yield* sql`DELETE FROM dietary_preferences WHERE event_id = ${id}`;
+            yield* tell(removed, (attendee) =>
+              notifications.eventCancelled({ event: id, attendee }),
+            );
+          }
+          return true;
+        }).pipe(sql.withTransaction, Effect.orDie);
+        if (!found) {
+          return yield* new DocumentNotFound({ id });
+        }
+      }, Effect.uninterruptible);
+
       const deleteDocument = Effect.fn("Documents.delete")(function* (
         id: DocumentId,
         user: Identity,
@@ -424,6 +475,7 @@ export class Documents extends Context.Service<
         changesSince,
         applyChanges,
         publish,
+        unpublish,
         delete: deleteDocument,
       });
     }),

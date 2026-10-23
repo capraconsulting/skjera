@@ -31,7 +31,9 @@ export function EditorFooter(props: {
   readonly handle: DocHandle<EventContent>;
   readonly saving: boolean;
   readonly publishing: boolean;
+  readonly unpublishing: boolean;
   readonly onPublish: () => void;
+  readonly onUnpublish: () => void;
   readonly onDelete: () => void;
 }) {
   const version = useVersion(props.handle);
@@ -87,16 +89,25 @@ export function EditorFooter(props: {
     props.onPublish();
   };
 
-  // Deleting an event people signed up for cancels it: say so first.
+  // Taking an event off the site, or deleting it, before it ends cancels it
+  // for the people signed up.
+  const cancels = () =>
+    publication !== undefined &&
+    publication.endsAt.getTime() > Date.now() &&
+    signedUp > 0;
+
   const remove = () => {
-    const cancels =
-      publication !== undefined &&
-      publication.endsAt.getTime() > Date.now() &&
-      signedUp > 0;
-    const question = cancels
+    const question = cancels()
       ? m.studio_confirm_delete_cancels({ count: signedUp })
       : m.studio_confirm_delete();
     if (window.confirm(question)) props.onDelete();
+  };
+
+  const unpublish = () => {
+    const question = cancels()
+      ? m.studio_confirm_unpublish_cancels({ count: signedUp })
+      : m.studio_confirm_unpublish();
+    if (window.confirm(question)) props.onUnpublish();
   };
 
   return (
@@ -133,6 +144,14 @@ export function EditorFooter(props: {
           <Button variant="danger" onClick={remove}>
             {m.common_delete()}
           </Button>
+          {publication !== undefined && (
+            <Button
+              onClick={unpublish}
+              disabled={props.publishing || props.unpublishing}
+            >
+              {m.studio_unpublish()}
+            </Button>
+          )}
           <Button
             variant="primary"
             className={styles.publish}

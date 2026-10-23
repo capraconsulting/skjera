@@ -2,7 +2,7 @@
 
 An event is written in the studio and reaches the site only when an organiser clicks **Publish**. Edits made after that stay in the studio until it is published again.
 
-Publishing also needs a place, as [STU-11](STU-11-place.md) AC-2 says. There is no way to take a published event off the site other than deleting it ([STU-19](STU-19-deleting.md)) or making it members only ([STU-12](STU-12-visibility.md)).
+Publishing also needs a place, as [STU-11](STU-11-place.md) AC-2 says. A published event is taken off the site by unpublishing it ([STU-20](STU-20-unpublishing.md)), deleting it ([STU-19](STU-19-deleting.md)) or making it members only ([STU-12](STU-12-visibility.md)).
 
 **Events:** in team «STU-17: Publishing»:
 

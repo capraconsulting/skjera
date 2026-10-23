@@ -17,7 +17,12 @@ import { Effect, Fiber, Schedule } from "effect";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { DraftPresence } from "../presence/presence.ts";
 import { sayWhy } from "../problems.ts";
-import { documents, events, publishDraft } from "../sync/tables.ts";
+import {
+  documents,
+  events,
+  publishDraft,
+  unpublishDocument,
+} from "../sync/tables.ts";
 import { forgetLocal, openDraft } from "./repo.ts";
 
 export interface SessionState {
@@ -30,10 +35,12 @@ export interface SessionState {
   /** Local changes the server doesn't have yet. */
   readonly saving: boolean;
   readonly publishing: boolean;
+  readonly unpublishing: boolean;
   readonly error: string | null;
   /** Someone deleted the document; the session has stopped. */
   readonly deleted: boolean;
   readonly publish: () => void;
+  readonly unpublish: () => void;
 }
 
 class SessionStore {
@@ -43,9 +50,11 @@ class SessionStore {
     teamId: null,
     saving: false,
     publishing: false,
+    unpublishing: false,
     error: null,
     deleted: false,
     publish: () => {},
+    unpublish: () => {},
   };
   readonly #listeners = new Set<() => void>();
 
@@ -165,6 +174,22 @@ const session = (id: DocumentId, store: SessionStore) =>
       Effect.ensuring(Effect.sync(() => store.set({ publishing: false }))),
     );
 
+    // Takes the published version off the site; the draft stays.
+    const unpublish = unpublishDocument(id).pipe(
+      // Its row leaves `events` at once, as a sync would take it.
+      Effect.tap(() =>
+        Effect.promise(() => events.refresh()).pipe(
+          Effect.andThen(Effect.sync(() => store.set({ error: null }))),
+        ),
+      ),
+      Effect.catch((error) =>
+        Effect.sync(() =>
+          store.set({ error: sayWhy(error, m.studio_unpublish_failed()) }),
+        ),
+      ),
+      Effect.ensuring(Effect.sync(() => store.set({ unpublishing: false }))),
+    );
+
     const presence = yield* Effect.acquireRelease(
       Effect.sync(() => new DraftPresence(handle as DocHandle<unknown>)),
       (presence) => Effect.sync(() => presence.stop()),
@@ -175,9 +200,14 @@ const session = (id: DocumentId, store: SessionStore) =>
       presence,
       teamId: row.teamId,
       publishing: false,
+      unpublishing: false,
       publish: () => {
         store.set({ publishing: true });
         void Effect.runPromise(publish);
+      },
+      unpublish: () => {
+        store.set({ unpublishing: true });
+        void Effect.runPromise(unpublish);
       },
     });
     showSaving();

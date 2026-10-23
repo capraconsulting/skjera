@@ -39,6 +39,7 @@ These files say what to test and how. Which criteria have passed in a round of t
 | STU-17 | [Publishing](STU-17-publishing.md) |
 | STU-18 | [Confirming a new time before publishing it](STU-18-confirm-new-time.md) |
 | STU-19 | [Deleting an event](STU-19-deleting.md) |
+| STU-20 | [Unpublishing an event](STU-20-unpublishing.md) |
 
 ## SITE: The public site
 

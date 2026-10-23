@@ -11,6 +11,8 @@ import { NoticesKept } from "../../src/notices/Notifications.ts";
 import {
   alice,
   bob,
+  dietaryList,
+  interruptedWhileLocked,
   openEditor,
   organizerView,
   publishedAs,
@@ -215,6 +217,124 @@ layer(TestLayer, { excludeTestServices: true })("Attendee notices", (it) => {
       yield* documents.delete(past, alice);
       assert.deepStrictEqual(yield* cancellations(past), []);
     }),
+  );
+
+  it.effect(
+    "cancels an unpublished event for those signed up, and removes their signups (AC-7)",
+    () =>
+      Effect.gen(function* () {
+        const documents = yield* Documents;
+        const attendance = yield* Attendance;
+        const sql = yield* SqlClient.SqlClient;
+        const kept = yield* NoticesKept;
+        const id = yield* publishedEvent({
+          public: true,
+          guests: true,
+          dietary: true,
+        });
+        const carol = new Identity({
+          issuer: "https://idp.example",
+          subject: "carol",
+          email: "carol@example.com",
+          name: "Carol",
+        });
+        yield* attendance.attend(id, carol);
+        yield* attendance.attend(id, bob); // No email to tell.
+        yield* attendance.attendAsGuest(
+          id,
+          { name: "Gina", email: "gina@example.org" },
+          { dietary: "vegan" },
+        );
+        assert.lengthOf(yield* dietaryList(id), 1);
+
+        yield* documents.unpublish(id);
+
+        const cancellations = (yield* Ref.get(kept)).filter(
+          (notice) => notice.kind === "eventCancelled" && notice.event === id,
+        );
+        assert.deepStrictEqual(
+          cancellations.map((notice) => notice.attendee.name).sort(),
+          ["Carol", "Gina"],
+        );
+        const [row] = yield* sql<{ signups: number; dietary: number }>`
+          SELECT (SELECT count(*)::int FROM attendees WHERE event_id = ${id}) AS signups,
+            (SELECT count(*)::int FROM dietary_preferences WHERE event_id = ${id}) AS dietary
+        `;
+        assert.deepStrictEqual(row, { signups: 0, dietary: 0 });
+      }),
+  );
+
+  it.effect(
+    "tells nobody and keeps the signups when an unpublished event is over (AC-8)",
+    () =>
+      Effect.gen(function* () {
+        const documents = yield* Documents;
+        const sql = yield* SqlClient.SqlClient;
+        const kept = yield* NoticesKept;
+        const past = yield* publishedEvent({
+          public: true,
+          guests: true,
+          edit: (event) =>
+            setTimes(event, {
+              start: "2020-10-15T18:00+02:00[Europe/Oslo]",
+              end: "2020-10-15T21:00+02:00[Europe/Oslo]",
+            }),
+        });
+        yield* sql`
+          INSERT INTO attendees (event_id, name, email, cancel_token_hash)
+          VALUES (${past}, 'Gina', 'gina@example.org', ${crypto.randomUUID()})
+        `;
+
+        yield* documents.unpublish(past);
+
+        assert.deepStrictEqual(
+          (yield* Ref.get(kept)).filter((notice) => notice.event === past),
+          [],
+        );
+        const [row] = yield* sql<{ signups: number }>`
+          SELECT count(*)::int AS signups FROM attendees WHERE event_id = ${past}
+        `;
+        assert.deepStrictEqual(row, { signups: 1 });
+      }),
+  );
+
+  it.effect(
+    "finishes unpublishing when the client goes away, and tells each person once (AC-15)",
+    () =>
+      Effect.gen(function* () {
+        const documents = yield* Documents;
+        const attendance = yield* Attendance;
+        const kept = yield* NoticesKept;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        const carol = new Identity({
+          issuer: "https://idp.example",
+          subject: "carol",
+          email: "carol@example.com",
+          name: "Carol",
+        });
+        yield* attendance.attend(id, carol);
+        yield* attendance.attendAsGuest(id, {
+          name: "Gina",
+          email: "gina@example.org",
+        });
+        const cancellations = Ref.get(kept).pipe(
+          Effect.map((all) =>
+            all.filter(
+              (notice) =>
+                notice.kind === "eventCancelled" && notice.event === id,
+            ),
+          ),
+        );
+
+        // The `UPDATE events` is what waits for this lock, not the first read.
+        yield* interruptedWhileLocked("events", documents.unpublish(id));
+        assert.isUndefined(yield* publishedAs(id, "members"));
+        assert.lengthOf(yield* cancellations, 2);
+
+        // Again: nothing left to tell.
+        yield* documents.unpublish(id);
+        assert.lengthOf(yield* cancellations, 2);
+      }),
   );
 
   it.effect("tells attendees when a republish moves the event", () =>

@@ -1,12 +1,16 @@
 import * as A from "@automerge/automerge";
 import { assert, layer } from "@effect/vitest";
+import { Identity } from "@skjera/oauth/api";
 import { Effect, Ref } from "effect";
 import { SqlClient } from "effect/sql";
+import { Attendance } from "../../src/attendance/Attendance.ts";
 import type { EventContent } from "../../src/events/ContentTypes.ts";
 import { Documents } from "../../src/events/Documents.ts";
 import { AnnouncementsKept } from "../../src/notices/Announcements.ts";
+import { NoticesKept } from "../../src/notices/Notifications.ts";
 import {
   alice,
+  bob,
   end,
   newTeam,
   openEditor,
@@ -17,8 +21,16 @@ import {
   setQuestions,
   setTimes,
   start,
+  syncedDocument,
   TestLayer,
 } from "../helpers.ts";
+
+const carol = new Identity({
+  issuer: "https://idp.example",
+  subject: "carol",
+  email: "carol@example.com",
+  name: "Carol",
+});
 
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Publishing", (it) => {
@@ -408,6 +420,109 @@ layer(TestLayer, { excludeTestServices: true })("Publishing", (it) => {
           }),
           "The food deadline can't be after sign-up closes",
         );
+      }),
+  );
+
+  it.effect(
+    "takes an unpublished event off the site and keeps its draft (AC-4, AC-6)",
+    () =>
+      Effect.gen(function* () {
+        const documents = yield* Documents;
+        const sql = yield* SqlClient.SqlClient;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        assert.isDefined(yield* publishedAs(id, "anyone"));
+
+        yield* documents.unpublish(id);
+
+        // Off the site, but the published row is kept with the mark set.
+        assert.isUndefined(yield* publishedAs(id, "anyone"));
+        assert.isUndefined(yield* publishedAs(id, "members"));
+        const [row] = yield* sql<{ off: boolean }>`
+          SELECT deleted_at IS NOT NULL AS off FROM events WHERE id = ${id}
+        `;
+        assert.deepStrictEqual(row, { off: true });
+        // The draft stays, with its content.
+        assert.isDefined(yield* syncedDocument(id));
+        const draft = A.load<EventContent>((yield* documents.get(id)).draft);
+        assert.strictEqual(draft.title, "Meetup");
+
+        // Unpublishing again, or a draft never published, is as good as done.
+        yield* documents.unpublish(id);
+        const unpublished = yield* documents.create(
+          "event",
+          yield* newTeam,
+          alice,
+        );
+        yield* documents.unpublish(unpublished);
+
+        // A deleted event is gone, not unpublished.
+        const deleted = yield* publishedEvent({ public: true, guests: true });
+        yield* documents.delete(deleted, alice);
+        assert.strictEqual(
+          (yield* Effect.flip(documents.unpublish(deleted)))._tag,
+          "DocumentNotFound",
+        );
+      }),
+  );
+
+  it.effect("refuses sign-ups to an unpublished event (AC-5)", () =>
+    Effect.gen(function* () {
+      const documents = yield* Documents;
+      const attendance = yield* Attendance;
+      const id = yield* publishedEvent({ public: true, guests: true });
+      yield* documents.unpublish(id);
+
+      assert.strictEqual(
+        (yield* Effect.flip(attendance.attend(id, bob)))._tag,
+        "EventNotFound",
+      );
+      assert.strictEqual(
+        (yield* Effect.flip(
+          attendance.attendAsGuest(id, {
+            name: "Gina",
+            email: "gina@example.org",
+          }),
+        ))._tag,
+        "EventNotFound",
+      );
+    }),
+  );
+
+  it.effect(
+    "puts an unpublished event back on the site, empty and not announced again (AC-11)",
+    () =>
+      Effect.gen(function* () {
+        const documents = yield* Documents;
+        const attendance = yield* Attendance;
+        const sql = yield* SqlClient.SqlClient;
+        const announced = yield* AnnouncementsKept;
+        const notices = yield* NoticesKept;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        yield* attendance.attend(id, carol);
+        yield* attendance.attendAsGuest(id, {
+          name: "Gina",
+          email: "gina@example.org",
+        });
+        yield* documents.unpublish(id);
+        assert.isUndefined(yield* publishedAs(id, "anyone"));
+
+        yield* documents.publish(id, (yield* documents.get(id)).heads, alice);
+
+        assert.isDefined(yield* publishedAs(id, "anyone"));
+        assert.isDefined(yield* publishedAs(id, "members"));
+        const [row] = yield* sql<{ off: boolean; signups: number }>`
+          SELECT deleted_at IS NOT NULL AS off,
+            (SELECT count(*)::int FROM attendees WHERE event_id = events.id) AS signups
+          FROM events WHERE id = ${id}
+        `;
+        assert.deepStrictEqual(row, { off: false, signups: 0 });
+        // Slack was told once, the first time.
+        const told = (yield* Ref.get(announced)).filter((each) => each === id);
+        assert.deepStrictEqual(told, [id]);
+        const changes = (yield* Ref.get(notices))
+          .filter((notice) => notice.kind === "eventChanged")
+          .filter((notice) => notice.event === id);
+        assert.deepStrictEqual(changes, []);
       }),
   );
 });

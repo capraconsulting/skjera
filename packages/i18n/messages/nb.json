@@ -244,6 +244,8 @@
   "studio_guests_hint": "Folk uten konto kan melde seg på med navn og e-postadresse.",
   "studio_guests_public_only": "Bare offentlige arrangementer kan ta imot gjester.",
   "studio_confirm_delete": "Slette dette arrangementet? Det blir også fjernet fra nettstedet.",
+  "studio_unpublish": "Avpubliser",
+  "studio_confirm_unpublish": "Avpublisere dette arrangementet? Det blir fjernet fra nettstedet og beholdt her som utkast.",
   "studio_saving": "Lagrer …",
   "studio_saved": "Lagret",
   "studio_not_published": "Ikke publisert",
@@ -263,6 +265,7 @@
   "studio_save_refused": "Kunne ikke lagre endringene: {reason}",
   "studio_publish_unsaved": "Kunne ikke publisere: endringene dine er ikke lagret ennå",
   "studio_publish_failed": "Publiseringen mislyktes",
+  "studio_unpublish_failed": "Avpubliseringen mislyktes",
   "studio_document_missing": "Fant ikke dokumentet",
   "csv_name": "Navn",
   "csv_email": "E-post",
@@ -385,6 +388,16 @@
       "match": {
         "countPlural=one": "Slette dette arrangementet? Det blir fjernet fra nettstedet, og den påmeldte får beskjed på e-post om at det er avlyst.",
         "countPlural=other": "Slette dette arrangementet? Det blir fjernet fra nettstedet, og de {count} påmeldte får beskjed på e-post om at det er avlyst."
+      }
+    }
+  ],
+  "studio_confirm_unpublish_cancels": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Avpublisere dette arrangementet? Det blir fjernet fra nettstedet og beholdt her som utkast, og den påmeldte får beskjed på e-post om at det er avlyst.",
+        "countPlural=other": "Avpublisere dette arrangementet? Det blir fjernet fra nettstedet og beholdt her som utkast, og de {count} påmeldte får beskjed på e-post om at det er avlyst."
       }
     }
   ],

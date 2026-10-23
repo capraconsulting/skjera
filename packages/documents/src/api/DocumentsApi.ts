@@ -6,7 +6,7 @@ import { DocumentId, Heads, Publication, TeamId } from "../Model.ts";
 import { DocumentNotFound, PublishRejected, TeamNotFound } from "./errors.ts";
 
 /**
- * Creating, publishing and deleting documents, for signed-in users.
+ * Creating, publishing, unpublishing and deleting documents, for signed-in users.
  * Documents are synced as rows; their drafts sync over automerge-repo's
  * WebSocket (see DraftSync.ts).
  */
@@ -36,6 +36,14 @@ export class DocumentsApi extends HttpApiGroup.make("documents")
       payload: Schema.Struct({ published: Schema.Literal(true), heads: Heads }),
       success: Publication,
       error: [DocumentNotFound, PublishRejected],
+    }),
+    /**
+     * Takes the published version off the site, keeping the draft. Not
+     * published is as good as unpublished.
+     */
+    HttpApiEndpoint.delete("unpublish", "/api/documents/:id/publication", {
+      params: { id: DocumentId },
+      error: DocumentNotFound,
     }),
     /** Deletes the document, taking its published version off the site. */
     HttpApiEndpoint.delete("delete", "/api/documents/:id", {
