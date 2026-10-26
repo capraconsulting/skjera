@@ -1,6 +1,6 @@
 # Skjera
 
-Events for a company: a public site where people sign up (members with their login, guests with name and email), and a studio where organizers write events together and publish them. A rewrite of Skjer, with Skjer's logo and tab icon: the name, footer and language come from configuration.
+Events for a company: a public site where people sign up (members with their login, guests with name and email), and a studio where organizers write events together and publish them. A rewrite of Skjer, with Capra's and Liflig's logo and tab icon: the name, footer and language come from configuration.
 
 ## Getting started
 

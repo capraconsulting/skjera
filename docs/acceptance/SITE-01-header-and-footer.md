@@ -1,6 +1,6 @@
 # SITE-01: Header, logo and footer
 
-The site's header carries Capra's and Liflig's logo, as in Skjer, and the browser tab Skjer's icon; both are part of Skjera. The footer carries a line of text, links and a link to privacy, set by configuration, as the [Readme](../../Readme.md#deploying) describes.
+The site's header carries Capra's and Liflig's logo, and the browser tab their icon, as in Skjer but without Fryde; both are part of Skjera. The footer carries a line of text, links and a link to privacy, set by configuration, as the [Readme](../../Readme.md#deploying) describes.
 
 **Set-up:** `mise.toml` already sets a footer, so most criteria need nothing more than `pnpm dev`.
 
@@ -12,7 +12,7 @@ The header SHALL show Capra's and Liflig's animated logo, and it SHALL lead to t
 
 - **Given** the site as `mise.toml` sets it up
 - **When** you open an event, then click the logo in the header
-- **Then** the header shows the animated Capra and Liflig logo, without «Skjera» beside it, and the click leads to the front page
+- **Then** the header shows the animated logo, turning from Capra to Liflig and back, without «Skjera» beside it, and the click leads to the front page
 
 **Automated:** `packages/app/e2e/specs/site.spec.ts`
 
@@ -42,13 +42,13 @@ WHILE the visitor's device asks for reduced motion, the header SHALL show the st
 
 ## AC-4: The tab's icon
 
-The browser tab SHALL show Skjer's icon.
+The browser tab SHALL show Capra's and Liflig's icon: one ball in both companies' colours.
 
 **Test**
 
 - **Given** the site as `mise.toml` sets it up
 - **When** you open the front page
-- **Then** the tab shows the same icon as Skjer's
+- **Then** the tab shows a ball in Capra's turquoise and Liflig's purple
 
 **Automated:** none
 
