@@ -139,6 +139,8 @@
   "common_no": "Nei",
   "studio_teams": "Team",
   "studio_team_list_options": "Valg for teamlisten",
+  "studio_resize_teams": "Bredden på teamkolonnen",
+  "studio_resize_events": "Bredden på arrangementskolonnen",
   "studio_new_team": "Nytt team",
   "studio_no_teams": "Ingen team ennå. Opprett det første.",
   "studio_team_options": "Valg for {name}",

@@ -1,0 +1,23 @@
+/* Over the border between two columns, a little wider than it to grab. */
+.handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 0.5rem;
+  margin-left: -0.25rem;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.handle:hover,
+.handle:focus-visible {
+  background: linear-gradient(
+    to right,
+    transparent calc(50% - 1px),
+    var(--color-focus) calc(50% - 1px),
+    var(--color-focus) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+  outline: none;
+}

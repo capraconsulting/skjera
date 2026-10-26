@@ -1,6 +1,7 @@
+/* The widths of the first two columns are set from what the user dragged. */
 .columns {
+  position: relative;
   display: grid;
-  grid-template-columns: 16rem 22rem minmax(0, 1fr);
   height: 100%;
 }
 

@@ -13,6 +13,8 @@ import {
 import { Input } from "../../components/Input.tsx";
 import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
 import { documents, teams } from "../../sync/tables.ts";
+import { ColumnHandle } from "./ColumnHandle.tsx";
+import { defaultWidths, useColumnWidths } from "./columnWidths.ts";
 import { TeamLogosDialog } from "./TeamLogos.tsx";
 import styles from "./Teams.module.css";
 
@@ -56,10 +58,34 @@ type DialogState =
  */
 export function Teams() {
   const all = useTeams();
+  const { teamId } = useParams();
+  const { widths, resize } = useColumnWidths();
   const [dialog, setDialog] = useState<DialogState>(null);
   const [failure, setFailure] = useState<string | null>(null);
   return (
-    <div className={styles.columns}>
+    <div
+      className={styles.columns}
+      style={{
+        gridTemplateColumns: `${widths.teams}rem ${widths.events}rem minmax(0, 1fr)`,
+      }}
+    >
+      <ColumnHandle
+        label={m.studio_resize_teams()}
+        width={widths.teams}
+        defaultWidth={defaultWidths.teams}
+        left={`${widths.teams}rem`}
+        onResize={(rem) => resize("teams", rem)}
+      />
+      {/* The events column's own line, while it shows a team's events. */}
+      {teamId === undefined ? null : (
+        <ColumnHandle
+          label={m.studio_resize_events()}
+          width={widths.events}
+          defaultWidth={defaultWidths.events}
+          left={`${widths.teams + widths.events}rem`}
+          onResize={(rem) => resize("events", rem)}
+        />
+      )}
       <Pane
         title={m.studio_teams()}
         label={m.studio_teams()}

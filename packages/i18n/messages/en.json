@@ -139,6 +139,8 @@
   "common_no": "No",
   "studio_teams": "Teams",
   "studio_team_list_options": "Team list options",
+  "studio_resize_teams": "Width of the teams column",
+  "studio_resize_events": "Width of the events column",
   "studio_new_team": "New team",
   "studio_no_teams": "No teams yet. Create the first one.",
   "studio_team_options": "Options for {name}",
