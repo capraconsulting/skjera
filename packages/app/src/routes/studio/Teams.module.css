@@ -49,10 +49,10 @@
   min-width: 0;
 }
 
+/* Long names wrap, so the whole name shows. */
 .name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* Each team's "⋯" shows on hover, on keyboard focus, and while it's open. */
