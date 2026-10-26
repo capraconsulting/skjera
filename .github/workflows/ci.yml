@@ -32,8 +32,10 @@ jobs:
           key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: pnpm-${{ runner.os }}-
       - run: mise exec -- pnpm install --frozen-lockfile
+      # Every service the tests use is started here: packages whose tests
+      # started the same one at once would race for its container's name.
       - name: Services
-        run: docker compose up --detach --wait postgres mailpit
+        run: docker compose up --detach --wait postgres rustfs mailpit
       - run: mise exec -- pnpm lint
       - run: mise exec -- pnpm typecheck
       - run: mise exec -- pnpm test

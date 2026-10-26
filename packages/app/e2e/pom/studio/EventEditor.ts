@@ -97,11 +97,15 @@ export class EventEditor {
 
   /** A button by its name, in the page's language. */
   async expectButton(name: string): Promise<void> {
-    await expect(this.page.getByRole("button", { name })).toBeVisible();
+    await expect(
+      this.page.getByRole("button", { name, exact: true }),
+    ).toBeVisible();
   }
 
   async expectNoButton(name: string): Promise<void> {
-    await expect(this.page.getByRole("button", { name })).toHaveCount(0);
+    await expect(
+      this.page.getByRole("button", { name, exact: true }),
+    ).toHaveCount(0);
   }
 
   /** The studio address of an event. */
@@ -125,7 +129,7 @@ export class EventEditor {
 
   private readonly status = () => this.page.getByTestId("status");
   private readonly publishButton = () =>
-    this.page.getByRole("button", { name: "Publish" });
+    this.page.getByRole("button", { name: "Publish", exact: true });
   private readonly checkbox = (name: RegExp) =>
     this.page.getByRole("checkbox", { name });
 
