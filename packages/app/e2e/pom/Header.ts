@@ -185,8 +185,9 @@ export class Header {
     await expect(this.root()).toHaveCSS("background-color", color);
   }
 
-  async expectBrandLogo(src: string, shown: boolean): Promise<void> {
-    const logo = this.brand().locator(`img[src="${src}"]`);
+  /** The header's logo, by its file's name (the build adds a hash to it). */
+  async expectBrandLogo(file: string, shown: boolean): Promise<void> {
+    const logo = this.brand().locator(`img[src*="/${file}-"]`);
     if (shown) await expect(logo).toBeVisible();
     else await expect(logo).toBeHidden();
   }

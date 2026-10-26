@@ -1,6 +1,6 @@
 # Skjera
 
-Events for a company: a public site where people sign up (members with their login, guests with name and email), and a studio where organizers write events together and publish them. A rewrite of Skjer, whitelabel: the name, logo, footer and language come from configuration.
+Events for a company: a public site where people sign up (members with their login, guests with name and email), and a studio where organizers write events together and publish them. A rewrite of Skjer, with Skjer's logo and tab icon: the name, footer and language come from configuration.
 
 ## Getting started
 
@@ -77,11 +77,9 @@ It's configured by environment variables, as in [mise.toml](mise.toml). Needed: 
 
 Branding, all optional:
 
-- `SITE_LOGO`, and `SITE_LOGO_DARK` for the dark theme: image URLs (animated WebP works). Shown beside the site's name, or instead of it with `SITE_LOGO_INCLUDES_NAME=true`.
-- `SITE_ICON`: the browser tab's icon, an image URL such as `/site-assets/icon.png`. Without it, Skjera's own.
 - `SITE_FOOTER`: JSON, `{ "text": "…", "links": [{ "label": "…", "href": "…", "logo": { "src": "…", "darkSrc": "…" } }] }`. The footer always links to privacy.
 - `SITE_OPERATOR` (who answers for the personal data kept; the site's name if not set) and `SITE_CONTACT_EMAIL`, for the built-in privacy page at `/privacy`; or `SITE_PRIVACY_URL` to link a policy elsewhere instead.
-- `SITE_ASSETS_DIR`: a directory served at `/site-assets/`, e.g. a ConfigMap mounted into the pod, so the logo can be `/site-assets/logo.webp`. In development, `dev/site-assets`.
+- `SITE_ASSETS_DIR`: a directory served at `/site-assets/`, e.g. a ConfigMap mounted into the pod, so a footer logo can be `/site-assets/logo.webp`. In development, `dev/site-assets`.
 
 Also optional, for websites that show the next events (`/embed`) in an iframe, or read the coming events shown to everyone from the browser (`/api/public/events`: JSON in Skjer's format, served when `SITE_URL` is set; an event of the team "Capra Gruppen" is organised by "Alle", others by their team's name):
 

@@ -31,8 +31,6 @@ WEBSITE_ORIGINS = "http://website.localhost"
 # development or the browser tests.
 # Branding, all optional. Files in SITE_ASSETS_DIR are served at /site-assets/.
 SITE_ASSETS_DIR = "{{config_root}}/dev/site-assets"
-SITE_LOGO = "/site-assets/logo.svg"
-SITE_LOGO_DARK = "/site-assets/logo-dark.svg"
 # A line of text and links (each with an optional logo), as JSON.
 SITE_FOOTER = """
 {

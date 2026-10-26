@@ -106,12 +106,6 @@ const Picture = Schema.Struct({
   darkSrc: Schema.optionalKey(Schema.String),
 });
 
-/** The site's logo: beside its name, unless the logo has the name in it. */
-export const SiteLogo = Schema.Struct({
-  ...Picture.fields,
-  includesName: Schema.Boolean,
-});
-
 /** A link in the footer: words, or a logo (with them as its description). */
 export const FooterLink = Schema.Struct({
   label: Schema.String,
@@ -139,12 +133,11 @@ export const SitePrivacy = Schema.Struct({
 
 /**
  * The site as the app shows it, from configuration: what it's called
- * (`SITE_NAME`), its language, logo, footer and privacy: `/api/site`.
+ * (`SITE_NAME`), its language, footer and privacy: `/api/site`.
  */
 export const Site = Schema.Struct({
   name: Schema.String,
   locale: Locale,
-  logo: Schema.optionalKey(SiteLogo),
   footer: Schema.optionalKey(SiteFooter),
   privacy: SitePrivacy,
   /** HubSpot's account, where the site loads HubSpot: `HUBSPOT_ACCOUNT_ID`. */
@@ -183,21 +176,9 @@ const defined = <A extends object>(fields: A) =>
     Object.entries(fields).filter(([, value]) => value !== undefined),
   ) as { [K in keyof A]: Exclude<A[K], undefined> };
 
-/**
- * The browser tab's icon: the image `SITE_ICON` points to, else the app's
- * own (packages/app/public). Served by a redirect from `/site-icon`, so the
- * page names one address for it whatever is set.
- */
-export const SiteIcon = optionalSetting("SITE_ICON", Config.String).pipe(
-  Config.map((icon) => icon ?? "/icon.svg"),
-);
-
 export const SiteConfig = Config.all({
   name: Config.String("SITE_NAME").pipe(Config.withDefault("Skjera")),
   locale: SiteLocale,
-  logo: optionalSetting("SITE_LOGO", Config.String),
-  logoDark: optionalSetting("SITE_LOGO_DARK", Config.String),
-  logoIncludesName: optionalSetting("SITE_LOGO_INCLUDES_NAME", Config.Boolean),
   footer: optionalSetting("SITE_FOOTER", (name) =>
     Config.schema(Schema.fromJsonString(SiteFooter), name),
   ),
@@ -212,15 +193,6 @@ export const SiteConfig = Config.all({
     (config): Site => ({
       name: config.name,
       locale: config.locale,
-      ...(config.logo === undefined
-        ? {}
-        : {
-            logo: defined({
-              src: config.logo,
-              darkSrc: config.logoDark,
-              includesName: config.logoIncludesName ?? false,
-            }),
-          }),
       ...(config.footer === undefined ? {} : { footer: config.footer }),
       privacy: defined({
         operator: config.operator ?? config.name,

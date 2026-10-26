@@ -1,54 +1,54 @@
 # SITE-01: Header, logo and footer
 
-The site's header and footer carry its own branding: its name and logo, a line of text and links in the footer, and a link to privacy. All of it is set by configuration, as the [Readme](../../Readme.md#deploying) describes.
+The site's header carries Capra's and Liflig's logo, as in Skjer, and the browser tab Skjer's icon; both are part of Skjera. The footer carries a line of text, links and a link to privacy, set by configuration, as the [Readme](../../Readme.md#deploying) describes.
 
-**Set-up:** `mise.toml` already sets a logo, a dark logo and a footer, so most criteria need nothing more than `pnpm dev`. AC-3 and AC-4 change the configuration: add the settings they name under `[env]` in `mise.local.toml`, restart `pnpm dev`, and remove them again afterwards.
+**Set-up:** `mise.toml` already sets a footer, so most criteria need nothing more than `pnpm dev`.
 
-## AC-1: The logo beside the name, leading to the front page
+## AC-1: The logo, leading to the front page
 
-WHERE a logo is configured, the header SHALL show it beside the site's name, and both SHALL lead to the front page.
+The header SHALL show Capra's and Liflig's animated logo, and it SHALL lead to the front page.
 
 **Test**
 
 - **Given** the site as `mise.toml` sets it up
-- **When** you open an event, then click the logo or «Skjera» in the header
-- **Then** the header shows the logo with «Skjera» beside it, and the click leads to the front page
+- **When** you open an event, then click the logo in the header
+- **Then** the header shows the animated Capra and Liflig logo, without «Skjera» beside it, and the click leads to the front page
 
 **Automated:** `packages/app/e2e/specs/site.spec.ts`
 
-## AC-2: The dark theme shows the dark logo
+## AC-2: The dark theme shows the light logo
 
-WHILE the site is shown in the dark theme, the header SHALL show the site's dark logo in place of its light one.
+WHILE the site is shown in the dark theme, the header SHALL show the logo's version for a dark background in place of the one for a light background.
 
 **Test**
 
 - **Given** the front page in the light theme
-- **When** you click **Switch to dark mode** in the header
-- **Then** the logo changes to its dark version
+- **When** you pick **Dark** in the theme menu in the header
+- **Then** the logo changes to its version in white
 
 **Automated:** `packages/app/e2e/specs/site.spec.ts`
 
-## AC-3: A logo with the name in it
+## AC-3: A still logo for less motion
 
-WHERE the logo is configured to include the site's name, the header SHALL show the logo alone, without the name beside it.
+WHILE the visitor's device asks for reduced motion, the header SHALL show the still logo in place of the animated one.
 
 **Test**
 
-- **Given** `SITE_LOGO_INCLUDES_NAME = "true"` in `mise.local.toml`, and `pnpm dev` restarted
+- **Given** «Reduce motion» turned on in the Mac's accessibility settings (Display)
 - **When** you open the front page
-- **Then** the header shows the logo, without «Skjera» beside it
+- **Then** the header shows the still logo, in either theme
 
 **Automated:** none
 
-## AC-4: No logo, the name alone
+## AC-4: The tab's icon
 
-WHERE no logo is configured, the header SHALL show the site's name alone.
+The browser tab SHALL show Skjer's icon.
 
 **Test**
 
-- **Given** `SITE_LOGO = false` and `SITE_LOGO_DARK = false` in `mise.local.toml`, and `pnpm dev` restarted
+- **Given** the site as `mise.toml` sets it up
 - **When** you open the front page
-- **Then** the header shows «Skjera» alone, as words, leading to the front page
+- **Then** the tab shows the same icon as Skjer's
 
 **Automated:** none
 
@@ -90,12 +90,24 @@ The footer SHALL always have a **Privacy** link, whatever else is configured for
 
 ## AC-8: The site's own files
 
-WHERE a directory of the site's own files is configured, Skjera SHALL serve each file in it at `/site-assets/`, so that the logo can be one of them.
+WHERE a directory of the site's own files is configured, Skjera SHALL serve each file in it at `/site-assets/`, so that the footer's logos can be among them.
 
 **Test**
 
 - **Given** the site as `mise.toml` sets it up, with `dev/site-assets` as the directory
 - **When** you open http://localhost:5173/site-assets/logo.svg
-- **Then** the logo is shown, the same file as in the header
+- **Then** the logo is shown, the same file as in the footer
 
 **Automated:** `packages/app/e2e/specs/site.spec.ts`
+
+## AC-9: Small logos for Safari
+
+WHERE the visitor's browser is Safari, or any browser on an iPhone or iPad, the header SHALL show the logo's small versions, which those browsers play evenly.
+
+**Test**
+
+- **Given** the front page open in Safari
+- **When** you right-click the logo and pick **Open Image in New Tab**
+- **Then** the image's address has `logo-dark-sm` in it (`logo-light-sm` in the dark theme)
+
+**Automated:** `packages/app/test/smallLogo.test.ts`

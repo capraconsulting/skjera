@@ -1,22 +1,35 @@
-.logo {
+.logo,
+.animated {
   display: inline-flex;
   align-items: center;
-  gap: 0.625rem;
 }
 
-.image,
+.light,
+.dark,
+.still {
+  display: block;
+  width: auto;
+  user-select: none;
+}
+
 .light,
 .dark {
-  display: block;
-  height: 2.75rem;
-  width: auto;
+  height: 3rem;
+}
+
+.still {
+  display: none;
+  height: 2rem;
 }
 
 @media (min-width: 40rem) {
-  .image,
   .light,
   .dark {
-    height: 3.25rem;
+    height: 3.5rem;
+  }
+
+  .still {
+    height: 2.5rem;
   }
 }
 
@@ -39,6 +52,17 @@
   }
 
   :root:not([data-theme="light"]) .dark {
+    display: block;
+  }
+}
+
+/* Less motion asked for: the still logo, in either theme. */
+@media (prefers-reduced-motion: reduce) {
+  .animated {
+    display: none;
+  }
+
+  .still {
     display: block;
   }
 }

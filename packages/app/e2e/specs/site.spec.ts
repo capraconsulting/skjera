@@ -347,19 +347,20 @@ test("the header keeps «Abonner» and the account menu in a phone's window", as
 test("the site has its logo, its footer and a privacy page", async ({
   browser,
 }) => {
-  // As configured in mise.toml: SITE_LOGO, SITE_FOOTER, SITE_OPERATOR, …
+  // Capra's and Liflig's logo; as configured in mise.toml: SITE_FOOTER, …
   const page = await visitor(browser);
   const header = new Header(page);
   const footer = new Footer(page);
   await new HomePage(page).goto();
-  await header.expectBrandLogo("/site-assets/logo.svg", true);
+  // The logo for a light background is the dark one.
+  await header.expectBrandLogo("logo-dark", true);
   await footer.expectText("Events, together");
   await footer.expectLink("Example Ltd", "https://example.com");
 
-  // Dark: the logo's dark version.
+  // Dark: the logo for a dark background.
   await header.pickTheme("Dark");
-  await header.expectBrandLogo("/site-assets/logo-dark.svg", true);
-  await header.expectBrandLogo("/site-assets/logo.svg", false);
+  await header.expectBrandLogo("logo-light", true);
+  await header.expectBrandLogo("logo-dark", false);
 
   await footer.clickPrivacy();
   const privacy = new PrivacyPage(page);
