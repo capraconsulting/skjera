@@ -36,6 +36,7 @@ export const loadSite = async () => {
     // Offline or failing: English, and the name it was built with.
   }
   document.documentElement.lang = getLocale();
+  document.title = site.name;
 };
 
 /** The site as configured: its name, logo, footer and privacy. */

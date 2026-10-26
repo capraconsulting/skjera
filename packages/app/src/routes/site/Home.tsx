@@ -9,6 +9,7 @@ import { Link } from "react-router";
 import { Badge } from "../../components/Badge.tsx";
 import { Button } from "../../components/Button.tsx";
 import { Organizer } from "../../components/Organizer.tsx";
+import { usePageTitle } from "../../pageTitle.ts";
 import { rowMarks, upcomingAndPast } from "../../site/frontPage.ts";
 import { guestSignup } from "../../site/guestSignups.ts";
 import { attendees, events as eventsTable } from "../../sync/tables.ts";
@@ -57,6 +58,7 @@ const guestChoices = ["yes", "no"] as const;
 type GuestChoice = (typeof guestChoices)[number];
 
 export function Home() {
+  usePageTitle({ page: "front" });
   const events = useLiveQuery((q) =>
     q.from({ event: eventsTable.collection }),
   ).data;

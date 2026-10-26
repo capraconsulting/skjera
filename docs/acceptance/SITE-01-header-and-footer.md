@@ -1,6 +1,6 @@
 # SITE-01: Header, logo and footer
 
-The site's header carries Capra's and Liflig's logo, and the browser tab their icon, as in Skjer but without Fryde; both are part of Skjera. The footer carries a line of text, links and a link to privacy, set by configuration, as the [Readme](../../Readme.md#deploying) describes.
+The site's header carries Capra's and Liflig's logo, and the browser tab their icon and a title, as in Skjer but without Fryde; all are part of Skjera. The footer carries a line of text, links and a link to privacy, set by configuration, as the [Readme](../../Readme.md#deploying) describes.
 
 **Set-up:** `mise.toml` already sets a footer, so most criteria need nothing more than `pnpm dev`.
 
@@ -111,3 +111,15 @@ WHERE the visitor's browser is Safari, or any browser on an iPhone or iPad, the 
 - **Then** the image's address has `logo-dark-sm` in it (`logo-light-sm` in the dark theme)
 
 **Automated:** `packages/app/test/smallLogo.test.ts`
+
+## AC-10: The tab's title
+
+The browser tab SHALL be titled as in Skjer: the front page with the site's name and «Capra Liflig», an event's page with the event's title, and the privacy page with its heading and the site's name.
+
+**Test**
+
+- **Given** the site as `mise.toml` sets it up, in English
+- **When** you open the front page, then an event, then **Privacy** in the footer
+- **Then** the tab reads «Skjera | Capra Liflig», then the event's title, then «Privacy | Skjera»
+
+**Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/app/test/pageTitle.test.ts`

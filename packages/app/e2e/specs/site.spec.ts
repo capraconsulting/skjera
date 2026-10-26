@@ -354,6 +354,8 @@ test("the site has its logo, its footer and a privacy page", async ({
   await new HomePage(page).goto();
   // The logo for a light background is the dark one.
   await header.expectBrandLogo("logo-dark", true);
+  // The tab: the site and its companies, as in Skjer.
+  await new HomePage(page).expectTabTitle("Skjera | Capra Liflig");
   await footer.expectText("Events, together");
   await footer.expectLink("Example Ltd", "https://example.com");
 
@@ -366,6 +368,7 @@ test("the site has its logo, its footer and a privacy page", async ({
   const privacy = new PrivacyPage(page);
   await privacy.expectAt();
   await privacy.expectTitle();
+  await privacy.expectTabTitle("Privacy | Skjera");
   await privacy.expectText("Skjera runs Skjera");
   await privacy.expectContactEmail("privacy@skjera.localhost");
 });
@@ -548,6 +551,7 @@ test("a link to a public event shows its title, summary and cover; others the si
   const reader = await visitor(browser);
   const page = new EventPage(reader);
   await page.goto(shown.id);
+  await page.expectTabTitle(shown.title);
   await page.expectSharingTag("og:title", shown.title);
   await page.expectSharingTag("og:description", summary);
   await page.expectSharingTag("og:image", new RegExp(`${cover}$`));

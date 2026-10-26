@@ -29,6 +29,11 @@ export class EventPage {
     await expect(this.page).toHaveURL(new RegExp(`/events/${id}$`));
   }
 
+  /** The browser tab's title. */
+  async expectTabTitle(title: string): Promise<void> {
+    await expect(this.page).toHaveTitle(title);
+  }
+
   async expectNotPublished(): Promise<void> {
     await expect(this.page.getByText("isn't published")).toBeVisible();
   }

@@ -45,6 +45,11 @@ export class HomePage {
     await expect(this.page).toHaveURL(/\/$/);
   }
 
+  /** The browser tab's title. */
+  async expectTabTitle(title: string): Promise<void> {
+    await expect(this.page).toHaveTitle(title);
+  }
+
   async expectUpcomingHeading(): Promise<void> {
     await expect(
       this.page.getByRole("heading", { name: "Upcoming events" }),

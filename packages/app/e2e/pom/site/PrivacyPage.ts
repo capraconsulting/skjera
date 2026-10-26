@@ -64,6 +64,11 @@ export class PrivacyPage {
     await expect(this.page).toHaveURL(/\/privacy$/);
   }
 
+  /** The browser tab's title. */
+  async expectTabTitle(title: string): Promise<void> {
+    await expect(this.page).toHaveTitle(title);
+  }
+
   async expectTitle(): Promise<void> {
     await expect(
       this.page.getByRole("heading", {

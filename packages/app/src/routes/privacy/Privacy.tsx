@@ -2,6 +2,7 @@ import { m } from "@skjera/i18n/messages";
 import type { ReactNode } from "react";
 import { Button } from "../../components/Button.tsx";
 import { currentSite } from "../../i18n.ts";
+import { usePageTitle } from "../../pageTitle.ts";
 import { showCookieSettings } from "../../site/hubSpot.ts";
 import styles from "./Privacy.module.css";
 
@@ -24,6 +25,7 @@ export const privacyLoader = () => {
  */
 export function Privacy() {
   const { name, privacy, hubSpot } = currentSite();
+  usePageTitle({ page: "privacy", heading: m.privacy_title() });
   const contact =
     privacy.contact === undefined ? (
       m.privacy_ask_operator({ operator: privacy.operator })

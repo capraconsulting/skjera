@@ -25,6 +25,7 @@ import {
 } from "react-router";
 import { Organizer } from "../../components/Organizer.tsx";
 import { RichText } from "../../components/RichText.tsx";
+import { usePageTitle } from "../../pageTitle.ts";
 import {
   rememberGuestSignup,
   storedGuestSignup,
@@ -88,6 +89,7 @@ export function EventPage() {
         .where(({ event }) => eq(event.id, id))
         .findOne(),
   }).data;
+  usePageTitle({ page: "event", title: event?.title ?? "" });
   // Unpublished, deleted or hidden since the page opened.
   if (event === undefined) {
     return <p className={styles.missing}>{m.site_event_missing()}</p>;
