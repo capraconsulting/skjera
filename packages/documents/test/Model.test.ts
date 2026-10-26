@@ -5,6 +5,7 @@ import {
   optionalSetting,
   organizerLogos,
   SiteConfig,
+  SiteIcon,
   TeamLogosChange,
 } from "../src/Model.ts";
 
@@ -198,6 +199,31 @@ describe("SiteConfig", () => {
       }
     }),
   );
+});
+
+describe("SiteIcon", () => {
+  const read = (env: Record<string, string>) =>
+    Effect.runSync(
+      Effect.provide(
+        Effect.gen(function* () {
+          return yield* SiteIcon;
+        }),
+        ConfigProvider.layer(ConfigProvider.fromUnknown(env)),
+      ),
+    );
+
+  it("is the image SITE_ICON points to", () => {
+    assert.strictEqual(
+      read({ SITE_ICON: "/site-assets/icon.png" }),
+      "/site-assets/icon.png",
+    );
+  });
+
+  it("is the app's own icon without SITE_ICON, or with a blank one", () => {
+    for (const env of [{}, { SITE_ICON: "" }, { SITE_ICON: "  " }]) {
+      assert.strictEqual(read(env), "/icon.svg");
+    }
+  });
 });
 
 describe("optionalSetting", () => {

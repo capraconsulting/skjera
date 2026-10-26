@@ -183,6 +183,15 @@ const defined = <A extends object>(fields: A) =>
     Object.entries(fields).filter(([, value]) => value !== undefined),
   ) as { [K in keyof A]: Exclude<A[K], undefined> };
 
+/**
+ * The browser tab's icon: the image `SITE_ICON` points to, else the app's
+ * own (packages/app/public). Served by a redirect from `/site-icon`, so the
+ * page names one address for it whatever is set.
+ */
+export const SiteIcon = optionalSetting("SITE_ICON", Config.String).pipe(
+  Config.map((icon) => icon ?? "/icon.svg"),
+);
+
 export const SiteConfig = Config.all({
   name: Config.String("SITE_NAME").pipe(Config.withDefault("Skjera")),
   locale: SiteLocale,

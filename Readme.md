@@ -78,6 +78,7 @@ It's configured by environment variables, as in [mise.toml](mise.toml). Needed: 
 Branding, all optional:
 
 - `SITE_LOGO`, and `SITE_LOGO_DARK` for the dark theme: image URLs (animated WebP works). Shown beside the site's name, or instead of it with `SITE_LOGO_INCLUDES_NAME=true`.
+- `SITE_ICON`: the browser tab's icon, an image URL such as `/site-assets/icon.png`. Without it, Skjera's own.
 - `SITE_FOOTER`: JSON, `{ "text": "…", "links": [{ "label": "…", "href": "…", "logo": { "src": "…", "darkSrc": "…" } }] }`. The footer always links to privacy.
 - `SITE_OPERATOR` (who answers for the personal data kept; the site's name if not set) and `SITE_CONTACT_EMAIL`, for the built-in privacy page at `/privacy`; or `SITE_PRIVACY_URL` to link a policy elsewhere instead.
 - `SITE_ASSETS_DIR`: a directory served at `/site-assets/`, e.g. a ConfigMap mounted into the pod, so the logo can be `/site-assets/logo.webp`. In development, `dev/site-assets`.

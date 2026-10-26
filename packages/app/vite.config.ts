@@ -18,6 +18,7 @@ const backend = {
     "/api": "http://localhost:3000",
     "/embed": "http://localhost:3000",
     "/site-assets": "http://localhost:3000",
+    "/site-icon": "http://localhost:3000",
     "/automerge": { target: "ws://localhost:3000", ws: true },
   },
 };

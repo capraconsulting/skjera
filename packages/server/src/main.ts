@@ -303,6 +303,19 @@ const site = Layer.unwrap(
   ),
 );
 
+/** The browser tab's icon: a redirect to `SITE_ICON`, or the app's own. */
+const siteIcon = Layer.unwrap(
+  Effect.map(Documents.SiteIcon, (icon) =>
+    HttpRouter.add(
+      "GET",
+      "/site-icon",
+      HttpServerResponse.redirect(icon, {
+        headers: { "Cache-Control": "public, max-age=300" },
+      }),
+    ),
+  ),
+);
+
 const Routes = Layer.mergeAll(
   HttpApiBuilder.layer(Api).pipe(
     Layer.provide([
@@ -325,6 +338,7 @@ const Routes = Layer.mergeAll(
   Documents.CalendarFeed.layerHttp,
   Health,
   site,
+  siteIcon,
   SiteAssets,
   App,
 ).pipe(Layer.provideMerge(OAuth.routes.pipe(Layer.provide(LoginFailurePage))));
