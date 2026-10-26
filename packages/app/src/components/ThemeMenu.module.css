@@ -1,0 +1,4 @@
+/* The theme's name, pushing the mark of the one picked to the right. */
+.label {
+  flex: 1;
+}

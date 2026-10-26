@@ -32,6 +32,12 @@ export class AccountPage {
     await this.main().getByRole("radio", { name: theme }).check();
   }
 
+  async expectThemePicked(
+    theme: "Dark" | "Light" | "Same as the system",
+  ): Promise<void> {
+    await expect(this.main().getByRole("radio", { name: theme })).toBeChecked();
+  }
+
   async pickLanguage(
     language: "English" | "Bokmål" | "Nynorsk",
   ): Promise<void> {

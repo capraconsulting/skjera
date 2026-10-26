@@ -82,14 +82,22 @@ test("the theme follows the system until the user picks one", async ({
   await header.expectBackground("rgb(9, 9, 11)");
   await header.expectTheme(null);
 
-  await header.switchToLightMode();
+  await header.pickTheme("Light");
   await header.expectTheme("light");
   await header.expectBackground("rgb(255, 255, 255)");
 
   // The choice is remembered.
   await new HomePage(page).reload();
   await header.expectTheme("light");
-  await header.switchToDarkMode();
+  await header.pickTheme("Dark");
+  await header.expectBackground("rgb(9, 9, 11)");
+
+  // Back to the system's: no choice kept, and still dark from the system.
+  await header.pickTheme("Same as the system");
+  await header.expectTheme(null);
+  await header.expectThemePicked("Same as the system");
+  await new HomePage(page).reload();
+  await header.expectTheme(null);
   await header.expectBackground("rgb(9, 9, 11)");
 });
 
@@ -258,6 +266,10 @@ test("the account menu leads to settings, and logs out", async ({
   // The theme: picked, or the system's again.
   await account.pickTheme("Dark");
   await header.expectTheme("dark");
+  await header.expectThemePicked("Dark");
+  // The header's menu and the account page show the same choice.
+  await header.pickTheme("Light");
+  await account.expectThemePicked("Light");
   await account.pickTheme("Same as the system");
   await header.expectTheme(null);
 
@@ -345,7 +357,7 @@ test("the site has its logo, its footer and a privacy page", async ({
   await footer.expectLink("Example Ltd", "https://example.com");
 
   // Dark: the logo's dark version.
-  await header.switchToDarkMode();
+  await header.pickTheme("Dark");
   await header.expectBrandLogo("/site-assets/logo-dark.svg", true);
   await header.expectBrandLogo("/site-assets/logo.svg", false);
 
@@ -466,7 +478,7 @@ test("the dark theme shows the team's dark logo, or its light one when it has no
   await page.expectLogo(lightOnly, true);
 
   await page.goto(event.id);
-  await new Header(reader).switchToLightMode();
+  await new Header(reader).pickTheme("Light");
   await page.expectLogo(light, true);
   await page.expectLogo(dark, false);
 

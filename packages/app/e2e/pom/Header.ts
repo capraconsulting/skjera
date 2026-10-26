@@ -153,16 +153,23 @@ export class Header {
     await expect(this.root()).toHaveAttribute("lang", locale);
   }
 
-  async switchToLightMode(): Promise<void> {
-    await this.page
-      .getByRole("button", { name: "Switch to light mode" })
-      .click();
+  /** Picks a theme from the header's menu: "Light", "Dark" or the system's. */
+  async pickTheme(
+    theme: "Light" | "Dark" | "Same as the system",
+  ): Promise<void> {
+    await this.page.getByRole("button", { name: "Theme", exact: true }).click();
+    await this.page.getByRole("button", { name: theme, exact: true }).click();
   }
 
-  async switchToDarkMode(): Promise<void> {
-    await this.page
-      .getByRole("button", { name: "Switch to dark mode" })
-      .click();
+  /** The theme the header's menu marks as picked. */
+  async expectThemePicked(
+    theme: "Light" | "Dark" | "Same as the system",
+  ): Promise<void> {
+    await this.page.getByRole("button", { name: "Theme", exact: true }).click();
+    await expect(
+      this.page.getByRole("button", { name: theme, exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await this.page.keyboard.press("Escape");
   }
 
   /** The theme picked, or `null` for the system's. */

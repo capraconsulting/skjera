@@ -5,7 +5,7 @@ import { Footer } from "./Footer.tsx";
 import { LanguagePicker } from "./LanguagePicker.tsx";
 import { Logo } from "./Logo.tsx";
 import styles from "./Shell.module.css";
-import { ThemeToggle } from "./ThemeToggle.tsx";
+import { ThemeMenu } from "./ThemeMenu.tsx";
 
 /**
  * Page frame: the site's name (always to its front page) and any links on
@@ -31,7 +31,7 @@ export function Shell(props: {
           </nav>
           <div className={styles.actions}>
             <LanguagePicker />
-            <ThemeToggle />
+            <ThemeMenu />
             {/* Logging in, or who's in: rightmost, where people look. */}
             {props.actions}
           </div>
