@@ -42,13 +42,13 @@ WHILE the visitor's device asks for reduced motion, the header SHALL show the st
 
 ## AC-4: The tab's icon
 
-The browser tab SHALL show Capra's and Liflig's icon: one ball in both companies' colours.
+The browser tab SHALL show Capra's and Liflig's icon: one ball in both companies' colours, mostly Capra's.
 
 **Test**
 
 - **Given** the site as `mise.toml` sets it up
 - **When** you open the front page
-- **Then** the tab shows a ball in Capra's turquoise and Liflig's purple
+- **Then** the tab shows a ball mostly in Capra's turquoise, with Liflig's purple
 
 **Automated:** none
 
