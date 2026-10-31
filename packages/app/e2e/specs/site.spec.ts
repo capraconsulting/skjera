@@ -348,7 +348,8 @@ test("the site has its logo, its footer and a privacy page", async ({
   browser,
 }) => {
   // Capra's and Liflig's logo; as configured in mise.toml: SITE_FOOTER, …
-  const page = await visitor(browser);
+  // The animated logo, which the other tests turn off.
+  const page = await visitor(browser, { reducedMotion: "no-preference" });
   const header = new Header(page);
   const footer = new Footer(page);
   await new HomePage(page).goto();
@@ -371,6 +372,19 @@ test("the site has its logo, its footer and a privacy page", async ({
   await privacy.expectTabTitle("Privacy | Skjera");
   await privacy.expectText("Skjera runs Skjera");
   await privacy.expectContactEmail("privacy@skjera.localhost");
+});
+
+test("asking for less motion, the visitor sees the still logo", async ({
+  browser,
+}) => {
+  const page = await visitor(browser, { reducedMotion: "reduce" });
+  const header = new Header(page);
+  await new HomePage(page).goto();
+  await header.expectBrandLogo("logo-reduced-motion", true);
+  await header.expectBrandLogo("logo-dark", false);
+  await header.pickTheme("Dark");
+  await header.expectBrandLogo("logo-reduced-motion", true);
+  await header.expectBrandLogo("logo-light", false);
 });
 
 test("with a policy kept elsewhere, /privacy sends the visitor there", async ({

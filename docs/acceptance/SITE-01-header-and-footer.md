@@ -38,7 +38,7 @@ WHILE the visitor's device asks for reduced motion, the header SHALL show the st
 - **When** you open the front page
 - **Then** the header shows the still logo, in either theme
 
-**Automated:** none
+**Automated:** `packages/app/e2e/specs/site.spec.ts`
 
 ## AC-4: The tab's icon
 

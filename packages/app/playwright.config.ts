@@ -23,6 +23,9 @@ export default defineConfig({
     // Times show in the viewer's locale and zone; these pin what they read.
     locale: "en-US",
     timezoneId: "Europe/Oslo",
+    // The still logo: the animated one keeps the browser busy on every page,
+    // which slows the whole run on CI's small machines.
+    reducedMotion: "reduce",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: [
