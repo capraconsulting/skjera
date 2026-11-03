@@ -78,12 +78,12 @@ WHILE the site is shown in the dark theme, the footer SHALL show a link's dark l
 
 ## AC-7: The footer always links to privacy
 
-The footer SHALL always have a **Privacy** link, whatever else is configured for it.
+The footer SHALL always have a **Privacy policy** link, whatever else is configured for it.
 
 **Test**
 
 - **Given** the front page
-- **When** you click **Privacy** in the footer
+- **When** you click **Privacy policy** in the footer
 - **Then** the privacy page opens ([SITE-10](SITE-10-privacy-page.md))
 
 **Automated:** `packages/app/e2e/specs/site.spec.ts`
@@ -119,7 +119,7 @@ The browser tab SHALL be titled as in Skjer: the front page with the site's name
 **Test**
 
 - **Given** the site as `mise.toml` sets it up, in English
-- **When** you open the front page, then an event, then **Privacy** in the footer
-- **Then** the tab reads «Skjera | Capra Liflig», then the event's title, then «Privacy | Skjera»
+- **When** you open the front page, then an event, then **Privacy policy** in the footer
+- **Then** the tab reads «Skjera | Capra Liflig», then the event's title, then «Privacy policy | Skjera»
 
 **Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/app/test/pageTitle.test.ts`
