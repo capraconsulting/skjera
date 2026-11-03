@@ -2,7 +2,8 @@ import { expect, test } from "@playwright/test";
 import { cleanUp } from "../../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName, visitor } from "../../fixtures/support.ts";
 import { Mailbox } from "../../pom/Mailbox.ts";
-import { Attendance } from "../../pom/site/Attendance.ts";
+import { Attendance, CancelByEmail } from "../../pom/site/Attendance.ts";
+import { CancelSignupPage } from "../../pom/site/CancelSignupPage.ts";
 import { EventPage } from "../../pom/site/EventPage.ts";
 import { EventEditor } from "../../pom/studio/EventEditor.ts";
 import { TeamsColumn } from "../../pom/studio/TeamsColumn.ts";
@@ -99,7 +100,7 @@ test("a guest form says what is wrong by each field, and refuses a member's emai
   await cleanUp(alice, team, event.id);
 });
 
-test("a guest's forms have a hidden field, and one with it filled in is refused (AC-1, AC-2)", async ({
+test("a guest's forms have a hidden field, and one with it filled in is refused (AC-1, AC-2, AC-8)", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -117,6 +118,14 @@ test("a guest's forms have a hidden field, and one with it filled in is refused 
     { role: "textbox", name: "Your name" },
     { role: "button", name: "Sign up" },
   );
+
+  // The form for cancelling by email has one too, and a bot's is refused (AC-8).
+  const byEmail = new CancelByEmail(guest);
+  await byEmail.expectHiddenFieldSkipped();
+  await byEmail.fillEmail("bot@example.org");
+  await byEmail.fillHiddenField("buy now");
+  await byEmail.submit();
+  await byEmail.expectText(refusal);
 
   // A bot fills it in: nothing is saved (AC-2).
   await box.fillName("Bot");
@@ -363,6 +372,72 @@ test("a guest changes their answers from another browser", async ({
   await here.clickChangeAnswers();
   await here.expectSignUpButton(true);
   await here.expectNotSignedUp();
+
+  await cleanUp(alice, team, event.id);
+});
+
+test("a guest who lost the email cancels by typing their address, and confirming from a link (AC-1, AC-3, AC-4, AC-5, AC-6, AC-7)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Lost"));
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({ public: true, guests: true });
+  const address = `gina-${crypto.randomUUID()}@example.org`;
+
+  // Gina signs up in one browser...
+  const first = await visitor(browser);
+  await new EventPage(first).goto(event.id);
+  await new Attendance(first).signUpAsGuest("Gina", address);
+
+  // ...and, with no link, asks to cancel from another (AC-1).
+  const second = await visitor(browser);
+  await new EventPage(second).goto(event.id);
+  const form = new CancelByEmail(second);
+  await form.expectShown();
+
+  // An address nobody signed up with is told so (AC-4).
+  await form.fillEmail(`nobody-${crypto.randomUUID()}@example.org`);
+  await form.submit();
+  await form.expectText("Sorry, we can't find a signup with this email.");
+
+  // Her address is sent a link (AC-3).
+  await form.fillEmail(address);
+  await form.submit();
+  await form.expectText(
+    `An email has been sent to ${address} with a link to confirm cancelling.`,
+  );
+  const email = await new Mailbox().emailTo(
+    address,
+    `Confirm cancelling: ${event.title}`,
+  );
+  const link = email.text.match(
+    new RegExp(`http\\S*/events/${event.id}/cancel\\?token=\\S+`),
+  )?.[0];
+  expect(link).toBeDefined();
+
+  // Opening the link cancels nothing (AC-5)...
+  const third = await visitor(browser);
+  const confirmPage = new CancelSignupPage(third);
+  await confirmPage.goto(link ?? "");
+  await confirmPage.expectTitle(event.title);
+  await editor.goto(team, event.id);
+  await editor.attendees.expectText("Gina");
+
+  // ...pressing the button does (AC-6).
+  await confirmPage.confirm();
+  await confirmPage.expectText(
+    "You're no longer signed up for the event 👋 We've sent you a confirmation by email.",
+  );
+  await editor.attendees.expectEmpty();
+
+  // The link is used: the page says so, and leads to the event (AC-7).
+  await confirmPage.goto(link ?? "");
+  await confirmPage.expectText(
+    "This link has been used, or the signup is no longer there.",
+  );
+  await confirmPage.clickToEvent();
+  await new EventPage(third).expectAt(event.id);
 
   await cleanUp(alice, team, event.id);
 });

@@ -128,6 +128,19 @@ const EventsHandlers = HttpApiBuilder.group(Api, "events", (handlers) =>
       )
       .handle("changeAsGuest", ({ params, payload }) =>
         attendance.change(params.id, { cancelToken: params.token }, payload),
+      )
+      .handle("requestCancel", ({ params, payload }) =>
+        attendance
+          .requestCancel(params.id, payload.email, payload.honeypot)
+          .pipe(limits.attempt("guest")),
+      )
+      .handle("cancelLink", ({ params }) =>
+        attendance.cancelLink(params.id, params.token),
+      )
+      .handle("confirmCancel", ({ params }) =>
+        attendance
+          .confirmCancel(params.id, params.token)
+          .pipe(limits.attempt("guest")),
       );
   }),
 );

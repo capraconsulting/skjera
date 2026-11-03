@@ -11,6 +11,11 @@
   }
 }
 
+/* Under the sign-up box, closer than it is to the text above. */
+.cancelByEmail {
+  margin-top: 2rem;
+}
+
 .heading {
   margin: 0;
   font-size: 1.25rem;

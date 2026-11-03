@@ -5,7 +5,7 @@ import { signedIn, uniqueTeamName, visitor } from "../fixtures/support.ts";
 import { Header } from "../pom/Header.ts";
 import { LoginPage } from "../pom/LoginPage.ts";
 import { AccountPage } from "../pom/site/AccountPage.ts";
-import { Attendance } from "../pom/site/Attendance.ts";
+import { Attendance, CancelByEmail } from "../pom/site/Attendance.ts";
 import { CalendarFeed } from "../pom/site/CalendarFeed.ts";
 import { EventPage } from "../pom/site/EventPage.ts";
 import { Footer } from "../pom/site/Footer.ts";
@@ -213,7 +213,7 @@ test("the site follows publishing without reloading", async ({ browser }) => {
   await cleanUp(alice, team, event.id);
 });
 
-test("sign-up closes at the deadline, in the event's time zone", async ({
+test("sign-up closes at the deadline, in the event's time zone (AC-2)", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -240,6 +240,7 @@ test("sign-up closes at the deadline, in the event's time zone", async ({
   await page.reload();
   await attendance.expectText("Sign-up has closed.");
   await attendance.expectNoButtons();
+  await new CancelByEmail(reader).expectAbsent();
 
   await cleanUp(alice, team, event.id);
 });

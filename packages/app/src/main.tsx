@@ -10,6 +10,10 @@ import { loadSite } from "./i18n.ts";
 import { Account, accountLoader } from "./routes/account/Account.tsx";
 import { Privacy, privacyLoader } from "./routes/privacy/Privacy.tsx";
 import {
+  CancelSignup,
+  cancelSignupLoader,
+} from "./routes/site/CancelSignup.tsx";
+import {
   EventError,
   EventPage,
   eventLoader,
@@ -64,6 +68,12 @@ const router = createBrowserRouter([
             Component: EventPage,
             loader: eventLoader,
             ErrorBoundary: EventError,
+          },
+          // A guest's link from an email: a button that cancels their signup.
+          {
+            path: "events/:id/cancel",
+            Component: CancelSignup,
+            loader: cancelSignupLoader,
           },
           // The signed-in user's own settings.
           { path: "account", Component: Account, loader: accountLoader },

@@ -1,7 +1,20 @@
-import { createHash, createHmac, randomBytes } from "node:crypto";
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  timingSafeEqual,
+} from "node:crypto";
 import { AllowedDomains } from "@skjera/oauth";
 import type { Identity } from "@skjera/oauth/api";
-import { Config, Context, Effect, Layer, Option, Redacted } from "effect";
+import {
+  Clock,
+  Config,
+  Context,
+  Effect,
+  Layer,
+  Option,
+  Redacted,
+} from "effect";
 import { SqlClient, SqlError, type Statement } from "effect/sql";
 import {
   EventNotFound,
@@ -122,6 +135,9 @@ const storedText = (text: string | undefined) => text?.trim() || null;
 const hash = (token: string) =>
   createHash("sha256").update(token).digest("base64url");
 
+/** How long a link to confirm cancelling by email works. */
+const cancelLinkLife = 2 * 60 * 60 * 1000;
+
 const pgCode = (error: SqlError.SqlError) =>
   (error.reason as { cause?: { code?: string } }).cause?.code;
 
@@ -158,6 +174,35 @@ export class Attendance extends Context.Service<
       cancelToken: string,
       honeypot?: string,
     ) => Effect.Effect<void, SignupNotFound | SignupRejected>;
+    /**
+     * Emails the guest signed up with `email` a link that cancels, valid for
+     * 2 hours. `honeypot` is the form's hidden field: a filled one is refused.
+     */
+    readonly requestCancel: (
+      event: DocumentId,
+      email: string,
+      honeypot?: string,
+    ) => Effect.Effect<void, EventNotFound | SignupRejected>;
+    /** What the link's page shows: the event's title. Cancels nothing. */
+    readonly cancelLink: (
+      event: DocumentId,
+      token: string,
+    ) => Effect.Effect<{ readonly title: string }, SignupRejected>;
+    /** Cancels the signup the link names, and tells them as any cancel does. */
+    readonly confirmCancel: (
+      event: DocumentId,
+      token: string,
+    ) => Effect.Effect<void, SignupRejected>;
+    /**
+     * The token in a link that cancels, for the mailer and tests: signed,
+     * never stored. A string, not a `DocumentId`: the mailer has the event's
+     * id as its entity id.
+     */
+    readonly cancelLinkToken: (
+      event: string,
+      attendee: string,
+      expiresAt: number,
+    ) => string;
     /**
      * A guest's own signup, for the token they were given: what they told,
      * to change it from any browser. None for another token, a cancelled or
@@ -231,6 +276,21 @@ export class Attendance extends Context.Service<
         createHmac("sha256", Redacted.value(secret))
           .update(`guest-signup/${attendee}`)
           .digest("base64url");
+
+      const cancelSignature = (
+        event: string,
+        attendee: string,
+        expiresAt: number,
+      ) =>
+        createHmac("sha256", Redacted.value(secret))
+          .update(`guest-cancel/${event}/${attendee}/${expiresAt}`)
+          .digest("base64url");
+      const cancelLinkToken = (
+        event: string,
+        attendee: string,
+        expiresAt: number,
+      ) =>
+        `${attendee}.${expiresAt}.${cancelSignature(event, attendee, expiresAt)}`;
 
       const closed = new SignupRejected(refused({ _tag: "SignupClosed" }));
       const full = new SignupRejected(refused({ _tag: "EventFull" }));
@@ -471,6 +531,103 @@ export class Attendance extends Context.Service<
         }).pipe(sql.withTransaction, Effect.orDie);
       }, Effect.uninterruptible);
 
+      const cancelRefusal = (
+        problem: "CancelLinkInvalid" | "CancelLinkExpired" | "CancelLinkUsed",
+      ) => new SignupRejected(refused({ _tag: problem }));
+
+      /**
+       * The signup a cancel link names, if the link is good: signed for this
+       * event, not expired, and its signup still there.
+       */
+      const cancelTarget = Effect.fn(function* (
+        event: DocumentId,
+        token: string,
+      ) {
+        const [attendee = "", expires = "", signature = "", ...rest] =
+          token.split(".");
+        const given = Buffer.from(signature);
+        const expected = Buffer.from(
+          cancelSignature(event, attendee, Number(expires)),
+        );
+        if (
+          rest.length > 0 ||
+          !/^\d+$/.test(expires) ||
+          given.length !== expected.length ||
+          !timingSafeEqual(given, expected)
+        ) {
+          return yield* cancelRefusal("CancelLinkInvalid");
+        }
+        if (Number(expires) <= (yield* Clock.currentTimeMillis)) {
+          return yield* cancelRefusal("CancelLinkExpired");
+        }
+        // A deleted event has no signups to find: its link is used up.
+        const [found] = yield* sql<{ title: string; open: boolean }>`
+          SELECT e.title, coalesce(e.signup_deadline, e.starts_at) > now() AS open
+          FROM attendees a JOIN events e ON e.id = a.event_id
+          WHERE a.id = ${attendee}::uuid AND a.event_id = ${event}
+            AND a.user_issuer IS NULL AND e.deleted_at IS NULL
+        `.pipe(Effect.orDie);
+        if (found === undefined) return yield* cancelRefusal("CancelLinkUsed");
+        if (!found.open) return yield* closed;
+        return { attendee, title: found.title };
+      });
+
+      const requestCancel = Effect.fn("Attendance.requestCancel")(function* (
+        event: DocumentId,
+        email: string,
+        honeypot?: string,
+      ) {
+        if (filled(honeypot)) {
+          return yield* new SignupRejected(refused({ _tag: "FormNotValid" }));
+        }
+        yield* rules(event, "anyone");
+        // Only a guest's signup: members log in to cancel.
+        const found = yield* sql<Signup>`
+          SELECT id, name, email, true AS guest, locale
+          FROM attendees
+          WHERE event_id = ${event} AND user_issuer IS NULL
+            AND lower(email) = lower(${email.trim()})
+        `.pipe(Effect.orDie);
+        if (found.length === 0) {
+          return yield* new SignupRejected(
+            refused({ _tag: "NoSignupForEmail" }),
+          );
+        }
+        const expiresAt = (yield* Clock.currentTimeMillis) + cancelLinkLife;
+        yield* tell(found, (attendee) =>
+          notifications.cancelRequested({ event, attendee, expiresAt }),
+        );
+      });
+
+      const cancelLink = Effect.fn("Attendance.cancelLink")(function* (
+        event: DocumentId,
+        token: string,
+      ) {
+        const { title } = yield* cancelTarget(event, token);
+        return { title };
+      });
+
+      const confirmCancel = Effect.fn("Attendance.confirmCancel")(function* (
+        event: DocumentId,
+        token: string,
+      ) {
+        const { attendee } = yield* cancelTarget(event, token);
+        const cancelled = yield* Effect.gen(function* () {
+          const deleted = yield* sql<Signup>`
+            DELETE FROM attendees
+            WHERE id = ${attendee}::uuid AND event_id = ${event}
+              AND user_issuer IS NULL
+            RETURNING id, name, email, true AS guest, locale
+          `;
+          yield* tell(deleted, (each) =>
+            notifications.signupCancelled({ event, attendee: each }),
+          );
+          return deleted.length;
+        }).pipe(sql.withTransaction, Effect.orDie);
+        // Gone since it was checked: cancelled by another press of the button.
+        if (cancelled === 0) return yield* cancelRefusal("CancelLinkUsed");
+      }, Effect.uninterruptible);
+
       const guestSignup = Effect.fn("Attendance.guestSignup")(function* (
         event: DocumentId,
         cancelToken: string,
@@ -599,6 +756,10 @@ export class Attendance extends Context.Service<
         leave,
         attendAsGuest,
         leaveAsGuest,
+        requestCancel,
+        cancelLink,
+        confirmCancel,
+        cancelLinkToken,
         guestSignup,
         change,
         remove,

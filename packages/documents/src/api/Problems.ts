@@ -32,6 +32,11 @@ export const Problem = Schema.Union([
   Schema.TaggedStruct("GuestPhoneInvalid", {}),
   Schema.TaggedStruct("FormNotValid", {}),
   Schema.TaggedStruct("TooManyAttempts", {}),
+  // Cancelling by email.
+  Schema.TaggedStruct("NoSignupForEmail", {}),
+  Schema.TaggedStruct("CancelLinkExpired", {}),
+  Schema.TaggedStruct("CancelLinkUsed", {}),
+  Schema.TaggedStruct("CancelLinkInvalid", {}),
   // Publishing.
   Schema.TaggedStruct("MissingToPublish", {
     fields: Schema.NonEmptyArray(PublishField),
@@ -109,6 +114,14 @@ export const describe = (problem: Problem, locale?: Locale): string => {
       return m.problem_form_not_valid({}, options);
     case "TooManyAttempts":
       return m.problem_too_many_attempts({}, options);
+    case "NoSignupForEmail":
+      return m.problem_no_signup_for_email({}, options);
+    case "CancelLinkExpired":
+      return m.problem_cancel_link_expired({}, options);
+    case "CancelLinkUsed":
+      return m.problem_cancel_link_used({}, options);
+    case "CancelLinkInvalid":
+      return m.problem_cancel_link_invalid({}, options);
     case "MissingToPublish":
       return m.problem_missing_to_publish(
         {

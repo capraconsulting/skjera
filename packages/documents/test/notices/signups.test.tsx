@@ -69,6 +69,50 @@ layer(TestLayer, { excludeTestServices: true })("Mail: signups", (it) => {
     }),
   );
 
+  it.effect(
+    "emails a guest a link that cancels, each time they ask, without a calendar (AC-3)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const event = yield* publishedEvent();
+        const signup = crypto.randomUUID();
+        const address = `gina-${signup}@example.org`;
+        yield* attendance.attendAsGuest(
+          event,
+          { name: "Gina", email: address },
+          { id: signup },
+        );
+        yield* emailsTo(address, 1);
+
+        yield* attendance.requestCancel(event, address);
+        yield* emailsTo(address, 2);
+        // A second request is its own email, not a duplicate of the first.
+        yield* attendance.requestCancel(event, address);
+        const [, first, second] = yield* emailsTo(address, 3);
+
+        for (const email of [first, second]) {
+          assert.strictEqual(
+            email?.message.subject,
+            "Confirm cancelling: Launch",
+          );
+          assert.deepStrictEqual(email?.message.to, {
+            name: "Gina",
+            address,
+          });
+          assert.isUndefined(email?.message.calendar);
+          // The link names this event, and the server accepts its token.
+          const link = new RegExp(
+            `${process.env.SITE_URL}/events/${event}/cancel\\?token=([\\w.-]+)`,
+          ).exec(email?.message.text ?? "");
+          assert.isNotNull(link);
+          assert.deepStrictEqual(
+            yield* attendance.cancelLink(event, link?.[1] ?? ""),
+            { title: "Launch" },
+          );
+        }
+      }),
+  );
+
   it.effect("carries the summary in a guest's invitations", () =>
     Effect.gen(function* () {
       const attendance = yield* Attendance;

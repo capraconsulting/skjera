@@ -53,3 +53,58 @@ export const storedGuestSignup = (eventId: DocumentId, cancelToken: string) =>
       .guestSignup({ params: { id: eventId, token: cancelToken } })
       .pipe(Effect.catchTag("SignupNotFound", () => Effect.succeed(null))),
   );
+
+/** The server said no. `why` is what it sent, for `sayWhy`. */
+export interface Refused {
+  readonly why: unknown;
+}
+
+const refused = (why: unknown) => Effect.succeed<Refused>({ why });
+
+/**
+ * Asks for a link that cancels, emailed to the guest who signed up with
+ * `email`: null once it is sent, else why not. Other failures reject.
+ */
+export const requestCancelByEmail = (
+  eventId: DocumentId,
+  email: string,
+  honeypot: string,
+) =>
+  runPublic((client) =>
+    client.events
+      .requestCancel({
+        params: { id: eventId },
+        payload: { email, honeypot },
+      })
+      .pipe(
+        Effect.as(null),
+        Effect.catchTags({
+          EventNotFound: refused,
+          SignupRejected: refused,
+          TooManyAttempts: refused,
+        }),
+      ),
+  );
+
+/**
+ * What a cancel link's page shows: the event's title, or why the link does
+ * not work. Cancels nothing. Other failures reject.
+ */
+export const cancelLinkFor = (eventId: DocumentId, token: string) =>
+  runPublic((client) =>
+    client.events.cancelLink({ params: { id: eventId, token } }).pipe(
+      Effect.map(({ title }) => ({ title })),
+      Effect.catchTag("SignupRejected", refused),
+    ),
+  );
+
+/** Cancels the signup a link names: null once done, else why not. */
+export const confirmCancelByLink = (eventId: DocumentId, token: string) =>
+  runPublic((client) =>
+    client.events
+      .confirmCancel({ params: { id: eventId, token } })
+      .pipe(
+        Effect.as(null),
+        Effect.catchTags({ SignupRejected: refused, TooManyAttempts: refused }),
+      ),
+  );

@@ -1,6 +1,7 @@
 import {
   type Answers,
   type AttendeeRow,
+  type DocumentId,
   describe,
   type EventRow,
   type GuestProblem,
@@ -20,11 +21,13 @@ import { Link } from "react-router";
 import { Button } from "../../components/Button.tsx";
 import { Input } from "../../components/Input.tsx";
 import { currentSite } from "../../i18n.ts";
+import { sayWhy } from "../../problems.ts";
 import { loginUrl } from "../../site/client.ts";
 import {
   type GuestSignup,
   guestSignup,
   rememberGuestSignup,
+  requestCancelByEmail,
   storedGuestSignup,
 } from "../../site/guestSignups.ts";
 import {
@@ -483,65 +486,147 @@ export function Attend(props: {
   }
 
   return (
-    <section className={styles.box} aria-label={m.attend_region()}>
-      <h2 className={styles.heading}>{m.attend_region()}</h2>
-      <p className={styles.count}>{count}</p>
-      {gone}
-      {closes}
-      {places}
-      {guest === null && noMore ? (
-        logInWhenFull
-      ) : guest === null ? (
-        <form
-          className={styles.form}
-          onSubmit={(submitted) => signUp(submitted, true)}
-        >
-          <div className={styles.fields}>
-            <GuestInput
-              name="firstname"
-              messages={messages}
-              autoComplete="name"
-              aria-label={m.attend_your_name()}
-              placeholder={m.attend_your_name()}
-              required
-            />
-            <GuestInput
-              name="email"
-              messages={messages}
+    <>
+      <section className={styles.box} aria-label={m.attend_region()}>
+        <h2 className={styles.heading}>{m.attend_region()}</h2>
+        <p className={styles.count}>{count}</p>
+        {gone}
+        {closes}
+        {places}
+        {guest === null && noMore ? (
+          logInWhenFull
+        ) : guest === null ? (
+          <form
+            className={styles.form}
+            onSubmit={(submitted) => signUp(submitted, true)}
+          >
+            <div className={styles.fields}>
+              <GuestInput
+                name="firstname"
+                messages={messages}
+                autoComplete="name"
+                aria-label={m.attend_your_name()}
+                placeholder={m.attend_your_name()}
+                required
+              />
+              <GuestInput
+                name="email"
+                messages={messages}
+                type="email"
+                aria-label={m.attend_your_email()}
+                placeholder={m.attend_your_email()}
+                required
+              />
+              <HoneypotInput />
+            </div>
+            <GuestContactInputs given={{}} messages={messages} />
+            {asked({}, true)}
+            <div className={styles.row}>
+              <Button type="submit" variant="primary">
+                {m.attend_sign_up()}
+              </Button>
+              <span>
+                {m.attend_or()}{" "}
+                <a href={loginUrl(`/events/${event.id}`)}>
+                  {m.attend_log_in()}
+                </a>
+              </span>
+            </div>
+            <p className={styles.privacy}>
+              <PrivacyLink />
+            </p>
+          </form>
+        ) : (
+          signedUp(
+            guest.id,
+            m.attend_you_signed_up(),
+            {
+              ...(stored ?? {}),
+              online: signups.find((signup) => signup.id === guest.id)?.online,
+            },
+            true,
+          )
+        )}
+        {failure}
+      </section>
+      {guest === null ? <CancelByEmail eventId={event.id} /> : null}
+    </>
+  );
+}
+
+/**
+ * Cancelling without the signup's own link, for a guest who has lost the
+ * email: a link that cancels is sent to the address they signed up with.
+ * It has a region of its own, apart from the sign-up box.
+ */
+function CancelByEmail(props: { readonly eventId: DocumentId }) {
+  const [sent, setSent] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const ask = (submitted: FormEvent<HTMLFormElement>) => {
+    submitted.preventDefault();
+    const form = new FormData(submitted.currentTarget);
+    const email = String(form.get("cancelEmail") ?? "").trim();
+    setBusy(true);
+    requestCancelByEmail(
+      props.eventId,
+      email,
+      String(form.get("subject") ?? ""),
+    ).then(
+      (refused) => {
+        setBusy(false);
+        setSent(refused === null ? email : null);
+        setError(
+          refused === null
+            ? null
+            : sayWhy(refused.why, m.common_something_wrong()),
+        );
+      },
+      () => {
+        setBusy(false);
+        setSent(null);
+        setError(m.common_something_wrong());
+      },
+    );
+  };
+
+  return (
+    <section
+      className={`${styles.box} ${styles.cancelByEmail}`}
+      aria-label={m.attend_cancel_by_email()}
+    >
+      <h2 className={styles.heading}>{m.attend_cancel_by_email()}</h2>
+      <form className={styles.form} onSubmit={ask}>
+        <div className={styles.fields}>
+          <div className={styles.field}>
+            <Input
+              name="cancelEmail"
               type="email"
-              aria-label={m.attend_your_email()}
-              placeholder={m.attend_your_email()}
+              autoComplete="email"
+              aria-label={m.attend_cancel_email_placeholder()}
+              placeholder={m.attend_cancel_email_placeholder()}
               required
             />
-            <HoneypotInput />
           </div>
-          <GuestContactInputs given={{}} messages={messages} />
-          {asked({}, true)}
-          <div className={styles.row}>
-            <Button type="submit" variant="primary">
-              {m.attend_sign_up()}
-            </Button>
-            <span>
-              {m.attend_or()}{" "}
-              <a href={loginUrl(`/events/${event.id}`)}>{m.attend_log_in()}</a>
-            </span>
-          </div>
-          <p className={styles.privacy}>
-            <PrivacyLink />
-          </p>
-        </form>
-      ) : (
-        signedUp(
-          guest.id,
-          m.attend_you_signed_up(),
-          {
-            ...(stored ?? {}),
-            online: signups.find((signup) => signup.id === guest.id)?.online,
-          },
-          true,
-        )
+          <HoneypotInput />
+        </div>
+        <div className={styles.row}>
+          <Button type="submit" disabled={busy}>
+            {m.attend_cancel_signup()}
+          </Button>
+        </div>
+      </form>
+      {sent === null ? null : (
+        <p role="status" className={styles.status}>
+          {m.attend_cancel_email_sent({ email: sent })}
+        </p>
       )}
-      {failure}
+      {error === null ? null : (
+        <p role="alert" className={styles.error}>
+          {error}
+        </p>
+      )}
     </section>
   );
 }

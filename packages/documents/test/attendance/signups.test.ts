@@ -75,45 +75,71 @@ layer(TestLayer, { excludeTestServices: true })("Attendance", (it) => {
     }),
   );
 
-  it.effect("closes signing up and cancelling at the deadline", () =>
-    Effect.gen(function* () {
-      const documents = yield* Documents;
-      const attendance = yield* Attendance;
-      const id = yield* publishedEvent({ public: true, guests: true });
-      yield* attendance.attend(id, alice);
-      const token = yield* attendance.attendAsGuest(id, {
-        name: "Gina",
-        email: "gina@example.org",
-      });
-
-      const editor = yield* openEditor(id);
-      const heads = yield* documents.applyChanges(
-        id,
-        [
-          editor.edit((event) =>
-            setTimes(event, {
-              deadline: "2020-01-15T12:00+01:00[Europe/Oslo]",
-            }),
-          ),
-        ],
-        alice,
-      );
-      yield* documents.publish(id, heads, alice);
-
-      for (const refused of [
-        attendance.attend(id, bob),
-        attendance.leave(id, alice),
-        attendance.attendAsGuest(id, { name: "Gus", email: "gus@example.org" }),
-        attendance.leaveAsGuest(id, token),
-      ] as ReadonlyArray<Effect.Effect<unknown, { readonly _tag: string }>>) {
-        const error = yield* Effect.flip(refused);
-        assert.deepStrictEqual(
-          [error._tag, "message" in error ? error.message : undefined],
-          ["SignupRejected", "Sign-up for this event has closed"],
+  it.effect(
+    "closes signing up and cancelling at the deadline, by email too (AC-2, AC-6)",
+    () =>
+      Effect.gen(function* () {
+        const documents = yield* Documents;
+        const attendance = yield* Attendance;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        yield* attendance.attend(id, alice);
+        const signup = crypto.randomUUID();
+        const token = yield* attendance.attendAsGuest(
+          id,
+          { name: "Gina", email: "gina@example.org" },
+          { id: signup },
         );
-      }
-      assert.strictEqual((yield* organizerView(id)).length, 2);
-    }),
+        // A link to cancel by, sent before the deadline.
+        const cancelLink = attendance.cancelLinkToken(
+          id,
+          signup,
+          Date.now() + 2 * 60 * 60 * 1000,
+        );
+
+        const editor = yield* openEditor(id);
+        const heads = yield* documents.applyChanges(
+          id,
+          [
+            editor.edit((event) =>
+              setTimes(event, {
+                deadline: "2020-01-15T12:00+01:00[Europe/Oslo]",
+              }),
+            ),
+          ],
+          alice,
+        );
+        yield* documents.publish(id, heads, alice);
+
+        for (const refused of [
+          attendance.attend(id, bob),
+          attendance.leave(id, alice),
+          attendance.attendAsGuest(id, {
+            name: "Gus",
+            email: "gus@example.org",
+          }),
+          attendance.leaveAsGuest(id, token),
+          attendance.requestCancel(id, "gina@example.org"),
+          attendance.cancelLink(id, cancelLink),
+          attendance.confirmCancel(id, cancelLink),
+        ] as ReadonlyArray<Effect.Effect<unknown, { readonly _tag: string }>>) {
+          const error = yield* Effect.flip(refused);
+          assert.deepStrictEqual(
+            [error._tag, "message" in error ? error.message : undefined],
+            ["SignupRejected", "Sign-up for this event has closed"],
+          );
+        }
+        assert.strictEqual((yield* organizerView(id)).length, 2);
+        const kept = yield* NoticesKept;
+        assert.deepStrictEqual(
+          (yield* Ref.get(kept)).filter(
+            (notice) =>
+              notice.event === id &&
+              (notice.kind === "cancelRequested" ||
+                notice.kind === "signupCancelled"),
+          ),
+          [],
+        );
+      }),
   );
 
   it.effect("gives guests a token that emails sent later can carry", () =>

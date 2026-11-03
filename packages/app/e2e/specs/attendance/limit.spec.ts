@@ -1,12 +1,12 @@
 import { test } from "@playwright/test";
 import { cleanUp } from "../../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName, visitor } from "../../fixtures/support.ts";
-import { Attendance } from "../../pom/site/Attendance.ts";
+import { Attendance, CancelByEmail } from "../../pom/site/Attendance.ts";
 import { EventPage } from "../../pom/site/EventPage.ts";
 import { EventEditor } from "../../pom/studio/EventEditor.ts";
 import { TeamsColumn } from "../../pom/studio/TeamsColumn.ts";
 
-test("a limit shows the places left, and a full event takes no more", async ({
+test("a limit shows the places left, and a full event takes no more (AC-1)", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -45,6 +45,8 @@ test("a limit shows the places left, and a full event takes no more", async ({
   await others.expectText("There are no more places.");
   await others.expectSignUpButton(false);
   await others.expectLogInIfSignedUp();
+  // A full event is still open for sign-up: those who lost their email cancel from here.
+  await new CancelByEmail(other).expectShown();
   await new EventPage(alice).goto(event.id);
   const organizer = new Attendance(alice);
   await organizer.expectText("There are no more places.");

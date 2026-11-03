@@ -277,3 +277,70 @@ export class Attendance extends SignupFields {
     await this.page.reload();
   }
 }
+
+/**
+ * The form under the Attendance box for cancelling by email, without the
+ * signup's own link: a region of its own, named in the page's language.
+ */
+export class CancelByEmail {
+  private readonly page: Page;
+  private readonly scope: Locator;
+
+  constructor(page: Page, name = "Want to cancel your signup?") {
+    this.page = page;
+    this.scope = page.getByRole("region", { name });
+  }
+
+  private readonly emailField = () =>
+    this.scope.getByRole("textbox", { name: "Enter your email here" });
+  private readonly button = () =>
+    this.scope.getByRole("button", { name: "Cancel my signup" });
+  private readonly hiddenField = () =>
+    this.scope.locator('input[name="subject"]');
+
+  async expectShown(): Promise<void> {
+    await expect(this.scope).toBeVisible();
+    await expect(this.emailField()).toBeVisible();
+    await expect(this.button()).toBeVisible();
+  }
+
+  async expectAbsent(): Promise<void> {
+    await expect(this.scope).toHaveCount(0);
+  }
+
+  async fillEmail(email: string): Promise<void> {
+    await this.emailField().fill(email);
+  }
+
+  async submit(): Promise<void> {
+    await this.button().click();
+  }
+
+  /** Fills the hidden field by script, as a bot does: it can't be typed into. */
+  async fillHiddenField(text: string): Promise<void> {
+    await this.hiddenField().evaluate((field, value) => {
+      (field as HTMLInputElement).value = value;
+    }, text);
+  }
+
+  /** The hidden field isn't shown, and Tab from the email field to the button never lands in it. */
+  async expectHiddenFieldSkipped(): Promise<void> {
+    const hidden = this.hiddenField();
+    await expect(hidden).toHaveCount(1);
+    await expect(hidden).toBeHidden();
+    await this.emailField().focus();
+    for (let presses = 0; presses < 20; presses++) {
+      await this.page.keyboard.press("Tab");
+      await expect(hidden).not.toBeFocused();
+      const arrived = await this.button().evaluate(
+        (element) => element === document.activeElement,
+      );
+      if (arrived) return;
+    }
+    throw new Error("Tab never reached the button");
+  }
+
+  async expectText(text: string | RegExp): Promise<void> {
+    await expect(this.scope).toContainText(text);
+  }
+}

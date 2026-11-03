@@ -40,6 +40,11 @@ export interface ChangeNotice extends Notice {
   readonly previousPlace?: string;
 }
 
+export interface CancelNotice extends Notice {
+  /** When the link to confirm cancelling stops working: milliseconds since the epoch. */
+  readonly expiresAt: number;
+}
+
 export type Kept =
   | (Notice & {
       readonly kind:
@@ -48,7 +53,8 @@ export type Kept =
         | "signupRemoved"
         | "eventCancelled";
     })
-  | (ChangeNotice & { readonly kind: "eventChanged" });
+  | (ChangeNotice & { readonly kind: "eventChanged" })
+  | (CancelNotice & { readonly kind: "cancelRequested" });
 
 /** The notices `Notifications.layerTest` kept. */
 export class NoticesKept extends Context.Service<
@@ -69,6 +75,8 @@ export class Notifications extends Context.Service<
     readonly signupCancelled: (notice: Notice) => Effect.Effect<void>;
     /** An organizer took them off an event that has not ended. */
     readonly signupRemoved: (notice: Notice) => Effect.Effect<void>;
+    /** A guest asked to cancel by their email address: they confirm from a link. */
+    readonly cancelRequested: (notice: CancelNotice) => Effect.Effect<void>;
     /** The event moved, or is at another place. */
     readonly eventChanged: (notice: ChangeNotice) => Effect.Effect<void>;
     /** The event was deleted before it was over: it won't happen. */
@@ -87,6 +95,8 @@ export class Notifications extends Context.Service<
         signupCancelled: (notice) =>
           keep({ kind: "signupCancelled", ...notice }),
         signupRemoved: (notice) => keep({ kind: "signupRemoved", ...notice }),
+        cancelRequested: (notice) =>
+          keep({ kind: "cancelRequested", ...notice }),
         eventChanged: (notice) => keep({ kind: "eventChanged", ...notice }),
         eventCancelled: (notice) => keep({ kind: "eventCancelled", ...notice }),
       };

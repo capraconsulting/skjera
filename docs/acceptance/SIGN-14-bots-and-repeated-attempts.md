@@ -1,12 +1,12 @@
 # SIGN-14: Signing up and cancelling are protected against bots and repeated attempts
 
-The guest forms have a hidden field that people never see and bots fill in, and signing up and cancelling can only be tried so many times. Both are as in Skjer.
+The guest forms have a hidden field that people never see and bots fill in, and signing up and cancelling can only be tried so many times. Both are as in Skjer. The form for cancelling by email (SIGN-15) is one of the guest forms, and asking for its link and confirming from it count as attempts.
 
 The tests by hand use the events of SIGN-02, on a test server (`pnpm test-server`, see the Readme): the browser tests run with the limits off, so only a test server started by hand has them on.
 
 ## AC-1: A hidden field on the guest forms
 
-The guest form for signing up, and a guest's **Cancel my signup**, SHALL have a hidden field that is not shown, read out or reached with the keyboard.
+The guest form for signing up, a guest's **Cancel my signup** and the form for cancelling by email SHALL have a hidden field that is not shown, read out or reached with the keyboard.
 
 **Test**
 
@@ -14,6 +14,8 @@ The guest form for signing up, and a guest's **Cancel my signup**, SHALL have a 
 - **When** it is opened in a private window, and you press Tab from «Your name» through the form to **Sign up**, with a screen reader on if you have one
 - **Then** Tab goes from field to field without stopping at anything you can't see, nothing unseen is read out, and no field is shown for the hidden one
 - **When** a guest signs up in that window, and you press Tab from **Change answers** to **Cancel my signup**
+- **Then** Tab goes straight from one to the other, and nothing unseen is read out
+- **When** you open the event in another private window, and press Tab from «Enter your email here» to **Cancel my signup** in the region «Want to cancel your signup?»
 - **Then** Tab goes straight from one to the other, and nothing unseen is read out
 
 **Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`
@@ -29,12 +31,14 @@ IF a guest form is sent with the hidden field filled in, THEN Skjera SHALL refus
 - **Then** the form says «Det har oppstått et problem. Det utfylte skjemaet er ikke gyldig.» (in the page's language), the box still says nobody has signed up, and Mailpit has no new email
 - **When** a guest signs up for real, you give the hidden field of their **Cancel my signup** a value, and press it
 - **Then** the same sentence shows, the box still says «You're signed up.», and Mailpit has no cancellation email
+- **When** you give the hidden field of the form for cancelling by email a value, type her address, and press **Cancel my signup** in its region
+- **Then** the same sentence shows, and Mailpit has no email asking to confirm cancelling
 
 **Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/documents/test/attendance/guests.test.ts`
 
 ## AC-3: Guests have limits
 
-IF guests sign up or cancel more than 20 times in an hour from the same IP address, or more than 10 times in a minute from the same IP address and browser, THEN Skjera SHALL refuse the attempt with «Du har nådd grensen for antall forsøk. Vennligst vent en stund før du prøver igjen.», and in Nynorsk and English with sentences of their own.
+IF guests sign up, cancel, ask for a link to cancel by email or confirm cancelling from one more than 20 times in an hour from the same IP address, or more than 10 times in a minute from the same IP address and browser, THEN Skjera SHALL refuse the attempt with «Du har nådd grensen for antall forsøk. Vennligst vent en stund før du prøver igjen.», and in Nynorsk and English with sentences of their own.
 
 Signing up and cancelling count together, across events.
 

@@ -1,0 +1,35 @@
+/* A cancel link's page: the event, and the button that cancels. */
+.cancel {
+  padding-block: 2rem;
+}
+
+.title {
+  margin: 0 0 1.5rem;
+  font-size: 1.875rem;
+  font-weight: 600;
+}
+
+.text {
+  margin: 0 0 1.5rem;
+  color: var(--color-text-muted);
+  font-size: 1.25rem;
+  font-weight: 300;
+}
+
+.error {
+  margin: 0 0 1rem;
+  color: var(--color-danger);
+  font-size: 0.875rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.toEvent {
+  color: var(--color-text);
+  font-weight: 700;
+}

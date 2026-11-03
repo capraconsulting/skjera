@@ -108,6 +108,34 @@ export class EventsApi extends HttpApiGroup.make("events").add(
     payload: SignupChange,
     error: [EventNotFound, SignupNotFound, SignupRejected],
   }),
+  /**
+   * Emails the guest signed up with an address a link that cancels, valid for
+   * 2 hours. Refuses an address nobody signed up with.
+   */
+  HttpApiEndpoint.post("requestCancel", "/api/events/:id/cancel-requests", {
+    params: { id: DocumentId },
+    payload: Schema.Struct({
+      email: Schema.String,
+      /** The form's hidden field: only a bot fills it in, and is refused. */
+      honeypot: Schema.optionalKey(Schema.String),
+    }),
+    error: [EventNotFound, SignupRejected, TooManyAttempts],
+  }),
+  /** What a cancel link's page shows: the event's title. Cancels nothing. */
+  HttpApiEndpoint.get("cancelLink", "/api/events/:id/cancel-requests/:token", {
+    params: { id: DocumentId, token: Schema.String },
+    success: Schema.Struct({ title: Schema.String }),
+    error: SignupRejected,
+  }),
+  /** Cancels the signup a cancel link names. */
+  HttpApiEndpoint.delete(
+    "confirmCancel",
+    "/api/events/:id/cancel-requests/:token",
+    {
+      params: { id: DocumentId, token: Schema.String },
+      error: [SignupRejected, TooManyAttempts],
+    },
+  ),
 ) {}
 
 /** For organizers in the studio: signed-in users. */

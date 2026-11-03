@@ -10,6 +10,7 @@ import type { ReactElement } from "react";
 import { Attendance } from "../attendance/Attendance.ts";
 import { type RichText, SiteLocale } from "../Model.ts";
 import { invitation, parseAddress } from "../site/Calendar.ts";
+import { CancelRequested } from "./emails/CancelRequested.tsx";
 import { EventCancelled } from "./emails/EventCancelled.tsx";
 import { EventChanged } from "./emails/EventChanged.tsx";
 import { formatAt, formatWhen } from "./emails/format.ts";
@@ -43,12 +44,15 @@ const Send = Rpc.make("Send", {
       "eventChanged",
       "eventCancelled",
       "reminder",
+      "cancelRequested",
     ]),
     attendee: Recipient,
     /** When the event was, before it moved. */
     previously: Schema.optional(Times),
     /** Where it was, before it changed place: "" when it had none. */
     previousPlace: Schema.optional(Schema.String),
+    /** When the link in an email to confirm cancelling stops working: milliseconds since the epoch. */
+    expiresAt: Schema.optional(Schema.Number),
   },
   primaryKey: ({ key }) => key,
 }).annotate(ClusterSchema.Persisted, true);
@@ -81,6 +85,13 @@ export const layerNotifications = Layer.effect(
           key: `signupRemoved/${attendee.id}`,
           kind: "signupRemoved",
           attendee,
+        }),
+      cancelRequested: ({ event, attendee, expiresAt }) =>
+        send(event, {
+          key: `cancelRequested/${attendee.id}/${expiresAt}`,
+          kind: "cancelRequested",
+          attendee,
+          expiresAt,
         }),
       eventChanged: ({ event, attendee, version, previously, previousPlace }) =>
         send(event, {
@@ -311,6 +322,23 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                       />
                     ),
                     calendar: calendar("CANCEL"),
+                  };
+                case "cancelRequested":
+                  return {
+                    subject: m.email_cancel_requested_subject(
+                      { title: event.title },
+                      { locale },
+                    ),
+                    body: (
+                      <CancelRequested
+                        locale={locale}
+                        siteName={site.name}
+                        name={attendee.name}
+                        title={event.title}
+                        when={when}
+                        url={`${url}/cancel?token=${attendance.cancelLinkToken(eventId, attendee.id, payload.expiresAt ?? 0)}`}
+                      />
+                    ),
                   };
                 case "eventChanged": {
                   const moved = payload.previously !== undefined;

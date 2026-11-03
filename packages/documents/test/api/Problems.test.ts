@@ -23,6 +23,10 @@ const problems: ReadonlyArray<Problem> = [
   { _tag: "GuestPhoneInvalid" },
   { _tag: "FormNotValid" },
   { _tag: "TooManyAttempts" },
+  { _tag: "NoSignupForEmail" },
+  { _tag: "CancelLinkExpired" },
+  { _tag: "CancelLinkUsed" },
+  { _tag: "CancelLinkInvalid" },
   { _tag: "MissingToPublish", fields: ["title"] },
   { _tag: "EndsBeforeStart" },
   { _tag: "DeadlineAfterStart" },
@@ -92,6 +96,14 @@ group("Problems", () => {
     // Nynorsk and English are sentences of their own.
     assert.notStrictEqual(describe(tooMany, "nn"), describe(tooMany, "nb"));
     assert.notStrictEqual(describe(tooMany, "en"), describe(tooMany, "nb"));
+  });
+
+  it("say Skjer's sentence when no signup is found for an address (AC-4)", () => {
+    const none: Problem = { _tag: "NoSignupForEmail" };
+    assert.strictEqual(
+      describe(none, "nb"),
+      "Vi finner dessverre ingen opplysninger om påmelding med denne e-posten.",
+    );
   });
 
   it("go with their English, for logs and other clients", () => {
