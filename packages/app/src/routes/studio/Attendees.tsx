@@ -4,6 +4,7 @@ import { eq, useLiveQuery } from "@tanstack/react-db";
 import { useEffect, useState } from "react";
 import { Badge } from "../../components/Badge.tsx";
 import { Button } from "../../components/Button.tsx";
+import { Input } from "../../components/Input.tsx";
 import {
   attendees as attendeesTable,
   dietaryPreferences,
@@ -11,6 +12,7 @@ import {
   type Removal,
 } from "../../sync/tables.ts";
 import styles from "./Attendees.module.css";
+import { searchAttendees } from "./attendeeSearch.ts";
 import { answerText, attendeesCsv, download } from "./attendeesCsv.ts";
 
 /** Who has signed up to attend, for the event's organizers. */
@@ -32,6 +34,7 @@ export function Attendees(props: { readonly id: DocumentId }) {
         .findOne(),
   }).data;
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const remove = (attendee: string, name: string) => {
     if (!window.confirm(m.studio_take_off({ name }))) return;
@@ -74,51 +77,63 @@ export function Attendees(props: { readonly id: DocumentId }) {
         {attendees === null ? null : attendees.length === 0 ? (
           <p className={styles.empty}>{m.attend_nobody()}</p>
         ) : (
-          <ul className={styles.list}>
-            {attendees.map(({ id, details: who, online }) =>
-              // Signed-in users always see who signed up.
-              who === null ? null : (
-                <li key={id} className={styles.item}>
-                  {who.name}
-                  {who.email === null ? null : (
-                    <span className={styles.email}>{who.email}</span>
-                  )}
-                  {who.phone === null ? null : (
-                    <span className={styles.email}>{who.phone}</span>
-                  )}
-                  {who.company === null ? null : (
-                    <span className={styles.email}>{who.company}</span>
-                  )}
-                  {who.guest ? (
-                    <Badge tone="neutral">{m.studio_guest()}</Badge>
-                  ) : null}
-                  {event?.isStreamed ? (
-                    <Badge tone="neutral">
-                      {online ? m.attend_online() : m.attend_in_person()}
-                    </Badge>
-                  ) : null}
-                  <Button
-                    variant="ghost"
-                    className={styles.remove}
-                    aria-label={m.studio_remove_name({ name: who.name })}
-                    onClick={() => remove(id, who.name)}
-                  >
-                    {m.common_remove()}
-                  </Button>
-                  {who.answers.length === 0 ? null : (
-                    <dl className={styles.answers}>
-                      {who.answers.map((answer) => (
-                        <div key={answer.question}>
-                          <dt>{answer.question}</dt>
-                          <dd>{answerText(answer)}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  )}
-                </li>
-              ),
-            )}
-          </ul>
+          <>
+            <div className={styles.form}>
+              <Input
+                type="search"
+                aria-label={m.studio_attendees_search()}
+                placeholder={m.studio_attendees_search()}
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </div>
+            <ul className={styles.list}>
+              {searchAttendees(attendees, search).map(
+                ({ id, details: who, online }) =>
+                  // Signed-in users always see who signed up.
+                  who === null ? null : (
+                    <li key={id} className={styles.item}>
+                      {who.name}
+                      {who.email === null ? null : (
+                        <span className={styles.email}>{who.email}</span>
+                      )}
+                      {who.phone === null ? null : (
+                        <span className={styles.email}>{who.phone}</span>
+                      )}
+                      {who.company === null ? null : (
+                        <span className={styles.email}>{who.company}</span>
+                      )}
+                      {who.guest ? (
+                        <Badge tone="neutral">{m.studio_guest()}</Badge>
+                      ) : null}
+                      {event?.isStreamed ? (
+                        <Badge tone="neutral">
+                          {online ? m.attend_online() : m.attend_in_person()}
+                        </Badge>
+                      ) : null}
+                      <Button
+                        variant="ghost"
+                        className={styles.remove}
+                        aria-label={m.studio_remove_name({ name: who.name })}
+                        onClick={() => remove(id, who.name)}
+                      >
+                        {m.common_remove()}
+                      </Button>
+                      {who.answers.length === 0 ? null : (
+                        <dl className={styles.answers}>
+                          {who.answers.map((answer) => (
+                            <div key={answer.question}>
+                              <dt>{answer.question}</dt>
+                              <dd>{answerText(answer)}</dd>
+                            </div>
+                          ))}
+                        </dl>
+                      )}
+                    </li>
+                  ),
+              )}
+            </ul>
+          </>
         )}
       </section>
       <DietaryPreferences id={id} asks={event?.askDietary === true} />

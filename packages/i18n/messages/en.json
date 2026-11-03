@@ -270,6 +270,7 @@
   "studio_attendees_file": "{title} attendees.csv",
   "studio_attendees": "Attendees",
   "studio_attendees_count": "Attendees ({count})",
+  "studio_attendees_search": "Search",
   "studio_dietary_none": "No dietary preferences given.",
   "studio_dietary_count": "Dietary preferences ({count})",
   "studio_download_csv": "Download CSV",

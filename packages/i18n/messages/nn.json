@@ -270,6 +270,7 @@
   "studio_attendees_file": "{title} påmelde.csv",
   "studio_attendees": "Påmelde",
   "studio_attendees_count": "Påmelde ({count})",
+  "studio_attendees_search": "Søk",
   "studio_dietary_none": "Ingen har oppgitt matpreferansar.",
   "studio_dietary_count": "Matpreferansar ({count})",
   "studio_download_csv": "Last ned CSV",
