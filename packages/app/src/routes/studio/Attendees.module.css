@@ -4,7 +4,8 @@
   border-top: 1px solid var(--color-border);
 }
 
-.dietaryPreferences {
+.dietaryPreferences,
+.invitations {
   margin-top: 2rem;
   padding-top: 1.5rem;
   border-top: 1px solid var(--color-border);
@@ -23,6 +24,25 @@
   font-size: 0.9375rem;
 }
 
+.hint {
+  margin: 0 0 0.75rem;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.25rem;
+}
+
 .remove {
   margin-left: auto;
 }
@@ -31,6 +51,10 @@
   margin: 0 0 0.75rem;
   color: var(--color-danger);
   font-size: 0.875rem;
+}
+
+.field .error {
+  margin: 0;
 }
 
 .list {

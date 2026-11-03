@@ -55,6 +55,9 @@ export const Problem = Schema.Union([
   // Images.
   Schema.TaggedStruct("ImageTooBig", { maxMb: Schema.Number }),
   Schema.TaggedStruct("ImageFormat", {}),
+  // Invitations.
+  Schema.TaggedStruct("InvitedEmailInvalid", {}),
+  Schema.TaggedStruct("AlreadyInvited", { email: Schema.String }),
 ]);
 export type Problem = typeof Problem.Type;
 
@@ -156,6 +159,10 @@ export const describe = (problem: Problem, locale?: Locale): string => {
       return m.editor_image_size({ mb: problem.maxMb }, options);
     case "ImageFormat":
       return m.editor_image_type({}, options);
+    case "InvitedEmailInvalid":
+      return m.problem_invited_email_invalid({}, options);
+    case "AlreadyInvited":
+      return m.problem_already_invited(problem, options);
   }
 };
 

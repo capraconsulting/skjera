@@ -1,4 +1,4 @@
-# SIGN-15: A guest cancels by typing their email on the event page
+# SIGN-16: A guest cancels by typing their email on the event page
 
 A guest who has lost the email with their own link can still cancel: the event page has a form for their email address, Skjera emails them a link that is valid for 2 hours, and the link's page cancels only when its button is pressed. Programs that check links in email open them too, so opening a link never cancels.
 

@@ -16,17 +16,17 @@ The front page SHALL offer two filters: «Åpent for alle» for events guests ca
 
 **Automated:** `packages/app/e2e/specs/tags.spec.ts`
 
-## AC-2: A filter applies to every list
+## AC-2: A filter applies to the upcoming events
 
-WHEN one of the two filters is chosen, the front page SHALL show only the events it names, in every list on the page.
+WHEN one of the two filters is chosen, the front page SHALL show only the upcoming events it names. The past events are not filtered.
 
 **Test**
 
 - **Given** the front page
 - **When** you choose «Open to all»
-- **Then** only events open to guests show, in the upcoming and the past events alike
+- **Then** only upcoming events open to guests show, and the past events are all still there
 
-**Automated:** `packages/app/e2e/specs/tags.spec.ts`
+**Automated:** `packages/app/test/frontPage.test.ts`, `packages/app/e2e/specs/tags.spec.ts`
 
 ## AC-3: At most one is chosen
 
@@ -44,13 +44,13 @@ WHEN the chosen filter is chosen again, or the other one is chosen, the front pa
 
 ## AC-4: A filter and a tag together
 
-WHILE one of the two filters and a tag are chosen, the front page SHALL show only events that match both.
+WHILE one of the two filters and a tag are chosen, the front page SHALL show only upcoming events that match both. The past events are not filtered.
 
 **Test**
 
 - **Given** the front page
 - **When** you choose a filter and a tag
-- **Then** only events that match both show
+- **Then** only upcoming events that match both show, and the past events are all still there
 
 **Automated:** `packages/app/e2e/specs/tags.spec.ts`
 

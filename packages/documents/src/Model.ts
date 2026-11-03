@@ -257,6 +257,9 @@ export const guestProblems = (guest: {
 };
 /** The company a guest comes from. */
 export const GuestCompany = Schema.String.check(Schema.isMaxLength(100));
+/** An address forms take: something@something.something, at most 254 characters, once trimmed. */
+export const isEmailAddress = (email: string): boolean =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) && email.trim().length <= 254;
 export const GuestDetails = Schema.Struct({
   name: Schema.String.check(
     Schema.makeFilter(
@@ -267,10 +270,7 @@ export const GuestDetails = Schema.Struct({
   ),
   email: Schema.String.check(
     Schema.makeFilter(
-      (email: string) =>
-        (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) &&
-          email.trim().length <= 254) ||
-        "Enter a valid email address",
+      (email: string) => isEmailAddress(email) || "Enter a valid email address",
     ),
   ),
   phone: Schema.optionalKey(GuestPhone),

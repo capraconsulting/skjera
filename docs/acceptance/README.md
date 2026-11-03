@@ -74,7 +74,8 @@ These files say what to test and how. Which criteria have passed in a round of t
 | SIGN-12 | [Downloading attendees as CSV](SIGN-12-csv.md) |
 | SIGN-13 | [Sign-up data deleted after 30 days](SIGN-13-signup-retention.md) |
 | SIGN-14 | [Signing up and cancelling are protected against bots and repeated attempts](SIGN-14-bots-and-repeated-attempts.md) |
-| SIGN-15 | [A guest cancels by typing their email on the event page](SIGN-15-guest-cancels-by-email.md) |
+| SIGN-15 | [Invitations in the studio](SIGN-15-invitations.md) |
+| SIGN-16 | [A guest cancels by typing their email on the event page](SIGN-16-guest-cancels-by-email.md) |
 
 ## MAIL: Email and calendar
 

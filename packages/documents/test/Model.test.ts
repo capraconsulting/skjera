@@ -3,6 +3,7 @@ import { Config, ConfigProvider, Effect, Exit, Option, Schema } from "effect";
 import {
   GuestDetails,
   guestProblems,
+  isEmailAddress,
   isMobileNumber,
   optionalSetting,
   organizerLogos,
@@ -29,6 +30,29 @@ describe("GuestDetails", () => {
     assert.isTrue(Option.isNone(decode({ ...gina, company: "A".repeat(101) })));
     assert.isTrue(Option.isSome(decode({ ...gina, phone: "1".repeat(50) })));
     assert.isTrue(Option.isSome(decode({ ...gina, company: "A".repeat(100) })));
+  });
+});
+
+describe("isEmailAddress", () => {
+  it("takes something@something.something, trimmed, of at most 254 characters (AC-3)", () => {
+    assert.isTrue(isEmailAddress("gina@example.org"));
+    assert.isTrue(isEmailAddress(" gina@example.org "));
+    const longest = `${"a".repeat(254 - "@example.org".length)}@example.org`;
+    assert.isTrue(isEmailAddress(longest));
+    for (const given of [
+      "",
+      "gina",
+      "gina@example",
+      "gi na@example.org",
+      `a${longest}`,
+    ]) {
+      assert.isFalse(isEmailAddress(given), given);
+    }
+  });
+
+  it("is the rule a guest's email follows (AC-3)", () => {
+    assert.isTrue(Option.isNone(decode({ ...gina, email: "gina@example" })));
+    assert.isTrue(Option.isSome(decode({ ...gina, email: " g@example.org " })));
   });
 });
 

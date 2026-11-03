@@ -1234,4 +1234,17 @@ export const migrations = Migrator.fromRecord({
       RETURNING e.*
     $$`,
   ),
+  "0030_invitations": statements(
+    // Who an organizer noted as invited to an event: a record only, nothing is
+    // sent. Every event in the studio has one, published or not.
+    `CREATE TABLE invitations (
+      id uuid PRIMARY KEY DEFAULT uuidv7(),
+      event_id uuid NOT NULL REFERENCES documents (id) ON DELETE CASCADE,
+      name text CHECK (name IS NULL OR btrim(name) <> ''),
+      email text NOT NULL CHECK (btrim(email) <> ''),
+      invited_at timestamptz NOT NULL DEFAULT now()
+    )`,
+    // The same address once per event, whatever its case; also the index by event.
+    `CREATE UNIQUE INDEX invitations_event_id_email_key ON invitations (event_id, lower(email))`,
+  ),
 });

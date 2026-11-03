@@ -17,12 +17,14 @@ import {
 } from "effect";
 import { SqlClient, SqlError, type Statement } from "effect/sql";
 import {
+  DocumentNotFound,
   EventNotFound,
+  InvitationRejected,
   SignupNotFound,
   SignupRejected,
 } from "../api/errors.ts";
 import { type Problem, refused } from "../api/Problems.ts";
-import type { StoredGuestSignup } from "../api/PublicApi.ts";
+import type { Invitation, StoredGuestSignup } from "../api/PublicApi.ts";
 import {
   type Answer,
   type Answers,
@@ -30,6 +32,7 @@ import {
   type DocumentId,
   type GuestDetails,
   guestProblems,
+  isEmailAddress,
   type Locale,
   type Question,
 } from "../Model.ts";
@@ -230,6 +233,15 @@ export class Attendance extends Context.Service<
     readonly dietaryPreferences: (
       event: DocumentId,
     ) => Effect.Effect<ReadonlyArray<string>>;
+    /** Notes someone as invited to an event, for its organizers: nothing is sent to anyone. */
+    readonly invite: (
+      event: DocumentId,
+      person: { readonly name?: string; readonly email: string },
+    ) => Effect.Effect<Invitation, DocumentNotFound | InvitationRejected>;
+    /** Those noted as invited to an event, in the order they were added. */
+    readonly invitations: (
+      event: DocumentId,
+    ) => Effect.Effect<ReadonlyArray<Invitation>>;
     /**
      * The token a guest changes and cancels their signup with: derived from
      * it, so it can be put in emails sent later, though only its hash is
@@ -751,6 +763,51 @@ export class Attendance extends Context.Service<
         },
       );
 
+      const invite = Effect.fn("Attendance.invite")(function* (
+        event: DocumentId,
+        person: { readonly name?: string; readonly email: string },
+      ) {
+        const email = person.email.trim();
+        if (!isEmailAddress(email)) {
+          return yield* new InvitationRejected(
+            refused({ _tag: "InvitedEmailInvalid" }),
+          );
+        }
+        const name = (person.name ?? "").trim();
+        // For any event in the studio, published or not.
+        const [row] = yield* sql<Invitation>`
+            INSERT INTO invitations (event_id, name, email)
+            SELECT id, ${name === "" ? null : name}, ${email}
+            FROM documents
+            WHERE id = ${event} AND type = 'event' AND deleted_at IS NULL
+            RETURNING id, name, email, invited_at AS "invitedAt"
+          `.pipe(
+          Effect.catchIf(SqlError.isSqlError, (error) =>
+            pgCode(error) === "23505"
+              ? Effect.fail(
+                  new InvitationRejected(
+                    refused({ _tag: "AlreadyInvited", email }),
+                  ),
+                )
+              : Effect.die(error),
+          ),
+        );
+        if (row === undefined) {
+          return yield* new DocumentNotFound({ id: event });
+        }
+        return row;
+      }, Effect.uninterruptible);
+
+      const invitations = Effect.fn("Attendance.invitations")(function* (
+        event: DocumentId,
+      ) {
+        return yield* sql<Invitation>`
+          SELECT id, name, email, invited_at AS "invitedAt" FROM invitations
+          WHERE event_id = ${event}
+          ORDER BY invited_at, id
+        `.pipe(Effect.orDie);
+      });
+
       return Attendance.of({
         attend,
         leave,
@@ -764,6 +821,8 @@ export class Attendance extends Context.Service<
         change,
         remove,
         dietaryPreferences,
+        invite,
+        invitations,
         guestToken,
       });
     }),

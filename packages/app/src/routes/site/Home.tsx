@@ -10,7 +10,12 @@ import { Badge } from "../../components/Badge.tsx";
 import { Button } from "../../components/Button.tsx";
 import { Organizer } from "../../components/Organizer.tsx";
 import { usePageTitle } from "../../pageTitle.ts";
-import { rowMarks, upcomingAndPast } from "../../site/frontPage.ts";
+import {
+  frontPageLists,
+  paged,
+  pageSize,
+  rowMarks,
+} from "../../site/frontPage.ts";
 import { guestSignup } from "../../site/guestSignups.ts";
 import { attendees, events as eventsTable } from "../../sync/tables.ts";
 import { sameTag, uniqueTags } from "../../tags.ts";
@@ -50,9 +55,6 @@ const useSignedUp = () => {
   );
 };
 
-/** Past events, a page at a time. */
-const pastPage = 6;
-
 /** Events open to guests, or not: ?guests=yes or ?guests=no. */
 const guestChoices = ["yes", "no"] as const;
 type GuestChoice = (typeof guestChoices)[number];
@@ -64,7 +66,7 @@ export function Home() {
   ).data;
   const now = useNow();
   const signedUp = useSignedUp();
-  const [pastShown, setPastShown] = useState(pastPage);
+  const [pastShown, setPastShown] = useState(pageSize);
   // The tag picked, in the URL as ?tag=, to share or come back to.
   const [picked, setPicked] = useQueryState("tag");
   // Open to guests or not, in the URL as ?guests=yes or ?guests=no.
@@ -82,17 +84,18 @@ export function Home() {
     picked === null
       ? null
       : (tags.find((each) => sameTag(each, picked)) ?? picked);
-  const shown = events.filter(
-    (event) =>
-      (tag === null || event.tags.some((each) => sameTag(each, tag))) &&
-      (guests === null || event.allowGuests === (guests === "yes")),
-  );
   const pick = (next: string | null) => void setPicked(next);
   // Choosing the chosen one again removes it.
   const pickGuests = (next: GuestChoice) =>
     void setGuests(guests === next ? null : next);
 
-  const { upcoming, past } = upcomingAndPast(shown, now);
+  // The filters narrow the upcoming events only.
+  const { upcoming, past } = frontPageLists(
+    events,
+    { tag, allowGuests: guests === null ? null : guests === "yes" },
+    now,
+  );
+  const pastPage = paged(past, pastShown);
 
   const upcomingId = useId();
   const pastId = useId();
@@ -159,52 +162,79 @@ export function Home() {
             {filters}
           </div>
         </div>
-        {events.length === 0 ? (
-          <p className={styles.empty}>{m.site_nothing_published()}</p>
-        ) : upcoming.length === 0 ? (
-          <p className={styles.empty}>
-            {tag === null
-              ? m.site_nothing_upcoming()
-              : m.site_nothing_upcoming_tagged({ tag })}
-          </p>
+        <UpcomingList
+          // A new filter starts the list again at six.
+          key={JSON.stringify([picked?.toLowerCase() ?? null, guests])}
+          events={upcoming}
+          now={now}
+          signedUp={signedUp}
+        />
+      </section>
+      <section className={styles.section} aria-labelledby={pastId}>
+        <h2 id={pastId} className={styles.heading}>
+          {m.site_past()}
+        </h2>
+        {past.length === 0 ? (
+          <p className={styles.empty}>{m.site_nothing_past()}</p>
         ) : (
-          <ul className={styles.rows}>
-            {upcoming.map((event) => (
-              <li key={event.id}>
-                <Row
-                  event={event}
-                  now={now}
-                  signedUp={signedUp.has(event.id)}
-                />
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className={styles.cards}>
+              {pastPage.shown.map((event) => (
+                <li key={event.id}>
+                  <Card event={event} />
+                </li>
+              ))}
+            </ul>
+            {pastPage.more ? (
+              <Button
+                className={styles.more}
+                onClick={() => setPastShown((count) => count + pageSize)}
+              >
+                {m.site_show_more()}
+                <ArrowDown size={18} strokeWidth={1.5} aria-hidden="true" />
+              </Button>
+            ) : null}
+          </>
         )}
       </section>
-      {past.length === 0 ? null : (
-        <section className={styles.section} aria-labelledby={pastId}>
-          <h2 id={pastId} className={styles.heading}>
-            {m.site_past()}
-          </h2>
-          <ul className={styles.cards}>
-            {past.slice(0, pastShown).map((event) => (
-              <li key={event.id}>
-                <Card event={event} />
-              </li>
-            ))}
-          </ul>
-          {past.length > pastShown ? (
-            <Button
-              className={styles.more}
-              onClick={() => setPastShown((count) => count + pastPage)}
-            >
-              {m.site_show_more()}
-              <ArrowDown size={18} strokeWidth={1.5} aria-hidden="true" />
-            </Button>
-          ) : null}
-        </section>
-      )}
     </div>
+  );
+}
+
+/** The upcoming events, six at a time. */
+function UpcomingList(props: {
+  readonly events: ReadonlyArray<EventRow>;
+  readonly now: Date;
+  readonly signedUp: ReadonlySet<string>;
+}) {
+  const [count, setCount] = useState(pageSize);
+  const { shown, more } = paged(props.events, count);
+  if (props.events.length === 0) {
+    return <p className={styles.empty}>{m.site_nothing_upcoming()}</p>;
+  }
+  return (
+    <>
+      <ul className={styles.rows}>
+        {shown.map((event) => (
+          <li key={event.id}>
+            <Row
+              event={event}
+              now={props.now}
+              signedUp={props.signedUp.has(event.id)}
+            />
+          </li>
+        ))}
+      </ul>
+      {more ? (
+        <Button
+          className={styles.more}
+          onClick={() => setCount((each) => each + pageSize)}
+        >
+          {m.site_show_more()}
+          <ArrowDown size={18} strokeWidth={1.5} aria-hidden="true" />
+        </Button>
+      ) : null}
+    </>
   );
 }
 

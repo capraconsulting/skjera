@@ -95,7 +95,7 @@ test("the site filters events open to guests and those not, with the tag too", a
   const teams = new TeamsColumn(alice);
   const editor = new EventEditor(alice);
   const team = await teams.create(uniqueTeamName("Guest filter"));
-  // A tag only this test uses, so the past list holds just D.
+  // A tag only this test uses, so the upcoming list holds just A, B and C.
   const tag = uniqueTeamName("Guests");
 
   const a = await editor.createPublished({
@@ -155,10 +155,11 @@ test("the site filters events open to guests and those not, with the tag too", a
   await home.expectQuery("yes", null);
   await home.expectEvents("upcoming", [a, c], [b]);
 
-  // Both in the address: the events matching both, in both lists.
+  // Both in the address: the upcoming events matching both. The filters
+  // narrow the upcoming events only, so D is under «Past events» either way.
   await home.goto(`?tag=${encodeURIComponent(tag)}&guests=yes`);
   await home.expectEvents("upcoming", [a], [b, c]);
-  await home.expectNoEvent(dTitle);
+  await home.expectEvent(dTitle, "past");
   await home.goto(`?tag=${encodeURIComponent(tag)}&guests=no`);
   await home.expectEvents("upcoming", [b], [a, c]);
   await home.expectEvent(dTitle, "past");
@@ -170,6 +171,52 @@ test("the site filters events open to guests and those not, with the tag too", a
 
   await editor.delete(d);
   for (const event of [a, b, c]) {
+    await editor.goto(team, event.id);
+    await editor.delete(event.id);
+  }
+  await teams.delete(team);
+});
+
+test("the upcoming events show six at a time, and a new filter starts them again (AC-1, AC-2, AC-5, AC-6)", async ({
+  browser,
+}) => {
+  test.slow();
+  const alice = await signedIn(browser, "alice@example.com");
+  const teams = new TeamsColumn(alice);
+  const editor = new EventEditor(alice);
+  const team = await teams.create(uniqueTeamName("Paging"));
+  // A tag only this test uses, so the upcoming list holds just these seven,
+  // none open to guests.
+  const tag = uniqueTeamName("Paged");
+  const seven = [];
+  for (let each = 0; each < 7; each++) {
+    seven.push(await editor.createPublished({ public: true, tags: [tag] }));
+  }
+
+  const reader = await visitor(browser);
+  const home = new HomePage(reader);
+
+  // Six rows and the button; pressing it shows the seventh and removes it.
+  await home.goto(`?tag=${encodeURIComponent(tag)}`);
+  await home.expectRows("upcoming", 6);
+  await home.expectShowMore("upcoming", "there");
+  await home.clickShowMore("upcoming");
+  await home.expectRows("upcoming", 7);
+  await home.expectShowMore("upcoming", "gone");
+
+  // A new filter starts the list again at six.
+  await home.clickGuestFilter("not open");
+  await home.expectRows("upcoming", 6);
+  await home.expectShowMore("upcoming", "there");
+
+  // None is open to guests: the list says so.
+  await home.clickGuestFilter("open");
+  await home.expectEmpty(
+    "upcoming",
+    m.site_nothing_upcoming({}, { locale: "en" }),
+  );
+
+  for (const event of seven) {
     await editor.goto(team, event.id);
     await editor.delete(event.id);
   }

@@ -574,6 +574,9 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
         ],
       }),
     ]),
+    team("SIGN-15: Invitations in the studio", [
+      event("AC-1: A section for each event", { ...guests, ...week }),
+    ]),
 
     // ---- SITE ---------------------------------------------------------------
     team("SITE-02: Front page: upcoming and past events", [

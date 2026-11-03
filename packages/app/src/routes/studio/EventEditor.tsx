@@ -26,6 +26,7 @@ import { DraftText } from "./DraftText.tsx";
 import { EditorFooter } from "./EditorFooter.tsx";
 import { EmailTexts } from "./EmailTexts.tsx";
 import styles from "./EventEditor.module.css";
+import { Invitations } from "./Invitations.tsx";
 
 const titlePath = ["title"] as const;
 const bodyPath = ["body"] as const;
@@ -182,6 +183,7 @@ function EventSession({ id }: { readonly id: DocumentId }) {
           />
         </Field>
         <Attendees id={id} />
+        <Invitations id={id} />
       </div>
     </Pane>
   );

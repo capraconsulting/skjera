@@ -1,6 +1,6 @@
 # SIGN-14: Signing up and cancelling are protected against bots and repeated attempts
 
-The guest forms have a hidden field that people never see and bots fill in, and signing up and cancelling can only be tried so many times. Both are as in Skjer. The form for cancelling by email (SIGN-15) is one of the guest forms, and asking for its link and confirming from it count as attempts.
+The guest forms have a hidden field that people never see and bots fill in, and signing up and cancelling can only be tried so many times. Both are as in Skjer. The form for cancelling by email (SIGN-16) is one of the guest forms, and asking for its link and confirming from it count as attempts.
 
 The tests by hand use the events of SIGN-02, on a test server (`pnpm test-server`, see the Readme): the browser tests run with the limits off, so only a test server started by hand has them on.
 

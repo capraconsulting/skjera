@@ -182,6 +182,32 @@ export const dietaryPreferences = (id: DocumentId) =>
       .pipe(Effect.mapError((error) => new Error(failureMessage(error)))),
   );
 
+/** Those an event's organizers noted as invited, in the order they were added. */
+export const invitations = (id: DocumentId) =>
+  request((client) =>
+    client.attendees
+      .invitations({ params: { id } })
+      .pipe(Effect.mapError((error) => new Error(failureMessage(error)))),
+  );
+
+/**
+ * Notes someone as invited to an event: nothing is sent to them. A refusal
+ * keeps its problem, for the form to tell which field it belongs to.
+ */
+export const invite = (
+  id: DocumentId,
+  person: { readonly name?: string; readonly email: string },
+) =>
+  request((client) =>
+    client.attendees.invite({ params: { id }, payload: person }).pipe(
+      Effect.mapError((error) =>
+        Object.assign(new Error(failureMessage(error)), {
+          problem: "problem" in error ? error.problem : undefined,
+        }),
+      ),
+    ),
+  );
+
 /** Published events: every one for members, the public ones for anyone. */
 export const events = syncedTable({
   id: "events",
