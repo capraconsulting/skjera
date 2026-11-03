@@ -22,21 +22,21 @@ The front page SHALL offer «All» and a filter for each tag of the events comin
 
 **Automated:** `packages/app/e2e/specs/tags.spec.ts`
 
-## AC-2: A tag filters both lists
+## AC-2: A tag filters the upcoming events
 
-WHEN a tag is chosen, the front page SHALL show only the events with that tag, upcoming and past alike, and mark the tag as chosen.
+WHEN a tag is chosen, the front page SHALL show only the upcoming events with that tag, and mark the tag as chosen. The past events are not filtered.
 
 **Test**
 
 - **Given** the front page
 - **When** you click «#Pottery 7»
-- **Then** it is marked as chosen, «AC-1: Coming» and «AC-1: Was» show, and «AC-1: Untagged» doesn't
+- **Then** it is marked as chosen, «AC-1: Coming» shows under «Upcoming events» and «AC-1: Untagged» doesn't, and «AC-1: Was» and every other past event show under «Past events»
 
-**Automated:** `packages/app/e2e/specs/tags.spec.ts`
+**Automated:** `packages/app/test/frontPage.test.ts`, `packages/app/e2e/specs/tags.spec.ts`
 
 ## AC-3: The tag is kept in the address
 
-The front page SHALL keep the chosen tag in its address, so that opening that address shows the same filtered lists, for a tag only on past events too.
+The front page SHALL keep the chosen tag in its address, so that opening that address shows the same filtered upcoming events, for a tag only on past events too.
 
 **Test**
 
@@ -44,7 +44,7 @@ The front page SHALL keep the chosen tag in its address, so that opening that ad
 - **When** you copy the address, ending in `?tag=Pottery+7`, and open it in a new window
 - **Then** the same tag is chosen, with the same lists
 - **When** you open http://localhost:5173/?tag=Weaving%207
-- **Then** only «AC-1: Was» shows, and «#Weaving 7» is marked as chosen
+- **Then** «#Weaving 7» is marked as chosen, «Upcoming events» says «No upcoming events found in this category 😭», and «AC-1: Was» shows under «Past events»
 
 **Automated:** `packages/app/e2e/specs/tags.spec.ts`
 
@@ -76,12 +76,12 @@ WHEN a tag is given in the address in other capitals than it is written with, th
 
 ## AC-6: Nothing tagged coming up
 
-IF no event with the chosen tag is coming up, THEN the front page SHALL say so under «Upcoming events».
+IF no event with the chosen tag is coming up, THEN the front page SHALL say «No upcoming events found in this category 😭» under «Upcoming events».
 
 **Test**
 
 - **Given** the events
 - **When** you open http://localhost:5173/?tag=Weaving%207
-- **Then** «Upcoming events» says «Nothing tagged “Weaving 7” coming up.»
+- **Then** «Upcoming events» says «No upcoming events found in this category 😭»
 
-**Automated:** none
+**Automated:** `packages/app/e2e/specs/tags.spec.ts` (with a guest filter chosen beside the tag)

@@ -75,12 +75,12 @@ IF a tag has only been added to drafts, and never published, THEN the studio SHA
 
 ## AC-6: The event page shows the tags
 
-The event page SHALL show the event's published tags, each a link to the front page showing only events with that tag.
+The event page SHALL show the event's published tags, each a link to the front page showing only the upcoming events with that tag.
 
 **Test**
 
 - **Given** «AC-1 to AC-3: Tagged», published with «Workshop»
 - **When** you open it on the site and click «Workshop»
-- **Then** the front page shows only events tagged «Workshop»
+- **Then** the front page shows only upcoming events tagged «Workshop»
 
 **Automated:** `packages/app/e2e/specs/tags.spec.ts`
