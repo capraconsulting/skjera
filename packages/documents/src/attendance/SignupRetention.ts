@@ -6,8 +6,8 @@ import * as Cluster from "../server/Cluster.ts";
 
 // Sign-up data is kept until 30 days after its event has ended, as the
 // privacy page says. A nightly job then deletes the event's signups, its
-// list of dietary preferences and the emails kept for its attendees,
-// deleted events too. The event itself, its content and its history stay.
+// list of dietary preferences, the list of those noted as invited and the
+// emails kept for its attendees, deleted events too. The event itself, its content and its history stay.
 
 /** How long sign-up data is kept after its event has ended. */
 const keptFor = 30 * 24 * 60 * 60 * 1000;
@@ -18,7 +18,9 @@ export const schedule = Cron.parseUnsafe("0 1 * * *", "UTC");
 /**
  * Deletes the sign-up data of every event that ended more than 30 days
  * before `now`: its signups, members and guests, its dietary preferences,
- * and its mailer's stored emails. All of it or nothing.
+ * its list of those invited, and its mailer's stored emails. An event never
+ * published has no row in `events`: its list goes 30 days after its draft's
+ * end. All of it or nothing.
  */
 export const deleteSignups = (now: Date) =>
   Effect.gen(function* () {
@@ -28,6 +30,16 @@ export const deleteSignups = (now: Date) =>
     yield* Effect.gen(function* () {
       yield* sql`DELETE FROM attendees WHERE event_id IN (${ended})`;
       yield* sql`DELETE FROM dietary_preferences WHERE event_id IN (${ended})`;
+      // Never published: no row in `events`, so the draft's own end counts,
+      // read as `documents_summarize` reads its start. A draft with no end
+      // yet has not ended.
+      const endedDrafts = sql`
+        SELECT d.id FROM documents d
+        WHERE d.id IN (SELECT event_id FROM invitations)
+          AND NOT EXISTS (SELECT 1 FROM events e WHERE e.id = d.id)
+          AND zoned_instant(d.draft::jsonb->>'end') < ${cutoff}
+      `;
+      yield* sql`DELETE FROM invitations WHERE event_id IN (${ended}) OR event_id IN (${endedDrafts})`;
       // The mailer keeps the emails of events not past the cutoff only:
       // those of events past it, or gone with their team, are forgotten.
       yield* Cluster.forgetMessagesExcept(

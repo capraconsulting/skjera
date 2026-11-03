@@ -42,12 +42,18 @@ The job shall not delete the event itself, its content or its editing history.
 
 ## AC-7: The privacy page says so
 
-The privacy page shall say, in Norwegian Bokmål, Nynorsk and English, that sign-up data is deleted 30 days after the event has ended.
+The privacy page shall say, in Norwegian Bokmål, Nynorsk and English, that sign-up data is deleted 30 days after the event has ended, with the event's list of what people can't eat and its list of who was invited.
 
 **Test**
 
 - **Given** the site
 - **When** you open http://localhost:5173/privacy, and pick each language in the header
-- **Then** «How long» says, in each language, that sign-up data is deleted 30 days after the event has ended
+- **Then** «How long» says, in each language, that sign-up data is deleted 30 days after the event has ended, with the list of what people can't eat and the list of who was invited
 
 **Automated:** `packages/app/e2e/specs/site.spec.ts`
+
+## AC-8: The list of those invited goes
+
+When the job deletes an event's sign-up data, the server shall delete that event's list of those invited (SIGN-15), deleted events too. For an event never published, it shall delete the list 30 days after the end its draft has, and keep it while the draft has no end.
+
+**Automated only:** `packages/documents/test/attendance/SignupRetention.test.ts`

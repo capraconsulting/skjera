@@ -11,7 +11,9 @@ import {
   Locale,
 } from "../Model.ts";
 import {
+  DocumentNotFound,
   EventNotFound,
+  InvitationRejected,
   SignInRequired,
   SignupNotFound,
   SignupRejected,
@@ -110,6 +112,16 @@ export class EventsApi extends HttpApiGroup.make("events").add(
   }),
 ) {}
 
+/** Someone noted as invited to an event. */
+export const Invitation = Schema.Struct({
+  id: Schema.String,
+  /** Their full name, when given. */
+  name: Schema.NullOr(Schema.String),
+  email: Schema.String,
+  invitedAt: Schema.Date,
+});
+export type Invitation = typeof Invitation.Type;
+
 /** For organizers in the studio: signed-in users. */
 export class AttendeesApi extends HttpApiGroup.make("attendees")
   .add(
@@ -127,6 +139,22 @@ export class AttendeesApi extends HttpApiGroup.make("attendees")
         success: Schema.Array(Schema.String),
       },
     ),
+    /** Those noted as invited to an event, in the order they were added. */
+    HttpApiEndpoint.get("invitations", "/api/events/:id/invitations", {
+      params: { id: DocumentId },
+      success: Schema.Array(Invitation),
+    }),
+    /** Notes someone as invited to an event. Nothing is sent to them. */
+    HttpApiEndpoint.post("invite", "/api/events/:id/invitations", {
+      params: { id: DocumentId },
+      // The email is checked by the service, so a refusal says why by its field.
+      payload: Schema.Struct({
+        name: Schema.optionalKey(Schema.String.check(Schema.isMaxLength(100))),
+        email: Schema.String,
+      }),
+      success: Invitation,
+      error: [DocumentNotFound, InvitationRejected],
+    }),
   )
   .middleware(Authentication) {}
 

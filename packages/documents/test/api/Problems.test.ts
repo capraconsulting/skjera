@@ -36,6 +36,8 @@ const problems: ReadonlyArray<Problem> = [
   { _tag: "TeamNameTaken", name: "Crew" },
   { _tag: "ImageTooBig", maxMb: 10 },
   { _tag: "ImageFormat" },
+  { _tag: "InvitedEmailInvalid" },
+  { _tag: "AlreadyInvited", email: "gina@example.org" },
 ];
 
 group("Problems", () => {
@@ -92,6 +94,16 @@ group("Problems", () => {
     // Nynorsk and English are sentences of their own.
     assert.notStrictEqual(describe(tooMany, "nn"), describe(tooMany, "nb"));
     assert.notStrictEqual(describe(tooMany, "en"), describe(tooMany, "nb"));
+  });
+
+  it("name the address that was already invited, in every language (AC-4)", () => {
+    for (const locale of ["en", "nb", "nn"] as const) {
+      const said = describe(
+        { _tag: "AlreadyInvited", email: "gina@example.org" },
+        locale,
+      );
+      assert.include(said, "gina@example.org");
+    }
   });
 
   it("go with their English, for logs and other clients", () => {

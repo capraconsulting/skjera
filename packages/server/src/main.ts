@@ -139,6 +139,10 @@ const AttendeesHandlers = HttpApiBuilder.group(Api, "attendees", (handlers) =>
       .handle("remove", ({ params }) => attendance.remove(params.id))
       .handle("dietaryPreferences", ({ params }) =>
         attendance.dietaryPreferences(params.id),
+      )
+      .handle("invitations", ({ params }) => attendance.invitations(params.id))
+      .handle("invite", ({ params, payload }) =>
+        attendance.invite(params.id, payload),
       );
   }),
 );

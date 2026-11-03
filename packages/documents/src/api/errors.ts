@@ -75,6 +75,13 @@ export class SignupRejected extends Schema.TaggedError<SignupRejected>()(
   { httpApiStatus: 400 },
 ) {}
 
+/** The invitation can't be noted: the email isn't valid, or is already on the event's list. */
+export class InvitationRejected extends Schema.TaggedError<InvitationRejected>()(
+  "InvitationRejected",
+  { problem: Problem, message: Schema.String },
+  { httpApiStatus: 400 },
+) {}
+
 /** Too many attempts to sign up or cancel from one visitor: wait, then try again. */
 export class TooManyAttempts extends Schema.TaggedError<TooManyAttempts>()(
   "TooManyAttempts",

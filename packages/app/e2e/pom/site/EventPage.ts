@@ -214,6 +214,13 @@ export class EventPage {
     return bodies;
   }
 
+  /** The status of asking for the event's invitations. */
+  async invitationsStatus(id: string): Promise<number> {
+    return (
+      await this.page.request.get(`/api/events/${id}/invitations`)
+    ).status();
+  }
+
   /** The status of asking for the event's dietary preferences. */
   async dietaryPreferencesStatus(id: string): Promise<number> {
     return (

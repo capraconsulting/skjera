@@ -163,6 +163,51 @@ const dietaryOf = (event: DocumentId) =>
     return row?.n ?? 0;
   }).pipe(Effect.orDie);
 
+const addInvitations = (event: DocumentId) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`
+      INSERT INTO invitations (event_id, name, email)
+      VALUES (${event}, 'Gina Guest', ${`gina-${crypto.randomUUID()}@example.org`}),
+        (${event}, NULL, ${`hana-${crypto.randomUUID()}@example.org`})
+    `;
+  }).pipe(Effect.orDie);
+
+const invitationsOf = (event: DocumentId) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const [row] = yield* sql<{ n: number }>`
+      SELECT count(*)::int AS n FROM invitations WHERE event_id = ${event}
+    `;
+    return row?.n ?? 0;
+  }).pipe(Effect.orDie);
+
+/** An event never published, with invitations: its draft starts at 18:00 and ends at `end`, if given. */
+const draftWithInvitations = (end?: string) =>
+  Effect.gen(function* () {
+    const documents = yield* Documents;
+    const id = yield* documents.create(
+      "event",
+      (yield* (yield* Teams).create(`Retention ${++teams}`, alice)).id,
+      alice,
+    );
+    if (end !== undefined) {
+      const snapshot = yield* documents.get(id);
+      const doc = A.change(A.load<EventContent>(snapshot.draft), (event) => {
+        const draft = event as Record<string, unknown>;
+        draft.start = new A.ImmutableString(
+          `${end.slice(0, 10)}T18:00+02:00[Europe/Oslo]`,
+        );
+        draft.end = new A.ImmutableString(end);
+      });
+      const change = A.getLastLocalChange(doc);
+      if (change === undefined) throw new Error("no change");
+      yield* documents.applyChanges(id, [change], alice);
+    }
+    yield* addInvitations(id as DocumentId);
+    return id as DocumentId;
+  }).pipe(Effect.orDie);
+
 /** An event with a signup and a dietary preference, ending at `endsAt`. */
 const withSignup = (endsAt: Date, deleted = false) =>
   Effect.gen(function* () {
@@ -474,5 +519,74 @@ layer(TestLayer, { excludeTestServices: true })("Signup retention", (it) => {
       assert.strictEqual(yield* signupsOf(event), 0);
       assert.deepStrictEqual(yield* kept(event), before);
     }),
+  );
+
+  it.effect(
+    "deletes an event's invitations 30 days and a second after it ends, deleted events too (AC-7)",
+    () =>
+      Effect.gen(function* () {
+        const now = new Date("2047-06-01T01:00:00Z");
+        const ended = new Date(now.getTime() - 30 * day - 1000);
+        const events = [
+          yield* insertEvent({ endsAt: ended }),
+          yield* insertEvent({ endsAt: ended, deleted: true }),
+        ];
+        for (const event of events) {
+          yield* addInvitations(event);
+          assert.strictEqual(yield* invitationsOf(event), 2);
+        }
+
+        yield* SignupRetention.deleteSignups(now);
+
+        for (const event of events) {
+          assert.strictEqual(yield* invitationsOf(event), 0);
+        }
+      }),
+  );
+
+  it.effect(
+    "keeps the invitations of events that ended 30 days ago or less, or have not ended (AC-7)",
+    () =>
+      Effect.gen(function* () {
+        const now = new Date("2048-06-01T01:00:00Z");
+        const events = [
+          yield* insertEvent({ endsAt: new Date(now.getTime() - 30 * day) }),
+          yield* insertEvent({ endsAt: new Date(now.getTime() - 29 * day) }),
+          yield* insertEvent({ endsAt: new Date(now.getTime() + 2 * hour) }),
+          yield* insertEvent({
+            endsAt: new Date(now.getTime() - 10 * day),
+            deleted: true,
+          }),
+        ];
+        for (const event of events) yield* addInvitations(event);
+
+        yield* SignupRetention.deleteSignups(now);
+
+        for (const event of events) {
+          assert.strictEqual(yield* invitationsOf(event), 2);
+        }
+      }),
+  );
+
+  it.effect(
+    "deletes the invitations of an event never published 30 days after its draft's end, and keeps a draft with no end (AC-7)",
+    () =>
+      Effect.gen(function* () {
+        const now = new Date("2049-06-01T01:00:00Z");
+        const over = yield* draftWithInvitations(
+          "2049-04-30T21:00+02:00[Europe/Oslo]",
+        );
+        const recent = yield* draftWithInvitations(
+          "2049-05-22T21:00+02:00[Europe/Oslo]",
+        );
+        const open = yield* draftWithInvitations();
+        assert.strictEqual(yield* invitationsOf(over), 2);
+
+        yield* SignupRetention.deleteSignups(now);
+
+        assert.strictEqual(yield* invitationsOf(over), 0);
+        assert.strictEqual(yield* invitationsOf(recent), 2);
+        assert.strictEqual(yield* invitationsOf(open), 2);
+      }),
   );
 });
