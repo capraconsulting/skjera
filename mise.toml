@@ -46,6 +46,8 @@ SITE_FOOTER = """
 """
 # For the privacy page: who answers for the data kept, and how to reach them.
 SITE_OPERATOR = "Skjera"
+SITE_OPERATOR_ORG_NUMBER = "123 456 789"
+SITE_OPERATOR_ADDRESS = "Storgata 1, 0150 Oslo"
 SITE_CONTACT_EMAIL = "privacy@skjera.localhost"
 EMAIL_FROM = "Skjera <events@skjera.localhost>"
 # Signs what's put in links, e.g. guests' links to their signups.

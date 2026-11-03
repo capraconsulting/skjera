@@ -218,6 +218,8 @@ describe("SiteConfig", () => {
           SITE_NAME: "Example Events",
           SITE_FOOTER: blank,
           SITE_OPERATOR: blank,
+          SITE_OPERATOR_ORG_NUMBER: blank,
+          SITE_OPERATOR_ADDRESS: blank,
           SITE_CONTACT_EMAIL: blank,
           SITE_PRIVACY_URL: blank,
         });
@@ -237,6 +239,8 @@ describe("SiteConfig", () => {
       const site = yield* readSite({
         SITE_FOOTER: '{"text":"Hello"}',
         SITE_OPERATOR: "Example Ltd",
+        SITE_OPERATOR_ORG_NUMBER: "123 456 789",
+        SITE_OPERATOR_ADDRESS: "Example Street 2, 0180 Oslo",
         SITE_CONTACT_EMAIL: "privacy@example.org",
         SITE_PRIVACY_URL: "https://example.org/privacy",
       });
@@ -245,6 +249,8 @@ describe("SiteConfig", () => {
         assert.deepStrictEqual(site.value.footer, { text: "Hello" });
         assert.deepStrictEqual(site.value.privacy, {
           operator: "Example Ltd",
+          orgNumber: "123 456 789",
+          address: "Example Street 2, 0180 Oslo",
           contact: "privacy@example.org",
           url: "https://example.org/privacy",
         });
