@@ -11,16 +11,18 @@ The front page lists the events coming up as rows, with what to know at a glance
 - «AC-6: Signed up», open to guests, with bob and one guest signed up.
 - «AC-7: Past 1» to «AC-7: Past 7», seven events that are over, a day apart with «AC-7: Past 1» the earliest, each with a cover image and the tag «Past 7».
 
+Both lists show six events at first, and six more each time **Show more events** is clicked. An event a test looks for may therefore be behind the button: click it until the event shows (this holds for the hand tests in other files that look on the front page, too).
+
 The organiser shown on each row and card is in [STU-02](STU-02-organiser-logo.md), and the filters in [SITE-03](SITE-03-tag-filter.md) and [SITE-04](SITE-04-guest-filter.md).
 
 ## AC-1: Coming up and over, apart
 
-The front page SHALL list under «Upcoming events» every event coming up or going on, and under «Past events» every event that is over.
+The front page SHALL list under «Upcoming events» every event coming up or going on, and under «Past events» every event that is over, six at a time.
 
 **Test**
 
 - **Given** the events
-- **When** you open the front page
+- **When** you open the front page, and click **Show more events** under each list until it is gone
 - **Then** «AC-1: Coming» and «AC-1: Later» are under «Upcoming events», and the «AC-7: Past …» events under «Past events»
 
 **Automated:** `packages/app/e2e/specs/tags.spec.ts`
@@ -32,8 +34,8 @@ The front page SHALL list upcoming events the soonest first, and past events the
 **Test**
 
 - **Given** the events
-- **When** you open http://localhost:5173 and then http://localhost:5173/?tag=Past%207
-- **Then** «AC-1: Coming» is above «AC-1: Later», and «AC-7: Past 7» comes first of the past events, «AC-7: Past 1» last
+- **When** you open http://localhost:5173, and click **Show more events** under each list until it is gone
+- **Then** «AC-1: Coming» is above «AC-1: Later», and among the past events «AC-7: Past 7» is above «AC-7: Past 6», and so on down to «AC-7: Past 1»
 
 **Automated:** `packages/app/test/frontPage.test.ts`
 
@@ -89,21 +91,21 @@ WHERE the person reading has signed up for an upcoming event, as a member or as 
 
 ## AC-7: Past events six at a time
 
-The front page SHALL show past events as cards with their cover image, six at first, and six more each time **Show more events** is clicked, until none are left.
+The front page SHALL show past events as cards with their cover image, six at first, and six more each time **Show more events** is clicked, until none are left. The filters don't change which past events show.
 
 **Test**
 
-- **Given** the seven «AC-7: Past …» events
-- **When** you open http://localhost:5173/?tag=Past%207, so that only they show
-- **Then** six cards show, each with its cover, and **Show more events** under them
+- **Given** the events, which make twelve past events in all
+- **When** you open http://localhost:5173
+- **Then** six cards show under «Past events», and **Show more events** under them
 - **When** you click **Show more events**
-- **Then** the seventh shows, and the button is gone
+- **Then** six more show, and the button is gone
 
-**Automated:** none
+**Automated:** `packages/app/test/frontPage.test.ts` (the paging rule)
 
 ## AC-8: Nothing to show
 
-IF nothing has been published, or nothing is coming up, THEN the front page SHALL say so: «Nothing has been published yet.» or «Nothing coming up right now.»
+The front page SHALL always show the heading «Past events». IF no event is coming up, or none matches the filters, THEN the front page SHALL say «No upcoming events found in this category 😭» under «Upcoming events»; IF no event is over, THEN it SHALL say «No past events found 😭» under «Past events». Nynorsk and English have words of their own.
 
 The development database has events from earlier tests, so this one is tested on a test server ([OPS-07](OPS-07-test-servers.md)), which starts with a database of its own.
 
@@ -111,8 +113,24 @@ The development database has events from earlier tests, so this one is tested on
 
 - **Given** a test server started with `PORT=8801 mise exec -- pnpm test-server`
 - **When** you open http://localhost:8801
-- **Then** it says «Nothing has been published yet.»
+- **Then** «Upcoming events» says «No upcoming events found in this category 😭», and «Past events» shows with «No past events found 😭» under it
 - **When** you publish one event that is over, at http://localhost:8801/studio, and reload
-- **Then** it says «Nothing coming up right now.», with the event under «Past events»
+- **Then** «Upcoming events» still says «No upcoming events found in this category 😭», with the event under «Past events»
 
 **Automated:** none
+
+## AC-9: Upcoming events six at a time
+
+The front page SHALL show the upcoming events as rows, six at first, and six more each time **Show more events** is clicked, until none are left. WHEN a filter is chosen, the front page SHALL start the list again at six.
+
+**Test**
+
+- **Given** the events, which make far more than six upcoming events in all
+- **When** you open http://localhost:5173
+- **Then** six rows show under «Upcoming events», and **Show more events** under them
+- **When** you click **Show more events** until it is gone
+- **Then** every upcoming event shows
+- **When** you click **Internal only**
+- **Then** six rows show again, and **Show more events** is under them
+
+**Automated:** `packages/app/test/frontPage.test.ts` (the paging rule), `packages/app/e2e/specs/tags.spec.ts`

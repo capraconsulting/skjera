@@ -5,6 +5,9 @@ type List = "upcoming" | "past" | "any";
 /** Visitors' pages pull every 5 seconds: a few pulls' time, when busy. */
 const pulled = { timeout: 20_000 };
 
+/** One try inside a retry: short, so one try never uses the whole budget. */
+const attempt = { timeout: 1_000 };
+
 /** The site's front page: the events, upcoming and past, and filters. */
 export class HomePage {
   private readonly page: Page;
@@ -21,6 +24,8 @@ export class HomePage {
         });
   private readonly link = (title: string, list: List = "any") =>
     this.list(list).getByRole("link", { name: title });
+  private readonly showMore = (list: "upcoming" | "past") =>
+    this.list(list).getByRole("button", { name: "Show more events" });
   private readonly tagFilters = () =>
     this.page.getByRole("navigation", { name: "Filter by tag" });
   private readonly guestFilter = (which: "open" | "not open") =>
@@ -55,17 +60,45 @@ export class HomePage {
     ).toBeVisible();
   }
 
+  /**
+   * Presses «Show more events» until the list shows every event: both lists
+   * for "any". An event behind the button is neither missed nor counted gone.
+   */
+  private async showAll(list: List): Promise<void> {
+    for (const each of list === "any"
+      ? (["upcoming", "past"] as const)
+      : [list]) {
+      const more = this.showMore(each);
+      while (await more.isVisible()) await more.click(attempt);
+    }
+  }
+
+  /**
+   * Shows every event, then runs `check`, again on each retry while it waits
+   * for the page's next pull.
+   */
+  private async withAll(list: List, check: () => Promise<void>): Promise<void> {
+    await expect(async () => {
+      await this.showAll(list);
+      await check();
+    }).toPass(pulled);
+  }
+
   async clickEvent(title: string): Promise<void> {
-    await this.link(title).click();
+    await this.withAll("any", () => this.link(title).click(attempt));
   }
 
   /** The event is listed, in time for the page's next pull. */
   async expectEvent(title: string, list: List = "any"): Promise<void> {
-    await expect(this.link(title, list)).toBeVisible(pulled);
+    await this.withAll(list, () =>
+      expect(this.link(title, list)).toBeVisible(attempt),
+    );
   }
 
   async expectNoEvent(title: string, list: List = "any"): Promise<void> {
-    await expect(this.link(title, list)).toHaveCount(0, pulled);
+    await this.withAll(list, () =>
+      expect(this.link(title, list)).toHaveCount(0, attempt),
+    );
   }
 
   /** The events listed, and those not, in a list. */
@@ -76,13 +109,45 @@ export class HomePage {
   ): Promise<void> {
     for (const event of shown) await this.expectEvent(event.title, list);
     for (const event of hidden) {
-      await expect(this.link(event.title, list)).toHaveCount(0);
+      await this.withAll(list, () =>
+        expect(this.link(event.title, list)).toHaveCount(0, attempt),
+      );
     }
   }
 
   /** The event's entry says `text`, in time for the page's next pull. */
   async expectEventSays(title: string, text: string): Promise<void> {
-    await expect(this.link(title)).toContainText(text, pulled);
+    await this.withAll("any", () =>
+      expect(this.link(title)).toContainText(text, attempt),
+    );
+  }
+
+  /** How many events a list shows now, behind «Show more events» not counted. */
+  async expectRows(list: "upcoming" | "past", count: number): Promise<void> {
+    await expect(this.list(list).getByRole("listitem")).toHaveCount(
+      count,
+      pulled,
+    );
+  }
+
+  /** «Show more events» is under the list, or has gone. */
+  async expectShowMore(
+    list: "upcoming" | "past",
+    state: "there" | "gone",
+  ): Promise<void> {
+    await expect(this.showMore(list)).toHaveCount(
+      state === "there" ? 1 : 0,
+      pulled,
+    );
+  }
+
+  async clickShowMore(list: "upcoming" | "past"): Promise<void> {
+    await this.showMore(list).click();
+  }
+
+  /** The list says `text` instead of events. */
+  async expectEmpty(list: "upcoming" | "past", text: string): Promise<void> {
+    await expect(this.list(list).getByText(text)).toBeVisible(pulled);
   }
 
   /** The organizer's logo, named by the team, in the event's entry. */
@@ -92,13 +157,17 @@ export class HomePage {
     team: string,
     src: string,
   ): Promise<void> {
-    await expect(
-      this.link(title, list).getByRole("img", { name: team }),
-    ).toHaveAttribute("src", src, pulled);
+    await this.withAll(list, () =>
+      expect(
+        this.link(title, list).getByRole("img", { name: team }),
+      ).toHaveAttribute("src", src, attempt),
+    );
   }
 
   async expectNoOrganizerLogo(title: string, list: List): Promise<void> {
-    await expect(this.link(title, list).getByRole("img")).toHaveCount(0);
+    await this.withAll(list, () =>
+      expect(this.link(title, list).getByRole("img")).toHaveCount(0, attempt),
+    );
   }
 
   /** Clicks a tag filter, or "All". */

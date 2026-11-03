@@ -2,7 +2,13 @@ import type { EventRow } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { baseLocale, overwriteGetLocale } from "@skjera/i18n/runtime";
 import { afterEach, describe, expect, it } from "vitest";
-import { rowMarks, upcomingAndPast } from "../src/site/frontPage.ts";
+import {
+  frontPageLists,
+  paged,
+  pageSize,
+  rowMarks,
+  upcomingAndPast,
+} from "../src/site/frontPage.ts";
 
 const hour = 3_600_000;
 const day = 24 * hour;
@@ -60,6 +66,123 @@ describe("upcomingAndPast", () => {
     );
     expect(names(upcoming)).toContain("going on");
     expect(names(past)).toEqual([]);
+  });
+});
+
+describe("paged", () => {
+  const items = (count: number) => Array.from({ length: count }, (_, i) => i);
+
+  it("pages at six (AC-1)", () => {
+    expect(pageSize).toBe(6);
+  });
+
+  it("shows the first six of 13 and says more are hidden (AC-1)", () => {
+    const { shown, more } = paged(items(13), pageSize);
+    expect(shown).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(more).toBe(true);
+  });
+
+  it("hides nothing when there are exactly six (AC-1)", () => {
+    const { shown, more } = paged(items(6), pageSize);
+    expect(shown).toHaveLength(6);
+    expect(more).toBe(false);
+  });
+
+  it("shows six more each time until all are shown (AC-2)", () => {
+    const all = items(13);
+    const twelve = paged(all, pageSize * 2);
+    expect(twelve.shown).toHaveLength(12);
+    expect(twelve.more).toBe(true);
+    const thirteen = paged(all, pageSize * 3);
+    expect(thirteen.shown).toHaveLength(13);
+    expect(thirteen.more).toBe(false);
+  });
+
+  it("pages past events the same way, the latest first (AC-3)", () => {
+    const { past } = upcomingAndPast(
+      Array.from({ length: 8 }, (_, i) =>
+        event(`over ${i}`, new Date(now.getTime() - (i + 1) * day)),
+      ),
+      now,
+    );
+    const first = paged(past, pageSize);
+    expect(names(first.shown)).toEqual([
+      "over 0",
+      "over 1",
+      "over 2",
+      "over 3",
+      "over 4",
+      "over 5",
+    ]);
+    expect(first.more).toBe(true);
+    const second = paged(past, pageSize * 2);
+    expect(second.shown).toHaveLength(8);
+    expect(second.more).toBe(false);
+  });
+});
+
+describe("frontPageLists", () => {
+  const listed = (
+    name: string,
+    startsInDays: number,
+    allowGuests: boolean,
+    tags: ReadonlyArray<string>,
+  ) => ({
+    ...event(name, new Date(now.getTime() + startsInDays * day)),
+    allowGuests,
+    tags,
+  });
+  const events = [
+    listed("up pottery open", 1, true, ["Pottery"]),
+    listed("up pottery internal", 2, false, ["Pottery"]),
+    listed("up plain open", 3, true, []),
+    listed("up plain internal", 4, false, ["Social"]),
+    listed("past pottery open", -1, true, ["Pottery"]),
+    listed("past plain internal", -2, false, []),
+    listed("past social open", -3, true, ["Social"]),
+  ];
+  const none = { tag: null, allowGuests: null };
+
+  it("narrows the upcoming events by tag, in any case, and keeps every past event (AC-5)", () => {
+    const { upcoming, past } = frontPageLists(
+      events,
+      { ...none, tag: "pottery" },
+      now,
+    );
+    expect(names(upcoming)).toEqual(["up pottery open", "up pottery internal"]);
+    expect(names(past)).toEqual([
+      "past pottery open",
+      "past plain internal",
+      "past social open",
+    ]);
+  });
+
+  it("narrows the upcoming events by who can sign up, and keeps every past event (AC-5)", () => {
+    const open = frontPageLists(events, { ...none, allowGuests: true }, now);
+    expect(names(open.upcoming)).toEqual(["up pottery open", "up plain open"]);
+    expect(open.past).toHaveLength(3);
+    const internal = frontPageLists(
+      events,
+      { ...none, allowGuests: false },
+      now,
+    );
+    expect(names(internal.upcoming)).toEqual([
+      "up pottery internal",
+      "up plain internal",
+    ]);
+    expect(internal.past).toHaveLength(3);
+  });
+
+  it("narrows by tag and who can sign up together, and by neither not at all (AC-5)", () => {
+    const both = frontPageLists(
+      events,
+      { tag: "Pottery", allowGuests: false },
+      now,
+    );
+    expect(names(both.upcoming)).toEqual(["up pottery internal"]);
+    const neither = frontPageLists(events, none, now);
+    expect(neither.upcoming).toHaveLength(4);
+    expect(neither.past).toHaveLength(3);
   });
 });
 

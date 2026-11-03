@@ -56,15 +56,13 @@
   "common_something_wrong": "Noe gikk galt.",
   "common_just_now": "akkurat nå",
   "site_events": "Arrangementer",
-  "site_nothing_published": "Ingenting er publisert ennå.",
   "site_filter_by_tag": "Filtrer etter emneknagg",
   "site_filter_all": "Alle",
   "site_filter_by_guests": "Filtrer etter hvem som kan melde seg på",
   "site_filter_open_to_guests": "Åpent for alle",
   "site_filter_not_open_to_guests": "Kun interne",
   "site_upcoming": "Kommende arrangementer",
-  "site_nothing_upcoming": "Ingenting på programmet akkurat nå.",
-  "site_nothing_upcoming_tagged": "Ingenting merket «{tag}» på programmet.",
+  "site_nothing_upcoming": "Fant ingen kommende arrangementer i denne kategorien 😭",
   "site_past": "Tidligere arrangementer",
   "site_happening_now": "Pågår nå",
   "site_tags": "Emneknagger",
@@ -510,5 +508,6 @@
   "slack_when": "Når",
   "slack_where": "Hvor",
   "slack_deadlines_heading": "Påmeldingsfrist nærmer seg",
-  "calendar_signup_or_cancel": "Meld deg på eller av arrangementet: {url}"
+  "calendar_signup_or_cancel": "Meld deg på eller av arrangementet: {url}",
+  "site_nothing_past": "Fant ingen tidligere arrangementer 😭"
 }
