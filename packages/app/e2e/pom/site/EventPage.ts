@@ -94,6 +94,39 @@ export class EventPage {
     ).toHaveCount(0);
   }
 
+  /**
+   * Clicks the stream link, answering the stream's address here, and gives
+   * the tab it opened in.
+   */
+  async openStreamLink(link: string): Promise<Page> {
+    await this.page
+      .context()
+      .route(link, (route) =>
+        route.fulfill({
+          contentType: "text/html",
+          body: "<!doctype html><title>The stream</title><p>Live</p>",
+        }),
+      );
+    const opening = this.page.context().waitForEvent("page");
+    await this.article().getByRole("link", { name: link }).click();
+    return opening;
+  }
+
+  /** The event's info list has an item saying `text`. */
+  async expectInfoItem(text: string | RegExp): Promise<void> {
+    await expect(
+      this.article().getByRole("listitem").filter({ hasText: text }),
+    ).toHaveCount(1);
+  }
+
+  /** The event's info list has no item saying `text`. */
+  async expectNoInfoItem(text: string | RegExp): Promise<void> {
+    await expect(this.article()).toBeVisible();
+    await expect(
+      this.article().getByRole("listitem").filter({ hasText: text }),
+    ).toHaveCount(0);
+  }
+
   async clickTag(name: string): Promise<void> {
     await this.page
       .getByRole("list", { name: "Tags" })

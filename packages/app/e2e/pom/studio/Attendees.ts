@@ -1,11 +1,14 @@
-import { readFile } from "node:fs/promises";
 import { expect, type Page } from "@playwright/test";
+import readExcelFile from "read-excel-file/node";
 
-/** A spreadsheet of the attendees, as downloaded. */
-export interface AttendeesCsv {
+/** The Excel file of the attendees, as downloaded and read. */
+export interface AttendeesExcel {
   readonly filename: string;
-  /** Its lines: the header, then a line per attendee. */
-  readonly lines: ReadonlyArray<string>;
+  /** Its sheets, each with its name and its rows: the headings, then a row per attendee. */
+  readonly sheets: ReadonlyArray<{
+    readonly sheet: string;
+    readonly data: ReadonlyArray<ReadonlyArray<unknown>>;
+  }>;
 }
 
 /**
@@ -63,14 +66,14 @@ export class Attendees {
     ).toHaveText(answer);
   }
 
-  async downloadCsv(): Promise<AttendeesCsv> {
+  async downloadExcel(): Promise<AttendeesExcel> {
     const downloading = this.page.waitForEvent("download");
-    await this.region().getByRole("button", { name: "Download CSV" }).click();
+    await this.region().getByRole("button", { name: "Download Excel" }).click();
     const file = await downloading;
-    const lines = (await readFile((await file.path()) ?? "", "utf8"))
-      .trim()
-      .split(/\r?\n/);
-    return { filename: file.suggestedFilename(), lines };
+    return {
+      filename: file.suggestedFilename(),
+      sheets: await readExcelFile((await file.path()) ?? ""),
+    };
   }
 
   /** Takes the attendee called `name` off, saying yes when asked. */

@@ -53,6 +53,7 @@ describe("The messages", () => {
     cover: { src: `/api/images/${imageId}`, alt: "The stage" },
     startsAt: new Date("2036-10-15T16:00:00Z"),
     place: "Kantina",
+    category: null,
   };
 
   it("announces an event with its cover, summary, link, time and place", () => {
@@ -81,6 +82,25 @@ describe("The messages", () => {
     );
     assert.include(words, `*When:*\n${formatAt("en", launch.startsAt, oslo)}`);
     assert.include(words, "*Where:*\nKantina");
+  });
+
+  it("gives the event's category beside when and where, in the site's language (AC-9)", () => {
+    const words = leaves(
+      SlackChannel.announcement({ ...launch, category: "Fag" }, site).blocks,
+    );
+    assert.include(words, "*Category:*\nFag");
+    const norwegian = leaves(
+      SlackChannel.announcement(
+        { ...launch, category: "Sosialt" },
+        { ...site, locale: "nb" },
+      ).blocks,
+    );
+    assert.include(norwegian, "*Kategori:*\nSosialt");
+  });
+
+  it("gives no category for an event without one (AC-9)", () => {
+    const words = leaves(SlackChannel.announcement(launch, site).blocks);
+    assert.isFalse(words.some((word) => word.startsWith("*Category:*")));
   });
 
   it("marks an event moved on to its next date with :repeat: in place of :loudspeaker:, and changes nothing else", () => {
@@ -262,6 +282,7 @@ const insertEvent = (
     readonly isPublic?: boolean;
     readonly deleted?: boolean;
     readonly cover?: { readonly src: string; readonly alt: string };
+    readonly tags?: ReadonlyArray<string>;
   } = {},
 ) =>
   Effect.gen(function* () {
@@ -276,11 +297,12 @@ const insertEvent = (
       INSERT INTO events (id, title, starts_at, ends_at, signup_deadline, time_zone,
         body, cover, is_public, allow_guests, ask_dietary, send_reminders, place,
         summary, published_heads, published_by_issuer, published_by_subject,
-        deleted_at)
+        deleted_at, tags)
       VALUES (${id}, ${title}, ${startsAt}, ${endsAt}, ${options.deadline ?? null},
         'Europe/Oslo', '[]', ${options.cover === undefined ? null : JSON.stringify(options.cover)}::jsonb,
         ${isPublic}, ${isPublic}, false, true, 'Kantina', 'An evening', '{}', 'test',
-        'test', ${options.deleted === true ? new Date() : null})
+        'test', ${options.deleted === true ? new Date() : null},
+        ARRAY(SELECT jsonb_array_elements_text(${JSON.stringify(options.tags ?? [])}::jsonb)))
     `;
     return { id: id as DocumentId, title };
   }).pipe(Effect.orDie);
@@ -360,6 +382,28 @@ layer(channelLayer(workspace), { excludeTestServices: true })(
       }),
     );
 
+    it.effect("posts the category of an event with the tag Fag (AC-9)", () =>
+      Effect.gen(function* () {
+        const title = newTitle();
+        const { id } = yield* insertEvent({ title, tags: ["Workshop", "FAG"] });
+        yield* (yield* Announcements).eventPublished(id);
+        const [message] = yield* postedAbout(workspace, title);
+        assert.include(leaves(message?.blocks), "*Category:*\nFag");
+      }),
+    );
+
+    it.effect("posts no category for an event without such a tag (AC-9)", () =>
+      Effect.gen(function* () {
+        const title = newTitle();
+        const { id } = yield* insertEvent({ title, tags: ["Workshop"] });
+        yield* (yield* Announcements).eventPublished(id);
+        const [message] = yield* postedAbout(workspace, title);
+        assert.isFalse(
+          leaves(message?.blocks).some((word) => word.startsWith("*Category:*")),
+        );
+      }),
+    );
+
     it.effect(
       "reads the deadlines due within a day, soonest first, members-only ones too",
       () =>
@@ -391,26 +435,45 @@ layer(channelLayer(workspace), { excludeTestServices: true })(
         }),
     );
 
-    it.effect("leaves out events without a deadline set and deleted ones", () =>
-      Effect.gen(function* () {
-        const now = new Date("2042-03-05T07:00:00Z");
-        const due = yield* dueIn(now, 2);
-        const unset = yield* insertEvent({
-          deadline: null,
-          startsAt: new Date(now.getTime() + 2 * 60 * 60 * 1000),
-        });
-        const deleted = yield* insertEvent({
-          deadline: new Date(now.getTime() + 2 * 60 * 60 * 1000),
-          startsAt: new Date(now.getTime() + 3 * 60 * 60 * 1000),
-          deleted: true,
-        });
-        const found = (yield* SlackChannel.dueDeadlines(now)).map(
-          ({ id }) => id,
-        );
-        assert.include(found, due.id);
-        assert.notInclude(found, unset.id);
-        assert.notInclude(found, deleted.id);
-      }),
+    it.effect(
+      "reads every event that closes for sign-up within a day, at its deadline or at its start, soonest first (AC-8)",
+      () =>
+        Effect.gen(function* () {
+          const now = new Date("2042-03-05T07:00:00Z");
+          const hours = (count: number) =>
+            new Date(now.getTime() + count * 60 * 60 * 1000);
+          const atStart = yield* insertEvent({
+            deadline: null,
+            startsAt: hours(10),
+          });
+          const withDeadline = yield* dueIn(now, 5);
+          const farDeadline = yield* dueIn(now, 30);
+          const farStart = yield* insertEvent({
+            deadline: null,
+            startsAt: hours(30),
+          });
+          const deleted = yield* insertEvent({
+            deadline: hours(5),
+            startsAt: hours(29),
+            deleted: true,
+          });
+          const own = [atStart, withDeadline, farDeadline, farStart, deleted];
+          const found = (yield* SlackChannel.dueDeadlines(now)).filter(
+            ({ id }) => own.some((event) => event.id === id),
+          );
+          assert.deepStrictEqual(
+            found.map(({ id }) => id),
+            [withDeadline.id, atStart.id],
+          );
+          assert.strictEqual(
+            found[0]?.deadline.getTime(),
+            hours(5).getTime(),
+          );
+          assert.strictEqual(
+            found[1]?.deadline.getTime(),
+            hours(10).getTime(),
+          );
+        }),
     );
 
     it.effect("posts one message listing the deadlines due", () =>

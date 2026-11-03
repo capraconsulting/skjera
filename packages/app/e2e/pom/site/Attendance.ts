@@ -175,18 +175,22 @@ export class Attendance extends SignupFields {
     await this.button("Attend").click();
   }
 
-  /** Signs up as a guest, and checks the signup went through. */
+  /** Signs up as a guest, and checks the signup went through, to `email`. */
   async signUpAsGuest(name: string, email: string): Promise<void> {
     await this.fillName(name);
     await this.fillEmail(email);
     await this.clickSignUp();
-    await this.expectSignedUp();
+    await this.expectJustSignedUp(email);
   }
 
-  /** Attends as the member signed in, and checks it went through. */
-  async attend(): Promise<void> {
+  /**
+   * Attends as the member signed in, and checks it went through: to `email`
+   * when it is given.
+   */
+  async attend(email?: string): Promise<void> {
     await this.clickAttend();
-    await this.expectAttending();
+    if (email === undefined) await this.expectAttending();
+    else await this.expectJustSignedUp(email);
   }
 
   async cancelSignup(): Promise<void> {
@@ -205,16 +209,56 @@ export class Attendance extends SignupFields {
     await expect(this.button("Change answers")).toHaveCount(0);
   }
 
-  async expectSignedUp(text = "You're signed up."): Promise<void> {
+  /** Signed up: what the box says on opening the page, or right after signing up. */
+  async expectSignedUp(
+    text: string | RegExp = /You're signed up\.|You've signed up for the event!/,
+  ): Promise<void> {
     await expect(this.scope).toContainText(text);
   }
 
   async expectNotSignedUp(): Promise<void> {
-    await expect(this.scope).not.toContainText("You're signed up.");
+    await expect(this.scope).not.toContainText(
+      /You're signed up\.|You've signed up for the event!/,
+    );
   }
 
+  /** Attending: what the box says on opening the page, or right after signing up. */
   async expectAttending(): Promise<void> {
-    await expect(this.scope).toContainText("You're attending.");
+    await expect(this.scope).toContainText(
+      /You're attending\.|You've signed up for the event!/,
+    );
+  }
+
+  /** What the box says right after signing up, in that page view: where the confirmation goes. */
+  async expectJustSignedUp(email: string): Promise<void> {
+    await expect(this.scope).toContainText(
+      `You've signed up for the event! You'll get a confirmation at ${email} any moment. We look forward to seeing you!`,
+    );
+  }
+
+  /** What the box says after cancelling here: whether a confirmation email was sent. */
+  async expectCancelled(emailSent = true): Promise<void> {
+    await expect(this.scope).toContainText(
+      emailSent
+        ? "You're no longer signed up for the event 👋 We've sent you a confirmation by email."
+        : "You're no longer signed up for the event 👋 Unfortunately, we couldn't send a confirmation by email.",
+    );
+  }
+
+  /** The box says nothing of how many are signed up: not the count, not that there are none. */
+  async expectNoCount(): Promise<void> {
+    await expect(this.scope).toBeVisible();
+    await expect(this.scope).not.toContainText(
+      /\d+ attending|Nobody has signed up yet\./,
+    );
+  }
+
+  /** The food deadline the box shows, with `(The deadline has passed)` after it once it has. */
+  async expectDietaryDeadline(passed: boolean): Promise<void> {
+    const line = this.scope.getByText(/Dietary preferences by /);
+    await expect(line).toBeVisible();
+    if (passed) await expect(line).toContainText("(The deadline has passed)");
+    else await expect(line).not.toContainText("(The deadline has passed)");
   }
 
   async expectText(text: string | RegExp): Promise<void> {

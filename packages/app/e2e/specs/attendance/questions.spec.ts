@@ -56,7 +56,7 @@ test("events ask their own questions, and say what's served", async ({
   await cleanUp(alice, team, event.id);
 });
 
-test("people change their answers; organizers export and remove them", async ({
+test("people change their answers; organizers export them as an Excel file and remove them", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -119,17 +119,17 @@ test("people change their answers; organizers export and remove them", async ({
   await editor.attendees.expectNoText("Vegan");
   await editor.attendees.expectNoText("Fish");
 
-  // A spreadsheet of them, with a column for the question.
-  const csv = await editor.attendees.downloadCsv();
-  expect(csv.filename).toBe(`${event.title} attendees.csv`);
-  expect(csv.lines[0]).toBe(
-    "Name,Email,Guest,Signed up,Changed,Phone,Company,Towel size",
-  );
-  expect(csv.lines.slice(1).sort()).toEqual([
-    expect.stringMatching(/^Gina,gina@example\.org,Yes,.*,,,Large$/),
-    expect.stringMatching(/^bob,bob@example\.com,No,.*,,,Small$/),
+  // An Excel file of them, with a column for the question (AC-7).
+  const file = await editor.attendees.downloadExcel();
+  expect(file.filename).toBe(`${event.title}.xlsx`);
+  expect(file.sheets.map(({ sheet }) => sheet)).toEqual(["Sign-ups"]);
+  const [headings, ...rows] = file.sheets[0]?.data ?? [];
+  expect(headings).toEqual(["Name", "Email", "Phone", "Company", "Towel size"]);
+  expect([...rows].sort()).toEqual([
+    ["Gina", "gina@example.org", null, null, "Large"],
+    ["bob", "bob@example.com", null, null, "Small"],
   ]);
-  expect(csv.lines.join("\n")).not.toMatch(/Vegan|Fish/);
+  expect(JSON.stringify(file.sheets)).not.toMatch(/Vegan|Fish/);
 
   // Organizers take people off; the guest sees they're no longer signed up.
   await editor.attendees.remove("Gina");

@@ -55,3 +55,12 @@ export const connection = async (page: Page) => {
     },
   };
 };
+
+/** Gives the page's browser `/api/site` as a site that sends no email. */
+export const siteSendsNoEmail = async (page: Page): Promise<void> => {
+  await page.context().route("/api/site", async (route) => {
+    const response = await route.fetch();
+    const site = (await response.json()) as Record<string, unknown>;
+    await route.fulfill({ response, json: { ...site, sendsEmail: false } });
+  });
+};

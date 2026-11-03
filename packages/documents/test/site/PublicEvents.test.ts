@@ -48,6 +48,7 @@ const publishedEvent = (options: {
   readonly place?: string;
   readonly summary?: string;
   readonly teamName?: string;
+  readonly tags?: ReadonlyArray<string>;
 }) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
@@ -59,12 +60,13 @@ const publishedEvent = (options: {
     yield* sql`
       INSERT INTO events (id, title, starts_at, ends_at, time_zone, body,
         is_public, allow_guests, ask_dietary, is_streamed, place, summary,
-        deleted_at, published_heads, published_by_issuer, published_by_subject)
+        deleted_at, published_heads, published_by_issuer, published_by_subject, tags)
       VALUES (${id}, ${options.title}, ${options.startsAt}, ${options.endsAt},
         'Europe/Oslo', '[]', ${options.public ?? true},
         ${options.guests ?? false}, false, ${options.streamed ?? false},
         ${options.place ?? null}, ${options.summary ?? null},
-        ${options.deleted === true ? new Date() : null}, '{}', 'test', 'test')
+        ${options.deleted === true ? new Date() : null}, '{}', 'test', 'test',
+        ARRAY(SELECT jsonb_array_elements_text(${JSON.stringify(options.tags ?? [])}::jsonb)))
     `;
     return id as DocumentId;
   }).pipe(Effect.orDie);
@@ -87,6 +89,7 @@ const comingEvent = (
   isStreamed: true,
   allowGuests: true,
   teamName: "Platform",
+  tags: [],
   ...event,
 });
 
@@ -179,6 +182,7 @@ layer(TestLayer, { excludeTestServices: true })("Public events", (it) => {
           streamed: true,
           guests: true,
           teamName: "Platform",
+          tags: ["Sosialt", "Oslo"],
         });
         const bare = yield* publishedEvent({
           title: "Bare",
@@ -201,6 +205,7 @@ layer(TestLayer, { excludeTestServices: true })("Public events", (it) => {
             isStreamed: true,
             allowGuests: true,
             teamName: "Platform",
+            tags: ["Sosialt", "Oslo"],
           },
           {
             id: bare,
@@ -212,6 +217,7 @@ layer(TestLayer, { excludeTestServices: true })("Public events", (it) => {
             isStreamed: false,
             allowGuests: false,
             teamName: "Infra",
+            tags: [],
           },
         ]);
       }),
@@ -272,19 +278,28 @@ layer(TestLayer, { excludeTestServices: true })("Public events", (it) => {
       }),
   );
 
+  it.effect("gives summary as null when there is none", () =>
+    Effect.sync(() => {
+      const without = PublicEvents.publicEvent(
+        comingEvent({ summary: null }),
+        site,
+      );
+      const withSummary = PublicEvents.publicEvent(comingEvent(), site);
+      assert.isNull(without.summary);
+      assert.strictEqual(withSummary.summary, "An evening");
+    }),
+  );
+
   it.effect(
-    "gives summary as null when there is none and category as null always",
+    "gives the category Sosialt or Fag for a tag of that name, and null for none (AC-9)",
     () =>
       Effect.sync(() => {
-        const without = PublicEvents.publicEvent(
-          comingEvent({ summary: null }),
-          site,
-        );
-        const withSummary = PublicEvents.publicEvent(comingEvent(), site);
-        assert.isNull(without.summary);
-        assert.isNull(without.category);
-        assert.strictEqual(withSummary.summary, "An evening");
-        assert.isNull(withSummary.category);
+        const category = (tags: ReadonlyArray<string>) =>
+          PublicEvents.publicEvent(comingEvent({ tags }), site).category;
+        assert.strictEqual(category(["Workshop", "sosialt"]), "Sosialt");
+        assert.strictEqual(category(["FAG"]), "Fag");
+        assert.isNull(category(["Workshop"]));
+        assert.isNull(category([]));
       }),
   );
 
@@ -420,6 +435,7 @@ layer(TestLayer, { excludeTestServices: true })("Public events route", (it) => {
           streamed: true,
           guests: true,
           teamName: "Platform",
+          tags: ["sosialt"],
         });
         const members = yield* publishedEvent({
           title: "Members only",
@@ -448,7 +464,7 @@ layer(TestLayer, { excludeTestServices: true })("Public events route", (it) => {
                   end: endsAt.toISOString(),
                   place: "Bryggen",
                   summary: null,
-                  category: null,
+                  category: "Sosialt",
                   organisers: "Platform",
                   isDigital: true,
                   openForExternals: true,

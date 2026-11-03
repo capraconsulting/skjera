@@ -1,6 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import { Config, ConfigProvider, Effect, Exit, Option, Schema } from "effect";
 import {
+  eventCategory,
   GuestDetails,
   guestProblems,
   isEmailAddress,
@@ -272,5 +273,24 @@ describe("optionalSetting", () => {
       read({ SITE_URL: "https://example.org" }),
       "https://example.org",
     );
+  });
+});
+
+describe("eventCategory", () => {
+  it("is Sosialt or Fag for a tag of that name, ignoring case (AC-9)", () => {
+    assert.strictEqual(eventCategory(["Workshop", "sosialt"]), "Sosialt");
+    assert.strictEqual(eventCategory(["FAG"]), "Fag");
+    assert.strictEqual(eventCategory(["SOSIALT"]), "Sosialt");
+  });
+
+  it("is the first of the tags that names one (AC-9)", () => {
+    assert.strictEqual(eventCategory(["Fag", "Sosialt"]), "Fag");
+    assert.strictEqual(eventCategory(["Sosialt", "Fag"]), "Sosialt");
+  });
+
+  it("is none for other tags or no tags (AC-9)", () => {
+    assert.isNull(eventCategory(["Faglig"]));
+    assert.isNull(eventCategory(["Sosialt arrangement"]));
+    assert.isNull(eventCategory([]));
   });
 });

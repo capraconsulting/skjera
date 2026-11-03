@@ -70,6 +70,22 @@ export class Header {
     await expect(this.me()).toHaveAttribute("title", email);
   }
 
+  /** The menu shows the picture from the login, loaded, and not the initials. */
+  async expectProfilePicture(src: string): Promise<void> {
+    const picture = this.accountMenuButton().locator("img");
+    await expect(picture).toHaveAttribute("alt", "Profile picture");
+    await expect(picture).toHaveAttribute("src", src);
+    await expect
+      .poll(() => picture.evaluate((img: HTMLImageElement) => img.naturalWidth))
+      .toBeGreaterThan(0);
+  }
+
+  /** The menu shows no picture, so it shows the initials. */
+  async expectNoProfilePicture(): Promise<void> {
+    await expect(this.accountMenuButton()).toBeVisible();
+    await expect(this.accountMenuButton().locator("img")).toHaveCount(0);
+  }
+
   async expectSignedOut(): Promise<void> {
     await expect(this.me()).toHaveCount(0);
   }
