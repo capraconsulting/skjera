@@ -24,7 +24,7 @@ WHEN a guest sends the form with a name and an email, Skjera SHALL sign them up.
 
 - **Given** the event open to guests
 - **When** a guest signs up in a private window with a name and a new email
-- **Then** the page says «You're signed up.» and «1 attending», and the studio's **Attendees** lists the guest, marked **Guest**
+- **Then** the box says «You've signed up for the event! You'll get a confirmation at the guest's email any moment. We look forward to seeing you!» and nothing of how many are signed up (SITE-06 AC-4), and the studio's **Attendees** lists the guest, marked **Guest**
 
 **Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/documents/test/attendance/guests.test.ts`
 
@@ -60,7 +60,8 @@ WHILE a guest is signed up and sign-up is open, the event page SHALL offer **Can
 
 - **Given** a guest signed up in a private window
 - **When** the guest clicks **Cancel my signup**
-- **Then** the form is back, the page says «Nobody has signed up yet.», and the studio's **Attendees** no longer lists the guest
+- **Then** the form is back, the box says «You're no longer signed up for the event 👋 We've sent you a confirmation by email.», and the studio's **Attendees** no longer lists the guest
+- **And** WHERE the site sends no email, it says «Unfortunately, we couldn't send a confirmation by email.» in place of the second sentence
 
 **Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/documents/test/attendance/guests.test.ts`
 

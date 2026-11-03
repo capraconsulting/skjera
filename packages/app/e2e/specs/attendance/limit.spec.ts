@@ -22,7 +22,7 @@ test("a limit shows the places left, and a full event takes no more (AC-1)", asy
   // Without a limit, the page says nothing about places.
   const stranger = await visitor(browser);
   await new EventPage(stranger).goto(unlimited.id);
-  await new Attendance(stranger).expectEmpty();
+  await new Attendance(stranger).expectNoCount();
   await new Attendance(stranger).expectNoText("place");
 
   // A member and a guest take the two places.

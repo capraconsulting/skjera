@@ -71,7 +71,7 @@ These files say what to test and how. Which criteria have passed in a round of t
 | SIGN-09 | [Custom questions on the sign-up form](SIGN-09-custom-questions.md) |
 | SIGN-10 | [Changing answers after signing up](SIGN-10-changing-answers.md) |
 | SIGN-11 | [Attendee list in the studio](SIGN-11-attendee-list.md) |
-| SIGN-12 | [Downloading attendees as CSV](SIGN-12-csv.md) |
+| SIGN-12 | [Downloading attendees as an Excel file](SIGN-12-excel.md) |
 | SIGN-13 | [Sign-up data deleted after 30 days](SIGN-13-signup-retention.md) |
 | SIGN-14 | [Signing up and cancelling are protected against bots and repeated attempts](SIGN-14-bots-and-repeated-attempts.md) |
 | SIGN-15 | [Invitations in the studio](SIGN-15-invitations.md) |

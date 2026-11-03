@@ -12,7 +12,9 @@ WHILE a member is logged in and sign-up is open, the event page SHALL offer **At
 
 - **Given** the event, with nobody signed up
 - **When** bob opens it and clicks **Attend**
-- **Then** the page says «You're attending.» and «1 attending», and the studio's **Attendees** lists bob with his email
+- **Then** the box says «You've signed up for the event! You'll get a confirmation at bob@example.com any moment. We look forward to seeing you!» and «1 attending», and the studio's **Attendees** lists bob with his email
+- **When** he reloads the page
+- **Then** the box says «You're attending.», as the confirmation is only right after signing up
 
 **Automated:** `packages/app/e2e/specs/attendance/members.spec.ts`, `packages/documents/test/attendance/signups.test.ts`
 
@@ -24,7 +26,8 @@ WHILE a member is signed up and sign-up is open, the event page SHALL offer **Ca
 
 - **Given** bob signed up for the event
 - **When** he clicks **Cancel attendance**
-- **Then** the page says «Nobody has signed up yet.», **Attend** is back, and the studio's **Attendees** no longer lists him
+- **Then** the box says «You're no longer signed up for the event 👋 We've sent you a confirmation by email.», **Attend** is back, and the studio's **Attendees** no longer lists him
+- **And** WHERE the site sends no email, it says «Unfortunately, we couldn't send a confirmation by email.» in place of the second sentence
 
 **Automated:** `packages/app/e2e/specs/attendance/members.spec.ts`, `packages/app/e2e/specs/attendance/whos-coming.spec.ts`, `packages/documents/test/attendance/signups.test.ts`
 

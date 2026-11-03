@@ -1,7 +1,7 @@
 import { Clock, Config, Effect, Layer } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import { SqlClient } from "effect/sql";
-import { optionalSetting } from "../Model.ts";
+import { type Category, eventCategory, optionalSetting } from "../Model.ts";
 import { WebsiteOrigins } from "./Embed.ts";
 
 // The coming events as JSON (`GET /api/public/events`), in the format of
@@ -21,6 +21,8 @@ export interface ComingEvent {
   readonly isStreamed: boolean;
   readonly allowGuests: boolean;
   readonly teamName: string;
+  /** As the organiser wrote them. */
+  readonly tags: ReadonlyArray<string>;
 }
 
 /**
@@ -41,9 +43,10 @@ export const comingEvents = (now: Date) =>
       readonly is_streamed: boolean;
       readonly allow_guests: boolean;
       readonly team_name: string;
+      readonly tags: ReadonlyArray<string>;
     }>`
       SELECT e.id, e.title, e.starts_at, e.ends_at, e.place, e.summary,
-        e.is_streamed, e.allow_guests, t.name AS team_name
+        e.is_streamed, e.allow_guests, t.name AS team_name, e.tags
       FROM events e
         JOIN documents d ON d.id = e.id
         JOIN teams t ON t.id = d.team_id
@@ -61,6 +64,7 @@ export const comingEvents = (now: Date) =>
         isStreamed: row.is_streamed,
         allowGuests: row.allow_guests,
         teamName: row.team_name,
+        tags: row.tags,
       }),
     );
   }).pipe(Effect.orDie);
@@ -74,7 +78,8 @@ export interface PublicEvent {
   readonly end: string;
   readonly place: string;
   readonly summary: string | null;
-  readonly category: null;
+  /** «Sosialt» or «Fag», from the event's tags; null: neither. */
+  readonly category: Category | null;
   readonly organisers: string;
   readonly isDigital: boolean;
   readonly openForExternals: boolean;
@@ -104,8 +109,7 @@ export const publicEvent = (
   // Skjer's place is always a string.
   place: event.place ?? "",
   summary: event.summary,
-  // Skjera has no categories.
-  category: null,
+  category: eventCategory(event.tags),
   organisers: organisers(event.teamName),
   isDigital: event.isStreamed,
   openForExternals: event.allowGuests,

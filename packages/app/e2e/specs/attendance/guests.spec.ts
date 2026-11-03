@@ -1,6 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { cleanUp } from "../../fixtures/cleanUp.ts";
-import { signedIn, uniqueTeamName, visitor } from "../../fixtures/support.ts";
+import {
+  signedIn,
+  siteSendsNoEmail,
+  uniqueTeamName,
+  visitor,
+} from "../../fixtures/support.ts";
 import { Mailbox } from "../../pom/Mailbox.ts";
 import { Attendance, CancelByEmail } from "../../pom/site/Attendance.ts";
 import { CancelSignupPage } from "../../pom/site/CancelSignupPage.ts";
@@ -22,7 +27,8 @@ test("guests sign up with their name and email", async ({ browser }) => {
   // This event doesn't ask about food.
   await attendance.expectNoField("Dietary preferences");
   await attendance.signUpAsGuest("Gina", "gina@example.org");
-  await attendance.expectText("1 attending");
+  // Visitors are told nothing of how many have signed up (AC-10).
+  await attendance.expectNoCount();
   // The browser remembers, so the guest can still cancel later.
   await page.reload();
   await attendance.expectSignedUp();
@@ -41,7 +47,7 @@ test("guests sign up with their name and email", async ({ browser }) => {
   await editor.attendees.expectText("Guest");
 
   await attendance.cancelSignup();
-  await attendance.expectEmpty();
+  await attendance.expectCancelled();
   await attendance.expectSignUpButton(true);
 
   // Without guest signups, visitors are asked to log in.
@@ -71,7 +77,7 @@ test("a guest form says what is wrong by each field, and refuses a member's emai
     "Your name",
     "Enter your name, at least 2 characters",
   );
-  await box.expectEmpty();
+  await box.expectNoCount();
 
   // A member's email address is refused by the server, by the email field (AC-1).
   await box.fillName("Bob");
@@ -133,7 +139,7 @@ test("a guest's forms have a hidden field, and one with it filled in is refused 
   await box.fillHiddenField("buy now");
   await box.clickSignUp();
   await box.expectAlert(refusal);
-  await box.expectEmpty();
+  await box.expectNoCount();
   await box.expectSignUpButton(true);
 
   await box.fillName("Gina");
@@ -154,7 +160,7 @@ test("a guest's forms have a hidden field, and one with it filled in is refused 
 
   await box.fillHiddenField("");
   await box.cancelSignup();
-  await box.expectEmpty();
+  await box.expectCancelled();
 
   await cleanUp(alice, team, event.id);
 });
@@ -239,24 +245,15 @@ test("guests give a phone number and a company, and organizers see, search and e
   await editor.attendees.expectRow("Gina", "911 11 111");
   await editor.attendees.expectRow("Gina", "Initech");
 
-  const csv = await editor.attendees.downloadCsv();
-  expect(csv.lines[0]).toBe("Name,Email,Guest,Signed up,Changed,Phone,Company");
-  expect(csv.lines.slice(1).sort()).toEqual([
-    expect.stringMatching(/^Gina,gina@example\.org,Yes,.*,911 11 111,Initech$/),
-    expect.stringMatching(/^bob,bob@example\.com,No,.*,,$/),
-  ]);
-
-  // Searching narrows the list, not the count or the spreadsheet.
+  // Searching narrows the list, not the count or the Excel file.
   await editor.attendees.expectSearch();
   await editor.attendees.search("initech");
   await editor.attendees.expectRow("Gina", "Initech");
   await editor.attendees.expectNoText("bob@example.com");
   expect(await editor.attendees.count()).toBe(2);
-  const narrowed = await editor.attendees.downloadCsv();
-  expect(narrowed.lines.slice(1).sort()).toEqual([
-    expect.stringMatching(/^Gina,/),
-    expect.stringMatching(/^bob,/),
-  ]);
+  const narrowed = await editor.attendees.downloadExcel();
+  // The headings, and a row for each of the two.
+  expect(narrowed.sheets[0]?.data).toHaveLength(3);
 
   await cleanUp(alice, team, event.id);
 });
@@ -448,7 +445,7 @@ test("a guest who lost the email cancels by typing their address, and confirming
   // The link is used: the page says so, and leads to the event (AC-7).
   await confirmPage.goto(link ?? "");
   await confirmPage.expectText(
-    "This link has been used, or the signup is no longer there.",
+    "You've already cancelled your signup for the event. Thanks for your interest!",
   );
   await confirmPage.clickToEvent();
   await new EventPage(third).expectAt(event.id);
@@ -496,6 +493,53 @@ test("a link that leads to no signup says so", async ({ browser }) => {
   const after = new Attendance(third);
   await after.expectText(gone);
   await after.expectNotSignedUp();
+
+  await cleanUp(alice, team, event.id);
+});
+
+test("a site that sends no email says so after a guest cancels, on the event page and on the cancel link's page (AC-2)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("NoMail"));
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({ public: true, guests: true });
+
+  // Cancelling on the event page.
+  const first = await visitor(browser);
+  await siteSendsNoEmail(first);
+  await new EventPage(first).goto(event.id);
+  const box = new Attendance(first);
+  await box.signUpAsGuest("Gina", `gina-${crypto.randomUUID()}@example.org`);
+  await box.cancelSignup();
+  await box.expectCancelled(false);
+
+  // Confirming on the cancel link's page.
+  const address = `hanna-${crypto.randomUUID()}@example.org`;
+  const second = await visitor(browser);
+  await new EventPage(second).goto(event.id);
+  await new Attendance(second).signUpAsGuest("Hanna", address);
+  const lost = await visitor(browser);
+  await new EventPage(lost).goto(event.id);
+  const form = new CancelByEmail(lost);
+  await form.fillEmail(address);
+  await form.submit();
+  const email = await new Mailbox().emailTo(
+    address,
+    `Confirm cancelling: ${event.title}`,
+  );
+  const link = email.text.match(
+    new RegExp(`http\\S*/events/${event.id}/cancel\\?token=\\S+`),
+  )?.[0];
+  expect(link).toBeDefined();
+  const third = await visitor(browser);
+  await siteSendsNoEmail(third);
+  const confirmPage = new CancelSignupPage(third);
+  await confirmPage.goto(link ?? "");
+  await confirmPage.confirm();
+  await confirmPage.expectText(
+    "You're no longer signed up for the event 👋 Unfortunately, we couldn't send a confirmation by email.",
+  );
 
   await cleanUp(alice, team, event.id);
 });

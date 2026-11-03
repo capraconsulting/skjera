@@ -51,13 +51,17 @@ IF an organiser sets a sign-up deadline after the event starts, THEN Skjera SHAL
 
 ## AC-5: The food deadline is shown
 
-WHILE an event serves food and its food deadline has not passed, the event page SHALL say by when dietary preferences are taken.
+WHILE an event serves food and has a food deadline, the event page SHALL say by when dietary preferences are taken, and once the deadline has passed SHALL follow it with «(The deadline has passed)» («(Fristen har gått ut)» in Norwegian). It does so while sign-up is open and after it has closed.
 
 **Test**
 
 - **Given** the event with **Food is served**, and a food deadline before sign-up closes
 - **When** it is opened in a private window
 - **Then** after «Sign-up closes …» it says «Dietary preferences by …» with the food deadline
+- **When** the food deadline has passed and the event is opened again
+- **Then** the same line is followed by «(The deadline has passed)»
+- **When** sign-up has closed too
+- **Then** the box says «Sign-up has closed.» and «Dietary preferences by …» with the food deadline, followed by «(The deadline has passed)»
 
 **Automated:** `packages/app/e2e/specs/attendance/dietary.spec.ts`
 
@@ -69,7 +73,7 @@ WHEN an event's food deadline has passed while sign-up is still open, Skjera SHA
 
 - **Given** the event with **Food is served**, and a food deadline that has passed
 - **When** bob opens it
-- **Then** there is no «Dietary preferences (optional)» field and no «Dietary preferences by …», and **Attend** signs him up
+- **Then** there is no «Dietary preferences (optional)» field, the box says «Dietary preferences by …» with the food deadline followed by «(The deadline has passed)», and **Attend** signs him up
 - **And** «Dietary preferences (…)» in the studio doesn't grow
 
 **Automated:** `packages/documents/test/attendance/dietary.test.ts`

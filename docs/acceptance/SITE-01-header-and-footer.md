@@ -123,3 +123,17 @@ The browser tab SHALL be titled as in Skjer: the front page with the site's name
 - **Then** the tab reads «Skjera | Capra Liflig», then the event's title, then «Privacy policy | Skjera»
 
 **Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/app/test/pageTitle.test.ts`
+
+## AC-11: The profile picture in the menu
+
+WHILE someone is logged in with a Google profile picture, the account menu in the header SHALL show it, 32 pixels wide and round, with the alt text «Profilbilde» («Profile picture» in English), in place of their initials. Without a picture, or when it cannot be loaded, the menu shows their initials. The picture is the `picture` the login gives, so someone already logged in sees it after their next login. The menu is the same on the site and in the studio.
+
+**Test**
+
+- **Given** the site logging in with Google, and an account with a profile picture
+- **When** you log in, and look at the menu in the header, on the site and in the studio
+- **Then** the menu shows the picture, round, in place of the initials
+- **Given** the local login, which has no pictures
+- **Then** the menu shows the initials
+
+**Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/oauth/test/OAuthClient.domains.test.ts`

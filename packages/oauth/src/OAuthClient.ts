@@ -286,12 +286,14 @@ export class OAuthClient extends Context.Service<
         }
         const email = record[config.claims.email];
         const name = record[config.claims.name];
+        const picture = pictureAddress(record.picture);
         return Effect.succeed(
           new Identity({
             issuer: as.issuer,
             subject: String(subject),
             email: typeof email === "string" ? email : undefined,
             name: typeof name === "string" ? name : undefined,
+            ...(picture === undefined ? {} : { picture }),
           }),
         );
       };
@@ -392,6 +394,14 @@ export class OAuthClient extends Context.Service<
     }),
   );
 }
+
+/** The `picture` claim when it is an `https:` address, else none. */
+const pictureAddress = (claim: unknown): string | undefined => {
+  if (typeof claim !== "string") return undefined;
+  return URL.canParse(claim) && new URL(claim).protocol === "https:"
+    ? claim
+    : undefined;
+};
 
 const describe = (message: string, cause: unknown): string => {
   if (

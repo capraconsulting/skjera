@@ -42,15 +42,15 @@ Skjera SHALL let a guest change their phone number and company until sign-up clo
 
 ## AC-4: Attendees and the spreadsheet show them
 
-The studio's list of attendees and the exported spreadsheet SHALL show each guest's phone number and company.
+The studio's list of attendees and the exported Excel file SHALL show each guest's phone number and company.
 
 **Test**
 
 - **Given** a guest signed up with a phone number and a company
-- **When** you click **Download CSV** in the studio
-- **Then** the guest's phone number and company are in it
+- **When** you click **Download Excel** in the studio
+- **Then** the guest's phone number and company are in the columns Phone and Company
 
-**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/app/e2e/specs/attendance/limit.spec.ts`
+**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/app/e2e/specs/attendance/limit.spec.ts`, `packages/app/test/attendeesSheet.test.ts`
 
 ## AC-5: Members aren't asked
 

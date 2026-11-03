@@ -330,15 +330,17 @@ const SiteAssets = Layer.unwrap(
   }),
 );
 
-/** The site's name, language, footer and privacy, for the app. */
+/** The site's name, language, footer and privacy, and whether it sends email, for the app. */
 const site = Layer.unwrap(
-  Effect.map(Documents.SiteConfig, (config) =>
-    HttpRouter.add(
+  Effect.gen(function* () {
+    const config = yield* Documents.SiteConfig;
+    const sendsEmail = yield* Documents.Mail.emailsSent;
+    return HttpRouter.add(
       "GET",
       "/api/site",
-      HttpServerResponse.json(Documents.Site.make(config)),
-    ),
-  ),
+      HttpServerResponse.json(Documents.Site.make({ ...config, sendsEmail })),
+    );
+  }),
 );
 
 const Routes = Layer.mergeAll(

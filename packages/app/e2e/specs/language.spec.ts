@@ -30,14 +30,15 @@ test("visitors pick their language, and get emails in it", async ({
   // The page comes back in it, dates too; the event as it was written.
   await header.expectPageLanguage("nb");
   const box = new Attendance(nora, "Påmelding");
-  await box.expectText("Ingen har meldt seg på ennå.");
   await box.expectText(/Påmeldingen stenger \S+dag \d+\. \S+ \d{4}/);
   await page.expectHeading(event.title);
 
   await box.fillField("Navnet ditt", "Nora");
   await box.fillField("E-postadressen din", address);
   await box.clickSignUp("Meld meg på");
-  await box.expectSignedUp("Du er påmeldt.");
+  await box.expectSignedUp(
+    `Du har meldt deg på arrangementet! Du får en bekreftelse på ${address} hvert øyeblikk. Vi gleder oss til å se deg!`,
+  );
   const email = await new Mailbox().emailTo(
     address,
     `Du er påmeldt: ${event.title}`,

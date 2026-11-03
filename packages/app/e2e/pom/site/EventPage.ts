@@ -99,14 +99,12 @@ export class EventPage {
    * the tab it opened in.
    */
   async openStreamLink(link: string): Promise<Page> {
-    await this.page
-      .context()
-      .route(link, (route) =>
-        route.fulfill({
-          contentType: "text/html",
-          body: "<!doctype html><title>The stream</title><p>Live</p>",
-        }),
-      );
+    await this.page.context().route(link, (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        body: "<!doctype html><title>The stream</title><p>Live</p>",
+      }),
+    );
     const opening = this.page.context().waitForEvent("page");
     await this.article().getByRole("link", { name: link }).click();
     return opening;

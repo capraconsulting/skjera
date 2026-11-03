@@ -40,15 +40,17 @@ IF no one of a kind has signed up, THEN the event page SHALL say so in that kind
 
 **Automated:** `packages/app/e2e/specs/attendance/whos-coming.spec.ts`
 
-## AC-4: Not logged in, only the count
+## AC-4: Not logged in, only the places left
 
-WHILE no one is logged in, the event page SHALL show only how many are coming, as it does today.
+WHILE no one is logged in, the event page SHALL NOT show how many are signed up. For an event with a limit it SHALL show «N places left», or «No places left» when none is left, as Skjer does.
 
 **Test**
 
-- **Given** the event with bob and a guest signed up
+- **Given** an event with places for 3, with bob and a guest signed up
 - **When** it is opened in a private window
-- **Then** it says «2 attending», with no names
+- **Then** the info list says «1 place left», with no names and no count of those signed up
+- **When** alice opens it
+- **Then** it says «2 attending»
 
 **Automated:** `packages/app/e2e/specs/attendance/whos-coming.spec.ts`
 

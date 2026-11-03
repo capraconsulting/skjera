@@ -147,8 +147,24 @@ export const Site = Schema.Struct({
   privacy: SitePrivacy,
   /** HubSpot's account, where the site loads HubSpot: `HUBSPOT_ACCOUNT_ID`. */
   hubSpot: Schema.optionalKey(Schema.String),
+  /** Emails are sent; absent, as before `/api/site` answers, reads as sent. */
+  sendsEmail: Schema.optionalKey(Schema.Boolean),
 });
 export type Site = typeof Site.Type;
+
+/** Skjer's categories. */
+export const categories = ["Sosialt", "Fag"] as const;
+export type Category = (typeof categories)[number];
+
+/** An event's category: its first tag named «Sosialt» or «Fag», ignoring case; else none. */
+export const eventCategory = (tags: ReadonlyArray<string>): Category | null => {
+  for (const tag of tags) {
+    const lower = tag.toLowerCase();
+    const category = categories.find((name) => name.toLowerCase() === lower);
+    if (category !== undefined) return category;
+  }
+  return null;
+};
 
 /** `HUBSPOT_ACCOUNT_ID`: a HubSpot account id, as HubSpot shows it (digits), or blank for none. */
 const HubSpotAccountIdText = Schema.String.check(

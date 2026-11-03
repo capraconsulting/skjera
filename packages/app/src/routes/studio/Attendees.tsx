@@ -13,7 +13,12 @@ import {
 } from "../../sync/tables.ts";
 import styles from "./Attendees.module.css";
 import { searchAttendees } from "./attendeeSearch.ts";
-import { answerText, attendeesCsv, download } from "./attendeesCsv.ts";
+import {
+  answerText,
+  attendeesSheet,
+  download,
+  xlsxFile,
+} from "./attendeesSheet.ts";
 
 /** Who has signed up to attend, for the event's organizers. */
 export function Attendees(props: { readonly id: DocumentId }) {
@@ -45,14 +50,14 @@ export function Attendees(props: { readonly id: DocumentId }) {
       .isPersisted.promise.catch((failure: Error) => setError(failure.message));
   };
 
-  const exportCsv = () =>
-    download(
-      attendeesCsv(event, attendees ?? []),
-      m.studio_attendees_file({
-        title: event?.title.trim() || m.studio_event(),
-      }),
-      "text/csv;charset=utf-8",
+  const exportExcel = () => {
+    setError(null);
+    const sheet = attendeesSheet(event, attendees ?? []);
+    xlsxFile(sheet).then(
+      (file) => download(file, sheet.fileName),
+      () => setError(m.common_something_wrong()),
     );
+  };
 
   return (
     <>
@@ -64,8 +69,8 @@ export function Attendees(props: { readonly id: DocumentId }) {
               : m.studio_attendees_count({ count: attendees.length })}
           </h3>
           {attendees === null || attendees.length === 0 ? null : (
-            <Button variant="ghost" onClick={exportCsv}>
-              {m.studio_download_csv()}
+            <Button variant="ghost" onClick={exportExcel}>
+              {m.studio_download_excel()}
             </Button>
           )}
         </div>

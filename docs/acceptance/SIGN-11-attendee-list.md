@@ -116,14 +116,14 @@ WHILE anyone is signed up for an event, the studio SHALL show a «Search» field
 
 **Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/app/test/attendeeSearch.test.ts`
 
-## AC-10: The count and the CSV cover everyone
+## AC-10: The count and the Excel file cover everyone
 
-WHILE a search narrows the attendee list, the studio SHALL still count everyone signed up in the heading, and **Download CSV** SHALL still cover everyone signed up.
+WHILE a search narrows the attendee list, the studio SHALL still count everyone signed up in the heading, and **Download Excel** SHALL still cover everyone signed up.
 
 **Test**
 
 - **Given** the list narrowed to the guest by a search
-- **When** you read the heading and click **Download CSV**
+- **When** you read the heading and click **Download Excel**
 - **Then** the heading says «Attendees (2)», and the file has both the guest's and bob's rows
 
 **Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`

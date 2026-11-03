@@ -224,6 +224,16 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
         summary: "A summary the websites can show",
       }),
       event("AC-4: Without a summary", { ...members, ...daysAhead(now, 4) }),
+      event("AC-4: With the tag Sosialt", {
+        ...members,
+        ...daysAhead(now, 10),
+        tags: ["Workshop", "sosialt"],
+      }),
+      event("AC-4: With the tag Fag", {
+        ...members,
+        ...daysAhead(now, 11),
+        tags: ["FAG"],
+      }),
       event("AC-5: Streamed", {
         ...members,
         ...daysAhead(now, 5),
@@ -458,7 +468,7 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
         ...week,
         streamed: true,
       }),
-      event("AC-5: Attendees and the spreadsheet show how each comes", {
+      event("AC-5: Attendees and the Excel file show how each comes", {
         ...guests,
         ...week,
         streamed: true,
@@ -482,7 +492,7 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
         "AC-2: Kept without a name",
         "AC-3: An empty field is accepted, and stores nothing",
         "AC-4: The organiser sees the list and the count",
-        "AC-5: Not in the attendee list or the spreadsheet",
+        "AC-5: Not in the attendee list or the Excel file",
         "AC-6: Changing or cancelling leaves them",
       ].map((title) =>
         event(title, {
@@ -561,7 +571,7 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
         signups: [guest("SIGN-11", 1)],
       }),
     ]),
-    team("SIGN-12: Downloading attendees as CSV", [
+    team("SIGN-12: Downloading attendees as an Excel file", [
       event("AC-1: A file named after the event", {
         ...guests,
         ...week,

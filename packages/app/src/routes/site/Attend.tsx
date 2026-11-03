@@ -30,6 +30,7 @@ import {
   requestCancelByEmail,
   storedGuestSignup,
 } from "../../site/guestSignups.ts";
+import { placesLeft } from "../../site/signupCount.ts";
 import {
   chosenOption,
   fieldOf,
@@ -71,6 +72,8 @@ export function Attend(props: {
   /** Everyone signed up for the event. */
   readonly signups: ReadonlyArray<AttendeeRow>;
   readonly signedIn: boolean;
+  /** The email of the member logged in, where the login gave one. */
+  readonly email: string | undefined;
   /** The guest's link, just opened, led to no signup. */
   readonly linkGone: boolean;
 }) {
@@ -93,6 +96,13 @@ export function Attend(props: {
   const [stored, setStored] = useState<Given | null>(null);
   // Said until they sign up.
   const [signedUpSince, setSignedUpSince] = useState(false);
+  // What was last done here, this page view: signed up (to where the
+  // confirmation goes) or cancelled. A refusal clears it.
+  const [last, setLast] = useState<
+    | { readonly kind: "signedUp"; readonly email: string }
+    | { readonly kind: "cancelled" }
+    | null
+  >(null);
   // What this member last gave, here: their row has it only once synced.
   const [given, setGiven] = useState<Given | null>(null);
   const closesAt = event.signupDeadline ?? event.startsAt;
@@ -100,6 +110,16 @@ export function Attend(props: {
   // After the food deadline, people can still come; they're not asked.
   const foodClosed = useHasPassed(event.foodDeadline ?? closesAt);
   const asksDietary = event.askDietary && !foodClosed;
+  // The food deadline, said once it has passed too.
+  const food =
+    event.askDietary && event.foodDeadline !== null
+      ? [
+          m.attend_dietary_by({
+            when: formatDateTime(event.foodDeadline, event.timeZone),
+          }),
+          ...(foodClosed ? [m.attend_deadline_passed()] : []),
+        ].join(" ")
+      : null;
 
   /** Shows what is wrong with the guest's inputs, each by its own. */
   const refuse = (problems: ReadonlyArray<GuestProblem>) => {
@@ -107,14 +127,16 @@ export function Attend(props: {
     setMessages(messagesFor(problems));
   };
 
-  const settle = (change: {
-    readonly isPersisted: { promise: Promise<unknown> };
-  }) => {
+  const settle = (
+    change: { readonly isPersisted: { promise: Promise<unknown> } },
+    onRefused?: () => void,
+  ) => {
     setError(null);
     setMessages({});
     change.isPersisted.promise.then(
       () => setGuest(guestSignup(event.id)),
       (failure: Error & { readonly problem?: unknown }) => {
+        onRefused?.();
         // A refusal about one of the guest's inputs shows by it.
         const field = fieldOf(failure.problem);
         if (field === undefined) setError(failure.message);
@@ -135,6 +157,14 @@ export function Attend(props: {
       if (problems.length > 0) return refuse(problems);
     }
     setSignedUpSince(true);
+    const confirmedTo = asGuest
+      ? String(form.get("email") ?? "").trim()
+      : props.email;
+    setLast(
+      confirmedTo === undefined || confirmedTo === ""
+        ? null
+        : { kind: "signedUp", email: confirmedTo },
+    );
     const dietary = form.get("dietary");
     const online = onlineFrom(event, form);
     const signup: Signup = {
@@ -169,6 +199,7 @@ export function Attend(props: {
         },
         { metadata: signup },
       ),
+      () => setLast(null),
     );
   };
 
@@ -239,6 +270,7 @@ export function Attend(props: {
 
   /** `honeypot` is what a guest's cancel form's hidden field held. */
   const cancel = (id: string, honeypot?: string) => {
+    setLast({ kind: "cancelled" });
     if (attendees.collection.has(id)) {
       settle(
         attendees.collection.delete(
@@ -247,6 +279,7 @@ export function Attend(props: {
             ? {}
             : { metadata: { honeypot } satisfies GuestCancel },
         ),
+        () => setLast(null),
       );
     } else {
       // Gone already, e.g. removed by the organizers.
@@ -255,15 +288,33 @@ export function Attend(props: {
     }
   };
 
-  const count =
-    signups.length === 0
-      ? m.attend_nobody()
-      : m.attend_count({ count: signups.length });
+  // Only those logged in are told how many are signed up.
+  const count = !props.signedIn ? null : (
+    <p className={styles.count}>
+      {signups.length === 0
+        ? m.attend_nobody()
+        : m.attend_count({ count: signups.length })}
+    </p>
+  );
   // The link just opened led to no signup, and none is shown.
   const gone =
     props.linkGone && !signedUpSince && guest === null && mine === undefined ? (
       <p className={styles.status}>{m.attend_link_gone()}</p>
     ) : null;
+  // Cancelled here: whether the confirmation email goes.
+  const cancelled =
+    last?.kind === "cancelled" && mine === undefined && guest === null ? (
+      <p role="status" className={styles.status}>
+        {currentSite().sendsEmail === false
+          ? m.cancel_done_no_email()
+          : m.cancel_done()}
+      </p>
+    ) : null;
+  // Signed up here: where the confirmation goes.
+  const signedUpNow =
+    last?.kind === "signedUp"
+      ? m.attend_signed_up_now({ email: last.email })
+      : null;
   const failure =
     error === null ? null : (
       <p role="alert" className={styles.error}>
@@ -271,15 +322,7 @@ export function Attend(props: {
       </p>
     );
 
-  // Places left; null without a limit. Only those in person take one, when
-  // the event is streamed. A limit set below those signed up leaves none.
-  const inPerson = event.isStreamed
-    ? signups.filter((signup) => !signup.online)
-    : signups;
-  const left =
-    event.maxAttendees === null
-      ? null
-      : Math.max(0, event.maxAttendees - inPerson.length);
+  const left = placesLeft(event, signups);
   const full = left === 0;
   // A full streamed event still takes those following online.
   const noMore = full && !event.isStreamed;
@@ -325,8 +368,9 @@ export function Attend(props: {
     return (
       <section className={styles.box} aria-label={m.attend_region()}>
         <h2 className={styles.heading}>{m.attend_region()}</h2>
-        <p className={styles.count}>{count}</p>
+        {count}
         {gone}
+        {cancelled}
         {mine !== undefined || guest !== null ? (
           <p className={styles.status}>
             {mine !== undefined
@@ -335,6 +379,7 @@ export function Attend(props: {
           </p>
         ) : null}
         <p className={styles.closes}>{m.attend_closed()}</p>
+        {food === null ? null : <p className={styles.closes}>{food}</p>}
       </section>
     );
   }
@@ -342,9 +387,7 @@ export function Attend(props: {
   const closes = (
     <p className={styles.closes}>
       {m.attend_closes({ when: formatDateTime(closesAt, event.timeZone) })}
-      {asksDietary && event.foodDeadline !== null
-        ? ` ${m.attend_dietary_by({ when: formatDateTime(event.foodDeadline, event.timeZone) })}`
-        : null}
+      {food === null ? null : ` ${food}`}
     </p>
   );
   const asked = (given: Given = {}, signingUp = false) => (
@@ -429,12 +472,13 @@ export function Attend(props: {
     return (
       <section className={styles.box} aria-label={m.attend_region()}>
         <h2 className={styles.heading}>{m.attend_region()}</h2>
-        <p className={styles.count}>{count}</p>
+        {count}
         {gone}
+        {cancelled}
         {closes}
         {places}
         {mine !== undefined ? (
-          signedUp(mine.id, m.attend_you_attending(), {
+          signedUp(mine.id, signedUpNow ?? m.attend_you_attending(), {
             ...(given ?? {
               answers: Object.fromEntries(
                 (mine.details?.answers ?? []).map((answer) => [
@@ -468,8 +512,9 @@ export function Attend(props: {
     return (
       <section className={styles.box} aria-label={m.attend_region()}>
         <h2 className={styles.heading}>{m.attend_region()}</h2>
-        <p className={styles.count}>{count}</p>
+        {count}
         {gone}
+        {cancelled}
         {closes}
         {places}
         {noMore ? (
@@ -489,8 +534,9 @@ export function Attend(props: {
     <>
       <section className={styles.box} aria-label={m.attend_region()}>
         <h2 className={styles.heading}>{m.attend_region()}</h2>
-        <p className={styles.count}>{count}</p>
+        {count}
         {gone}
+        {cancelled}
         {closes}
         {places}
         {guest === null && noMore ? (
@@ -539,7 +585,7 @@ export function Attend(props: {
         ) : (
           signedUp(
             guest.id,
-            m.attend_you_signed_up(),
+            signedUpNow ?? m.attend_you_signed_up(),
             {
               ...(stored ?? {}),
               online: signups.find((signup) => signup.id === guest.id)?.online,

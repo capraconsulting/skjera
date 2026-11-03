@@ -1,5 +1,10 @@
 /** @jsxRuntime automatic @jsxImportSource react */
-import { Email, EmailRejected, retryTransient } from "@skjera/email";
+import {
+  Email,
+  EmailRejected,
+  retryTransient,
+  sendsEmail,
+} from "@skjera/email";
 import { renderEmail } from "@skjera/email/react";
 import { m } from "@skjera/i18n/messages";
 import { Clock, Config, Cron, Effect, Layer, Option, Schema } from "effect";
@@ -121,6 +126,12 @@ const SiteConfig = Config.all({
   from: Config.String("EMAIL_FROM"),
   locale: SiteLocale,
 });
+
+/** Emails to attendees are sent: a transport, and the settings the mailer needs. */
+export const emailsSent = Config.all({
+  transport: sendsEmail,
+  site: Config.option(SiteConfig),
+}).pipe(Config.map(({ transport, site }) => transport && Option.isSome(site)));
 
 interface EventRow {
   readonly title: string;

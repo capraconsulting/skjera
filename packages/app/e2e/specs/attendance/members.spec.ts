@@ -81,15 +81,19 @@ test("members attend and change their mind", async ({ browser }) => {
   await new EventPage(bob).goto(event.id);
   const attendance = new Attendance(bob);
   await attendance.expectEmpty();
-  await attendance.attend();
+  // Right after attending, the box says where the confirmation goes (AC-1).
+  await attendance.attend("bob@example.com");
   await attendance.expectText("1 attending");
+  await new EventPage(bob).reload();
+  await attendance.expectText("You're attending.");
 
   // The organizer sees who is coming.
   await editor.reload();
   await editor.attendees.expectText("bob@example.com");
 
+  // Cancelling says whether the confirmation email was sent (AC-2).
   await attendance.cancelAttendance();
-  await attendance.expectEmpty();
+  await attendance.expectCancelled();
   // Saved: the organizer sees it.
   await editor.attendees.expectEmpty();
 

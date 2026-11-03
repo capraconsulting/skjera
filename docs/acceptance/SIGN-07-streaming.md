@@ -27,6 +27,8 @@ WHERE an event is streamed, the event page SHALL show the link to the stream to 
 - **Then** it only says «Streamed»
 - **When** you write a link starting with `https://` in the studio, **Publish**, and open the event as bob and in a private window
 - **Then** the link is shown under «Streamed» to both, also to the window that isn't logged in
+- **When** you click the link
+- **Then** it opens in a new tab, and the event page stays open in the first
 
 **Automated:** `packages/app/e2e/specs/attendance/streaming.spec.ts`, `packages/documents/test/events/content.test.ts`
 
@@ -56,17 +58,17 @@ WHERE an event is streamed, Skjera SHALL let those signed up change between in p
 
 **Automated:** `packages/app/e2e/specs/attendance/streaming.spec.ts`, `packages/documents/test/attendance/streaming.test.ts`
 
-## AC-5: Attendees and the spreadsheet show how each comes
+## AC-5: Attendees and the Excel file show how each comes
 
-The studio's list of attendees and the exported spreadsheet SHALL show, for a streamed event, whether each attendee comes in person or online.
+The studio's list of attendees SHALL show, for a streamed event, whether each attendee comes in person or online, and the exported Excel file SHALL have the column Digitalt, with «Ja» for those online and «Nei» for those in person (in English, Online with «Yes» and «No»).
 
 **Test**
 
 - **Given** bob signed up in person and a guest online
-- **When** you look at **Attendees** in the studio, and **Download CSV**
-- **Then** both show «In person» for bob and «Online» for the guest
+- **When** you look at **Attendees** in the studio, and **Download Excel**
+- **Then** the list shows «In person» for bob and «Online» for the guest, and the file has «No» under Online for bob and «Yes» for the guest
 
-**Automated:** `packages/app/e2e/specs/attendance/streaming.spec.ts`
+**Automated:** `packages/app/e2e/specs/attendance/streaming.spec.ts`, `packages/app/test/attendeesSheet.test.ts`
 
 ## AC-6: Only those in person count against the limit
 

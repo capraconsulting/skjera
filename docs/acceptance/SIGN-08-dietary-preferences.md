@@ -52,14 +52,14 @@ The organiser's view of an event shall show the dietary preferences given for th
 
 **Automated:** `packages/app/e2e/specs/attendance/dietary.spec.ts`, `packages/documents/test/attendance/dietary.test.ts`
 
-## AC-5: Not in the attendee list or the spreadsheet
+## AC-5: Not in the attendee list or the Excel file
 
-The attendee list and the CSV export of attendees shall not contain dietary preferences.
+The attendee list and the Excel export of attendees shall not contain dietary preferences.
 
 **Test**
 
 - **Given** bob signed up with a preference
-- **When** you look at **Attendees** in the studio, and **Download CSV**
+- **When** you look at **Attendees** in the studio, and **Download Excel**
 - **Then** neither has the preference; it is only in the list of its own
 
 **Automated:** `packages/app/e2e/specs/attendance/questions.spec.ts`, `packages/documents/test/attendance/dietary.test.ts`

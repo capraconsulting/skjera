@@ -29,7 +29,6 @@
     "effect": "catalog:",
     "lucide-react": "catalog:",
     "nuqs": "catalog:",
-    "papaparse": "catalog:",
     "prosemirror-commands": "^1.7.2",
     "prosemirror-inputrules": "^1.5.1",
     "prosemirror-keymap": "^1.2.3",
@@ -45,7 +44,6 @@
   },
   "devDependencies": {
     "@playwright/test": "catalog:",
-    "@types/papaparse": "catalog:",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",

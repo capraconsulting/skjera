@@ -35,6 +35,7 @@ import {
   rememberGuestSignup,
   storedGuestSignup,
 } from "../../site/guestSignups.ts";
+import { placesForVisitor } from "../../site/signupCount.ts";
 import { attendees, events } from "../../sync/tables.ts";
 import { formatDaysIn, formatHoursIn } from "../../time.ts";
 import { Attend } from "./Attend.tsx";
@@ -152,6 +153,8 @@ export function EventPage() {
   if (event === null) {
     return <p className={styles.missing}>{m.site_event_missing()}</p>;
   }
+  // Visitors not logged in are told the places left, not how many are signed up.
+  const places = signedIn ? null : placesForVisitor(event, signups);
   return (
     <article className={styles.event}>
       <Link to="/" className={styles.back}>
@@ -209,7 +212,11 @@ export function EventPage() {
                 {event.streamLink === null ? null : (
                   <>
                     {": "}
-                    <a href={event.streamLink} rel="noopener noreferrer">
+                    <a
+                      href={event.streamLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
                       {event.streamLink}
                     </a>
                   </>
@@ -226,10 +233,18 @@ export function EventPage() {
               </span>
             </li>
           ) : null}
-          {signups.length === 0 ? null : (
+          {signedIn && signups.length > 0 ? (
             <li>
               <Users {...icon} />
               {m.attend_count({ count: signups.length })}
+            </li>
+          ) : null}
+          {places === null ? null : (
+            <li>
+              <Users {...icon} />
+              {places === "none"
+                ? m.attend_no_places_left()
+                : m.attend_places_left({ count: places.left })}
             </li>
           )}
           <li>
@@ -252,6 +267,7 @@ export function EventPage() {
         event={event}
         signups={signups}
         signedIn={signedIn}
+        email={me?.email}
         linkGone={linkGone}
       />
       {signedIn ? <Signups event={event} signups={signups} /> : null}

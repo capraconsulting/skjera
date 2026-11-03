@@ -15,23 +15,29 @@ test("signups show up for visitors and organizers without reloading", async ({
     uniqueTeamName("Live signups"),
   );
   const editor = new EventEditor(alice);
-  const event = await editor.createPublished({ public: true });
+  const event = await editor.createPublished({
+    public: true,
+    guests: true,
+    maxAttendees: 3,
+  });
   await editor.attendees.expectEmpty();
 
   const reader = await visitor(browser);
   const page = new EventPage(reader);
-  const counted = new Attendance(reader);
   await page.goto(event.id);
-  await counted.expectEmpty();
+  await page.expectInfoItem("3 places left");
 
-  // Bob signs up: the visitor's count and Alice's list follow.
+  // Bob signs up: the visitor's places left and Alice's list follow, and the
+  // visitor is not told how many are signed up (AC-10).
   const bob = await signedIn(browser, "bob@example.com");
   await new EventPage(bob).goto(event.id);
   const member = new Attendance(bob);
   await member.attend();
-  await counted.expectText("1 attending");
+  await page.expectInfoItem("2 places left");
+  await page.expectNoInfoItem(/attending/);
+  await new Attendance(reader).expectNoCount();
   await editor.attendees.expectText("bob@example.com");
-  // The visitor can count, not see who.
+  // The visitor can count places, not see who.
   await new WhoIsComing(reader).expectHidden();
   await page.expectNowhere("bob@example.com");
   await page.expectNowhere(/\bbob\b/i);
@@ -45,10 +51,25 @@ test("signups show up for visitors and organizers without reloading", async ({
   }
   expect(bodies.join("")).not.toContain("bob@example.com");
 
+  // A guest signs up in another window: the visitor's places follow.
+  const gina = await visitor(browser);
+  await new EventPage(gina).goto(event.id);
+  await new Attendance(gina).signUpAsGuest("Gina", "gina@example.org");
+  await page.expectInfoItem("1 place left");
+
+  // Those logged in see the count, as before.
+  await new EventPage(alice).goto(event.id);
+  await new EventPage(alice).expectInfoItem("2 attending");
+
+  // When the last place is taken, visitors are told there are none left.
+  const hanna = await visitor(browser);
+  await new EventPage(hanna).goto(event.id);
+  await new Attendance(hanna).signUpAsGuest("Hanna", "hanna@example.org");
+  await page.expectInfoItem("No places left");
+
   // And he changes his mind.
   await member.cancelAttendance();
-  await counted.expectEmpty();
-  await editor.attendees.expectEmpty();
+  await page.expectInfoItem("1 place left");
 
   await cleanUp(alice, team, event.id);
 });

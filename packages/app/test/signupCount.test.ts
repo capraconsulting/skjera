@@ -51,7 +51,11 @@ describe("placesForVisitor", () => {
 
 describe("placesLeft", () => {
   it("is null without a limit, and never below 0 (AC-10)", () => {
-    expect(placesLeft({ maxAttendees: null, isStreamed: false }, signups(5))).toBeNull();
-    expect(placesLeft({ maxAttendees: 3, isStreamed: false }, signups(5))).toBe(0);
+    expect(
+      placesLeft({ maxAttendees: null, isStreamed: false }, signups(5)),
+    ).toBeNull();
+    expect(placesLeft({ maxAttendees: 3, isStreamed: false }, signups(5))).toBe(
+      0,
+    );
   });
 });

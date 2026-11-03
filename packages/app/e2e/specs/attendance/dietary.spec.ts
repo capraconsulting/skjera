@@ -106,6 +106,7 @@ test("the food deadline is set and cleared in the studio, and the event page say
   await editor.publish();
   await page.reload();
   await attendance.expectText(new RegExp(`${byWhen} ${shown}.*12:00\\s*PM`));
+  await attendance.expectDietaryDeadline(false);
 
   // Cleared, the field is empty and the page says nothing again.
   await editor.times.clearFoodDeadline();
@@ -115,12 +116,11 @@ test("the food deadline is set and cleared in the studio, and the event page say
   await attendance.expectText(/Sign-up closes/);
   await attendance.expectNoText(byWhen);
 
-  // One that has passed is not announced.
+  // One that has passed is still shown, marked as passed (AC-4).
   await editor.times.setPassedFoodDeadline("previous");
   await editor.publish();
   await page.reload();
-  await attendance.expectText(/Sign-up closes/);
-  await attendance.expectNoText(byWhen);
+  await attendance.expectDietaryDeadline(true);
 
   // Food not served: no one is asked, whatever the deadline.
   await editor.times.pickFoodDeadline(day, "next");
@@ -129,6 +129,31 @@ test("the food deadline is set and cleared in the studio, and the event page say
   await page.reload();
   await attendance.expectText(/Sign-up closes/);
   await attendance.expectNoText(byWhen);
+
+  await cleanUp(alice, team, event.id);
+});
+
+test("the food deadline is still shown, marked as passed, once sign-up has closed (AC-4)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Closed"));
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({
+    public: true,
+    guests: true,
+    dietary: true,
+  });
+
+  await editor.times.setPassedFoodDeadline("previous");
+  await editor.times.setPassedDeadline();
+  await editor.publish();
+
+  const reader = await visitor(browser);
+  await new EventPage(reader).goto(event.id);
+  const attendance = new Attendance(reader);
+  await attendance.expectText("Sign-up has closed.");
+  await attendance.expectDietaryDeadline(true);
 
   await cleanUp(alice, team, event.id);
 });

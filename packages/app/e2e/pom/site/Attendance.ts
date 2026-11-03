@@ -211,7 +211,9 @@ export class Attendance extends SignupFields {
 
   /** Signed up: what the box says on opening the page, or right after signing up. */
   async expectSignedUp(
-    text: string | RegExp = /You're signed up\.|You've signed up for the event!/,
+    text:
+      | string
+      | RegExp = /You're signed up\.|You've signed up for the event!/,
   ): Promise<void> {
     await expect(this.scope).toContainText(text);
   }

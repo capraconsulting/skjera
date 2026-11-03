@@ -285,6 +285,47 @@ test("the account menu leads to settings, and logs out", async ({
   await header.expectLogIn();
 });
 
+/** Gives the page's browser `/api/me` as the login's identity with `picture`. */
+const meWithPicture = async (page: Page, picture: string): Promise<void> => {
+  await page.context().route("/api/me", async (route) => {
+    const response = await route.fetch();
+    const me = (await response.json()) as Record<string, unknown>;
+    await route.fulfill({ response, json: { ...me, picture } });
+  });
+};
+
+const smallImage = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  "base64",
+);
+
+test("the account menu shows the picture from the login, and the initials with none or one that fails (AC-6)", async ({
+  browser,
+}) => {
+  const bob = await signedIn(browser, "bob@example.com");
+  const header = new Header(bob);
+  // The local login has no picture: the menu shows the initials.
+  await header.expectNoProfilePicture();
+
+  // With one, the menu shows it instead.
+  const picture = "https://pictures.example/bob.png";
+  await meWithPicture(bob, picture);
+  await bob
+    .context()
+    .route(picture, (route) =>
+      route.fulfill({ contentType: "image/png", body: smallImage }),
+    );
+  await new HomePage(bob).goto();
+  await header.expectProfilePicture(picture);
+
+  // One that fails to load leaves the initials.
+  const broken = "https://pictures.example/broken.png";
+  await meWithPicture(bob, broken);
+  await bob.context().route(broken, (route) => route.abort());
+  await new HomePage(bob).goto();
+  await header.expectNoProfilePicture();
+});
+
 test("the header subscribes to the coming events in Google Calendar, beside the account menu", async ({
   browser,
 }) => {

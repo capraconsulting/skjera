@@ -399,7 +399,9 @@ layer(channelLayer(workspace), { excludeTestServices: true })(
         yield* (yield* Announcements).eventPublished(id);
         const [message] = yield* postedAbout(workspace, title);
         assert.isFalse(
-          leaves(message?.blocks).some((word) => word.startsWith("*Category:*")),
+          leaves(message?.blocks).some((word) =>
+            word.startsWith("*Category:*"),
+          ),
         );
       }),
     );
@@ -465,14 +467,8 @@ layer(channelLayer(workspace), { excludeTestServices: true })(
             found.map(({ id }) => id),
             [withDeadline.id, atStart.id],
           );
-          assert.strictEqual(
-            found[0]?.deadline.getTime(),
-            hours(5).getTime(),
-          );
-          assert.strictEqual(
-            found[1]?.deadline.getTime(),
-            hours(10).getTime(),
-          );
+          assert.strictEqual(found[0]?.deadline.getTime(), hours(5).getTime());
+          assert.strictEqual(found[1]?.deadline.getTime(), hours(10).getTime());
         }),
     );
 

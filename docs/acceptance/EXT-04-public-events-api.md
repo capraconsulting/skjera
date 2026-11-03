@@ -10,6 +10,8 @@ Use the server directly, http://localhost:3000. The app on port 5173 lets any we
 | --- | --- |
 | AC-1, AC-2 and AC-9: With a summary | |
 | AC-4: Without a summary | |
+| AC-4: With the tag Sosialt | tagged «Workshop» and «sosialt» |
+| AC-4: With the tag Fag | tagged «FAG» |
 | AC-5: Streamed | streamed |
 | AC-5: Open to guests | open to guests |
 | AC-6: Members only | not public |
@@ -37,7 +39,7 @@ The API SHALL give each event the fields `id`, `title`, `start`, `end`, `place`,
 
 - **Given** the answer from AC-1
 - **When** you look at an event
-- **Then** it has these eleven fields: `id`, `title`, `place` and `url` as text; `start` and `end` as times, such as `2026-11-03T17:00:00.000Z`; `summary` as text or `null`; `category` as `null`; `organisers` as text; `isDigital` and `openForExternals` as `true` or `false`
+- **Then** it has these eleven fields: `id`, `title`, `place` and `url` as text; `start` and `end` as times, such as `2026-11-03T17:00:00.000Z`; `summary` as text or `null`; `category` as `"Sosialt"`, `"Fag"` or `null`; `organisers` as text; `isDigital` and `openForExternals` as `true` or `false`
 
 **Automated:** `packages/app/e2e/specs/embed.spec.ts`, `packages/documents/test/site/PublicEvents.test.ts`
 
@@ -53,15 +55,17 @@ The API SHALL give `organisers` as `"Alle"` for an event of the team "Capra Grup
 
 **Automated:** `packages/app/e2e/specs/embed.spec.ts`, `packages/documents/test/site/PublicEvents.test.ts`
 
-## AC-4: No summary, no category
+## AC-4: No summary; the category from the tags
 
-The API SHALL give `summary` as `null` for an event without a summary, and `category` as `null` for every event.
+The API SHALL give `summary` as `null` for an event without a summary. It SHALL give `category` as `"Sosialt"` or `"Fag"` for an event that has a tag of that name, in any mix of capital and small letters, the first of them when it has both, and as `null` for every other event. There is no field for the category in the studio: it is a tag.
 
 **Test**
 
 - **Given** the answer from AC-1
 - **When** you look at «AC-4: Without a summary»
-- **Then** it has `"summary": null`, and every event has `"category": null`
+- **Then** it has `"summary": null`
+- **When** you look at «AC-4: With the tag Sosialt» and «AC-4: With the tag Fag»
+- **Then** they have `"category": "Sosialt"` and `"category": "Fag"`, and every other event has `"category": null`
 
 **Automated:** `packages/app/e2e/specs/embed.spec.ts`, `packages/documents/test/site/PublicEvents.test.ts`
 

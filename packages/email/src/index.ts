@@ -1,4 +1,4 @@
-import { Config, Effect, Layer, Option } from "effect";
+import { Config, Effect, Layer, Option, type Redacted } from "effect";
 import { layerLog } from "./log.ts";
 import { layerSesConfig } from "./ses.ts";
 import { layerSmtp } from "./smtp.ts";
@@ -17,6 +17,36 @@ const notSending = (why: string) =>
     ),
   );
 
+/** How emails leave the server, as configured. */
+export type Transport =
+  | { readonly kind: "none"; readonly why: string }
+  | { readonly kind: "ses" }
+  | { readonly kind: "smtp"; readonly url: Redacted.Redacted<string> };
+
+/**
+ * The transport configured: none without `EMAIL_TRANSPORT`, or with smtp and
+ * no `EMAIL_SMTP_URL`.
+ */
+export const transport = Config.all({
+  kind: Config.option(Config.Literals(["ses", "smtp"], "EMAIL_TRANSPORT")),
+  url: Config.option(Config.Redacted("EMAIL_SMTP_URL")),
+}).pipe(
+  Config.map(({ kind, url }): Transport => {
+    if (Option.isNone(kind)) {
+      return { kind: "none", why: "EMAIL_TRANSPORT not set" };
+    }
+    if (kind.value === "ses") return { kind: "ses" };
+    return Option.isNone(url)
+      ? { kind: "none", why: "EMAIL_SMTP_URL not set" }
+      : { kind: "smtp", url: url.value };
+  }),
+);
+
+/** Emails leave the server: a transport is configured. */
+export const sendsEmail = transport.pipe(
+  Config.map((configured) => configured.kind !== "none"),
+);
+
 /**
  * Email as configured: `EMAIL_TRANSPORT` "ses" (see `layerSesConfig`) or
  * "smtp" (to `EMAIL_SMTP_URL`). Without them, emails are logged instead,
@@ -24,14 +54,14 @@ const notSending = (why: string) =>
  */
 export const layerConfig = Layer.unwrap(
   Effect.gen(function* () {
-    const transport = yield* Config.option(
-      Config.Literals(["ses", "smtp"], "EMAIL_TRANSPORT"),
-    );
-    if (Option.isNone(transport)) return notSending("EMAIL_TRANSPORT not set");
-    if (transport.value === "ses") return layerSesConfig;
-    const url = yield* Config.option(Config.Redacted("EMAIL_SMTP_URL"));
-    return Option.isNone(url)
-      ? notSending("EMAIL_SMTP_URL not set")
-      : layerSmtp(url.value);
+    const configured = yield* transport;
+    switch (configured.kind) {
+      case "none":
+        return notSending(configured.why);
+      case "ses":
+        return layerSesConfig;
+      case "smtp":
+        return layerSmtp(configured.url);
+    }
   }),
 );

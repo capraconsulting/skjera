@@ -116,26 +116,28 @@ describe("OAuthClient with allowed domains", () => {
     }).pipe(Effect.provide(GoogleLike)),
   );
 
-  it.effect("has no picture without the claim, or with one that is not https (AC-6)", () =>
-    Effect.gen(function* () {
-      for (const picture of [
-        undefined,
-        "",
-        42,
-        "http://lh3.googleusercontent.com/a/x",
-        "javascript:alert(1)",
-        "data:image/png;base64,AAAA",
-        "not an address",
-      ]) {
-        const { identity } = yield* login({
-          sub: "5",
-          email: "alice@example.com",
-          email_verified: true,
-          hd: "example.com",
-          ...(picture === undefined ? {} : { picture }),
-        });
-        assert.notProperty(identity, "picture", String(picture));
-      }
-    }).pipe(Effect.provide(GoogleLike)),
+  it.effect(
+    "has no picture without the claim, or with one that is not https (AC-6)",
+    () =>
+      Effect.gen(function* () {
+        for (const picture of [
+          undefined,
+          "",
+          42,
+          "http://lh3.googleusercontent.com/a/x",
+          "javascript:alert(1)",
+          "data:image/png;base64,AAAA",
+          "not an address",
+        ]) {
+          const { identity } = yield* login({
+            sub: "5",
+            email: "alice@example.com",
+            email_verified: true,
+            hd: "example.com",
+            ...(picture === undefined ? {} : { picture }),
+          });
+          assert.notProperty(identity, "picture", String(picture));
+        }
+      }).pipe(Effect.provide(GoogleLike)),
   );
 });

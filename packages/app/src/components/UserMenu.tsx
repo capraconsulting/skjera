@@ -1,6 +1,7 @@
 import { m } from "@skjera/i18n/messages";
 import type { Identity } from "@skjera/oauth/api";
 import { ChevronDown, LogOut, Settings } from "lucide-react";
+import { useState } from "react";
 import { forgetLocalCopies } from "../documents/repo.ts";
 import { initials } from "./Avatars.tsx";
 import { Dropdown, DropdownItem, DropdownLink } from "./Dropdown.tsx";
@@ -8,6 +9,38 @@ import styles from "./UserMenu.module.css";
 
 /** What to call someone: their name from the login, else their email. */
 export const displayName = (me: Identity) => me.name ?? me.email ?? me.subject;
+
+/**
+ * Their picture from the login, round; their initials where there is none or
+ * it fails to load.
+ */
+function Avatar({
+  picture,
+  name,
+}: {
+  readonly picture: string | undefined;
+  readonly name: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  if (picture === undefined || failed) {
+    return (
+      <span className={styles.avatar} aria-hidden="true">
+        {initials(name).toUpperCase()}
+      </span>
+    );
+  }
+  return (
+    <img
+      className={styles.picture}
+      src={picture}
+      alt={m.account_profile_picture()}
+      width={32}
+      height={32}
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+    />
+  );
+}
 
 /** Who is signed in: their account's settings, and logging out. */
 export function UserMenu({ me }: { readonly me: Identity }) {
@@ -21,9 +54,7 @@ export function UserMenu({ me }: { readonly me: Identity }) {
         testId: "me",
         content: (
           <>
-            <span className={styles.avatar} aria-hidden="true">
-              {initials(name).toUpperCase()}
-            </span>
+            <Avatar key={me.picture} picture={me.picture} name={name} />
             <span className={styles.name}>{name}</span>
             <ChevronDown size={14} strokeWidth={1.5} aria-hidden="true" />
           </>

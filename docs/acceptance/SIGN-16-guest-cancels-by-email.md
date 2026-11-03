@@ -74,7 +74,7 @@ WHEN the guest opens the link, Skjera SHALL show the event's title and a button 
 
 ## AC-6: Pressing the button cancels
 
-WHEN the guest presses «Bekreft avmelding», Skjera SHALL cancel the signup, say «Du er nå meldt av arrangementet 👋 Vi har sendt deg en bekreftelse på e-post.» and send the cancellation email of MAIL-02.
+WHEN the guest presses «Bekreft avmelding», Skjera SHALL cancel the signup, say «Du er nå meldt av arrangementet 👋 Vi har sendt deg en bekreftelse på e-post.» and send the cancellation email of MAIL-02. WHERE the site sends no email, it says «Du er nå meldt av arrangementet 👋 Vi kunne dessverre ikke sende en e-post bekreftelse.» instead.
 
 A link opened or confirmed after the sign-up deadline cancels nothing, and says that sign-up has closed.
 
@@ -94,7 +94,7 @@ IF the link has expired, has been used or is not valid, THEN Skjera SHALL say so
 
 - **Given** the link from AC-5, used
 - **When** you open it again
-- **Then** the page says «Lenken er allerede brukt, eller påmeldingen finnes ikke lenger.» (in the page's language), with the link **Gå til arrangementet**, which leads to the event
+- **Then** the page says «Du er allerede meldt av arrangementet. Takk for interessen din!» (in the page's language), with the link **Gå til arrangementet**, which leads to the event. The server cannot tell a signup cancelled with the link from one the organisers took off, so both say it
 - **When** you change a letter in the link's `token`, and open it
 - **Then** the page says «Lenken er ikke gyldig.», with the same link
 - **When** you wait 2 hours, and open a link from an earlier email

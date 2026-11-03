@@ -78,13 +78,15 @@ WHEN an attendee of a full event cancels, Skjera SHALL accept a new sign-up for 
 
 ## AC-7: Places left are shown
 
-WHILE sign-up for an event with a limit is open and the organiser has not hidden it, the event page SHALL show how many places are left.
+WHILE sign-up for an event with a limit is open and the organiser has not hidden it, the event page SHALL show how many places are left: in the sign-up box, and for a visitor who is not logged in in the event's info list too, as «N places left». Nothing of places is said to a visitor who is not logged in about an event shown only to members, as such a visitor is sent none of its sign-ups to count.
 
 **Test**
 
 - **Given** an event with places for 2 and nobody signed up
 - **When** you open it on the site
 - **Then** the sign-up box says how many places are left
+- **When** you open it in a private window
+- **Then** the info list says the same, and nothing of how many are signed up
 - **When** you tick **Hide how many places are left** in the studio, **Publish**, and reload the site
 - **Then** the number is gone
 
@@ -99,6 +101,7 @@ WHILE an event is full, the event page SHALL say that there are no more places i
 - **Given** an event filled by bob and one guest, with the number of places left shown, and then hidden
 - **When** you open it in a new private window
 - **Then** it says «There are no more places.» in place of the form, both times, and the link to log in for those signed up is still there
+- **And** the info list says «No places left», also when the number of places left is hidden
 
 **Automated:** `packages/app/e2e/specs/attendance/limit.spec.ts`
 

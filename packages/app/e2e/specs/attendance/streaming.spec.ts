@@ -29,6 +29,12 @@ test("a streamed event shows its link, asks in person or online, and lists how e
   await new EventPage(guest).goto(event.id);
   await new EventPage(guest).expectStreamLink(link);
 
+  // It opens in a new tab: the event page stays where it is (AC-5).
+  const stream = await new EventPage(guest).openStreamLink(link);
+  await expect(stream.getByText("Live")).toBeVisible();
+  await new EventPage(guest).expectAt(event.id);
+  await stream.close();
+
   // The form asks, with neither picked, and is not sent until one is.
   const box = new Attendance(guest);
   await box.fillName("Gina");
@@ -59,15 +65,6 @@ test("a streamed event shows its link, asks in person or online, and lists how e
 
   await editor.attendees.expectRow("Gina", "Online");
   await editor.attendees.expectRow("bob", "In person");
-
-  const csv = await editor.attendees.downloadCsv();
-  expect(csv.lines[0]).toBe(
-    "Name,Email,Guest,Attending,Signed up,Changed,Phone,Company",
-  );
-  expect(csv.lines.slice(1).sort()).toEqual([
-    expect.stringMatching(/^Gina,gina@example\.org,Yes,Online,/),
-    expect.stringMatching(/^bob,bob@example\.com,No,In person,/),
-  ]);
 
   await cleanUp(alice, team, event.id);
 });

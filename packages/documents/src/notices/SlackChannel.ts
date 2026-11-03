@@ -10,7 +10,13 @@ import { Clock, Config, Cron, Effect, Layer, Option, Schema } from "effect";
 import { ClusterCron, ClusterSchema, Entity } from "effect/cluster";
 import { Rpc } from "effect/rpc";
 import { SqlClient } from "effect/sql";
-import { type Cover, type Locale, SiteLocale } from "../Model.ts";
+import {
+  type Category,
+  type Cover,
+  eventCategory,
+  type Locale,
+  SiteLocale,
+} from "../Model.ts";
 import { Announcements } from "./Announcements.ts";
 import { formatAt } from "./emails/format.ts";
 
@@ -90,12 +96,14 @@ export interface Announced {
   readonly startsAt: Date;
   /** Null: published before events had a place. */
   readonly place: string | null;
+  /** Null: none. */
+  readonly category: Category | null;
 }
 
 /**
  * The message for an event published: its title with `@here`, cover, summary,
- * a link to sign up, when it starts and where. Each is left out when the
- * event has none. `repeated`: moved on to its next date, marked :repeat:
+ * a link to sign up, when it starts, where and its category. Each is left out
+ * when the event has none. `repeated`: moved on to its next date, marked :repeat:
  * instead.
  */
 export const announcement = (
@@ -112,6 +120,10 @@ export const announcement = (
     event.place === null
       ? []
       : [`*${m.slack_where({}, { locale })}:*\n${escapeSlack(event.place)}`];
+  const category =
+    event.category === null
+      ? []
+      : [`*${m.slack_category({}, { locale })}:*\n${event.category}`];
   const blocks: Array<Block> = [section(heading)];
   if (event.cover !== null) {
     blocks.push({
@@ -130,12 +142,12 @@ export const announcement = (
     fields(
       `*${m.slack_signup({}, { locale })}:*\n<${page}|${m.slack_signup_link({}, { locale })}>`,
     ),
-    fields(when, ...where),
+    fields(when, ...where, ...category),
   );
   return { text: heading, blocks };
 };
 
-/** An event whose sign-up deadline is near. */
+/** An event whose sign-up closes soon, at `deadline`. */
 export interface DueDeadline {
   readonly id: string;
   readonly title: string;
@@ -169,10 +181,9 @@ export const deadlineMessage = (
 export const deadlineSchedule = Cron.parseUnsafe("0 7 * * *", "UTC");
 
 /**
- * The events with a sign-up deadline the organiser set that runs out within
- * a day of `now`, soonest first: every published event, those shown only to
- * members too. An event whose sign-up closes at the start because no
- * deadline was set is left out.
+ * The events whose sign-up closes within a day of `now`, soonest first: at
+ * the deadline the organiser set, or at the start when none was. Every
+ * published event, those shown only to members too.
  */
 export const dueDeadlines = (now: Date) =>
   Effect.gen(function* () {
@@ -180,20 +191,21 @@ export const dueDeadlines = (now: Date) =>
     const rows = yield* sql<{
       readonly id: string;
       readonly title: string;
-      readonly signup_deadline: Date;
+      readonly closes_at: Date;
     }>`
-      SELECT id, title, signup_deadline FROM events
-      WHERE deleted_at IS NULL AND signup_deadline IS NOT NULL
-        AND signup_deadline > ${now}::timestamptz
-        AND signup_deadline <= ${now}::timestamptz + interval '1 day'
+      SELECT id, title, coalesce(signup_deadline, starts_at) AS closes_at
+      FROM events
+      WHERE deleted_at IS NULL
+        AND coalesce(signup_deadline, starts_at) > ${now}::timestamptz
+        AND coalesce(signup_deadline, starts_at) <= ${now}::timestamptz + interval '1 day'
         AND starts_at > ${now}::timestamptz
-      ORDER BY signup_deadline, id
+      ORDER BY closes_at, id
     `;
     return rows.map(
-      ({ id, title, signup_deadline }): DueDeadline => ({
+      ({ id, title, closes_at }): DueDeadline => ({
         id,
         title,
-        deadline: signup_deadline,
+        deadline: closes_at,
       }),
     );
   }).pipe(Effect.orDie);
@@ -271,6 +283,7 @@ interface EventRow {
   readonly cover: Cover | null;
   readonly starts_at: Date;
   readonly place: string | null;
+  readonly tags: ReadonlyArray<string>;
   readonly deleted: boolean;
 }
 
@@ -316,7 +329,7 @@ export const poster = (options: {
           });
         }
         const [event] = yield* sql<EventRow>`
-          SELECT title, summary, cover, starts_at, place,
+          SELECT title, summary, cover, starts_at, place, tags,
             deleted_at IS NOT NULL AS deleted
           FROM events WHERE id = ${payload.event ?? null}
         `.pipe(Effect.orDie);
@@ -328,6 +341,7 @@ export const poster = (options: {
           cover: event.cover,
           startsAt: event.starts_at,
           place: event.place,
+          category: eventCategory(event.tags),
         };
         const options = { repeated: payload.kind === "eventRepeated" };
         return Option.some({

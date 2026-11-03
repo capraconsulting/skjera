@@ -3,6 +3,7 @@ import { m } from "@skjera/i18n/messages";
 import { useState } from "react";
 import { Link, type LoaderFunctionArgs, useLoaderData } from "react-router";
 import { Button } from "../../components/Button.tsx";
+import { currentSite } from "../../i18n.ts";
 import { usePageTitle } from "../../pageTitle.ts";
 import { sayWhy } from "../../problems.ts";
 import {
@@ -80,7 +81,9 @@ export function CancelSignup() {
       {done ? (
         <>
           <p className={styles.text} role="status">
-            {m.cancel_done()}
+            {currentSite().sendsEmail === false
+              ? m.cancel_done_no_email()
+              : m.cancel_done()}
           </p>
           <div className={styles.actions}>{toEvent}</div>
         </>

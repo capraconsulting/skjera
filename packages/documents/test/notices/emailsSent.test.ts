@@ -31,11 +31,13 @@ describe("emailsSent", () => {
     }),
   );
 
-  it.effect("is false without a transport, or smtp without its url (AC-2)", () =>
-    Effect.gen(function* () {
-      assert.isFalse(yield* sentWith({ ...site }));
-      assert.isFalse(yield* sentWith({ ...site, EMAIL_TRANSPORT: "smtp" }));
-    }),
+  it.effect(
+    "is false without a transport, or smtp without its url (AC-2)",
+    () =>
+      Effect.gen(function* () {
+        assert.isFalse(yield* sentWith({ ...site }));
+        assert.isFalse(yield* sentWith({ ...site, EMAIL_TRANSPORT: "smtp" }));
+      }),
   );
 
   it.effect("is false without SITE_URL or EMAIL_FROM (AC-2)", () =>
