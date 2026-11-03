@@ -123,11 +123,15 @@ export type SiteFooter = typeof SiteFooter.Type;
 
 /**
  * Who answers for the personal data kept (`SITE_OPERATOR`, else the site's
- * name) and how to reach them (`SITE_CONTACT_EMAIL`), for the privacy page;
- * or a policy elsewhere (`SITE_PRIVACY_URL`), linked instead.
+ * name), their organisation number (`SITE_OPERATOR_ORG_NUMBER`) and address
+ * (`SITE_OPERATOR_ADDRESS`, one line) and how to reach them
+ * (`SITE_CONTACT_EMAIL`), for the privacy page; or a policy elsewhere
+ * (`SITE_PRIVACY_URL`), linked instead.
  */
 export const SitePrivacy = Schema.Struct({
   operator: Schema.String,
+  orgNumber: Schema.optionalKey(Schema.String),
+  address: Schema.optionalKey(Schema.String),
   contact: Schema.optionalKey(Schema.String),
   url: Schema.optionalKey(Schema.String),
 });
@@ -184,6 +188,8 @@ export const SiteConfig = Config.all({
     Config.schema(Schema.fromJsonString(SiteFooter), name),
   ),
   operator: optionalSetting("SITE_OPERATOR", Config.String),
+  orgNumber: optionalSetting("SITE_OPERATOR_ORG_NUMBER", Config.String),
+  address: optionalSetting("SITE_OPERATOR_ADDRESS", Config.String),
   contact: optionalSetting("SITE_CONTACT_EMAIL", Config.String),
   privacyUrl: optionalSetting("SITE_PRIVACY_URL", Config.String),
   hubSpot: Config.schema(HubSpotAccountIdText, "HUBSPOT_ACCOUNT_ID").pipe(
@@ -197,6 +203,8 @@ export const SiteConfig = Config.all({
       ...(config.footer === undefined ? {} : { footer: config.footer }),
       privacy: defined({
         operator: config.operator ?? config.name,
+        orgNumber: config.orgNumber,
+        address: config.address,
         contact: config.contact,
         url: config.privacyUrl,
       }),

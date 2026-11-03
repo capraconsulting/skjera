@@ -17,21 +17,27 @@
   }
 }
 
-.lead {
-  margin: 0 0 1rem;
-  font-size: 1.25rem;
-  font-weight: 300;
-}
-
 .part h2 {
   margin: 2rem 0 0.5rem;
   font-size: 1.25rem;
   font-weight: 700;
 }
 
+.part h3 {
+  margin: 1.25rem 0 0.25rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
 .part p,
-.part ul {
-  margin: 0;
+.part ul,
+.details {
+  margin: 0.75rem 0 0;
+}
+
+.part h2 + p,
+.part h3 + p {
+  margin-top: 0;
 }
 
 .part ul {
@@ -42,4 +48,16 @@
 
 .settings {
   margin-top: 0.75rem;
+}
+
+.details {
+  display: grid;
+  gap: 0.125rem;
+  font-style: normal;
+}
+
+.updated {
+  margin: 2rem 0 0;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
 }

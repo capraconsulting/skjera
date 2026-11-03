@@ -190,13 +190,15 @@ test("Guests can sign up shows unticked on a members-only event, and as it was s
   await cleanUp(alice, team, open.id);
 });
 
-test("guests give a phone number and a company, and organizers see and export them", async ({
+test("guests give a phone number and a company, and organizers see, search and export them", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Contact"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
+  await editor.attendees.expectEmpty();
+  await editor.attendees.expectNoSearch();
 
   const guest = await visitor(browser);
   await new EventPage(guest).goto(event.id);
@@ -242,6 +244,18 @@ test("guests give a phone number and a company, and organizers see and export th
   expect(csv.lines.slice(1).sort()).toEqual([
     expect.stringMatching(/^Gina,gina@example\.org,Yes,.*,911 11 111,Initech$/),
     expect.stringMatching(/^bob,bob@example\.com,No,.*,,$/),
+  ]);
+
+  // Searching narrows the list, not the count or the spreadsheet.
+  await editor.attendees.expectSearch();
+  await editor.attendees.search("initech");
+  await editor.attendees.expectRow("Gina", "Initech");
+  await editor.attendees.expectNoText("bob@example.com");
+  expect(await editor.attendees.count()).toBe(2);
+  const narrowed = await editor.attendees.downloadCsv();
+  expect(narrowed.lines.slice(1).sort()).toEqual([
+    expect.stringMatching(/^Gina,/),
+    expect.stringMatching(/^bob,/),
   ]);
 
   await cleanUp(alice, team, event.id);

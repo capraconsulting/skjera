@@ -86,7 +86,7 @@ The counts are kept in the server's memory: a restart clears them, and each repl
 Branding, all optional:
 
 - `SITE_FOOTER`: JSON, `{ "text": "…", "links": [{ "label": "…", "href": "…", "logo": { "src": "…", "darkSrc": "…" } }] }`. The footer always links to privacy.
-- `SITE_OPERATOR` (who answers for the personal data kept; the site's name if not set) and `SITE_CONTACT_EMAIL`, for the built-in privacy page at `/privacy`; or `SITE_PRIVACY_URL` to link a policy elsewhere instead.
+- `SITE_OPERATOR` (who answers for the personal data kept; the site's name if not set), `SITE_OPERATOR_ORG_NUMBER`, `SITE_OPERATOR_ADDRESS` (one line, e.g. `Torggata 2-4, 0180 Oslo`) and `SITE_CONTACT_EMAIL`, for the built-in privacy page at `/privacy`, which leaves out a line whose setting is not set; or `SITE_PRIVACY_URL` to link a policy elsewhere instead.
 - `SITE_ASSETS_DIR`: a directory served at `/site-assets/`, e.g. a ConfigMap mounted into the pod, so a footer logo can be `/site-assets/logo.webp`. In development, `dev/site-assets`.
 
 Also optional, for websites that show the next events (`/embed`) in an iframe, or read the coming events shown to everyone from the browser (`/api/public/events`: JSON in Skjer's format, served when `SITE_URL` is set; an event of the team "Capra Gruppen" is organised by "Alle", others by their team's name):

@@ -56,13 +56,13 @@ The guest sign-up form shall name its fields `firstname`, `email`, `telephone` a
 
 ## AC-5: The privacy page tells of HubSpot
 
-Where a HubSpot account id is configured, the privacy page shall say, in Norwegian Bokmål, Nynorsk and English, that HubSpot is used for visitor statistics and cookies, and shall have a button that opens HubSpot's cookie settings.
+Where a HubSpot account id is configured, the privacy page shall say, in Norwegian Bokmål, Nynorsk and English, that HubSpot is one of those data is shared with, for visitor statistics, and shall have a button under «2. Your rights» that opens HubSpot's cookie settings.
 
 **Test**
 
 - **Given** a HubSpot account id set
 - **When** you open `/privacy` in each language
-- **Then** it names HubSpot for visitor statistics and cookies, and has a **Cookie settings** button
+- **Then** «7. Who we share personal data with» names HubSpot, and «2. Your rights» has a **Cookie settings** button, which opens HubSpot's banner
 
 **Automated:** `packages/app/e2e/specs/site.spec.ts`
 
@@ -74,6 +74,6 @@ Where no HubSpot account id is configured, the privacy page shall read as it doe
 
 - **Given** no HubSpot account id
 - **When** you open `/privacy`
-- **Then** it doesn't name HubSpot, and «Cookies and your browser» says «Nothing tracks you.»
+- **Then** it doesn't name HubSpot, «9. Cookies» says «Nothing tracks you.», and there is no **Cookie settings** button
 
 **Automated:** `packages/app/e2e/specs/site.spec.ts`

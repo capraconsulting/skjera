@@ -1,6 +1,6 @@
 # SIGN-11: Attendee list in the studio
 
-The studio lists who has signed up for an event, with their answers, and lets an organiser take someone off. A guest's phone and company are in SIGN-03, in person or online in SIGN-07, and dietary preferences, kept apart from the list, in SIGN-08. What the site shows of who's coming is in SITE-06.
+The studio lists who has signed up for an event, with their answers, lets an organiser search the list, and lets an organiser take someone off. A guest's phone and company are in SIGN-03, in person or online in SIGN-07, and dietary preferences, kept apart from the list, in SIGN-08. What the site shows of who's coming is in SITE-06.
 
 **Events:** one public event open to guests, with the questions «Towel size», **One of several** with the options «Small» and «Large», and «I bring a friend», a **Checkbox**; and «AC-8: Ended», a public event open to guests, starting in a few minutes and ending a few minutes later, with one guest signed up before it starts.
 
@@ -101,3 +101,41 @@ IF an organiser takes someone off an event that has ended, THEN Skjera SHALL not
 - **Then** the guest is gone from the list, and has no «Signup cancelled: …» in Mailpit
 
 **Automated:** `packages/documents/test/attendance/signups.test.ts`
+
+## AC-9: Searching the list
+
+WHILE anyone is signed up for an event, the studio SHALL show a «Search» field above the attendee list that narrows the list to those whose name, email, phone or company contains the text, ignoring case. An empty field shows everyone.
+
+**Test**
+
+- **Given** bob signed up, and a guest who gave the phone number «911 11 111» and the company «Initech»
+- **When** you open the event in the studio
+- **Then** a «Search» field is above the list
+- **When** you type «initech» in it
+- **Then** the guest's row is shown and bob's is not
+
+**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/app/test/attendeeSearch.test.ts`
+
+## AC-10: The count and the CSV cover everyone
+
+WHILE a search narrows the attendee list, the studio SHALL still count everyone signed up in the heading, and **Download CSV** SHALL still cover everyone signed up.
+
+**Test**
+
+- **Given** the list narrowed to the guest by a search
+- **When** you read the heading and click **Download CSV**
+- **Then** the heading says «Attendees (2)», and the file has both the guest's and bob's rows
+
+**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`
+
+## AC-11: No search while nobody is signed up
+
+WHILE nobody is signed up for an event, the studio SHALL NOT show the search field.
+
+**Test**
+
+- **Given** a published event nobody has signed up for
+- **When** you open it in the studio
+- **Then** the list says «Nobody has signed up yet.» and has no «Search» field
+
+**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`

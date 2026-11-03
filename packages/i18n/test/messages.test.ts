@@ -40,6 +40,22 @@ describe("messages", () => {
     });
   }
 
+  // How long the policy says data is kept: 30 days, and no other period.
+  const period =
+    /\d+\s+(?:dager|dagar|days|uker|veker|weeks|måneder|månader|months|år|years)\b/g;
+  for (const locale of locales) {
+    it(`names only 30 days as a period in the privacy policy, in ${locale} (AC-4)`, () => {
+      const messages = read(locale);
+      for (const [key, message] of Object.entries(messages)) {
+        if (!key.startsWith("privacy_")) continue;
+        for (const [named] of String(message).matchAll(period)) {
+          expect(`${key}: ${named}`).toMatch(/: 30 (dager|dagar|days)$/);
+        }
+      }
+      expect(String(messages.privacy_keep)).toMatch(/\b30\b/);
+    });
+  }
+
   for (const locale of locales) {
     it(`names the image tool with the words it shows, in ${locale} (AC-2)`, () => {
       expect(

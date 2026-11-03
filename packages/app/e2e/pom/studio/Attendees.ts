@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { m } from "@skjera/i18n/messages";
 import readExcelFile from "read-excel-file/node";
 
 /** The Excel file of the attendees, as downloaded and read. */
@@ -47,6 +48,27 @@ export class Attendees {
 
   async expectEmpty(): Promise<void> {
     await this.expectText("Nobody has signed up yet.");
+  }
+
+  private readonly searchField = () =>
+    this.region().getByRole("searchbox", { name: m.studio_attendees_search() });
+
+  /** The list can be searched: the field is there, with its message as placeholder. */
+  async expectSearch(): Promise<void> {
+    await expect(this.searchField()).toBeVisible();
+    await expect(this.searchField()).toHaveAttribute(
+      "placeholder",
+      m.studio_attendees_search(),
+    );
+  }
+
+  async expectNoSearch(): Promise<void> {
+    await expect(this.searchField()).toHaveCount(0);
+  }
+
+  /** Types `text` in the search field. */
+  async search(text: string): Promise<void> {
+    await this.searchField().fill(text);
   }
 
   /** The row of the attendee called `name` says `text`. */

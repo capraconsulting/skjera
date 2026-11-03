@@ -345,7 +345,7 @@ test("the header keeps «Abonner» and the account menu in a phone's window", as
   }
 });
 
-test("the site has its logo, its footer and a privacy page", async ({
+test("the site has its logo, its footer and a privacy page (AC-2, AC-3)", async ({
   browser,
 }) => {
   // Capra's and Liflig's logo; as configured in mise.toml: SITE_FOOTER, …
@@ -370,9 +370,27 @@ test("the site has its logo, its footer and a privacy page", async ({
   const privacy = new PrivacyPage(page);
   await privacy.expectAt();
   await privacy.expectTitle();
-  await privacy.expectTabTitle("Privacy | Skjera");
-  await privacy.expectText("Skjera runs Skjera");
-  await privacy.expectContactEmail("privacy@skjera.localhost");
+  await privacy.expectTabTitle("Privacy policy | Skjera");
+  await privacy.expectOperatorDetails();
+});
+
+test("the privacy page has the sections of Skjer's policy (AC-1)", async ({
+  browser,
+}) => {
+  const reader = await visitor(browser);
+  const privacy = new PrivacyPage(reader);
+  await privacy.goto();
+  await privacy.expectSections();
+});
+
+test("without the operator's details, the privacy page leaves out their lines (AC-3)", async ({
+  browser,
+}) => {
+  const reader = await visitor(browser);
+  const privacy = new PrivacyPage(reader);
+  await privacy.withOnlyOperator();
+  await privacy.goto();
+  await privacy.expectNoOperatorDetails();
 });
 
 test("asking for less motion, the visitor sees the still logo", async ({
@@ -581,20 +599,23 @@ test("a link to a public event shows its title, summary and cover; others the si
   await cleanUp(alice, team, shown.id);
 });
 
-test("the privacy page says in each language that signups are deleted 30 days after", async ({
+test("the privacy page says in each language that signups are deleted 30 days after (AC-2, AC-4)", async ({
   browser,
 }) => {
   const reader = await visitor(browser);
   const header = new Header(reader);
   await new PrivacyPage(reader).goto();
+  await new PrivacyPage(reader).expectTitle();
   await new PrivacyPage(reader).expectText(
     m.privacy_keep({}, { locale: "en" }),
   );
   await header.selectLanguage("Bokmål");
+  await new PrivacyPage(reader, "nb").expectTitle();
   await new PrivacyPage(reader, "nb").expectText(
     m.privacy_keep({}, { locale: "nb" }),
   );
   await header.selectLanguage("Nynorsk", "Språk");
+  await new PrivacyPage(reader, "nn").expectTitle();
   await new PrivacyPage(reader, "nn").expectText(
     m.privacy_keep({}, { locale: "nn" }),
   );
@@ -697,7 +718,7 @@ test("without a HubSpot account id, nothing goes to HubSpot", async ({
   expect(asked).toEqual([]);
 });
 
-test("the privacy page names HubSpot, and opens its cookie settings", async ({
+test("the privacy page names HubSpot, and opens its cookie settings (AC-5)", async ({
   browser,
 }) => {
   const reader = await visitor(browser);
@@ -705,37 +726,38 @@ test("the privacy page names HubSpot, and opens its cookie settings", async ({
   await hubSpot.install();
   const privacy = new PrivacyPage(reader);
   await privacy.goto();
-  await privacy.expectCookiesText(m.privacy_cookies_hubspot());
-  await privacy.expectCookiesWithout(m.privacy_cookies_untracked());
+  await privacy.expectInPart("sharing", m.privacy_shared_hubspot());
 
   await privacy.clickCookieSettings();
   await hubSpot.expectBannerAsked();
 });
 
-test("the privacy page names HubSpot in Norwegian too", async ({ browser }) => {
+test("the privacy page names HubSpot in Norwegian too (AC-5)", async ({
+  browser,
+}) => {
   const reader = await visitor(browser);
   await new HubSpot(reader).install();
   const header = new Header(reader);
   await new PrivacyPage(reader).goto();
   await header.selectLanguage("Bokmål");
-  await new PrivacyPage(reader, "nb").expectCookiesText(
-    m.privacy_cookies_hubspot({}, { locale: "nb" }),
+  await new PrivacyPage(reader, "nb").expectInPart(
+    "sharing",
+    m.privacy_shared_hubspot({}, { locale: "nb" }),
   );
   await header.selectLanguage("Nynorsk", "Språk");
-  await new PrivacyPage(reader, "nn").expectCookiesText(
-    m.privacy_cookies_hubspot({}, { locale: "nn" }),
+  await new PrivacyPage(reader, "nn").expectInPart(
+    "sharing",
+    m.privacy_shared_hubspot({}, { locale: "nn" }),
   );
 });
 
-test("without a HubSpot account id, the privacy page says nothing tracks you", async ({
+test("without a HubSpot account id, the privacy page says nothing tracks you (AC-5)", async ({
   browser,
 }) => {
   const reader = await visitor(browser);
   const privacy = new PrivacyPage(reader);
   await privacy.goto();
-  await privacy.expectCookiesText(
-    `${m.privacy_cookies()} ${m.privacy_cookies_untracked()}`,
-  );
-  await privacy.expectCookiesWithout(m.privacy_cookies_hubspot());
+  await privacy.expectCookiesText(m.privacy_cookies_untracked());
+  await privacy.expectNoText("HubSpot");
   await privacy.expectNoCookieSettings();
 });
