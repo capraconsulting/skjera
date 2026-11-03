@@ -34,6 +34,7 @@ import {
 } from "../../site/signupForm.ts";
 import {
   attendees,
+  type GuestCancel,
   type Signup,
   type SignupChange,
 } from "../../sync/tables.ts";
@@ -147,6 +148,7 @@ export function Attend(props: {
               phone: String(form.get("telephone") ?? ""),
               company: String(form.get("company") ?? ""),
             },
+            honeypot: String(form.get("subject") ?? ""),
           }
         : {}),
     };
@@ -232,9 +234,17 @@ export function Attend(props: {
     );
   };
 
-  const cancel = (id: string) => {
+  /** `honeypot` is what a guest's cancel form's hidden field held. */
+  const cancel = (id: string, honeypot?: string) => {
     if (attendees.collection.has(id)) {
-      settle(attendees.collection.delete(id));
+      settle(
+        attendees.collection.delete(
+          id,
+          honeypot === undefined
+            ? {}
+            : { metadata: { honeypot } satisfies GuestCancel },
+        ),
+      );
     } else {
       // Gone already, e.g. removed by the organizers.
       rememberGuestSignup(event.id, null);
@@ -354,17 +364,32 @@ export function Attend(props: {
           <Button onClick={() => setEditing(false)}>{m.attend_keep()}</Button>
         </div>
       </form>
+    ) : asGuest ? (
+      // A form, so the cancel carries the hidden field for bots.
+      <form
+        className={styles.row}
+        onSubmit={(submitted) => {
+          submitted.preventDefault();
+          const form = new FormData(submitted.currentTarget);
+          cancel(id, String(form.get("subject") ?? ""));
+        }}
+      >
+        <p className={styles.status}>{status}</p>
+        <Button
+          onClick={() =>
+            guest !== null ? changeAsGuest(guest) : setEditing(true)
+          }
+        >
+          {m.attend_change_answers()}
+        </Button>
+        <HoneypotInput />
+        <Button type="submit">{m.attend_cancel_signup()}</Button>
+      </form>
     ) : (
       <div className={styles.row}>
         <p className={styles.status}>{status}</p>
-        {changeable || asGuest ? (
-          <Button
-            onClick={() =>
-              asGuest && guest !== null
-                ? changeAsGuest(guest)
-                : setEditing(true)
-            }
-          >
+        {changeable ? (
+          <Button onClick={() => setEditing(true)}>
             {m.attend_change_answers()}
           </Button>
         ) : null}
@@ -467,6 +492,7 @@ export function Attend(props: {
               placeholder={m.attend_your_email()}
               required
             />
+            <HoneypotInput />
           </div>
           <GuestContactInputs given={{}} messages={messages} />
           {asked({}, true)}
@@ -498,6 +524,17 @@ export function Attend(props: {
     </section>
   );
 }
+
+/** For bots: people never see it, and screen readers and the keyboard skip it. */
+const HoneypotInput = () => (
+  <input
+    name="subject"
+    hidden
+    tabIndex={-1}
+    autoComplete="off"
+    aria-hidden="true"
+  />
+);
 
 /** Where guests read how their details are handled. */
 function PrivacyLink() {

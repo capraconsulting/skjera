@@ -421,6 +421,8 @@
   "problem_guest_name_too_short": "Fyll inn navnet ditt, minst 2 tegn",
   "problem_guest_company_too_short": "Fyll inn navnet på firmaet, minst 2 tegn",
   "problem_guest_phone_invalid": "Fyll inn et gyldig mobilnummer",
+  "problem_form_not_valid": "Det har oppstått et problem. Det utfylte skjemaet er ikke gyldig.",
+  "problem_too_many_attempts": "Du har nådd grensen for antall forsøk. Vennligst vent en stund før du prøver igjen.",
   "problem_missing_to_publish": "Legg til {fields} før du publiserer",
   "problem_field_title": "en tittel",
   "problem_field_start": "et starttidspunkt",

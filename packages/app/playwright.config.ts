@@ -40,8 +40,9 @@ export default defineConfig({
     },
     {
       // The production build: much faster page loads than the dev server,
-      // and what users get.
-      command: `PORT=${port} pnpm test-server`,
+      // and what users get. The tests sign up far more often than the limits
+      // on signing up allow, so those are off.
+      command: `SIGNUP_LIMITS=off PORT=${port} pnpm test-server`,
       cwd: "../..",
       url: `http://localhost:${port}/health/ready`,
       reuseExistingServer: false,

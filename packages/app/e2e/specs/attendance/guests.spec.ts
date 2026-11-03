@@ -99,6 +99,57 @@ test("a guest form says what is wrong by each field, and refuses a member's emai
   await cleanUp(alice, team, event.id);
 });
 
+test("a guest's forms have a hidden field, and one with it filled in is refused (AC-1, AC-2)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Bots"));
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({ public: true, guests: true });
+
+  const guest = await visitor(browser);
+  await new EventPage(guest).goto(event.id);
+  const box = new Attendance(guest);
+  const refusal = "Something went wrong. The form as filled in isn't valid.";
+
+  // People never reach it with the keyboard (AC-1).
+  await box.expectHiddenFieldSkipped(
+    { role: "textbox", name: "Your name" },
+    { role: "button", name: "Sign up" },
+  );
+
+  // A bot fills it in: nothing is saved (AC-2).
+  await box.fillName("Bot");
+  await box.fillEmail("bot@example.org");
+  await box.fillHiddenField("buy now");
+  await box.clickSignUp();
+  await box.expectAlert(refusal);
+  await box.expectEmpty();
+  await box.expectSignUpButton(true);
+
+  await box.fillName("Gina");
+  await box.fillEmail("gina@example.org");
+  await box.fillHiddenField("");
+  await box.clickSignUp();
+  await box.expectSignedUp();
+
+  // The same for cancelling (AC-1, AC-2).
+  await box.expectHiddenFieldSkipped(
+    { role: "button", name: "Change answers" },
+    { role: "button", name: "Cancel my signup" },
+  );
+  await box.fillHiddenField("buy now");
+  await box.cancelSignup();
+  await box.expectAlert(refusal);
+  await box.expectSignedUp();
+
+  await box.fillHiddenField("");
+  await box.cancelSignup();
+  await box.expectEmpty();
+
+  await cleanUp(alice, team, event.id);
+});
+
 test("Guests can sign up shows unticked on a members-only event, and as it was set once public again", async ({
   browser,
 }) => {

@@ -21,6 +21,8 @@ const problems: ReadonlyArray<Problem> = [
   { _tag: "GuestNameTooShort" },
   { _tag: "GuestCompanyTooShort" },
   { _tag: "GuestPhoneInvalid" },
+  { _tag: "FormNotValid" },
+  { _tag: "TooManyAttempts" },
   { _tag: "MissingToPublish", fields: ["title"] },
   { _tag: "EndsBeforeStart" },
   { _tag: "DeadlineAfterStart" },
@@ -79,6 +81,17 @@ group("Problems", () => {
       describe(member, "en"),
       "Log in to sign up for the event!",
     );
+  });
+
+  it("say Skjer's sentence when there have been too many attempts (AC-3)", () => {
+    const tooMany: Problem = { _tag: "TooManyAttempts" };
+    assert.strictEqual(
+      describe(tooMany, "nb"),
+      "Du har nådd grensen for antall forsøk. Vennligst vent en stund før du prøver igjen.",
+    );
+    // Nynorsk and English are sentences of their own.
+    assert.notStrictEqual(describe(tooMany, "nn"), describe(tooMany, "nb"));
+    assert.notStrictEqual(describe(tooMany, "en"), describe(tooMany, "nb"));
   });
 
   it("go with their English, for logs and other clients", () => {

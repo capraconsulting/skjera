@@ -15,6 +15,7 @@ import {
   SignInRequired,
   SignupNotFound,
   SignupRejected,
+  TooManyAttempts,
 } from "./errors.ts";
 
 // The site's API for signing up to published events. Public events are
@@ -62,17 +63,21 @@ export class EventsApi extends HttpApiGroup.make("events").add(
       online: Schema.optionalKey(Schema.Boolean),
       /** The language they signed up in: emails to them are in it too. */
       locale: Schema.optionalKey(Locale),
+      /** The guest form's hidden field: only a bot fills it in, and is refused. */
+      honeypot: Schema.optionalKey(Schema.String),
     }),
     success: Schema.NullOr(GuestSignup),
-    error: [EventNotFound, SignInRequired, SignupRejected],
+    error: [EventNotFound, SignInRequired, SignupRejected, TooManyAttempts],
   }),
   HttpApiEndpoint.delete("leave", "/api/events/:id/attendance", {
     params: { id: DocumentId },
-    error: [EventNotFound, SignInRequired, SignupRejected],
+    error: [EventNotFound, SignInRequired, SignupRejected, TooManyAttempts],
   }),
   HttpApiEndpoint.delete("leaveAsGuest", "/api/events/:id/attendance/:token", {
     params: { id: DocumentId, token: Schema.String },
-    error: [SignupNotFound, SignupRejected],
+    // A query rather than a body, so a cancel sent without one still decodes.
+    query: { honeypot: Schema.optionalKey(Schema.String) },
+    error: [SignupNotFound, SignupRejected, TooManyAttempts],
   }),
   /** A guest's own signup, with the token they were given. */
   HttpApiEndpoint.get("guestSignup", "/api/events/:id/attendance/:token", {

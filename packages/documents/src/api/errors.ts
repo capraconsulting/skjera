@@ -75,6 +75,13 @@ export class SignupRejected extends Schema.TaggedError<SignupRejected>()(
   { httpApiStatus: 400 },
 ) {}
 
+/** Too many attempts to sign up or cancel from one visitor: wait, then try again. */
+export class TooManyAttempts extends Schema.TaggedError<TooManyAttempts>()(
+  "TooManyAttempts",
+  { problem: Problem, message: Schema.String },
+  { httpApiStatus: 429 },
+) {}
+
 /** No guest signup matches that cancel token. */
 export class SignupNotFound extends Schema.TaggedError<SignupNotFound>()(
   "SignupNotFound",

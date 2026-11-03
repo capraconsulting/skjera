@@ -208,7 +208,8 @@ export const attendees = syncedTable({
   write: {
     // Signing up, as the signed-in user or as a guest (see `Signup`).
     insert: (attendee, metadata) => {
-      const { guest, dietary, answers, online, locale } = metadata as Signup;
+      const { guest, dietary, answers, online, locale, honeypot } =
+        metadata as Signup;
       return sendPublic((client) =>
         client.events
           .attend({
@@ -220,6 +221,7 @@ export const attendees = syncedTable({
               ...(answers === undefined ? {} : { answers }),
               ...(online === undefined ? {} : { online }),
               ...(locale === undefined ? {} : { locale }),
+              ...(honeypot === undefined ? {} : { honeypot }),
             },
           })
           .pipe(
@@ -264,10 +266,12 @@ export const attendees = syncedTable({
       }
       const guest = guestSignup(attendee.eventId);
       if (guest?.id === attendee.id) {
+        const { honeypot } = (metadata ?? {}) as GuestCancel;
         return sendPublic((client) =>
           client.events
             .leaveAsGuest({
               params: { id: attendee.eventId, token: guest.cancelToken },
+              query: honeypot === undefined ? {} : { honeypot },
             })
             // Gone either way: cancelled now, or already before.
             .pipe(
@@ -301,6 +305,9 @@ export type SignupChange = {
 /** Pass as a delete's metadata to take someone off as an organizer. */
 export type Removal = { readonly asOrganizer: true };
 
+/** Pass as a guest's delete's metadata: what the cancel form's hidden field held. */
+export type GuestCancel = { readonly honeypot: string };
+
 /** What signing up sends besides the row: pass it as the insert's metadata. */
 export type Signup = {
   /** Signing up as a guest, without an account. */
@@ -312,4 +319,6 @@ export type Signup = {
   readonly online?: boolean;
   /** The language they signed up in: emails to them are in it. */
   readonly locale?: Locale;
+  /** What a guest form's hidden field held: filled only by a bot. */
+  readonly honeypot?: string;
 };

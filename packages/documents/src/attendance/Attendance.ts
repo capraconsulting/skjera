@@ -41,7 +41,12 @@ export interface SignupDetails {
   readonly id?: string;
   /** The language they signed up in, for emails to them. */
   readonly locale?: Locale;
+  /** A guest form's hidden field: only a bot fills it in, and a filled one is refused. */
+  readonly honeypot?: string;
 }
+
+/** The guest forms' hidden field has something in it: a bot's. */
+const filled = (honeypot: string | undefined) => (honeypot ?? "").trim() !== "";
 
 /**
  * Answers checked against the questions, in the words asked and picked:
@@ -147,9 +152,11 @@ export class Attendance extends Context.Service<
       guest: GuestDetails,
       details?: SignupDetails,
     ) => Effect.Effect<string, EventNotFound | SignupRejected>;
+    /** `honeypot` is the cancel form's hidden field: a filled one is refused. */
     readonly leaveAsGuest: (
       event: DocumentId,
       cancelToken: string,
+      honeypot?: string,
     ) => Effect.Effect<void, SignupNotFound | SignupRejected>;
     /**
      * A guest's own signup, for the token they were given: what they told,
@@ -385,6 +392,9 @@ export class Attendance extends Context.Service<
         guest: GuestDetails,
         details: SignupDetails = {},
       ) {
+        if (filled(details.honeypot)) {
+          return yield* new SignupRejected(refused({ _tag: "FormNotValid" }));
+        }
         const { allowGuests, askDietary, questions, streamed } = yield* rules(
           event,
           "anyone",
@@ -436,7 +446,11 @@ export class Attendance extends Context.Service<
       const leaveAsGuest = Effect.fn("Attendance.leaveAsGuest")(function* (
         event: DocumentId,
         cancelToken: string,
+        honeypot?: string,
       ) {
+        if (filled(honeypot)) {
+          return yield* new SignupRejected(refused({ _tag: "FormNotValid" }));
+        }
         const [found] = yield* sql<{ open: boolean }>`
           SELECT coalesce(e.signup_deadline, e.starts_at) > now() AS open
           FROM attendees a JOIN events e ON e.id = a.event_id

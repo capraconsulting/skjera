@@ -138,6 +138,39 @@ export class Attendance extends SignupFields {
     await this.button(name).click();
   }
 
+  /** The field that is for bots: it isn't shown, so only a script reaches it. */
+  private readonly hiddenField = () =>
+    this.scope.locator('input[name="subject"]');
+
+  /** Fills the hidden field by script, as a bot does: it can't be typed into. */
+  async fillHiddenField(text: string): Promise<void> {
+    await this.hiddenField().evaluate((field, value) => {
+      (field as HTMLInputElement).value = value;
+    }, text);
+  }
+
+  /** The hidden field isn't shown, and Tab from one control to the other never lands in it. */
+  async expectHiddenFieldSkipped(
+    from: { role: "textbox" | "button"; name: string },
+    to: { role: "textbox" | "button"; name: string },
+  ): Promise<void> {
+    const hidden = this.hiddenField();
+    await expect(hidden).toHaveCount(1);
+    await expect(hidden).toBeHidden();
+    const control = (which: typeof from) =>
+      this.scope.getByRole(which.role, { name: which.name });
+    await control(from).focus();
+    for (let presses = 0; presses < 20; presses++) {
+      await this.page.keyboard.press("Tab");
+      await expect(hidden).not.toBeFocused();
+      const arrived = await control(to).evaluate(
+        (element) => element === document.activeElement,
+      );
+      if (arrived) return;
+    }
+    throw new Error(`Tab never reached ${to.name}`);
+  }
+
   async clickAttend(): Promise<void> {
     await this.button("Attend").click();
   }

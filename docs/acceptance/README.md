@@ -73,6 +73,7 @@ These files say what to test and how. Which criteria have passed in a round of t
 | SIGN-11 | [Attendee list in the studio](SIGN-11-attendee-list.md) |
 | SIGN-12 | [Downloading attendees as CSV](SIGN-12-csv.md) |
 | SIGN-13 | [Sign-up data deleted after 30 days](SIGN-13-signup-retention.md) |
+| SIGN-14 | [Signing up and cancelling are protected against bots and repeated attempts](SIGN-14-bots-and-repeated-attempts.md) |
 
 ## MAIL: Email and calendar
 

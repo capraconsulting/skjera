@@ -1,8 +1,9 @@
 import { assert, layer } from "@effect/vitest";
-import { ConfigProvider, Effect, Layer, Option } from "effect";
+import { ConfigProvider, Effect, Layer, Option, Ref } from "effect";
 import { Attendance } from "../../src/attendance/Attendance.ts";
 import { Documents } from "../../src/events/Documents.ts";
 import type { DocumentId } from "../../src/Model.ts";
+import { NoticesKept } from "../../src/notices/Notifications.ts";
 import {
   alice,
   bob,
@@ -30,6 +31,15 @@ const withMemberDomains =
         ),
       ),
     );
+
+/** The kinds of notice sent about `event`, oldest first. */
+const noticesAbout = (event: DocumentId) =>
+  Effect.gen(function* () {
+    const kept = yield* NoticesKept;
+    return (yield* Ref.get(kept))
+      .filter((notice) => notice.event === event)
+      .map((notice) => notice.kind);
+  });
 
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Guests", (it) => {
@@ -82,6 +92,84 @@ layer(TestLayer, { excludeTestServices: true })("Guests", (it) => {
       yield* attendance.leaveAsGuest(id, token);
       assert.strictEqual((yield* signups(id, Option.none())).length, 1);
     }),
+  );
+
+  it.effect(
+    "refuses a guest's sign-up with the hidden field filled in, saving and sending nothing (AC-2)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        const error = yield* Effect.flip(
+          attendance.attendAsGuest(
+            id,
+            { name: "Gina", email: "gina@example.org" },
+            { honeypot: "x" },
+          ),
+        );
+        assert.strictEqual(error._tag, "SignupRejected");
+        assert.deepStrictEqual(problemOf(error), { _tag: "FormNotValid" });
+        assert.deepStrictEqual(yield* organizerView(id), []);
+        assert.deepStrictEqual(yield* noticesAbout(id), []);
+      }),
+  );
+
+  it.effect(
+    "signs a guest up whose hidden field is empty or left out (AC-2)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        yield* attendance.attendAsGuest(
+          id,
+          { name: "Gina", email: "gina@example.org" },
+          { honeypot: "" },
+        );
+        yield* attendance.attendAsGuest(id, {
+          name: "Gus",
+          email: "gus@example.org",
+        });
+        assert.deepStrictEqual(
+          (yield* organizerView(id)).map((each) => each?.name),
+          ["Gina", "Gus"],
+        );
+      }),
+  );
+
+  it.effect(
+    "refuses a guest's cancel with the hidden field filled in, keeping the signup and sending nothing (AC-2)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        const token = yield* attendance.attendAsGuest(id, {
+          name: "Gina",
+          email: "gina@example.org",
+        });
+        const error = yield* Effect.flip(
+          attendance.leaveAsGuest(id, token, "x"),
+        );
+        assert.strictEqual(error._tag, "SignupRejected");
+        assert.deepStrictEqual(problemOf(error), { _tag: "FormNotValid" });
+        assert.strictEqual((yield* organizerView(id)).length, 1);
+        assert.deepStrictEqual(yield* noticesAbout(id), ["signedUp"]);
+
+        // Empty, or left out, cancels as before.
+        yield* attendance.leaveAsGuest(id, token, "");
+        assert.strictEqual((yield* organizerView(id)).length, 0);
+        const other = yield* attendance.attendAsGuest(id, {
+          name: "Gus",
+          email: "gus@example.org",
+        });
+        yield* attendance.leaveAsGuest(id, other);
+        assert.strictEqual((yield* organizerView(id)).length, 0);
+        assert.deepStrictEqual(yield* noticesAbout(id), [
+          "signedUp",
+          "signupCancelled",
+          "signedUp",
+          "signupCancelled",
+        ]);
+      }),
   );
 
   it.effect("keeps a guest's phone number and company, trimmed", () =>

@@ -421,6 +421,8 @@
   "problem_guest_name_too_short": "Enter your name, at least 2 characters",
   "problem_guest_company_too_short": "Enter your company's name, at least 2 characters",
   "problem_guest_phone_invalid": "Enter a valid mobile number",
+  "problem_form_not_valid": "Something went wrong. The form as filled in isn't valid.",
+  "problem_too_many_attempts": "You've reached the limit on attempts. Please wait a while before trying again.",
   "problem_missing_to_publish": "Add {fields} before publishing",
   "problem_field_title": "a title",
   "problem_field_start": "a start time",

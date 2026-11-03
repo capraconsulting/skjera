@@ -30,6 +30,8 @@ export const Problem = Schema.Union([
   Schema.TaggedStruct("GuestNameTooShort", {}),
   Schema.TaggedStruct("GuestCompanyTooShort", {}),
   Schema.TaggedStruct("GuestPhoneInvalid", {}),
+  Schema.TaggedStruct("FormNotValid", {}),
+  Schema.TaggedStruct("TooManyAttempts", {}),
   // Publishing.
   Schema.TaggedStruct("MissingToPublish", {
     fields: Schema.NonEmptyArray(PublishField),
@@ -103,6 +105,10 @@ export const describe = (problem: Problem, locale?: Locale): string => {
       return m.problem_guest_company_too_short({}, options);
     case "GuestPhoneInvalid":
       return m.problem_guest_phone_invalid({}, options);
+    case "FormNotValid":
+      return m.problem_form_not_valid({}, options);
+    case "TooManyAttempts":
+      return m.problem_too_many_attempts({}, options);
     case "MissingToPublish":
       return m.problem_missing_to_publish(
         {

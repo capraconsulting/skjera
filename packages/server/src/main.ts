@@ -24,6 +24,7 @@ import {
 } from "effect/http-api";
 import { KeyValueStore } from "effect/persistence";
 import { Health } from "./health.ts";
+import { SignupLimits } from "./signupLimits.ts";
 
 class Api extends HttpApi.make("skjera")
   .add(
@@ -51,6 +52,7 @@ const EventsHandlers = HttpApiBuilder.group(Api, "events", (handlers) =>
   Effect.gen(function* () {
     const attendance = yield* Documents.Attendance;
     const authenticator = yield* OAuth.Authenticator;
+    const limits = yield* SignupLimits;
 
     // These endpoints are open to anyone; a session shows members-only
     // events and signs up as a member.
@@ -74,28 +76,35 @@ const EventsHandlers = HttpApiBuilder.group(Api, "events", (handlers) =>
       .handle("attend", ({ params, payload }) =>
         Effect.gen(function* () {
           const user = yield* currentUser;
-          if (Option.isSome(user)) {
-            yield* attendance.attend(params.id, user.value, payload);
-            return null;
-          }
-          if (payload.guest === undefined) {
-            return yield* new Documents.SignInRequired(
-              Documents.refused({ _tag: "LogInOrGuest" }),
+          // Signing up and cancelling are counted per visitor, a member's apart from a guest's.
+          return yield* Effect.gen(function* () {
+            if (Option.isSome(user)) {
+              yield* attendance.attend(params.id, user.value, payload);
+              return null;
+            }
+            if (payload.guest === undefined) {
+              return yield* new Documents.SignInRequired(
+                Documents.refused({ _tag: "LogInOrGuest" }),
+              );
+            }
+            const cancelToken = yield* attendance.attendAsGuest(
+              params.id,
+              payload.guest,
+              payload,
             );
-          }
-          const cancelToken = yield* attendance.attendAsGuest(
-            params.id,
-            payload.guest,
-            payload,
-          );
-          return new Documents.GuestSignup({ cancelToken });
+            return new Documents.GuestSignup({ cancelToken });
+          }).pipe(limits.attempt(Option.isSome(user) ? "member" : "guest"));
         }),
       )
       .handle("leave", ({ params }) =>
-        Effect.flatMap(signedIn, (user) => attendance.leave(params.id, user)),
+        Effect.flatMap(signedIn, (user) =>
+          attendance.leave(params.id, user).pipe(limits.attempt("member")),
+        ),
       )
-      .handle("leaveAsGuest", ({ params }) =>
-        attendance.leaveAsGuest(params.id, params.token),
+      .handle("leaveAsGuest", ({ params, query }) =>
+        attendance
+          .leaveAsGuest(params.id, params.token, query.honeypot)
+          .pipe(limits.attempt("guest")),
       )
       .handle("guestSignup", ({ params }) =>
         attendance.guestSignup(params.id, params.token),
@@ -346,6 +355,7 @@ const Server = Layer.unwrap(
 // arrive before the routes are served would get no response.
 HttpRouter.serve(Routes).pipe(
   Layer.provide(Server),
+  Layer.provide(SignupLimits.layer),
   Layer.provide(OAuth.services),
   Layer.provide([
     FetchHttpClient.layer,

@@ -35,6 +35,8 @@ pnpm test:e2e    # Playwright, against a test server of its own (port 8806, a ne
 
 The browser tests are in `packages/app/e2e/specs`, and work the pages through page objects in `packages/app/e2e/pom`, one class per page or part of one: a test calls `new EventEditor(page).publish()`, not Playwright's locators. A page object missing what a test needs gets it added there. Setting a test up (browsers signed in or not, unique names, cleaning up after) is in `packages/app/e2e/fixtures`.
 
+The browser tests' test server runs with `SIGNUP_LIMITS=off`, since they sign up far more often than the limits on signing up allow; `on` (the default) is everywhere else, and another value stops the server at start.
+
 [docs/acceptance](docs/acceptance/README.md) has each feature's acceptance criteria, how a person tests each one by hand, and the tests that check it.
 
 The pre-commit hook (`.hooks/`, set by `mise run setup`) runs Biome on staged files, typechecks and the tests: Docker must be running, and mise active. GitHub (`.github/workflows/ci.yml`) runs the same checks, the browser tests and an image build on every push to main and every pull request.
@@ -74,6 +76,12 @@ docker build -t skjera .
 ```
 
 It's configured by environment variables, as in [mise.toml](mise.toml). Needed: `DATABASE_URL` (Postgres 18 with pg_automerge; migrations run at start), `OAUTH_*` (an OIDC provider), `S3_*` (image storage), `SITE_URL`, `SITE_NAME`, `SITE_LOCALE` (the language for those who haven't picked one: `en`, `nb` or `nn`), `EMAIL_FROM`, `SIGNING_SECRET` (any long random string, the same across restarts) and `EMAIL_TRANSPORT=ses` (with `AWS_REGION` and AWS credentials) or `smtp` (with `EMAIL_SMTP_URL`). The server starts without the email settings and the secret, warning that emails aren't sent.
+
+Signing up and cancelling are limited per visitor (guests: 20 an hour from an address, 10 a minute from an address and browser; members: 40 and 20), and the guest forms have a hidden field a bot fills in. The limits count the visitor's address from `X-Forwarded-For`, so set:
+
+- `PROXY_COUNT`: how many proxies stand in front of the server, each appending to `X-Forwarded-For` (1 by default: the ingress). The address that many entries from the right is the visitor's. Use 0 when visitors reach the server directly, 2 with a CDN in front of the ingress. After a deploy, check from two networks that each is counted on its own (SIGN-14 AC-6). A value that is not a whole number of 0 or more stops the server at start.
+
+The counts are kept in the server's memory: a restart clears them, and each replica counts its own.
 
 Branding, all optional:
 
