@@ -382,8 +382,16 @@ export class EventEditor {
     await this.checkbox(/Hide how many places are left/).check();
   }
 
-  async expectRemindersOn(): Promise<void> {
-    await expect(this.checkbox(/Remind attendees/)).toBeChecked();
+  private reminders() {
+    return this.page.getByRole("combobox", { name: "Remind attendees" });
+  }
+
+  async expectReminders(choice: "default" | "on" | "off"): Promise<void> {
+    await expect(this.reminders()).toHaveValue(choice);
+  }
+
+  async chooseReminders(choice: "default" | "on" | "off"): Promise<void> {
+    await this.reminders().selectOption(choice);
   }
 
   async fillMaxAttendees(limit: number): Promise<void> {

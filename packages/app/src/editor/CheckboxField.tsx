@@ -7,7 +7,6 @@ type BooleanField =
   | "public"
   | "guests"
   | "dietary"
-  | "reminders"
   | "hidePlacesLeft"
   | "streamed"
   | "recurring";
@@ -17,7 +16,6 @@ const unset: Record<BooleanField, boolean> = {
   public: false,
   guests: false,
   dietary: false,
-  reminders: true,
   hidePlacesLeft: false,
   streamed: false,
   recurring: false,

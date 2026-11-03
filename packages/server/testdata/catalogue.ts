@@ -63,18 +63,6 @@ const laterToday = (now: Time) =>
     now.add({ hours: 1 }).round({ smallestUnit: "hour", roundingMode: "ceil" }),
   );
 
-/** Tomorrow at the next full hour: at 14:20, tomorrow at 15:00. */
-const tomorrowAtNextHour = (now: Time) =>
-  span(
-    now
-      .add({ minutes: 1 })
-      .round({ smallestUnit: "hour", roundingMode: "ceil" })
-      .add({ days: 1 }),
-  );
-
-/** Tomorrow, an hour later in the day than now. */
-const tomorrowAnHourLater = (now: Time) => span(now.add({ days: 1, hours: 1 }));
-
 /** Tomorrow 18:00 to 20:00 in New York, whichever zone the command runs in. */
 const tomorrowInNewYork = (now: Time) =>
   span(
@@ -298,17 +286,17 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
         signups: [bob()],
       }),
     ]),
-    team("MAIL-05: Reminder the day before", [
+    team("MAIL-05: Reminder the morning before", [
       event("AC-1 to AC-3: Reminded", {
         ...guests,
-        ...tomorrowAnHourLater(now),
-        remind: true,
+        ...daysAhead(now, 2, "12:00"),
+        remind: "on",
         signups: [bob(), guest("MAIL-05", 1)],
       }),
       event("AC-4: Deleted", {
         ...guests,
-        ...tomorrowAnHourLater(now),
-        remind: true,
+        ...daysAhead(now, 2, "12:00"),
+        remind: "on",
         signups: [bob()],
       }),
     ]),
@@ -765,15 +753,28 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
         food: "Pizza",
       }),
       event("AC-3: No food", { ...guests, ...week }),
-      event("AC-5: Reminded", {
+      event("AC-5: Standard, open to guests", {
         ...guests,
-        ...tomorrowAtNextHour(now),
-        remind: true,
+        ...daysAhead(now, 2, "12:00"),
+        remind: "default",
         signups: [bob()],
       }),
-      event("AC-6: Not reminded", {
+      event("AC-5: Standard, members only", {
+        ...members,
+        ...daysAhead(now, 2, "12:00"),
+        remind: "default",
+        signups: [bob()],
+      }),
+      event("AC-6: On, members only", {
+        ...members,
+        ...daysAhead(now, 2, "12:00"),
+        remind: "on",
+        signups: [bob()],
+      }),
+      event("AC-6: Off, open to guests", {
         ...guests,
-        ...tomorrowAtNextHour(now),
+        ...daysAhead(now, 2, "12:00"),
+        remind: "off",
         signups: [bob()],
       }),
     ]),

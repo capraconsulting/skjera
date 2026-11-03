@@ -82,7 +82,7 @@ These files say what to test and how. Which criteria have passed in a round of t
 | MAIL-02 | [Email when you cancel](MAIL-02-cancelled-signup.md) |
 | MAIL-03 | [Email when the time or place changes](MAIL-03-time-or-place-changed.md) |
 | MAIL-04 | [Email when the event is cancelled](MAIL-04-event-cancelled.md) |
-| MAIL-05 | [Reminder the day before](MAIL-05-reminder.md) |
+| MAIL-05 | [Reminder the morning before](MAIL-05-reminder.md) |
 | MAIL-06 | [Each event's own email texts](MAIL-06-email-texts.md) |
 | MAIL-07 | [Emails in the language you signed up in](MAIL-07-email-language.md) |
 
@@ -128,7 +128,7 @@ Each feature file starts with the events it needs. They are in a team of their o
 
 - **What goes.** Every team named after a feature file, with all that is in it, a team of that name made by hand too. Other teams and events stay, and so does a hand-made «Capra Gruppen» with its events.
 - **All files at once.** Every file's events exist together, so lists such as the front page, `/embed` and the calendar show other files' events too: count them in.
-- **No emails, no Slack posts.** Signups are made without them, so a criterion that reads the email sent when someone signs up has bob, or the guest, cancel and sign up again first. Only the events of MAIL-05 and «AC-5: Reminded» of STU-13 remind those signed up, and the running server sends their reminders later.
+- **No emails, no Slack posts.** Signups are made without them, so a criterion that reads the email sent when someone signs up has bob, or the guest, cancel and sign up again first. Only the events of MAIL-05 and the STU-13 events that remind (the ones on **Default** open to guests, and the ones on **On**) remind those signed up. They start the day after tomorrow, and the running server sends their reminders at 07:05 UTC on the morning before.
 - **Changing a file.** A change to an **Events:** section is made in `packages/server/testdata/catalogue.ts` too: a test fails when a team or event the sections name is not made there.
 - **Left to the tester.** Settings in `mise.local.toml`, then restarting `pnpm dev`; bob in a second browser; guests in a private window; the images and texts a criterion has you bring; and the steps a criterion itself takes.
 

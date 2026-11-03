@@ -78,3 +78,50 @@ layer(TestLayer, { excludeTestServices: true })("Migrations", (it) => {
       }),
   );
 });
+
+// A database of its own: the first block above migrates its database whole.
+layer(TestLayer, { excludeTestServices: true })(
+  "Migrations: reminders",
+  (it) => {
+    it.effect(
+      "turns ticked reminders on a members-only event off and keeps the rest",
+      () =>
+        Effect.gen(function* () {
+          const sql = yield* SqlClient.SqlClient;
+          yield* Migrator.make({})({ loader: upTo(28) });
+
+          const team = yield* (yield* Teams).create("Team", alice);
+          const event = (reminders: boolean, guests: boolean) =>
+            Effect.gen(function* () {
+              const id = yield* (yield* Documents).create(
+                "event",
+                team.id,
+                alice,
+              );
+              yield* sql`
+              INSERT INTO events (id, title, starts_at, ends_at, time_zone, body,
+                is_public, allow_guests, ask_dietary, send_reminders, published_heads,
+                published_by_issuer, published_by_subject)
+              VALUES (${id}, 'Meetup', now() + interval '1 day',
+                now() + interval '2 days', 'Europe/Oslo', '[]', true, ${guests},
+                false, ${reminders}, '{}', 'test', 'test')
+            `;
+              return id;
+            });
+          const tickedWithGuests = yield* event(true, true);
+          const tickedMembersOnly = yield* event(true, false);
+          const unticked = yield* event(false, true);
+
+          yield* Migrator.make({})({ loader: migrations });
+
+          const reminds = (id: string) =>
+            sql<{ send_reminders: boolean }>`
+            SELECT send_reminders FROM events WHERE id = ${id}
+          `.pipe(Effect.map(([row]) => row?.send_reminders));
+          assert.strictEqual(yield* reminds(tickedWithGuests), true);
+          assert.strictEqual(yield* reminds(tickedMembersOnly), false);
+          assert.strictEqual(yield* reminds(unticked), false);
+        }),
+    );
+  },
+);

@@ -4,8 +4,8 @@ import { Button, Heading, Text } from "react-email";
 import type { Locale } from "../../Model.ts";
 import { button, Layout, paragraph } from "./Layout.tsx";
 
-// Sent the day before an event to everyone signed up, unless the event's
-// organizers turned reminders off.
+// Sent the morning before an event to everyone signed up, where the event's
+// reminders are on.
 
 export interface ReminderProps {
   readonly locale: Locale;

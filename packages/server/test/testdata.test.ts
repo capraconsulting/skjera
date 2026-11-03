@@ -367,7 +367,8 @@ describe("fill and clear on the catalogue", () => {
     expect(reminding.map((row) => row.title)).toEqual([
       "AC-1 to AC-3: Reminded",
       "AC-4: Deleted",
-      "AC-5: Reminded",
+      "AC-5: Standard, open to guests",
+      "AC-6: On, members only",
     ]);
   });
 

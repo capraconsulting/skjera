@@ -1,5 +1,5 @@
-import { assert, layer } from "@effect/vitest";
-import { Effect } from "effect";
+import { assert, describe, it, layer } from "@effect/vitest";
+import { Cron, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { Attendance } from "../../src/attendance/Attendance.ts";
 import type { DocumentId } from "../../src/Model.ts";
@@ -174,57 +174,145 @@ layer(TestLayer, { excludeTestServices: true })("Mail: changes", (it) => {
     }),
   );
 
-  it.effect("reminds those who signed up before the day before", () =>
-    Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient;
-      const attendance = yield* Attendance;
-      const tomorrow = new Date(Date.now() + 12 * 60 * 60 * 1000);
-      const event = yield* publishedEvent({ startsAt: tomorrow });
-      const quiet = yield* publishedEvent({
-        startsAt: tomorrow,
-        reminders: false,
-      });
-      const later = yield* publishedEvent({
-        startsAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-      });
-      const run = crypto.randomUUID();
-      const signUp = (event: DocumentId, who: string) =>
-        attendance.attendAsGuest(event, {
-          name: who,
-          email: `${who}-${run}@example.org`,
+  it.effect(
+    "reminds everyone signed up for the next Norwegian day, same-day signups included",
+    () =>
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        const attendance = yield* Attendance;
+        // The next day, 26 March, is 23 hours long: the clocks go forward.
+        const now = new Date("2045-03-25T07:05:00Z");
+        const firstThing = yield* publishedEvent({
+          startsAt: new Date("2045-03-26T00:30+01:00"),
         });
-      yield* signUp(event, "early");
-      yield* signUp(event, "late");
-      yield* signUp(quiet, "quiet");
-      yield* signUp(later, "later");
-      // Signed up last week, all but one.
-      yield* sql`
-        UPDATE attendees SET created_at = now() - interval '7 days'
-        WHERE email IN (${`early-${run}@example.org`},
-          ${`quiet-${run}@example.org`}, ${`later-${run}@example.org`})
-      `;
+        const lastThing = yield* publishedEvent({
+          startsAt: new Date("2045-03-26T23:30+02:00"),
+        });
+        const today = yield* publishedEvent({
+          startsAt: new Date("2045-03-25T20:00+01:00"),
+        });
+        const dayAfter = yield* publishedEvent({
+          startsAt: new Date("2045-03-27T00:30+02:00"),
+        });
+        const deleted = yield* publishedEvent({
+          startsAt: new Date("2045-03-26T12:00+02:00"),
+        });
+        const quiet = yield* publishedEvent({
+          startsAt: new Date("2045-03-26T12:00+02:00"),
+          reminders: false,
+        });
+        const run = crypto.randomUUID();
+        const signUp = (event: DocumentId, who: string) =>
+          attendance.attendAsGuest(event, {
+            name: who,
+            email: `${who}-${run}@example.org`,
+          });
+        yield* signUp(firstThing, "first");
+        yield* signUp(firstThing, "sameday");
+        yield* signUp(lastThing, "last");
+        yield* signUp(today, "today");
+        yield* signUp(dayAfter, "dayafter");
+        yield* signUp(deleted, "deleted");
+        yield* signUp(quiet, "quiet");
+        yield* sql`UPDATE events SET deleted_at = now() WHERE id = ${deleted}`;
+        // Signed up an hour before the run.
+        yield* sql`
+          UPDATE attendees SET created_at = '2045-03-25T06:05:00Z'
+          WHERE email = ${`sameday-${run}@example.org`}
+        `;
 
-      const reminded = (who: string) =>
-        outbox
-          .to(`${who}-${run}@example.org`)
-          .filter((sent) => sent.message.subject === "Reminder: Launch");
-      // Hourly: the next hour's run sends nothing new.
-      yield* Mail.sendReminders;
-      yield* Mail.sendReminders;
-      const [reminder] = yield* emailsTo(`early-${run}@example.org`, 2).pipe(
-        Effect.map(() => reminded("early")),
-      );
-      assert.include(
-        reminder?.message.text ?? "",
-        "A reminder: you're signed up",
-      );
-      // Already in their calendar.
-      assert.isUndefined(reminder?.message.calendar);
-      yield* Effect.sleep("300 millis");
-      assert.strictEqual(reminded("early").length, 1);
-      assert.deepStrictEqual(reminded("late"), []);
-      assert.deepStrictEqual(reminded("quiet"), []);
-      assert.deepStrictEqual(reminded("later"), []);
-    }),
+        const reminded = (who: string) =>
+          outbox
+            .to(`${who}-${run}@example.org`)
+            .filter((sent) => sent.message.subject === "Reminder: Launch");
+        // Once a day: running it again sends nothing new.
+        yield* Mail.sendReminders(now);
+        yield* Mail.sendReminders(now);
+        for (const who of ["first", "sameday", "last"]) {
+          yield* emailsTo(`${who}-${run}@example.org`, 2);
+        }
+        const [reminder] = reminded("first");
+        assert.include(
+          reminder?.message.text ?? "",
+          "A reminder: you're signed up",
+        );
+        // Already in their calendar.
+        assert.isUndefined(reminder?.message.calendar);
+        yield* Effect.sleep("300 millis");
+        for (const who of ["first", "sameday", "last"]) {
+          assert.strictEqual(reminded(who).length, 1, who);
+        }
+        for (const who of ["today", "dayafter", "deleted", "quiet"]) {
+          assert.deepStrictEqual(reminded(who), [], who);
+        }
+      }),
   );
+
+  it.effect(
+    "reminds once for each time the event starts, and again when it moves to another day",
+    () =>
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        const attendance = yield* Attendance;
+        const now = new Date("2045-03-25T07:05:00Z");
+        const event = yield* publishedEvent({
+          startsAt: new Date("2045-03-26T12:00+02:00"),
+        });
+        const run = crypto.randomUUID();
+        const address = `once-${run}@example.org`;
+        yield* attendance.attendAsGuest(event, {
+          name: "once",
+          email: address,
+        });
+        const reminded = () =>
+          outbox
+            .to(address)
+            .filter((sent) => sent.message.subject === "Reminder: Launch");
+
+        yield* Mail.sendReminders(now);
+        yield* Mail.sendReminders(now);
+        yield* emailsTo(address, 2);
+        yield* Effect.sleep("300 millis");
+        assert.strictEqual(reminded().length, 1);
+
+        // Moved to the following day: the next morning's run reminds again.
+        yield* sql`
+          UPDATE events SET starts_at = '2045-03-27T12:00+02',
+            ends_at = '2045-03-27T15:00+02'
+          WHERE id = ${event}
+        `;
+        const nextMorning = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        yield* Mail.sendReminders(nextMorning);
+        yield* Mail.sendReminders(nextMorning);
+        yield* emailsTo(address, 3);
+        yield* Effect.sleep("300 millis");
+        assert.strictEqual(reminded().length, 2);
+      }),
+  );
+});
+
+describe("The reminder schedule", () => {
+  it("runs at 07:05 UTC whatever zone the process is in", () => {
+    const before = process.env.TZ;
+    process.env.TZ = "Europe/Oslo";
+    try {
+      assert.strictEqual(
+        Cron.next(
+          Mail.reminderSchedule,
+          new Date("2026-03-30T06:30:00Z"),
+        ).toISOString(),
+        "2026-03-30T07:05:00.000Z",
+      );
+      assert.strictEqual(
+        Cron.next(
+          Mail.reminderSchedule,
+          new Date("2026-03-30T07:05:01Z"),
+        ).toISOString(),
+        "2026-03-31T07:05:00.000Z",
+      );
+    } finally {
+      if (before === undefined) delete process.env.TZ;
+      else process.env.TZ = before;
+    }
+  });
 });

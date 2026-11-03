@@ -21,8 +21,12 @@ test("moving an event emails who signed up, once the organizer agrees", async ({
   await new Attendance(guest).signUpAsGuest("Gina", address);
   await editor.attendees.expectText("Gina");
 
-  // Reminded the day before, unless turned off.
-  await editor.expectRemindersOn();
+  // A new event follows the default; a choice is kept.
+  await editor.expectReminders("default");
+  await editor.chooseReminders("on");
+  await editor.expectSaved();
+  await editor.reload();
+  await editor.expectReminders("on");
   // An hour later.
   await editor.times.fillStartTime("19:00");
   await editor.expectSaved();

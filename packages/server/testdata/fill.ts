@@ -8,6 +8,7 @@ import {
   Documents,
   type EventContent,
   Images,
+  type ReminderChoice,
   type SignupDetails,
   type TeamId,
   Teams,
@@ -111,8 +112,8 @@ export interface EventSpec {
   readonly streamLink?: string;
   readonly questions?: ReadonlyArray<QuestionSpec>;
   readonly tags?: ReadonlyArray<string>;
-  /** Remind attendees: off unless the file asks for it. */
-  readonly remind?: boolean;
+  /** Remind attendees: "off" unless the file asks for it. */
+  readonly remind?: ReminderChoice;
   readonly emails?: Partial<
     Record<EmailKind, { readonly subject?: string; readonly text?: string }>
   >;
@@ -328,7 +329,7 @@ const writeEvent = (
   draft.public = spec.public ?? false;
   draft.guests = spec.guests ?? false;
   draft.dietary = spec.dietary ?? false;
-  draft.reminders = spec.remind ?? false;
+  draft.reminders = new A.ImmutableString(spec.remind ?? "off");
   if (spec.food !== undefined) setText(doc, "food", spec.food);
   if (spec.maxAttendees !== undefined) draft.maxAttendees = spec.maxAttendees;
   if (spec.hidePlacesLeft !== undefined)

@@ -1,13 +1,17 @@
 # STU-13: Food, reminders and other event settings
 
-An organiser says whether food is served and what, and whether those signed up are reminded by email the day before.
+An organiser says whether food is served and what, and whether those signed up are reminded by email the morning before.
 
-**Events:** in team «STU-13: Food, reminders and other event settings», public events open to guests:
+**Events:** in team «STU-13: Food, reminders and other event settings», public events, open to guests unless said:
 
 - «AC-1 to AC-3: Food», with **Food is served** ticked and «Pizza» in **What's served**.
 - «AC-3: No food», with **Food is served** unticked.
-- «AC-5: Reminded», starting tomorrow at the next full hour, with **Remind attendees** ticked. At 14:20, that is tomorrow at 15:00.
-- «AC-6: Not reminded», at the same time, with **Remind attendees** unticked.
+- «AC-5: Standard, open to guests», starting the day after tomorrow at 12:00, with **Remind attendees** on **Default**.
+- «AC-5: Standard, members only», the same, but not open to guests.
+- «AC-6: On, members only», the same, not open to guests, with **Remind attendees** on **On**.
+- «AC-6: Off, open to guests», the same, open to guests, with **Remind attendees** on **Off**.
+
+Each reminder event has bob signed up.
 
 ## AC-1: Food is set in the studio
 
@@ -49,42 +53,60 @@ WHILE an event does not serve food, Skjera SHALL not ask those signing up for th
 
 **Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/documents/test/attendance/dietary.test.ts`
 
-## AC-4: Reminders are on unless turned off
+## AC-4: Reminders follow the choice, Default for a new event
 
-Skjera SHALL create a new event with **Remind attendees** ticked.
+The studio SHALL offer **Remind attendees** as **Default**, **On** or **Off**, and Skjera SHALL create a new event with **Default**.
 
 **Test**
 
 - **Given** the studio
 - **When** you click **New event** and look under **Emails**
-- **Then** **Remind attendees** is ticked, with the hint «Everyone signed up gets an email the day before.»
+- **Then** **Remind attendees** shows **Default**, with the hint «Default means on for events guests can sign up for, and off for the others. Everyone signed up gets an email the morning before.»
+- **When** you open the choices
+- **Then** they are **Default**, **On** and **Off**
+- **When** you choose **On** and reload the page
+- **Then** **On** is still chosen
 
 **Automated:** `packages/app/e2e/specs/attendance/emails.spec.ts`, `packages/documents/test/events/drafts.test.ts`, `packages/documents/test/events/content.test.ts`
 
-## AC-5: A reminder the day before
+## AC-5: Default reminds events open to guests
 
-WHERE an event reminds attendees, Skjera SHALL email each person signed up a reminder once, in the day before the event starts, unless they signed up within that day.
-
-The server looks for events to remind about at the start of every hour.
+WHILE **Remind attendees** is on **Default**, Skjera SHALL remind those signed up for an event guests can sign up for, and nobody signed up for one they can't.
 
 **Test**
 
-- **Given** «AC-5: Reminded», published, with bob signed up right away
-- **When** it is a few minutes past that full hour today
-- **Then** bob has one «Reminder: AC-5: Reminded» in Mailpit, saying «A reminder: you're signed up for …»
-- **When** a guest signs up then, and one more full hour has passed
-- **Then** the guest has no reminder, and bob still has only one
+- **Given** «AC-5: Standard, open to guests» and «AC-5: Standard, members only», published, each with bob signed up right away
+- **When** the 07:05 UTC run on the morning before the events has passed
+- **Then** bob has one «Reminder: AC-5: Standard, open to guests» in Mailpit, saying «A reminder: you're signed up for …»
+- **And** bob has no «Reminder: AC-5: Standard, members only»
+
+**Automated:** `packages/documents/test/events/content.test.ts`, `packages/documents/test/notices/changes.test.tsx`
+
+## AC-6: On always reminds, Off never does
+
+WHILE **Remind attendees** is on **On**, Skjera SHALL remind those signed up whether guests can sign up or not. WHILE it is on **Off**, Skjera SHALL send them no reminder.
+
+**Test**
+
+- **Given** «AC-6: On, members only» and «AC-6: Off, open to guests», published, each with bob signed up right away
+- **When** the 07:05 UTC run on the morning before the events has passed
+- **Then** bob has one «Reminder: AC-6: On, members only» in Mailpit
+- **And** bob has no «Reminder: AC-6: Off, open to guests»
+
+**Automated:** `packages/documents/test/events/content.test.ts`, `packages/documents/test/notices/changes.test.tsx`
+
+## AC-7: Reminders go out in the morning before
+
+WHEN it is 07:05 UTC, Skjera SHALL email each person signed up for an event starting the next calendar day in Norway a reminder, including those who signed up the same day, and once for each time the event starts.
+
+The server looks for events to remind about once a day, at 07:05 UTC. Someone who signs up after that morning's run is not reminded. Moving an event to another day reminds those signed up again the morning before the new day; moving it to another time on the same day does not.
+
+**Test**
+
+- **Given** «AC-5: Standard, open to guests», published, with bob signed up right away, and a guest who signs up in a private window the morning before the event, before the run
+- **When** the 07:05 UTC run on the morning before the event has passed
+- **Then** bob and the guest each have one «Reminder: AC-5: Standard, open to guests» in Mailpit
+- **When** the next day's run passes
+- **Then** neither has a second one
 
 **Automated:** `packages/documents/test/notices/changes.test.tsx`
-
-## AC-6: No reminder when turned off
-
-IF an organiser unticks **Remind attendees**, THEN Skjera SHALL send those signed up no reminder.
-
-**Test**
-
-- **Given** «AC-6: Not reminded», published, with bob signed up right away
-- **When** it is a few minutes past that full hour today
-- **Then** bob has no «Reminder: AC-6: Not reminded» in Mailpit
-
-**Automated:** `packages/documents/test/notices/changes.test.tsx`, `packages/documents/test/events/content.test.ts`

@@ -26,6 +26,18 @@ const RepeatEvery = Schema.Int.check(
 export const RepeatUnit = Schema.Literals(["day", "week", "month", "year"]);
 export type RepeatUnit = typeof RepeatUnit.Type;
 
+/** Whether those signed up are reminded: by guests, always or never. */
+export const ReminderChoice = Schema.Literals(["default", "on", "off"]);
+export type ReminderChoice = typeof ReminderChoice.Type;
+
+/** A draft's reminder choice, older drafts' true and false included. */
+export const reminderChoice = (value: unknown): ReminderChoice =>
+  value === undefined || value === true
+    ? "default"
+    : value === false
+      ? "off"
+      : (String(value) as ReminderChoice); // the studio holds an ImmutableString
+
 export const EventContent = Schema.Struct({
   title: Schema.String,
   /**
@@ -69,10 +81,12 @@ export const EventContent = Schema.Struct({
    */
   tags: Schema.Array(Tag),
   /**
-   * Everyone signed up is reminded by email the day before. Missing (in
-   * drafts from before there was a choice): on.
+   * Whether everyone signed up is reminded by email the morning before:
+   * "default" for events guests can sign up for, "on" or "off" for any
+   * event. An ImmutableString. Missing, or true, in drafts from before
+   * there was a choice: "default"; false: "off".
    */
-  reminders: Schema.optionalKey(Schema.Boolean),
+  reminders: Schema.optionalKey(Schema.Union([ReminderChoice, Schema.Boolean])),
   /**
    * Where it is, as written: "Kantina, 2. etasje". Missing in drafts from
    * before events had a place.
@@ -150,7 +164,6 @@ export const contentTypes = {
       foodDeadline: null,
       questions: [],
       tags: [],
-      reminders: true,
       place: "",
     } satisfies EventContent,
     toPublish: [

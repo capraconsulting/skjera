@@ -2,7 +2,7 @@
 import { Email, EmailRejected, retryTransient } from "@skjera/email";
 import { renderEmail } from "@skjera/email/react";
 import { m } from "@skjera/i18n/messages";
-import { Config, Cron, Effect, Layer, Option, Schema } from "effect";
+import { Clock, Config, Cron, Effect, Layer, Option, Schema } from "effect";
 import { ClusterCron, ClusterSchema, Entity } from "effect/cluster";
 import { Rpc } from "effect/rpc";
 import { SqlClient } from "effect/sql";
@@ -30,7 +30,7 @@ import {
 // leaves a message for the event's mailer (a cluster entity, one per event,
 // so its emails go out in order), kept in the database and deduplicated, so
 // each email is sent once it's committed, and once only. Reminders are sent
-// the same way, by an hourly job.
+// the same way, by a daily job.
 
 const Send = Rpc.make("Send", {
   payload: {
@@ -433,47 +433,58 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
     }),
   );
 
+/** Every day at 07:05 UTC; the zone is given, else `Cron` reads the process's. */
+export const reminderSchedule = Cron.parseUnsafe("5 7 * * *", "UTC");
+
+/** The calendar the "next day" is counted in. */
+const reminderTimeZone = "Europe/Oslo";
+
 /**
- * Reminds attendees of events starting within a day, hourly, through each
- * event's mailer: once for each time the event starts (so moving it reminds
- * them again), and not those who signed up within the day, as their
- * signup's email just told them.
+ * Reminds everyone signed up for events starting on the next calendar day
+ * in Norway, through each event's mailer: once for each time the event
+ * starts (so moving it to another day reminds them again).
  */
-export const sendReminders = Effect.gen(function* () {
-  const sql = yield* SqlClient.SqlClient;
-  const mailer = yield* EventMail.client;
-  const due = yield* sql<
-    Signup & { readonly event_id: string; readonly starts_at: Date }
-  >`
+export const sendReminders = (now: Date) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const mailer = yield* EventMail.client;
+    const due = yield* sql<
+      Signup & { readonly event_id: string; readonly starts_at: Date }
+    >`
       SELECT a.id, a.name, a.email, a.user_issuer IS NULL AS guest, a.locale,
         e.id AS event_id, e.starts_at
       FROM events e JOIN attendees a ON a.event_id = e.id
       WHERE e.send_reminders AND e.deleted_at IS NULL AND a.email IS NOT NULL
-        AND e.starts_at > now() AND e.starts_at <= now() + interval '1 day'
-        AND a.created_at < e.starts_at - interval '1 day'
+        AND e.starts_at >= ((${now}::timestamptz AT TIME ZONE ${reminderTimeZone})::date + 1)::timestamp
+          AT TIME ZONE ${reminderTimeZone}
+        AND e.starts_at < ((${now}::timestamptz AT TIME ZONE ${reminderTimeZone})::date + 2)::timestamp
+          AT TIME ZONE ${reminderTimeZone}
     `;
-  yield* Effect.forEach(
-    due,
-    ({ event_id, starts_at, ...signup }) =>
-      tell([signup], (attendee) =>
-        mailer(event_id)
-          .Send(
-            {
-              key: `reminder/${starts_at.getTime()}/${attendee.id}`,
-              kind: "reminder",
-              attendee,
-            },
-            { discard: true },
-          )
-          .pipe(Effect.orDie),
-      ),
-    { discard: true },
-  );
-}).pipe(Effect.orDie);
+    yield* Effect.forEach(
+      due,
+      ({ event_id, starts_at, ...signup }) =>
+        tell([signup], (attendee) =>
+          mailer(event_id)
+            .Send(
+              {
+                key: `reminder/${starts_at.getTime()}/${attendee.id}`,
+                kind: "reminder",
+                attendee,
+              },
+              { discard: true },
+            )
+            .pipe(Effect.orDie),
+        ),
+      { discard: true },
+    );
+  }).pipe(Effect.orDie);
 
-/** `sendReminders`, hourly, in one instance. */
+/** `sendReminders`, daily, in one instance. */
 export const reminders = ClusterCron.make({
+  // Kept: the run already queued is taken by the same entity.
   name: "event-reminders",
-  cron: Cron.parseUnsafe("0 * * * *"),
-  execute: sendReminders,
+  cron: reminderSchedule,
+  execute: Effect.flatMap(Clock.currentTimeMillis, (millis) =>
+    sendReminders(new Date(millis)),
+  ),
 });

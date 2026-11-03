@@ -2,7 +2,10 @@ import * as A from "@automerge/automerge";
 import { assert, layer } from "@effect/vitest";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
-import type { EventContent } from "../../src/events/ContentTypes.ts";
+import {
+  type EventContent,
+  reminderChoice,
+} from "../../src/events/ContentTypes.ts";
 import { Documents } from "../../src/events/Documents.ts";
 import type { DocumentId } from "../../src/Model.ts";
 import { Sync } from "../../src/server/Sync.ts";
@@ -20,34 +23,130 @@ import {
   TestLayer,
 } from "../helpers.ts";
 
+/** Sets the draft's `reminders` as the studio (or an older studio) did. */
+const setReminders = (value: unknown) => (event: EventContent) => {
+  const draft = event as Record<string, unknown>;
+  if (value === undefined) delete draft.reminders;
+  else draft.reminders = value;
+};
+
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Event content", (it) => {
-  it.effect("publishes whether attendees are reminded: yes, unless not", () =>
+  it.effect(
+    "publishes reminders by the choice: Standard follows the guests, On and Off do not",
+    () =>
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        const reminds = (id: DocumentId) =>
+          sql<{ send_reminders: boolean }>`
+            SELECT send_reminders FROM events WHERE id = ${id}
+          `.pipe(Effect.map(([row]) => row?.send_reminders));
+        for (const [choice, isPublic, guests, expected] of [
+          ["default", true, true, true],
+          ["default", true, false, false],
+          ["default", false, true, false],
+          ["default", false, false, false],
+          ["on", true, false, true],
+          ["on", true, true, true],
+          ["on", false, false, true],
+          ["off", true, true, false],
+          ["off", true, false, false],
+        ] as const) {
+          const id = yield* publishedEvent({
+            public: isPublic,
+            guests,
+            edit: setReminders(new A.ImmutableString(choice)),
+          });
+          assert.strictEqual(
+            yield* reminds(id),
+            expected,
+            `${choice}, public ${isPublic}, guests ${guests}`,
+          );
+        }
+        // A new draft has no choice, which is Standard.
+        const fresh = yield* publishedEvent({ public: true, guests: true });
+        assert.strictEqual(yield* reminds(fresh), true);
+        const freshMembers = yield* publishedEvent({
+          public: false,
+          guests: false,
+        });
+        assert.strictEqual(yield* reminds(freshMembers), false);
+      }),
+  );
+
+  it.effect(
+    "publishes drafts from before the choice: ticked is Standard, unticked is Off",
+    () =>
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        const reminds = (id: DocumentId) =>
+          sql<{ send_reminders: boolean }>`
+            SELECT send_reminders FROM events WHERE id = ${id}
+          `.pipe(Effect.map(([row]) => row?.send_reminders));
+        for (const [ticked, isPublic, guests, expected] of [
+          [true, true, true, true],
+          [true, true, false, false],
+          [false, true, true, false],
+          [undefined, true, true, true],
+        ] as const) {
+          const id = yield* publishedEvent({
+            public: isPublic,
+            guests,
+            edit: setReminders(ticked),
+          });
+          assert.strictEqual(
+            yield* reminds(id),
+            expected,
+            `reminders ${ticked}, public ${isPublic}, guests ${guests}`,
+          );
+        }
+      }),
+  );
+
+  it.effect("takes the three reminder choices and refuses any other", () =>
     Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient;
-      const reminds = (id: DocumentId) =>
-        sql<{ send_reminders: boolean }>`
-          SELECT send_reminders FROM events WHERE id = ${id}
-        `.pipe(Effect.map(([row]) => row?.send_reminders));
-      const fresh = yield* publishedEvent({ public: false, guests: false });
-      assert.strictEqual(yield* reminds(fresh), true);
-      const off = yield* publishedEvent({
-        public: false,
-        guests: false,
-        edit: (event) => {
-          (event as { reminders: boolean }).reminders = false;
-        },
-      });
-      assert.strictEqual(yield* reminds(off), false);
-      // Drafts from before there was a choice.
-      const older = yield* publishedEvent({
-        public: false,
-        guests: false,
-        edit: (event) => {
-          delete (event as { reminders?: boolean }).reminders;
-        },
-      });
-      assert.strictEqual(yield* reminds(older), true);
+      const documents = yield* Documents;
+      const id = yield* documents.create("event", yield* newTeam, alice);
+      for (const choice of ["default", "on", "off"] as const) {
+        const editor = yield* openEditor(id);
+        yield* documents.applyChanges(
+          id,
+          [editor.edit(setReminders(new A.ImmutableString(choice)))],
+          alice,
+        );
+        const snapshot = yield* documents.get(id);
+        assert.strictEqual(
+          reminderChoice(
+            (A.load(snapshot.draft) as { reminders?: unknown }).reminders,
+          ),
+          choice,
+        );
+      }
+      for (const choice of ["sometimes", "ON", ""]) {
+        const editor = yield* openEditor(id);
+        const error = yield* Effect.flip(
+          documents.applyChanges(
+            id,
+            [editor.edit(setReminders(new A.ImmutableString(choice)))],
+            alice,
+          ),
+        );
+        assert.strictEqual(error._tag, "InvalidContent", choice);
+      }
+    }),
+  );
+
+  it.effect("reads a draft's reminder choice, older ticks included", () =>
+    Effect.sync(() => {
+      assert.strictEqual(reminderChoice(undefined), "default");
+      assert.strictEqual(reminderChoice(true), "default");
+      assert.strictEqual(reminderChoice(false), "off");
+      for (const choice of ["default", "on", "off"] as const) {
+        assert.strictEqual(
+          reminderChoice(new A.ImmutableString(choice)),
+          choice,
+        );
+      }
     }),
   );
 

@@ -59,7 +59,6 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         foodDeadline: null,
         questions: [],
         tags: [],
-        reminders: true,
         place: "",
       });
       assert.deepStrictEqual(
@@ -113,7 +112,6 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
           foodDeadline: null,
           questions: [],
           tags: [],
-          reminders: true,
           place: "",
         });
         assert.deepStrictEqual(

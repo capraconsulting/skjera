@@ -12,6 +12,7 @@ import { CheckboxField, useBooleanField } from "../../editor/CheckboxField.tsx";
 import { CoverField } from "../../editor/CoverField.tsx";
 import { EventTimes, FoodDeadline } from "../../editor/DateTimeField.tsx";
 import { QuestionsField } from "../../editor/QuestionsField.tsx";
+import { ReminderField } from "../../editor/ReminderField.tsx";
 import { RepeatField } from "../../editor/RepeatField.tsx";
 import { TagsField } from "../../editor/TagsField.tsx";
 import { TextEditor } from "../../editor/text/TextEditor.tsx";
@@ -156,12 +157,7 @@ function EventSession({ id }: { readonly id: DocumentId }) {
           <AttendeeLimit handle={handle} />
         </Field>
         <Field label={m.studio_emails()}>
-          <CheckboxField
-            handle={handle}
-            field="reminders"
-            label={m.studio_remind()}
-            hint={m.studio_remind_hint()}
-          />
+          <ReminderField handle={handle} />
           <EmailTexts handle={handle} presence={session.presence} />
         </Field>
         <Field label={m.site_food()}>
