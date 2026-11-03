@@ -1,0 +1,12 @@
+# Search engines leave the event pages out. The services that show a
+# preview of a shared link may fetch them.
+User-agent: LinkedInBot
+User-agent: Slackbot-LinkExpanding
+User-agent: Slackbot
+User-agent: facebookexternalhit
+User-agent: SkypeUriPreview
+User-agent: MicrosoftPreview
+Allow: /
+
+User-agent: *
+Disallow: /events/

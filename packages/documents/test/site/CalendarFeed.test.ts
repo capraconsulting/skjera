@@ -76,9 +76,9 @@ const configured = (env: Record<string, string>) =>
   ConfigProvider.layer(ConfigProvider.fromUnknown(env));
 
 /**
- * Serves `/api/subscribe` as `main.ts` does beside the built app: the
- * route and the app's fallback, on the test database. `use` sends requests
- * to it, with a method and headers.
+ * Serves `/api/subscribe` beside the built app: the route, and a static
+ * layer that stands in for the app's `GET /*` route, on the test database.
+ * `use` sends requests to it, with a method and headers.
  */
 const withApi = <A, E, R>(
   env: Record<string, string>,

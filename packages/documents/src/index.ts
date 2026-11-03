@@ -39,6 +39,7 @@ export * as Database from "./server/Database.ts";
 export * from "./server/Sync.ts";
 export * as CalendarFeed from "./site/CalendarFeed.ts";
 export * as Embed from "./site/Embed.ts";
+export * as Manifest from "./site/Manifest.ts";
 export * as PublicEvents from "./site/PublicEvents.ts";
 export * as Sharing from "./site/Sharing.ts";
 export * from "./Teams.ts";

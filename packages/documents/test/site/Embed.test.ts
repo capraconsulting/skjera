@@ -160,8 +160,9 @@ const index =
   '<!doctype html>\n<html>\n<head>\n<title>Skjera</title>\n</head>\n<body><div id="root"></div></body>\n</html>\n';
 
 /**
- * Serves `/embed` as `main.ts` does beside the built app: the route and the
- * app's fallback, on the test database. `use` fetches pages from it.
+ * Serves `/embed` beside the built app: the route, and a static layer that
+ * stands in for the app's `GET /*` route, on the test database. `use`
+ * fetches pages from it.
  */
 const withPages = <A, E, R>(
   env: Record<string, string>,

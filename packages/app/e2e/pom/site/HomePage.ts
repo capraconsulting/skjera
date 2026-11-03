@@ -54,6 +54,13 @@ export class HomePage {
     await expect(this.page).toHaveTitle(title);
   }
 
+  /** The meta description of the page's head, as search results show it. */
+  async expectDescription(content: string): Promise<void> {
+    await expect(
+      this.page.locator('head meta[name="description"]'),
+    ).toHaveAttribute("content", content);
+  }
+
   async expectUpcomingHeading(): Promise<void> {
     await expect(
       this.page.getByRole("heading", { name: "Upcoming events" }),

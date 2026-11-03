@@ -5,10 +5,11 @@ import {
 } from "@effect/platform-node";
 import { assert, layer } from "@effect/vitest";
 import { Identity } from "@skjera/oauth/api";
-import { Effect, FileSystem, Layer, Option } from "effect";
-import { HttpRouter, HttpStaticServer } from "effect/http";
+import { ConfigProvider, Effect, FileSystem, Layer, Option } from "effect";
+import { HttpRouter } from "effect/http";
 import { SqlClient } from "effect/sql";
 import { Documents } from "../../src/events/Documents.ts";
+import { Images } from "../../src/events/Images.ts";
 import type { Cover, DocumentId } from "../../src/Model.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
 import { Notifications } from "../../src/notices/Notifications.ts";
@@ -31,6 +32,13 @@ const TestLayer = Layer.mergeAll(Teams.layer, Documents.layer).pipe(
 const siteUrl = process.env.SITE_URL ?? "";
 const siteName = process.env.SITE_NAME ?? "Skjera";
 const site = { name: "Skjera Test", url: "https://skjera.test" };
+const fullSite = {
+  ...site,
+  description: "Skjer | Capra Liflig",
+  twitter: "@capraconsulting",
+  author: "Capra Consulting",
+  publisher: "Capra Publishing",
+};
 
 const cover: Cover = {
   src: "/api/images/AAAAAAAAAAAAAAAAAAAAAA",
@@ -78,6 +86,25 @@ const metaOf = (html: string) =>
     ].map((match) => [match[1] ?? "", match[2] ?? ""]),
   );
 
+/** The link tags of a page's head: rel to href. */
+const linksOf = (html: string) =>
+  new Map(
+    [...html.matchAll(/<link\s+rel="([^"]*)"\s+href="([^"]*)"\s*\/?>/g)].map(
+      (match) => [match[1] ?? "", match[2] ?? ""],
+    ),
+  );
+
+/** An image with a PNG's signature and header, so it is stored and its size is read. */
+const pngOf = (width: number, height: number) => {
+  const bytes = new Uint8Array(33);
+  bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 0);
+  bytes.set([0x49, 0x48, 0x44, 0x52], 12);
+  const view = new DataView(bytes.buffer);
+  view.setUint32(16, width);
+  view.setUint32(20, height);
+  return bytes;
+};
+
 /** Text as a browser reads it from an attribute. */
 const readEscaped = (text: string) =>
   text
@@ -91,40 +118,56 @@ const readEscaped = (text: string) =>
 const index =
   '<!doctype html>\n<html>\n<head>\n<title>Skjera</title>\n</head>\n<body><div id="root"></div></body>\n</html>\n';
 
+const appScript = "console.log('the app');\n";
+
 /**
- * Serves `index` as `main.ts` does beside the built app: the event route and
- * the app's fallback, on the test database. `use` fetches pages from it.
+ * Serves the built app in a temporary directory (`index`, and `app.js` beside
+ * it) through `Sharing.layerHttp({ root })`, on the test database, with the
+ * object storage for covers. `settings` are laid over the environment, where a
+ * blank value means not set. `use` fetches pages from it; a request asks for
+ * HTML unless it says otherwise.
  */
 const withPages = <A, E, R>(
+  settings: Record<string, string>,
   use: (
-    page: (path: string) => Effect.Effect<Response>,
+    page: (
+      path: string,
+      headers?: Record<string, string>,
+    ) => Effect.Effect<Response>,
   ) => Effect.Effect<A, E, R>,
 ) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const root = yield* fs.makeTempDirectoryScoped();
     yield* fs.writeFileString(`${root}/index.html`, index);
+    yield* fs.writeFileString(`${root}/app.js`, appScript);
     const sql = yield* SqlClient.SqlClient;
-    const app = Layer.mergeAll(
-      Sharing.layerHttp({ index: `${root}/index.html` }),
-      HttpStaticServer.layer({
-        root,
-        spa: true,
-        cacheControl: "no-cache",
-      }),
-    ).pipe(
+    const app = Sharing.layerHttp({ root }).pipe(
       Layer.provide(Layer.succeed(SqlClient.SqlClient, sql)),
+      Layer.provide(
+        // The environment with the settings over it: a blank one is not set.
+        ConfigProvider.layer(
+          ConfigProvider.fromUnknown({ ...process.env, ...settings }),
+        ),
+      ),
       Layer.provide(NodeServices.layer),
       Layer.provide(NodeHttpPlatform.layer),
+      // Outside the override, so the S3 settings still reach it.
+      Layer.provide(Images.layer),
     );
     const { handler, dispose } = HttpRouter.toWebHandler(app, {
       disableLogger: true,
     });
     yield* Effect.addFinalizer(() => Effect.promise(dispose));
-    return yield* use((path) =>
-      Effect.promise(() => handler(new Request(`http://localhost${path}`))),
+    return yield* use((path, headers = { accept: "text/html" }) =>
+      Effect.promise(() =>
+        handler(new Request(`http://localhost${path}`, { headers })),
+      ),
     );
   }).pipe(Effect.provide(NodeFileSystem.layer), Effect.scoped);
+
+/** The page's head without the tags the server put in it. */
+const asBuilt = (html: string) => html.replace(/<(?:meta|link) [^>]*>\n?/g, "");
 
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Sharing", (it) => {
@@ -265,6 +308,24 @@ layer(TestLayer, { excludeTestServices: true })("Sharing", (it) => {
     }),
   );
 
+  it.effect("adds the site's description when there is no event (AC-6)", () =>
+    Effect.sync(() => {
+      const meta = metaOf(
+        Sharing.sharingTags({ site: fullSite, event: Option.none() }),
+      );
+      assert.deepStrictEqual(Object.fromEntries(meta), {
+        "og:site_name": "Skjera Test",
+        "og:title": "Skjera Test",
+        description: "Skjer | Capra Liflig",
+      });
+      assert.strictEqual(
+        metaOf(Sharing.siteTags(fullSite)).get("description"),
+        "Skjer | Capra Liflig",
+      );
+      assert.strictEqual(Sharing.siteTags(site), "");
+    }),
+  );
+
   it.effect(
     "puts the tags right before the end of the head, changing nothing else",
     () =>
@@ -280,14 +341,14 @@ layer(TestLayer, { excludeTestServices: true })("Sharing", (it) => {
       }),
   );
 
-  it.effect("answers an event's page with its tags", () =>
+  it.effect("answers an event's page with its tags (AC-3)", () =>
     Effect.gen(function* () {
       const id = yield* publishedEvent({
         title: "Launch",
         summary: "Coffee and a talk.",
         cover,
       });
-      yield* withPages((page) =>
+      yield* withPages({}, (page) =>
         Effect.gen(function* () {
           const response = yield* page(`/events/${id}`);
           assert.strictEqual(response.status, 200);
@@ -312,7 +373,11 @@ layer(TestLayer, { excludeTestServices: true })("Sharing", (it) => {
           // The built page, with the tags before the end of its head.
           const head = html.indexOf("</head>");
           assert.isAbove(head, 0);
-          assert.strictEqual(html.replace(/<meta [^>]*>\n?/g, ""), index);
+          assert.strictEqual(asBuilt(html), index);
+          assert.strictEqual(
+            linksOf(html).get("canonical"),
+            new URL(`/events/${id}`, siteUrl).href,
+          );
         }),
       );
     }),
@@ -323,7 +388,7 @@ layer(TestLayer, { excludeTestServices: true })("Sharing", (it) => {
     () =>
       Effect.gen(function* () {
         const deleted = yield* publishedEvent({ title: "Gone", deleted: true });
-        yield* withPages((page) =>
+        yield* withPages({}, (page) =>
           Effect.gen(function* () {
             for (const id of [deleted, crypto.randomUUID(), "not-a-uuid"]) {
               const response = yield* page(`/events/${id}`);
@@ -337,18 +402,292 @@ layer(TestLayer, { excludeTestServices: true })("Sharing", (it) => {
       }),
   );
 
-  it.effect("leaves the app's other pages to its fallback", () =>
-    Effect.gen(function* () {
-      yield* withPages((page) =>
-        Effect.gen(function* () {
-          const response = yield* page("/");
-          assert.strictEqual(response.status, 200);
-          assert.strictEqual(
-            yield* Effect.promise(() => response.text()),
-            index,
-          );
-        }),
-      );
-    }),
+  it.effect(
+    "gives the canonical address, the cover's size and when it was first published (AC-3, AC-5)",
+    () =>
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        const id = yield* publishedEvent({ summary: "Coffee.", cover });
+        const event = yield* Sharing.sharedEvent(id);
+        const tags = Sharing.sharingTags({
+          site,
+          event,
+          coverSize: { width: 1600, height: 900 },
+        });
+        const meta = metaOf(tags);
+        assert.strictEqual(
+          linksOf(tags).get("canonical"),
+          `https://skjera.test/events/${id}`,
+        );
+        assert.strictEqual(linksOf(tags).get("canonical"), meta.get("og:url"));
+        assert.strictEqual(meta.get("og:image:width"), "1600");
+        assert.strictEqual(meta.get("og:image:height"), "900");
+        const [row] = yield* sql<{ readonly first_published_at: Date }>`
+          SELECT first_published_at FROM events WHERE id = ${id}
+        `;
+        assert.strictEqual(
+          meta.get("article:published_time"),
+          row?.first_published_at.toISOString(),
+        );
+      }).pipe(Effect.orDie),
+  );
+
+  it.effect(
+    "leaves out the canonical address without SITE_URL, and the size without a cover or a size read (AC-3, AC-5)",
+    () =>
+      Effect.gen(function* () {
+        const withCover = yield* Sharing.sharedEvent(
+          yield* publishedEvent({ cover }),
+        );
+        const without = yield* Sharing.sharedEvent(yield* publishedEvent());
+        const noUrl = Sharing.sharingTags({
+          site: { name: "Skjera Test" },
+          event: withCover,
+          coverSize: { width: 1, height: 1 },
+        });
+        assert.isFalse(linksOf(noUrl).has("canonical"));
+        const noSize = metaOf(Sharing.sharingTags({ site, event: withCover }));
+        const noCover = metaOf(
+          Sharing.sharingTags({
+            site,
+            event: without,
+            coverSize: { width: 1, height: 1 },
+          }),
+        );
+        for (const meta of [noSize, noCover]) {
+          assert.isFalse(meta.has("og:image:width"));
+          assert.isFalse(meta.has("og:image:height"));
+        }
+        assert.isTrue(noSize.has("article:published_time"));
+      }),
+  );
+
+  it.effect(
+    "gives the Twitter handle, author and publisher the site has, and only those (AC-4)",
+    () =>
+      Effect.gen(function* () {
+        const event = yield* Sharing.sharedEvent(yield* publishedEvent());
+        const all = metaOf(Sharing.sharingTags({ site: fullSite, event }));
+        assert.strictEqual(all.get("twitter:site"), "@capraconsulting");
+        assert.strictEqual(all.get("author"), "Capra Consulting");
+        assert.strictEqual(all.get("publisher"), "Capra Publishing");
+
+        const none = metaOf(Sharing.sharingTags({ site, event }));
+        for (const key of ["twitter:site", "author", "publisher"]) {
+          assert.isFalse(none.has(key), key);
+        }
+        const onlyAuthor = metaOf(
+          Sharing.sharingTags({ site: { ...site, author: "Ada" }, event }),
+        );
+        assert.strictEqual(onlyAuthor.get("author"), "Ada");
+        assert.isFalse(onlyAuthor.has("twitter:site"));
+        assert.isFalse(onlyAuthor.has("publisher"));
+
+        const nasty = `<b>"Ada" & co</b>`;
+        const tags = Sharing.sharingTags({
+          site: { ...site, author: nasty },
+          event,
+        });
+        assert.notInclude(tags, "<b>");
+        assert.strictEqual(
+          readEscaped(metaOf(tags).get("author") ?? ""),
+          nasty,
+        );
+      }),
+  );
+
+  it.effect(
+    "gives the site's description to an event without a summary, and never two descriptions (AC-6)",
+    () =>
+      Effect.gen(function* () {
+        const bare = yield* Sharing.sharedEvent(yield* publishedEvent());
+        const bareTags = Sharing.sharingTags({ site: fullSite, event: bare });
+        assert.strictEqual(
+          metaOf(bareTags).get("description"),
+          "Skjer | Capra Liflig",
+        );
+        assert.isFalse(metaOf(bareTags).has("og:description"));
+
+        const told = yield* Sharing.sharedEvent(
+          yield* publishedEvent({ summary: "Coffee and a talk." }),
+        );
+        const toldTags = Sharing.sharingTags({ site: fullSite, event: told });
+        assert.strictEqual(
+          metaOf(toldTags).get("description"),
+          "Coffee and a talk.",
+        );
+        for (const tags of [bareTags, toldTags]) {
+          assert.strictEqual(tags.match(/name="description"/g)?.length, 1);
+        }
+      }),
+  );
+
+  it.effect(
+    "answers the Twitter handle, author and publisher from the settings (AC-4)",
+    () =>
+      Effect.gen(function* () {
+        const id = yield* publishedEvent({ summary: "Coffee." });
+        yield* withPages(
+          {
+            SITE_TWITTER: "@handle",
+            SITE_AUTHOR: "An Author",
+            SITE_PUBLISHER: "A Publisher",
+          },
+          (page) =>
+            Effect.gen(function* () {
+              const response = yield* page(`/events/${id}`);
+              const meta = metaOf(yield* Effect.promise(() => response.text()));
+              assert.strictEqual(meta.get("twitter:site"), "@handle");
+              assert.strictEqual(meta.get("author"), "An Author");
+              assert.strictEqual(meta.get("publisher"), "A Publisher");
+            }),
+        );
+        yield* withPages(
+          { SITE_TWITTER: "", SITE_AUTHOR: " ", SITE_PUBLISHER: "" },
+          (page) =>
+            Effect.gen(function* () {
+              const response = yield* page(`/events/${id}`);
+              const meta = metaOf(yield* Effect.promise(() => response.text()));
+              for (const key of ["twitter:site", "author", "publisher"]) {
+                assert.isFalse(meta.has(key), key);
+              }
+            }),
+        );
+      }),
+  );
+
+  it.effect(
+    "answers with the cover's own size, and without one when it cannot be read (AC-5)",
+    () =>
+      Effect.gen(function* () {
+        const images = yield* Images;
+        const readable = yield* images.upload(pngOf(1600, 900));
+        // Stored as a PNG, but its header ends before the size.
+        const unreadable = yield* images.upload(pngOf(1, 1).subarray(0, 12));
+        const shown = yield* publishedEvent({
+          cover: { src: readable.url, alt: "" },
+        });
+        const cut = yield* publishedEvent({
+          cover: { src: unreadable.url, alt: "" },
+        });
+        const missing = yield* publishedEvent({ cover });
+        yield* withPages({}, (page) =>
+          Effect.gen(function* () {
+            const read = (id: string) =>
+              Effect.gen(function* () {
+                const response = yield* page(`/events/${id}`);
+                assert.strictEqual(response.status, 200);
+                return metaOf(yield* Effect.promise(() => response.text()));
+              });
+            const meta = yield* read(shown);
+            assert.strictEqual(meta.get("og:image:width"), "1600");
+            assert.strictEqual(meta.get("og:image:height"), "900");
+            // Fetched again: the size is the same.
+            assert.strictEqual(
+              (yield* read(shown)).get("og:image:width"),
+              "1600",
+            );
+            for (const id of [cut, missing]) {
+              const other = yield* read(id);
+              assert.isTrue(other.has("og:image"), id);
+              assert.isFalse(other.has("og:image:width"), id);
+              assert.isFalse(other.has("og:image:height"), id);
+            }
+          }),
+        );
+      }).pipe(Effect.provide(Images.layer)),
+  );
+
+  it.effect(
+    "answers the app's pages with the site's description, and its files as they are (AC-6)",
+    () =>
+      Effect.gen(function* () {
+        yield* withPages({ SITE_DESCRIPTION: "Skjer | Capra Liflig" }, (page) =>
+          Effect.gen(function* () {
+            for (const path of ["/", "/privacy"]) {
+              const response = yield* page(path);
+              assert.strictEqual(response.status, 200, path);
+              assert.include(
+                response.headers.get("content-type") ?? "",
+                "text/html",
+              );
+              assert.strictEqual(
+                response.headers.get("cache-control"),
+                "no-cache",
+              );
+              const html = yield* Effect.promise(() => response.text());
+              assert.strictEqual(
+                metaOf(html).get("description"),
+                "Skjer | Capra Liflig",
+                path,
+              );
+              assert.strictEqual(asBuilt(html), index, path);
+            }
+            const file = yield* page("/app.js");
+            assert.strictEqual(file.status, 200);
+            assert.strictEqual(
+              yield* Effect.promise(() => file.text()),
+              appScript,
+            );
+            assert.strictEqual((yield* page("/missing.js")).status, 404);
+            const asked = yield* page("/privacy", {
+              accept: "application/json",
+            });
+            assert.strictEqual(asked.status, 404);
+          }),
+        );
+      }),
+  );
+
+  it.effect(
+    "gives an unknown event's page and an event's page without a summary the site's description (AC-6)",
+    () =>
+      Effect.gen(function* () {
+        const deleted = yield* publishedEvent({ deleted: true });
+        const bare = yield* publishedEvent();
+        const told = yield* publishedEvent({ summary: "Coffee and a talk." });
+        yield* withPages({ SITE_DESCRIPTION: "Skjer | Capra Liflig" }, (page) =>
+          Effect.gen(function* () {
+            const descriptionOf = (id: string) =>
+              Effect.gen(function* () {
+                const response = yield* page(`/events/${id}`);
+                const html = yield* Effect.promise(() => response.text());
+                assert.strictEqual(
+                  html.match(/name="description"/g)?.length,
+                  1,
+                );
+                return metaOf(html).get("description");
+              });
+            for (const id of [deleted, bare, crypto.randomUUID()]) {
+              assert.strictEqual(
+                yield* descriptionOf(id),
+                "Skjer | Capra Liflig",
+                id,
+              );
+            }
+            assert.strictEqual(
+              yield* descriptionOf(told),
+              "Coffee and a talk.",
+            );
+          }),
+        );
+      }),
+  );
+
+  it.effect(
+    "answers the app's pages as built without SITE_DESCRIPTION (AC-6)",
+    () =>
+      Effect.gen(function* () {
+        yield* withPages({ SITE_DESCRIPTION: "" }, (page) =>
+          Effect.gen(function* () {
+            const response = yield* page("/");
+            assert.strictEqual(response.status, 200);
+            assert.strictEqual(
+              yield* Effect.promise(() => response.text()),
+              index,
+            );
+          }),
+        );
+      }),
   );
 });

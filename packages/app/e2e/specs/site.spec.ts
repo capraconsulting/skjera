@@ -601,7 +601,7 @@ test("a team's new logo shows on the open list without reloading", async ({
   await cleanUp(alice, team, event.id);
 });
 
-test("a link to a public event shows its title, summary and cover; others the site's name", async ({
+test("a link to a public event shows its title, summary and cover; others the site's name (AC-3, AC-6)", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -625,6 +625,11 @@ test("a link to a public event shows its title, summary and cover; others the si
   await page.expectSharingTag("og:image", new RegExp(`${cover}$`));
   await page.expectSharingTag("og:image:alt", "A full room");
   await page.expectSharingTag("twitter:card", "summary_large_image");
+  await page.expectCanonical(new RegExp(`/events/${shown.id}$`));
+
+  // The front page has the site's description.
+  await new HomePage(reader).goto();
+  await new HomePage(reader).expectDescription("Skjer | Capra Liflig");
 
   // No such event: the site's name only.
   await page.goto(crypto.randomUUID());

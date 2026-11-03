@@ -79,6 +79,12 @@ SITE_FOOTER = """
   "text": "{year} © Capra | Torggata 2-4, 0180 Oslo | post@capraconsulting.no"
 }
 """
+# What search engines and shared links are told: the site's description, and
+# the Twitter handle, author and publisher of an event's page.
+SITE_DESCRIPTION = "Skjer | Capra Liflig"
+SITE_TWITTER = "@capraconsulting"
+SITE_AUTHOR = "Capra Consulting"
+SITE_PUBLISHER = "Capra Consulting"
 # For the privacy page: who answers for the data kept, and how to reach them.
 SITE_OPERATOR = "Skjera"
 SITE_OPERATOR_ORG_NUMBER = "123 456 789"
