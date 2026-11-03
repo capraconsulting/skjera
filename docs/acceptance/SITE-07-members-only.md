@@ -23,13 +23,13 @@ WHILE no one is logged in, the site SHALL NOT list a members-only event on the f
 
 ## AC-2: Shown to members, marked as such
 
-WHILE a member is logged in, the site SHALL list members-only events with the others, and their pages SHALL say «Members only».
+WHILE a member is logged in, the site SHALL list members-only events with the others, and their pages SHALL say «Kun for interne», and the front page SHALL mark them «Kun interne»; Nynorsk and English have words of their own.
 
 **Test**
 
 - **Given** «AC-1: Members only»
 - **When** bob opens the front page, and clicks the event
-- **Then** it is listed, marked «Members only», and its page opens, saying «Members only»
+- **Then** it is listed, marked «Internal only», and its page opens, saying «Internal only»
 
 **Automated:** `packages/app/e2e/specs/attendance/members.spec.ts`
 
@@ -55,7 +55,7 @@ WHEN someone not logged in opens the address of a published members-only event, 
 
 - **Given** «AC-1: Members only»
 - **When** you open the event's address in a private window
-- **Then** the page shows its title, time, place, text and image, and says «Members only»; in place of a sign-up form it says «You need to log in to sign up for this event» with a **Log in** button, and no names of those signed up
+- **Then** the page shows its title, time, place, text and image, and says «Internal only»; in place of a sign-up form it says «You need to log in to sign up for this event» with a **Log in** button, and no names of those signed up
 - **When** you click **All events**
 - **Then** the event isn't listed
 - **When** you open the event's address again, click **Log in**, and log in as bob

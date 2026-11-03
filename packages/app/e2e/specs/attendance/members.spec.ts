@@ -36,7 +36,7 @@ test("a members-only event opens from its link for visitors, asking them to log 
   await page.expectText("Kantina");
   await page.expectText(text);
   await page.expectCover("A full room", cover);
-  await page.expectMembersOnly();
+  await page.expectInternalOnly();
   const attendance = new Attendance(anonymous);
   await attendance.expectText("You need to log in to sign up for this event");
   await attendance.expectLogInButton();

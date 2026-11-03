@@ -29,6 +29,7 @@ import {
 import { Organizer } from "../../components/Organizer.tsx";
 import { RichText } from "../../components/RichText.tsx";
 import { usePageTitle } from "../../pageTitle.ts";
+import { audience } from "../../site/audience.ts";
 import { runPublic } from "../../site/client.ts";
 import {
   rememberGuestSignup,
@@ -232,8 +233,8 @@ export function EventPage() {
             </li>
           )}
           <li>
-            {event.isPublic ? <Globe {...icon} /> : <Lock {...icon} />}
-            {event.isPublic ? m.site_open_to_all() : m.common_members_only()}
+            {event.allowGuests ? <Globe {...icon} /> : <Lock {...icon} />}
+            {audience(event).page}
           </li>
         </ul>
         {event.cover === null ? null : (

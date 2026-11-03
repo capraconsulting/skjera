@@ -2,7 +2,7 @@
 
 The front page lists the events coming up as rows, with what to know at a glance, and the events that are over as cards with their pictures.
 
-**Events:** public unless said otherwise:
+**Events:** public, and not open to guests, unless said otherwise:
 
 - «AC-1: Coming», tomorrow, and «AC-1: Later», a week later.
 - «AC-3: Members only», members-only, coming up.
@@ -39,15 +39,15 @@ The front page SHALL list upcoming events the soonest first, and past events the
 
 ## AC-3: Who it's for, on each row
 
-The front page SHALL mark each upcoming event «Open to all» or «Members only», and show its tags.
+WHILE guests can sign up for an event, the front page SHALL mark it «For alle» and its page SHALL say «Åpent for alle»; WHILE they can't, the front page SHALL mark it «Kun interne» and its page SHALL say «Kun for interne», whether the event is shown to everyone or only to members. Nynorsk and English have words of their own. The front page SHALL also show each upcoming event's tags.
 
 **Test**
 
 - **Given** the events
 - **When** bob opens the front page
-- **Then** the public events say «Open to all», «AC-3: Members only» says «Members only», and «AC-4: Today» shows «#Workshop»
+- **Then** «AC-6: Signed up» says «Open to all» on its row and on its page, «AC-1: Coming» and «AC-3: Members only» say «Internal only» on theirs, and «AC-4: Today» shows «#Workshop»
 
-**Automated:** `packages/app/test/frontPage.test.ts`
+**Automated:** `packages/app/test/frontPage.test.ts`, `packages/app/test/audience.test.ts`, `packages/app/e2e/specs/attendance/members.spec.ts`
 
 ## AC-4: The day, or today's time
 

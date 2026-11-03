@@ -1,6 +1,7 @@
 import type { EventRow } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { formatClockIn, formatDayIn, sameDayIn } from "../time.ts";
+import { audience } from "./audience.ts";
 
 /** Events coming up or going on, soonest first; those over, latest first. */
 export const upcomingAndPast = <
@@ -24,12 +25,12 @@ export const upcomingAndPast = <
 export const rowMarks = (
   event: Pick<
     EventRow,
-    "startsAt" | "endsAt" | "timeZone" | "isPublic" | "tags"
+    "startsAt" | "endsAt" | "timeZone" | "allowGuests" | "tags"
   >,
   now: Date,
 ): {
   readonly happeningNow: boolean;
-  /** «Open to all» or «Members only». */
+  /** «Open to all» or «Internal only». */
   readonly audience: string;
   /** "#Workshop", … */
   readonly tags: ReadonlyArray<string>;
@@ -37,7 +38,7 @@ export const rowMarks = (
   readonly when: string;
 } => ({
   happeningNow: event.startsAt <= now && now < event.endsAt,
-  audience: event.isPublic ? m.site_open_to_all() : m.common_members_only(),
+  audience: audience(event).badge,
   tags: event.tags.map((tag) => `#${tag}`),
   when: sameDayIn(event.startsAt, now, event.timeZone)
     ? m.site_today_at({ time: formatClockIn(event.startsAt, event.timeZone) })

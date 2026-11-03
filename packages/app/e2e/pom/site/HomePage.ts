@@ -23,12 +23,11 @@ export class HomePage {
     this.list(list).getByRole("link", { name: title });
   private readonly tagFilters = () =>
     this.page.getByRole("navigation", { name: "Filter by tag" });
-  // "Open to guests" is part of "Not open to guests": match whole names.
   private readonly guestFilter = (which: "open" | "not open") =>
     this.page
       .getByRole("navigation", { name: "Filter by who can sign up" })
       .getByRole("button", {
-        name: which === "open" ? "Open to guests" : "Not open to guests",
+        name: which === "open" ? "Open to all" : "Internal only",
         exact: true,
       });
 

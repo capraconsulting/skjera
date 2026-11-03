@@ -1,18 +1,18 @@
 # SITE-04: Filter on who can sign up
 
-The front page filters events open to guests from those that aren't.
+The front page filters the events guests can sign up for, «Åpent for alle», from the others, «Kun interne».
 
 **Events:** public events, some open to guests and some not, and at least one with a tag.
 
 ## AC-1: Two filters
 
-The front page SHALL offer two filters: one for events open to guests and one for events that are not.
+The front page SHALL offer two filters: «Åpent for alle» for events guests can sign up for and «Kun interne» for events they can't; Nynorsk and English have words of their own.
 
 **Test**
 
 - **Given** the events
 - **When** you open the front page
-- **Then** «Filter by who can sign up» has «Open to guests» and «Not open to guests»
+- **Then** «Filter by who can sign up» has «Open to all» and «Internal only»
 
 **Automated:** `packages/app/e2e/specs/tags.spec.ts`
 
@@ -23,7 +23,7 @@ WHEN one of the two filters is chosen, the front page SHALL show only the events
 **Test**
 
 - **Given** the front page
-- **When** you choose «Open to guests»
+- **When** you choose «Open to all»
 - **Then** only events open to guests show, in the upcoming and the past events alike
 
 **Automated:** `packages/app/e2e/specs/tags.spec.ts`
@@ -34,10 +34,10 @@ WHEN the chosen filter is chosen again, or the other one is chosen, the front pa
 
 **Test**
 
-- **Given** «Open to guests» chosen
-- **When** you choose «Not open to guests»
+- **Given** «Open to all» chosen
+- **When** you choose «Internal only»
 - **Then** it replaces the first
-- **When** you choose «Not open to guests» again
+- **When** you choose «Internal only» again
 - **Then** no filter is chosen, and all events show
 
 **Automated:** `packages/app/e2e/specs/tags.spec.ts`

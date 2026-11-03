@@ -74,8 +74,8 @@ export class EventPage {
     await expect(this.page.locator("body")).not.toContainText(text);
   }
 
-  async expectMembersOnly(): Promise<void> {
-    await expect(this.article().getByText("Members only")).toBeVisible();
+  async expectInternalOnly(): Promise<void> {
+    await expect(this.article().getByText("Internal only")).toBeVisible();
   }
 
   async expectStreamLink(link: string): Promise<void> {

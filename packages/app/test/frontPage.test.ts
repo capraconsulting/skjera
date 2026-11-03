@@ -1,6 +1,7 @@
 import type { EventRow } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
-import { describe, expect, it } from "vitest";
+import { baseLocale, overwriteGetLocale } from "@skjera/i18n/runtime";
+import { afterEach, describe, expect, it } from "vitest";
 import { rowMarks, upcomingAndPast } from "../src/site/frontPage.ts";
 
 const hour = 3_600_000;
@@ -18,14 +19,14 @@ const names = (events: ReadonlyArray<{ readonly name: string }>) =>
 
 type Marked = Pick<
   EventRow,
-  "startsAt" | "endsAt" | "timeZone" | "isPublic" | "tags"
+  "startsAt" | "endsAt" | "timeZone" | "allowGuests" | "tags"
 >;
 
 const marked = (overrides: Partial<Marked> = {}): Marked => ({
   startsAt: new Date(now.getTime() + day),
   endsAt: new Date(now.getTime() + day + 2 * hour),
   timeZone: "Europe/Oslo",
-  isPublic: true,
+  allowGuests: true,
   tags: [],
   ...overrides,
 });
@@ -63,14 +64,23 @@ describe("upcomingAndPast", () => {
 });
 
 describe("rowMarks", () => {
-  it("marks who the event is for, and shows its tags (AC-5)", () => {
-    const open = rowMarks(marked({ isPublic: true, tags: ["Workshop"] }), now);
-    expect(open.audience).toBe(m.site_open_to_all());
-    expect(open.tags).toEqual(["#Workshop"]);
+  afterEach(() => {
+    overwriteGetLocale(() => baseLocale);
+  });
 
-    const members = rowMarks(marked({ isPublic: false, tags: [] }), now);
-    expect(members.audience).toBe(m.common_members_only());
-    expect(members.tags).toEqual([]);
+  it("marks an event guests can't sign up for with the badge's words, and shows its tags (AC-2)", () => {
+    // Bokmål, where the row's badge and the event page's line use different words.
+    overwriteGetLocale(() => "nb");
+    const internal = rowMarks(
+      marked({ allowGuests: false, tags: ["Workshop"] }),
+      now,
+    );
+    expect(internal.audience).toBe(
+      m.site_badge_internal_only({}, { locale: "nb" }),
+    );
+    expect(internal.tags).toEqual(["#Workshop"]);
+
+    expect(rowMarks(marked({ tags: [] }), now).tags).toEqual([]);
   });
 
   it("shows the day in the event's own time zone (AC-6)", () => {

@@ -41,7 +41,7 @@ WHILE an event is not public, Skjera SHALL show it to anyone logged in, marked a
 
 - **Given** «AC-2 and AC-3: Members only», published
 - **When** bob opens the front page and the event
-- **Then** it is listed, and both say «Members only»; a public event says «Open to all»
+- **Then** it is listed, and both say «Internal only»; «AC-4 and AC-5: Open to guests» says «Open to all», and «AC-5: Public, no guests» says «Internal only»
 
 **Automated:** `packages/app/e2e/specs/attendance/members.spec.ts`, `packages/documents/test/attendance/signups.test.ts`, `packages/documents/test/server/Sync.test.ts`
 
