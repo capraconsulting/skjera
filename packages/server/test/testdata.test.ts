@@ -686,29 +686,30 @@ describe("catalogue(now)", () => {
   });
 
   it("starts the events of a few minutes soon, and sets past and present ones right (AC-3)", () => {
-    const find = (now: Temporal.ZonedDateTime, prefix: string, title: string) =>
-      catalogue(now)
-        .find((team) => team.name.startsWith(prefix))
-        ?.events.find((event) => event.title === title);
     for (const now of nows) {
+      const teams = catalogue(now);
+      const find = (prefix: string, title: string) =>
+        teams
+          .find((team) => team.name.startsWith(prefix))
+          ?.events.find((event) => event.title === title);
       for (const [prefix, title] of [
         ["SIGN-11:", "AC-8: Ended"],
         ["MAIL-04:", "AC-4: Over"],
         ["STU-19:", "AC-6: Ended"],
         ["STU-20:", "AC-8: Ended"],
       ] as const) {
-        const start = find(now, prefix, title)?.start;
+        const start = find(prefix, title)?.start;
         expect(start, `${title} at ${now}`).toBeDefined();
         if (start === undefined) continue;
         expect(minutes(now, start)).toBeGreaterThan(0);
         expect(minutes(now, start)).toBeLessThanOrEqual(15);
       }
       for (let n = 1; n <= 7; n++) {
-        const end = find(now, "SITE-02:", `AC-7: Past ${n}`)?.end;
+        const end = find("SITE-02:", `AC-7: Past ${n}`)?.end;
         expect(end).toBeDefined();
         if (end !== undefined) expect(minutes(now, end)).toBeLessThan(0);
       }
-      const going = find(now, "SITE-02:", "AC-5: Going on now");
+      const going = find("SITE-02:", "AC-5: Going on now");
       if (going?.start === undefined || going.end === undefined)
         throw new Error("no «AC-5: Going on now»");
       expect(minutes(going.start, now)).toBeGreaterThan(0);
