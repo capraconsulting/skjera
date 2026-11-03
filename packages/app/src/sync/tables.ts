@@ -56,7 +56,12 @@ const sendPublic = <E extends { readonly _tag: string }>(
   runPublic((client) =>
     f(client).pipe(
       Effect.asVoid,
-      Effect.mapError((error) => new Error(failureMessage(error))),
+      // The refusal's problem goes along, for the form to tell which field.
+      Effect.mapError((error) =>
+        Object.assign(new Error(failureMessage(error)), {
+          problem: "problem" in error ? error.problem : undefined,
+        }),
+      ),
     ),
   );
 

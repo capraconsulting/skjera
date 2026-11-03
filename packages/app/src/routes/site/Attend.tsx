@@ -1,12 +1,21 @@
-import type {
-  Answers,
-  AttendeeRow,
-  EventRow,
-  Question,
+import {
+  type Answers,
+  type AttendeeRow,
+  describe,
+  type EventRow,
+  type GuestProblem,
+  guestProblems,
+  type Question,
 } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { getLocale } from "@skjera/i18n/runtime";
-import { type FormEvent, useEffect, useState } from "react";
+import {
+  type FormEvent,
+  type InputHTMLAttributes,
+  useEffect,
+  useId,
+  useState,
+} from "react";
 import { Link } from "react-router";
 import { Button } from "../../components/Button.tsx";
 import { Input } from "../../components/Input.tsx";
@@ -18,6 +27,11 @@ import {
   rememberGuestSignup,
   storedGuestSignup,
 } from "../../site/guestSignups.ts";
+import {
+  chosenOption,
+  fieldOf,
+  type GuestField,
+} from "../../site/signupForm.ts";
 import {
   attendees,
   type Signup,
@@ -58,6 +72,8 @@ export function Attend(props: {
 }) {
   const { event, signups } = props;
   const [error, setError] = useState<string | null>(null);
+  // Why a guest input was refused, shown by the input.
+  const [messages, setMessages] = useState<FieldMessages>({});
   // This browser's guest signup, if it made one and it's still there: the
   // organizers may have taken it off.
   const [remembered, setGuest] = useState(() => guestSignup(event.id));
@@ -81,20 +97,40 @@ export function Attend(props: {
   const foodClosed = useHasPassed(event.foodDeadline ?? closesAt);
   const asksDietary = event.askDietary && !foodClosed;
 
+  /** Shows what is wrong with the guest's inputs, each by its own. */
+  const refuse = (problems: ReadonlyArray<GuestProblem>) => {
+    setError(null);
+    setMessages(messagesFor(problems));
+  };
+
   const settle = (change: {
     readonly isPersisted: { promise: Promise<unknown> };
   }) => {
     setError(null);
+    setMessages({});
     change.isPersisted.promise.then(
       () => setGuest(guestSignup(event.id)),
-      (failure: Error) => setError(failure.message),
+      (failure: Error & { readonly problem?: unknown }) => {
+        // A refusal about one of the guest's inputs shows by it.
+        const field = fieldOf(failure.problem);
+        if (field === undefined) setError(failure.message);
+        else setMessages({ [field]: failure.message });
+      },
     );
   };
 
   const signUp = (submitted: FormEvent<HTMLFormElement>, asGuest: boolean) => {
     submitted.preventDefault();
-    setSignedUpSince(true);
     const form = new FormData(submitted.currentTarget);
+    if (asGuest) {
+      const problems = guestProblems({
+        name: String(form.get("firstname") ?? ""),
+        phone: String(form.get("telephone") ?? ""),
+        company: String(form.get("company") ?? ""),
+      });
+      if (problems.length > 0) return refuse(problems);
+    }
+    setSignedUpSince(true);
     const dietary = form.get("dietary");
     const online = onlineFrom(event, form);
     const signup: Signup = {
@@ -135,6 +171,13 @@ export function Attend(props: {
   const change = (submitted: FormEvent<HTMLFormElement>, id: string) => {
     submitted.preventDefault();
     const form = new FormData(submitted.currentTarget);
+    if (id === guest?.id) {
+      const problems = guestProblems({
+        phone: String(form.get("telephone") ?? ""),
+        company: String(form.get("company") ?? ""),
+      });
+      if (problems.length > 0) return refuse(problems);
+    }
     const online = onlineFrom(event, form);
     const changed: SignupChange = {
       answers: answersFrom(event.questions, form),
@@ -169,6 +212,7 @@ export function Attend(props: {
   /** Opens a guest's form from what the server has stored for them. */
   const changeAsGuest = (signup: GuestSignup) => {
     setError(null);
+    setMessages({});
     storedGuestSignup(event.id, signup.cancelToken).then(
       (found) => {
         if (found === null) {
@@ -299,7 +343,9 @@ export function Attend(props: {
         onSubmit={(submitted) => change(submitted, id)}
         aria-label={m.attend_your_answers()}
       >
-        {asGuest ? <GuestContactInputs given={given} /> : null}
+        {asGuest ? (
+          <GuestContactInputs given={given} messages={messages} />
+        ) : null}
         {asked(given)}
         <div className={styles.row}>
           <Button type="submit" variant="primary">
@@ -405,22 +451,24 @@ export function Attend(props: {
           onSubmit={(submitted) => signUp(submitted, true)}
         >
           <div className={styles.fields}>
-            <Input
+            <GuestInput
               name="firstname"
+              messages={messages}
               autoComplete="name"
               aria-label={m.attend_your_name()}
               placeholder={m.attend_your_name()}
               required
             />
-            <Input
+            <GuestInput
               name="email"
+              messages={messages}
               type="email"
               aria-label={m.attend_your_email()}
               placeholder={m.attend_your_email()}
               required
             />
           </div>
-          <GuestContactInputs given={{}} />
+          <GuestContactInputs given={{}} messages={messages} />
           {asked({}, true)}
           <div className={styles.row}>
             <Button type="submit" variant="primary">
@@ -471,11 +519,57 @@ type Given = {
   readonly company?: string | undefined;
 };
 
+/** Why guest inputs were refused, by the input's name. */
+type FieldMessages = Partial<Record<GuestField, string>>;
+
+const messagesFor = (problems: ReadonlyArray<GuestProblem>): FieldMessages =>
+  Object.fromEntries(
+    problems.flatMap((problem) => {
+      const field = fieldOf(problem);
+      return field === undefined ? [] : [[field, describe(problem)]];
+    }),
+  );
+
+/**
+ * One of a guest's inputs and, while it is refused, its message beneath,
+ * which is also the input's description.
+ */
+function GuestInput({
+  name,
+  messages,
+  ...props
+}: InputHTMLAttributes<HTMLInputElement> & {
+  readonly name: GuestField;
+  readonly messages: FieldMessages;
+}) {
+  const messageId = useId();
+  const message = messages[name];
+  return (
+    <div className={styles.field}>
+      <Input
+        {...props}
+        name={name}
+        aria-invalid={message === undefined ? undefined : true}
+        aria-describedby={message === undefined ? undefined : messageId}
+      />
+      {message === undefined ? null : (
+        <p id={messageId} className={styles.error}>
+          {message}
+        </p>
+      )}
+    </div>
+  );
+}
+
 /** A guest's phone number and company, both optional; members aren't asked. */
-const GuestContactInputs = (props: { readonly given: Given }) => (
+const GuestContactInputs = (props: {
+  readonly given: Given;
+  readonly messages: FieldMessages;
+}) => (
   <div className={styles.fields}>
-    <Input
+    <GuestInput
       name="telephone"
+      messages={props.messages}
       type="tel"
       autoComplete="tel"
       defaultValue={props.given.phone}
@@ -483,8 +577,9 @@ const GuestContactInputs = (props: { readonly given: Given }) => (
       placeholder={`${m.attend_your_phone()} ${m.attend_optional()}`}
       maxLength={50}
     />
-    <Input
+    <GuestInput
       name="company"
+      messages={props.messages}
       autoComplete="organization"
       defaultValue={props.given.company}
       aria-label={m.attend_your_company()}
@@ -622,7 +717,7 @@ function QuestionInputs(props: {
                   name={field(question)}
                   value={option.id}
                   required={question.required}
-                  defaultChecked={given[question.id] === option.id}
+                  defaultChecked={option.id === chosenOption(question, given)}
                 />
                 {option.text}
               </label>

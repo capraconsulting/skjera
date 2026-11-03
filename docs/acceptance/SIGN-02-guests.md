@@ -75,3 +75,27 @@ IF an event is not open to guests, THEN Skjera SHALL refuse a guest sign-up and 
 - **Then** there is no form, only «Log in to attend»
 
 **Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/documents/test/attendance/guests.test.ts`
+
+## AC-7: A member's email address is refused
+
+IF a guest signs up with an email address on a domain members log in with (ACC-03), THEN Skjera SHALL refuse the sign-up, on the server too, and tell them to log in. A subdomain of such a domain is not one.
+
+**Test**
+
+- **Given** the event open to guests, and `example.com` among the domains members log in with
+- **When** a guest signs up in a private window with a name and `bob@example.com`
+- **Then** the email field says «Log in to sign up for the event!» (in Bokmål and Nynorsk «Logg deg inn for å melde deg på arrangementet!»), and the page still says «Nobody has signed up yet.»
+
+**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/app/test/signupForm.test.ts`, `packages/documents/test/attendance/guests.test.ts`, `packages/documents/test/api/Problems.test.ts`
+
+## AC-8: A name has at least two characters
+
+IF a guest's name has fewer than two characters, THEN Skjera SHALL refuse the sign-up, in the form before it is sent and on the server, with a message by the name field.
+
+**Test**
+
+- **Given** the event open to guests
+- **When** a guest signs up in a private window with the name «G» and a new email
+- **Then** nothing is sent, the name field says «Enter your name, at least 2 characters», and the page still says «Nobody has signed up yet.»
+
+**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/documents/test/Model.test.ts`, `packages/documents/test/attendance/guests.test.ts`

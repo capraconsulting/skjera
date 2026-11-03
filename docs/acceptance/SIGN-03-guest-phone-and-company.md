@@ -6,7 +6,7 @@ Guests can give a phone number and a company when they sign up. Members aren't a
 
 ## AC-1: The guest form offers both, optional
 
-The sign-up form for guests SHALL offer a phone number and a company, both optional.
+The sign-up form for guests SHALL offer a phone number and a company, both optional. When one is given, it is checked (AC-6, AC-7).
 
 **Test**
 
@@ -63,3 +63,29 @@ Skjera SHALL NOT ask members signing up with their login for a phone number or a
 - **Then** there are no fields for phone or company
 
 **Automated:** `packages/app/e2e/specs/attendance/questions.spec.ts`, `packages/documents/test/attendance/guests.test.ts`
+
+## AC-6: A company has at least two characters
+
+IF a guest gives a company with fewer than two characters, THEN Skjera SHALL refuse the sign-up, in the form before it is sent and on the server, with a message by the company field. A blank company is not given.
+
+**Test**
+
+- **Given** the event
+- **When** a guest signs up with a name, a new email and the company «A»
+- **Then** nothing is sent, and the company field says «Enter your company's name, at least 2 characters»
+
+**Automated:** `packages/documents/test/Model.test.ts`, `packages/documents/test/attendance/guests.test.ts`
+
+## AC-7: A phone number is a mobile number
+
+IF a guest gives a phone number that is not a mobile number, THEN Skjera SHALL refuse the sign-up, in the form before it is sent and on the server, with a message by the phone field. A Norwegian number must be a mobile number (eight digits from 4 or 9, with or without +47 or 0047); a number from another country is checked for its country code (+ or 00) and length only. Spaces, dashes, dots and brackets don't count. A blank phone number is not given.
+
+**Test**
+
+- **Given** the event
+- **When** a guest signs up with a name, a new email and the phone number «22 00 00 00»
+- **Then** nothing is sent, and the phone field says «Enter a valid mobile number»
+- **When** the guest signs up, then opens **Change answers**, gives «111» and clicks **Save changes**
+- **Then** nothing is sent, the form stays open, and the phone field says «Enter a valid mobile number»
+
+**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/documents/test/Model.test.ts`, `packages/documents/test/attendance/guests.test.ts`

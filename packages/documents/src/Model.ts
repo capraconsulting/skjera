@@ -1,6 +1,7 @@
 import { baseLocale, locales } from "@skjera/i18n/runtime";
 import { Config, Option, Schema } from "effect";
 import { Temporal } from "temporal-polyfill";
+import type { Problem } from "./api/Problems.ts";
 
 // Document identity and publish state, shared by the server and the editor.
 
@@ -205,8 +206,55 @@ export const SiteConfig = Config.all({
     }),
   ),
 );
-/** A guest's phone number, as typed: only its length is checked. */
+/** A guest's phone number, as typed, at most 50 characters; `guestProblems` checks the rest. */
 export const GuestPhone = Schema.String.check(Schema.isMaxLength(50));
+
+/**
+ * A mobile number: Norwegian (eight digits from 4 or 9, with +47 or 0047 or
+ * without), or another country's, with + or 00 and its code. Spaces, dashes,
+ * dots and brackets don't count. Another country's is checked for its form
+ * only: telling its mobiles from its landlines needs its number ranges.
+ */
+export const isMobileNumber = (phone: string): boolean => {
+  const digits = phone.replace(/[\s().-]/g, "");
+  return (
+    /^(?:\+47|0047)?[49]\d{7}$/.test(digits) ||
+    /^(?:\+|00)(?!47)[1-9]\d{7,14}$/.test(digits)
+  );
+};
+
+/** Why a guest's details are refused, field by field. */
+export type GuestProblem = Extract<
+  Problem,
+  {
+    _tag: "GuestNameTooShort" | "GuestCompanyTooShort" | "GuestPhoneInvalid";
+  }
+>;
+
+/**
+ * What is wrong with a guest's details, field by field. Checks only the
+ * fields it is given (a change sends no name); a blank phone number or
+ * company counts as not given.
+ */
+export const guestProblems = (guest: {
+  readonly name?: string;
+  readonly phone?: string;
+  readonly company?: string;
+}): ReadonlyArray<GuestProblem> => {
+  const problems: Array<GuestProblem> = [];
+  if (guest.name !== undefined && guest.name.trim().length < 2) {
+    problems.push({ _tag: "GuestNameTooShort" });
+  }
+  const company = guest.company?.trim() ?? "";
+  if (company !== "" && company.length < 2) {
+    problems.push({ _tag: "GuestCompanyTooShort" });
+  }
+  const phone = guest.phone?.trim() ?? "";
+  if (phone !== "" && !isMobileNumber(phone)) {
+    problems.push({ _tag: "GuestPhoneInvalid" });
+  }
+  return problems;
+};
 /** The company a guest comes from. */
 export const GuestCompany = Schema.String.check(Schema.isMaxLength(100));
 export const GuestDetails = Schema.Struct({

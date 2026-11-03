@@ -1,5 +1,5 @@
 import { assert, layer } from "@effect/vitest";
-import { Effect, Option } from "effect";
+import { ConfigProvider, Effect, Layer, Option } from "effect";
 import { Attendance } from "../../src/attendance/Attendance.ts";
 import { Documents } from "../../src/events/Documents.ts";
 import type { DocumentId } from "../../src/Model.ts";
@@ -7,11 +7,29 @@ import {
   alice,
   bob,
   organizerView,
+  problemOf,
   publishedEvent,
   setQuestions,
   signups,
   TestLayer,
 } from "../helpers.ts";
+
+/** Runs with `Attendance` reading these member domains, rather than the environment's. */
+const withMemberDomains =
+  (domains: string) =>
+  <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+    effect.pipe(
+      Effect.provide(
+        // Fresh: the layer the test file shares is built from the environment.
+        Layer.fresh(Attendance.layer).pipe(
+          Layer.provide(
+            ConfigProvider.layer(
+              ConfigProvider.fromUnknown({ OAUTH_ALLOWED_DOMAINS: domains }),
+            ),
+          ),
+        ),
+      ),
+    );
 
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Guests", (it) => {
@@ -108,7 +126,7 @@ layer(TestLayer, { excludeTestServices: true })("Guests", (it) => {
         const token = yield* attendance.attendAsGuest(id, {
           name: "Gina",
           email: "gina@example.org",
-          phone: "111",
+          phone: "900 00 111",
           company: "Acme",
         });
         const contact = () =>
@@ -119,9 +137,9 @@ layer(TestLayer, { excludeTestServices: true })("Guests", (it) => {
         yield* attendance.change(
           id,
           { cancelToken: token },
-          { phone: " 222 ", company: "Initech" },
+          { phone: " 911 22 333 ", company: "Initech" },
         );
-        assert.deepStrictEqual(yield* contact(), [["222", "Initech"]]);
+        assert.deepStrictEqual(yield* contact(), [["911 22 333", "Initech"]]);
 
         yield* attendance.change(id, { cancelToken: token }, { phone: "" });
         assert.deepStrictEqual(yield* contact(), [[null, "Initech"]]);
@@ -178,7 +196,7 @@ layer(TestLayer, { excludeTestServices: true })("Guests", (it) => {
           {
             name: "Gina",
             email: "gina@example.org",
-            phone: "111",
+            phone: "900 00 111",
             company: "Acme",
           },
           { answers: { [where]: "A poster", [size]: small } },
@@ -195,7 +213,7 @@ layer(TestLayer, { excludeTestServices: true })("Guests", (it) => {
           { ...ginas, id: undefined },
           {
             id: undefined,
-            phone: "111",
+            phone: "900 00 111",
             company: "Acme",
             answers: { [where]: "A poster", [size]: small },
           },
@@ -282,7 +300,7 @@ layer(TestLayer, { excludeTestServices: true })("Guests", (it) => {
         });
         const token = yield* attendance.attendAsGuest(
           id,
-          { name: "Gina", email: "gina@example.org", phone: "111" },
+          { name: "Gina", email: "gina@example.org", phone: "900 00 111" },
           { answers: { [where]: "A poster", [swim]: true } },
         );
 
@@ -306,7 +324,127 @@ layer(TestLayer, { excludeTestServices: true })("Guests", (it) => {
             each?.phone,
             each?.company,
           ]),
-          [["111", null]],
+          [["900 00 111", null]],
+        );
+      }),
+  );
+
+  it.effect(
+    "refuses a guest with a member's email address, and keeps nothing (AC-1)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        for (const email of [
+          "bob@example.com",
+          "Bob@EXAMPLE.com",
+          " bob@example.com ",
+        ]) {
+          const error = yield* Effect.flip(
+            attendance.attendAsGuest(id, { name: "Bob", email }),
+          );
+          assert.strictEqual(error._tag, "SignupRejected");
+          assert.deepStrictEqual(problemOf(error), { _tag: "MemberEmail" });
+        }
+        assert.strictEqual((yield* signups(id, Option.none())).length, 0);
+      }).pipe(withMemberDomains("example.com")),
+  );
+
+  it.effect(
+    "signs up a guest on another domain or a subdomain of a member's (AC-1)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        for (const email of ["gina@example.org", "gina@mail.example.com"]) {
+          yield* attendance.attendAsGuest(id, { name: "Gina", email });
+        }
+        assert.strictEqual((yield* signups(id, Option.none())).length, 2);
+      }).pipe(withMemberDomains("example.com")),
+  );
+
+  it.effect(
+    "refuses no email address when no member domains are set (AC-1)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        yield* attendance.attendAsGuest(id, {
+          name: "Bob",
+          email: "bob@example.com",
+        });
+        assert.strictEqual((yield* signups(id, Option.none())).length, 1);
+      }).pipe(withMemberDomains("")),
+  );
+
+  it.effect(
+    "refuses a name, company or phone number the form would have refused, and keeps nothing (AC-5)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        const gina = { name: "Gina", email: "gina@example.org" };
+        for (const [given, problem] of [
+          [{ name: "G" }, "GuestNameTooShort"],
+          [{ company: "A" }, "GuestCompanyTooShort"],
+          [{ phone: "111" }, "GuestPhoneInvalid"],
+        ] as const) {
+          const error = yield* Effect.flip(
+            attendance.attendAsGuest(id, { ...gina, ...given }),
+          );
+          assert.strictEqual(error._tag, "SignupRejected");
+          assert.deepStrictEqual(problemOf(error), { _tag: problem });
+        }
+        assert.strictEqual((yield* signups(id, Option.none())).length, 0);
+      }),
+  );
+
+  it.effect(
+    "refuses a guest's change to a phone number or company the form would have refused, and keeps what was stored (AC-5)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        const token = yield* attendance.attendAsGuest(id, {
+          name: "Gina",
+          email: "gina@example.org",
+          phone: "900 00 000",
+          company: "Acme",
+        });
+        for (const [given, problem] of [
+          [{ phone: "111" }, "GuestPhoneInvalid"],
+          [{ company: "A" }, "GuestCompanyTooShort"],
+        ] as const) {
+          const error = yield* Effect.flip(
+            attendance.change(id, { cancelToken: token }, given),
+          );
+          assert.strictEqual(error._tag, "SignupRejected");
+          assert.deepStrictEqual(problemOf(error), { _tag: problem });
+        }
+        assert.deepStrictEqual(
+          (yield* organizerView(id)).map((each) => [
+            each?.phone,
+            each?.company,
+          ]),
+          [["900 00 000", "Acme"]],
+        );
+
+        // A member's phone number and company are ignored, never refused.
+        yield* attendance.attend(id, bob);
+        yield* attendance.change(
+          id,
+          { user: bob },
+          { phone: "111", company: "A" },
+        );
+        assert.deepStrictEqual(
+          (yield* organizerView(id)).map((each) => [
+            each?.phone,
+            each?.company,
+          ]),
+          [
+            ["900 00 000", "Acme"],
+            [null, null],
+          ],
         );
       }),
   );

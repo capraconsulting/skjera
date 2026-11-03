@@ -81,6 +81,8 @@ test("people change their answers; organizers export and remove them", async ({
   await box.fillName("Gina");
   await box.fillEmail("gina@example.org");
   await box.fillDietaryPreferences("Vegan");
+  // The first option is chosen when the form opens.
+  await box.expectOption("Small", "checked");
   await box.checkOption("Small");
   await box.clickSignUp();
   await box.expectSignedUp();
@@ -98,6 +100,7 @@ test("people change their answers; organizers export and remove them", async ({
   await new EventPage(bob).goto(event.id);
   const member = new Attendance(bob);
   await member.fillDietaryPreferences("Fish");
+  await member.expectOption("Small", "checked");
   await member.checkOption("Large");
   await member.expectNoGuestContact();
   await member.attend();

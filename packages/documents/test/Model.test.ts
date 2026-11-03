@@ -2,6 +2,8 @@ import { assert, describe, it } from "@effect/vitest";
 import { Config, ConfigProvider, Effect, Exit, Option, Schema } from "effect";
 import {
   GuestDetails,
+  guestProblems,
+  isMobileNumber,
   optionalSetting,
   organizerLogos,
   SiteConfig,
@@ -28,9 +30,65 @@ describe("GuestDetails", () => {
     assert.isTrue(Option.isSome(decode({ ...gina, phone: "1".repeat(50) })));
     assert.isTrue(Option.isSome(decode({ ...gina, company: "A".repeat(100) })));
   });
+});
 
-  it("does not check that a phone number is a number", () => {
-    assert.isTrue(Option.isSome(decode({ ...gina, phone: "ring me" })));
+const tags = (guest: Parameters<typeof guestProblems>[0]) =>
+  guestProblems(guest).map((problem) => problem._tag);
+
+describe("guestProblems", () => {
+  it("wants a name of two characters once trimmed (AC-2)", () => {
+    assert.deepStrictEqual(tags({ name: "G" }), ["GuestNameTooShort"]);
+    assert.deepStrictEqual(tags({ name: " G " }), ["GuestNameTooShort"]);
+    assert.deepStrictEqual(tags({ name: "Gi" }), []);
+  });
+
+  it("wants a company, when given, of two characters (AC-3)", () => {
+    assert.deepStrictEqual(tags({ company: "A" }), ["GuestCompanyTooShort"]);
+    for (const company of ["", "   ", "AB"]) {
+      assert.deepStrictEqual(tags({ company }), []);
+    }
+  });
+
+  it("wants a phone number, when given, that is a mobile number (AC-4)", () => {
+    for (const phone of [
+      "111",
+      "22 00 00 00",
+      "+47 22 00 00 00",
+      "ring me",
+      "+1 23",
+    ]) {
+      assert.deepStrictEqual(tags({ phone }), ["GuestPhoneInvalid"], phone);
+    }
+    for (const phone of [
+      "",
+      "900 00 000",
+      "+47 412 34 567",
+      "004791234567",
+      "+46 70 123 45 67",
+    ]) {
+      assert.deepStrictEqual(tags({ phone }), [], phone);
+    }
+  });
+
+  it("gives every refused field at once, and checks only those given (AC-2, AC-3, AC-4)", () => {
+    assert.deepStrictEqual(tags({ name: "G", company: "A", phone: "111" }), [
+      "GuestNameTooShort",
+      "GuestCompanyTooShort",
+      "GuestPhoneInvalid",
+    ]);
+    assert.deepStrictEqual(tags({ phone: "111" }), ["GuestPhoneInvalid"]);
+  });
+});
+
+describe("isMobileNumber", () => {
+  it("ignores spaces, dashes, dots and brackets (AC-4)", () => {
+    for (const phone of [
+      "900-00-000",
+      "(+47) 900.00.000",
+      "+47 (900) 00 000",
+    ]) {
+      assert.isTrue(isMobileNumber(phone), phone);
+    }
   });
 });
 

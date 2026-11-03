@@ -30,7 +30,7 @@ test("guests sign up with their name and email", async ({ browser }) => {
   const other = await visitor(browser);
   await new EventPage(other).goto(event.id);
   const twice = new Attendance(other);
-  await twice.fillName("G");
+  await twice.fillName("Gi");
   await twice.fillEmail("GINA@example.org");
   await twice.clickSignUp();
   await twice.expectAlert("already signed up");
@@ -48,6 +48,55 @@ test("guests sign up with their name and email", async ({ browser }) => {
   await attendance.expectLogInToAttend();
 
   await cleanUp(alice, team, event.id, closed.id);
+});
+
+test("a guest form says what is wrong by each field, and refuses a member's email address", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Checks"));
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({ public: true, guests: true });
+
+  const guest = await visitor(browser);
+  await new EventPage(guest).goto(event.id);
+  const box = new Attendance(guest);
+
+  // A one-letter name stops in the form: nothing is sent (AC-2).
+  await box.fillName("G");
+  await box.fillEmail("g@example.org");
+  await box.clickSignUp();
+  await box.expectFieldMessage(
+    "Your name",
+    "Enter your name, at least 2 characters",
+  );
+  await box.expectEmpty();
+
+  // A member's email address is refused by the server, by the email field (AC-1).
+  await box.fillName("Bob");
+  await box.fillEmail("bob@example.com");
+  await box.clickSignUp();
+  await box.expectFieldMessage(
+    "Your email",
+    "Log in to sign up for the event!",
+  );
+  await box.expectNotSignedUp();
+
+  await box.fillEmail("bob@example.org");
+  await box.clickSignUp();
+  await box.expectSignedUp();
+
+  // The form changing a guest's answers checks the phone number too (AC-4).
+  await box.clickChangeAnswers();
+  await box.answers.fillPhone("111");
+  await box.answers.clickSaveChanges();
+  await box.answers.expectFieldMessage(
+    "Your phone number",
+    "Enter a valid mobile number",
+  );
+  await box.answers.expectField("Your phone number");
+
+  await cleanUp(alice, team, event.id);
 });
 
 test("Guests can sign up shows unticked on a members-only event, and as it was set once public again", async ({

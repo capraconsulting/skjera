@@ -17,6 +17,10 @@ const problems: ReadonlyArray<Problem> = [
   { _tag: "AnswerUnknown", question },
   { _tag: "LogInToAttend" },
   { _tag: "LogInOrGuest" },
+  { _tag: "MemberEmail" },
+  { _tag: "GuestNameTooShort" },
+  { _tag: "GuestCompanyTooShort" },
+  { _tag: "GuestPhoneInvalid" },
   { _tag: "MissingToPublish", fields: ["title"] },
   { _tag: "EndsBeforeStart" },
   { _tag: "DeadlineAfterStart" },
@@ -58,6 +62,22 @@ group("Problems", () => {
     assert.strictEqual(
       describe({ _tag: "AnswerMissing", question }, "nn"),
       "Svar på «Towel size»",
+    );
+  });
+
+  it("tell a member who signs up as a guest to log in (AC-1)", () => {
+    const member: Problem = { _tag: "MemberEmail" };
+    assert.strictEqual(
+      describe(member, "nb"),
+      "Logg deg inn for å melde deg på arrangementet!",
+    );
+    assert.strictEqual(
+      describe(member, "nn"),
+      "Logg deg inn for å melde deg på arrangementet!",
+    );
+    assert.strictEqual(
+      describe(member, "en"),
+      "Log in to sign up for the event!",
     );
   });
 

@@ -1,4 +1,5 @@
 import { createHash, createHmac, randomBytes } from "node:crypto";
+import { AllowedDomains } from "@skjera/oauth";
 import type { Identity } from "@skjera/oauth/api";
 import { Config, Context, Effect, Layer, Option, Redacted } from "effect";
 import { SqlClient, SqlError, type Statement } from "effect/sql";
@@ -9,14 +10,15 @@ import {
 } from "../api/errors.ts";
 import { type Problem, refused } from "../api/Problems.ts";
 import type { StoredGuestSignup } from "../api/PublicApi.ts";
-import type {
-  Answer,
-  Answers,
-  Audience,
-  DocumentId,
-  GuestDetails,
-  Locale,
-  Question,
+import {
+  type Answer,
+  type Answers,
+  type Audience,
+  type DocumentId,
+  type GuestDetails,
+  guestProblems,
+  type Locale,
+  type Question,
 } from "../Model.ts";
 import { Notifications, type Signup, tell } from "../notices/Notifications.ts";
 
@@ -209,6 +211,15 @@ export class Attendance extends Context.Service<
           }),
         ),
       );
+      // The domains members log in with: an email on one is a member's.
+      const memberDomains = yield* AllowedDomains;
+      const isMemberEmail = (email: string) =>
+        memberDomains.includes(
+          email
+            .trim()
+            .slice(email.trim().lastIndexOf("@") + 1)
+            .toLowerCase(),
+        );
       const guestToken = (attendee: string) =>
         createHmac("sha256", Redacted.value(secret))
           .update(`guest-signup/${attendee}`)
@@ -383,6 +394,14 @@ export class Attendance extends Context.Service<
             refused({ _tag: "GuestsNotAllowed" }),
           );
         }
+        // A member logs in to sign up; never as a guest.
+        if (isMemberEmail(guest.email)) {
+          return yield* new SignupRejected(refused({ _tag: "MemberEmail" }));
+        }
+        const [problem] = guestProblems(guest);
+        if (problem !== undefined) {
+          return yield* new SignupRejected(refused(problem));
+        }
         const dietary = yield* dietaryFor(askDietary, details.dietary);
         const answers = yield* answersFor(questions, details.answers);
         const online = yield* onlineFor(streamed, details.online);
@@ -489,6 +508,17 @@ export class Attendance extends Context.Service<
         const guest = !("user" in who);
         const phoneGiven = guest && details.phone !== undefined;
         const companyGiven = guest && details.company !== undefined;
+        const [problem] = guest
+          ? guestProblems({
+              ...(details.phone === undefined ? {} : { phone: details.phone }),
+              ...(details.company === undefined
+                ? {}
+                : { company: details.company }),
+            })
+          : [];
+        if (problem !== undefined) {
+          return yield* new SignupRejected(refused(problem));
+        }
         yield* Effect.gen(function* () {
           // A place in person is taken: the event's row is locked first.
           if (online === false) yield* room(event, false, own);

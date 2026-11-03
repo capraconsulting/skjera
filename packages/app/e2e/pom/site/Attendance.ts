@@ -69,6 +69,11 @@ export class SignupFields {
     await expect(this.textbox(label)).toHaveValue(value);
   }
 
+  /** The message a refused field carries, as its accessible description. */
+  async expectFieldMessage(label: string, text: string): Promise<void> {
+    await expect(this.textbox(label)).toHaveAccessibleDescription(text);
+  }
+
   async expectFieldOptional(label: string): Promise<void> {
     await expect(this.textbox(label)).not.toHaveAttribute("required");
   }

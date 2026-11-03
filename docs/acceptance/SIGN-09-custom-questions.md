@@ -16,9 +16,9 @@ WHILE sign-up is open, the sign-up form SHALL ask the event's questions in their
 
 - **Given** the event
 - **When** it is opened in a private window
-- **Then** the form has «Where did you hear of it? (optional)» with a text field, a box to tick, «I accept the risks of swimming», and «Towel size» with a choice of «Small» or «Large»
+- **Then** the form has «Where did you hear of it? (optional)» with a text field, a box to tick, «I accept the risks of swimming», and «Towel size» with a choice of «Small» or «Large», «Small» chosen
 
-**Automated:** `packages/app/e2e/specs/attendance/questions.spec.ts`, `packages/documents/test/attendance/signups.test.ts`
+**Automated:** `packages/app/e2e/specs/attendance/questions.spec.ts`, `packages/app/test/signupForm.test.ts`, `packages/documents/test/attendance/signups.test.ts`
 
 ## AC-2: Members and guests answer the same questions
 
@@ -36,14 +36,12 @@ Skjera SHALL ask members and guests the same questions.
 
 IF a required question is not answered, or a box that must be ticked is not ticked, THEN Skjera SHALL refuse the sign-up.
 
-The browser stops the form before it is sent, so the server's own messages, such as «Answer “Towel size”», are left to the tests.
+The browser stops the form before it is sent, and a choice always has an option chosen in the form, so the server's own messages, such as «Answer “Towel size”», are left to the tests.
 
 **Test**
 
 - **Given** the event
-- **When** a guest fills in a name and an email, leaves «Towel size» unpicked, and clicks **Sign up**
-- **Then** the form isn't sent, and the browser points to «Towel size»
-- **When** the guest picks «Large», leaves the box unticked, and clicks **Sign up**
+- **When** a guest fills in a name and an email, leaves the box unticked, and clicks **Sign up**
 - **Then** the form isn't sent, and the browser points to the box
 
 **Automated:** `packages/app/e2e/specs/attendance/questions.spec.ts`, `packages/documents/test/attendance/signups.test.ts`

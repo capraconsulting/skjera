@@ -26,6 +26,10 @@ export const Problem = Schema.Union([
   Schema.TaggedStruct("AnswerUnknown", question),
   Schema.TaggedStruct("LogInToAttend", {}),
   Schema.TaggedStruct("LogInOrGuest", {}),
+  Schema.TaggedStruct("MemberEmail", {}),
+  Schema.TaggedStruct("GuestNameTooShort", {}),
+  Schema.TaggedStruct("GuestCompanyTooShort", {}),
+  Schema.TaggedStruct("GuestPhoneInvalid", {}),
   // Publishing.
   Schema.TaggedStruct("MissingToPublish", {
     fields: Schema.NonEmptyArray(PublishField),
@@ -91,6 +95,14 @@ export const describe = (problem: Problem, locale?: Locale): string => {
       return m.problem_log_in_to_attend({}, options);
     case "LogInOrGuest":
       return m.problem_log_in_or_guest({}, options);
+    case "MemberEmail":
+      return m.problem_member_email({}, options);
+    case "GuestNameTooShort":
+      return m.problem_guest_name_too_short({}, options);
+    case "GuestCompanyTooShort":
+      return m.problem_guest_company_too_short({}, options);
+    case "GuestPhoneInvalid":
+      return m.problem_guest_phone_invalid({}, options);
     case "MissingToPublish":
       return m.problem_missing_to_publish(
         {
