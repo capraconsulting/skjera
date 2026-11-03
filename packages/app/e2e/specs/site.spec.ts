@@ -560,7 +560,6 @@ test("a link to a public event shows its title, summary and cover; others the si
   const cover = await editor.cover.src();
   await editor.cover.description.type("A full room");
   await editor.publish();
-  const membersOnly = await editor.createPublished({ public: false });
 
   const reader = await visitor(browser);
   const page = new EventPage(reader);
@@ -572,15 +571,13 @@ test("a link to a public event shows its title, summary and cover; others the si
   await page.expectSharingTag("og:image:alt", "A full room");
   await page.expectSharingTag("twitter:card", "summary_large_image");
 
-  // Members only, or no such event: the site's name only.
-  for (const id of [membersOnly.id, crypto.randomUUID()]) {
-    await page.goto(id);
-    await page.expectSharingTag("og:title", "Skjera");
-    await page.expectNoSharingTag("og:description");
-    await page.expectNoSharingTag("og:image");
-  }
+  // No such event: the site's name only.
+  await page.goto(crypto.randomUUID());
+  await page.expectSharingTag("og:title", "Skjera");
+  await page.expectNoSharingTag("og:description");
+  await page.expectNoSharingTag("og:image");
 
-  await cleanUp(alice, team, shown.id, membersOnly.id);
+  await cleanUp(alice, team, shown.id);
 });
 
 test("the privacy page says in each language that signups are deleted 30 days after", async ({

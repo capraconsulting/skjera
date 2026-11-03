@@ -1,9 +1,9 @@
 import { assert, layer } from "@effect/vitest";
 import { Identity } from "@skjera/oauth/api";
-import { Deferred, Effect, Fiber, Layer, Option } from "effect";
+import { Deferred, Effect, Fiber, Layer, Option, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { Documents } from "../../src/events/Documents.ts";
-import type { TeamId } from "../../src/Model.ts";
+import { DocumentId, type TeamId } from "../../src/Model.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
 import { Notifications } from "../../src/notices/Notifications.ts";
 import type { Pull } from "../../src/server/Sync.ts";
@@ -176,6 +176,45 @@ layer(TestLayer, { excludeTestServices: true })("Sync", (it) => {
       yield* sql`UPDATE events SET is_public = true WHERE id = ${open}`;
       yield* visitor.pull;
       assert.isTrue(visitor.rows.get(open)?.isPublic);
+    }),
+  );
+
+  it.effect("reads one published event by its id, members-only too", () =>
+    Effect.gen(function* () {
+      const sync = yield* Sync;
+      const teams = yield* Teams;
+      const documents = yield* Documents;
+      const sql = yield* SqlClient.SqlClient;
+      const team = yield* teams.create(teamName(), alice);
+      const publish = (isPublic: boolean) =>
+        Effect.gen(function* () {
+          const id = yield* documents.create("event", team.id, alice);
+          yield* sql`
+            INSERT INTO events (id, title, starts_at, ends_at, time_zone, body, is_public,
+              allow_guests, ask_dietary, published_heads,
+              published_by_issuer, published_by_subject)
+            VALUES (${id}, 'Event', '2036-10-15T18:00+02', '2036-10-15T21:00+02', 'Europe/Oslo', '[]', ${isPublic}, false,
+              false, '{}', 'test', 'test')
+          `;
+          return id;
+        });
+      const open = yield* publish(true);
+      const membersOnly = yield* publish(false);
+      const deleted = yield* publish(true);
+      yield* sql`UPDATE events SET deleted_at = now() WHERE id = ${deleted}`;
+      const unpublished = yield* publish(false);
+      yield* sql`DELETE FROM events WHERE id = ${unpublished}`;
+      const draft = yield* documents.create("event", team.id, alice);
+      const unknown = Schema.decodeSync(DocumentId)(crypto.randomUUID());
+
+      const read = (id: DocumentId) => sync.event(id);
+      assert.isTrue((yield* read(open)).pipe(Option.getOrThrow).isPublic);
+      assert.isFalse(
+        (yield* read(membersOnly)).pipe(Option.getOrThrow).isPublic,
+      );
+      for (const id of [deleted, unpublished, draft, unknown]) {
+        assert.isTrue(Option.isNone(yield* read(id)));
+      }
     }),
   );
 

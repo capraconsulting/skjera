@@ -53,6 +53,7 @@ const EventsHandlers = HttpApiBuilder.group(Api, "events", (handlers) =>
     const attendance = yield* Documents.Attendance;
     const authenticator = yield* OAuth.Authenticator;
     const limits = yield* SignupLimits;
+    const sync = yield* Documents.Sync;
 
     // These endpoints are open to anyone; a session shows members-only
     // events and signs up as a member.
@@ -73,6 +74,17 @@ const EventsHandlers = HttpApiBuilder.group(Api, "events", (handlers) =>
     );
 
     return handlers
+      .handle("event", ({ params }) =>
+        sync.event(params.id).pipe(
+          Effect.flatMap(
+            Option.match({
+              onNone: () =>
+                Effect.fail(new Documents.EventNotFound({ id: params.id })),
+              onSome: Effect.succeed,
+            }),
+          ),
+        ),
+      )
       .handle("attend", ({ params, payload }) =>
         Effect.gen(function* () {
           const user = yield* currentUser;

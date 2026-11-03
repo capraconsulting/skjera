@@ -256,6 +256,17 @@ export class Attendance extends SignupFields {
     ).toBeVisible();
   }
 
+  /** The button that logs in and comes back to the event. */
+  async expectLogInButton(): Promise<void> {
+    await expect(
+      this.scope.getByRole("button", { name: "Log in" }),
+    ).toBeVisible();
+  }
+
+  async clickLogIn(): Promise<void> {
+    await this.scope.getByRole("button", { name: "Log in" }).click();
+  }
+
   async expectLogInIfSignedUp(): Promise<void> {
     await expect(
       this.scope.getByRole("link", { name: /Signed up\? Log in/ }),

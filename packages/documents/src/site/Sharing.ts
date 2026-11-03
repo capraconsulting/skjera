@@ -11,8 +11,9 @@ import {
 // What a link to an event shows when it is shared: LinkedIn, Slack and the
 // like fetch the page without logging in and without running its scripts,
 // so the server puts the event's title, summary and cover in the page's
-// head. Only for events shown to everyone: the page of any other says the
-// site's name and nothing of the event.
+// head. For any published event, members-only ones too: whoever has the
+// address may see the event, as its page shows it. The page of an unknown,
+// unpublished or deleted event says the site's name and nothing of an event.
 
 /** An event as a shared link may show it. */
 export interface SharedEvent {
@@ -33,9 +34,9 @@ export interface Site {
 const isDocumentId = Schema.is(DocumentId);
 
 /**
- * The event a link to `/events/:id` may show: published, shown to everyone
- * (the condition `Sync.events` gives visitors) and not deleted. None
- * otherwise, and for anything that is not an event's id.
+ * The event a link to `/events/:id` may show: published, whoever it is shown
+ * to, and not deleted. None otherwise, and for anything that is not an
+ * event's id.
  */
 export const sharedEvent = (id: string) =>
   Effect.gen(function* () {
@@ -47,7 +48,7 @@ export const sharedEvent = (id: string) =>
       readonly cover: Cover | null;
     }>`
       SELECT title, summary, cover FROM events
-      WHERE id = ${id} AND is_public AND deleted_at IS NULL
+      WHERE id = ${id} AND deleted_at IS NULL
     `;
     return Option.fromNullishOr(event).pipe(Option.map((e) => ({ id, ...e })));
   }).pipe(Effect.orDie);
@@ -114,8 +115,8 @@ export const withSharing = (page: string, tags: string): string =>
 
 /**
  * `GET /events/:id`: the built page at `index` with what a link to the
- * event shows. An id with no event shown to everyone gets the page too,
- * with the site's name only: the app says in the browser that there is no
+ * event shows. An id with no published event gets the page too, with the
+ * site's name only: the app says in the browser that there is no
  * such event. Reads `index` when it starts, so a server without it fails
  * then rather than serving event pages without the app.
  */

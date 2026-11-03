@@ -297,6 +297,27 @@ export function Attend(props: {
     </p>
   );
 
+  // Members only, to someone not logged in: they log in to sign up. They
+  // get no signups of it, so there is no count to show.
+  if (!props.signedIn && !event.isPublic) {
+    return (
+      <section className={styles.box} aria-label={m.attend_region()}>
+        <h2 className={styles.heading}>{m.attend_region()}</h2>
+        <p className={styles.status}>{m.attend_log_in_members_only()}</p>
+        <div className={styles.row}>
+          <Button
+            variant="primary"
+            onClick={() =>
+              window.location.assign(loginUrl(`/events/${event.id}`))
+            }
+          >
+            {m.common_log_in()}
+          </Button>
+        </div>
+      </section>
+    );
+  }
+
   if (closed) {
     return (
       <section className={styles.box} aria-label={m.attend_region()}>

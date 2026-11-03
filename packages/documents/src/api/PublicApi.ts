@@ -17,10 +17,13 @@ import {
   SignupRejected,
   TooManyAttempts,
 } from "./errors.ts";
+import { EventRow } from "./SyncApi.ts";
 
 // The site's API for signing up to published events. Public events are
 // there for anyone; with a session, members-only events too. The events
-// themselves are synced (see SyncApi.ts).
+// themselves are synced (see SyncApi.ts), and read by their address for
+// the page of a members-only event, which the synced copy of someone not
+// logged in doesn't hold.
 
 /** What changing a signup sends: as when signing up. */
 const SignupChange = Schema.Struct({
@@ -44,6 +47,12 @@ export const StoredGuestSignup = Schema.Struct({
 export type StoredGuestSignup = typeof StoredGuestSignup.Type;
 
 export class EventsApi extends HttpApiGroup.make("events").add(
+  /** A published event, members-only ones too, for anyone with its address. */
+  HttpApiEndpoint.get("event", "/api/events/:id", {
+    params: { id: DocumentId },
+    success: EventRow,
+    error: EventNotFound,
+  }),
   /**
    * Signs up the signed-in user, or, without a session, a guest with the
    * details given. A guest gets the token that cancels their signup.

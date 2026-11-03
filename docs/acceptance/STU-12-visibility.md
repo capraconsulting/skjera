@@ -21,15 +21,15 @@ Skjera SHALL create a new event as members only, with guests not able to sign up
 
 **Automated:** `packages/documents/test/events/drafts.test.ts`
 
-## AC-2: Visitors don't see a members-only event
+## AC-2: Visitors don't see a members-only event listed
 
-WHILE an event is not public, Skjera SHALL hide it from anyone not logged in, on the front page and on its own page.
+WHILE an event is not public, Skjera SHALL leave it off the front page for anyone not logged in, and its own page SHALL ask them to log in to sign up.
 
 **Test**
 
 - **Given** «AC-2 and AC-3: Members only», published
 - **When** you open the front page and the event's address in a private window
-- **Then** it isn't listed, and its page says «This event doesn't exist, or isn't published.»
+- **Then** it isn't listed, and its page says «You need to log in to sign up for this event»
 
 **Automated:** `packages/app/e2e/specs/attendance/members.spec.ts`, `packages/documents/test/attendance/signups.test.ts`, `packages/documents/test/server/Sync.test.ts`
 
@@ -55,7 +55,7 @@ WHILE an event is not public, Skjera SHALL not let guests sign up for it, and th
 - **When** you untick **Public event**
 - **Then** **Guests can sign up** shows unticked and can't be changed, and its hint says «Only public events can take guest signups.»
 - **When** you click **Publish**, and open the event in a private window
-- **Then** it says «This event doesn't exist, or isn't published.», with no form to sign up
+- **Then** it says «You need to log in to sign up for this event», with no form to sign up
 - **When** you tick **Public event** again and click **Publish**
 - **Then** **Guests can sign up** shows ticked again, and the private window offers the guest form again
 - **When** you untick **Guests can sign up**, untick **Public event**, and tick **Public event** again

@@ -50,6 +50,12 @@ export class Sync extends Context.Service<
       audience: Audience,
     ) => Effect.Effect<Pull<EventRow>>;
     /**
+     * A published event by its id, members-only ones too: what its page
+     * shows anyone with the address. None when it isn't published, or is
+     * deleted.
+     */
+    readonly event: (id: DocumentId) => Effect.Effect<Option.Option<EventRow>>;
+    /**
      * Signups: all of them with who they are for signed-in users; for
      * anyone else, those of public events, without who they are.
      */
@@ -157,93 +163,102 @@ export class Sync extends Context.Service<
         );
       });
 
+      /** Published events by id, those `audience` may see, not deleted. */
+      const loadEvents = (keys: ReadonlyArray<string>, audience: Audience) =>
+        sql<{
+          id: DocumentId;
+          title: string;
+          summary: string | null;
+          starts_at: Date;
+          ends_at: Date;
+          signup_deadline: Date | null;
+          time_zone: string;
+          body: RichText;
+          cover: Cover | null;
+          is_public: boolean;
+          allow_guests: boolean;
+          ask_dietary: boolean;
+          food: string;
+          food_deadline: Date | null;
+          questions: ReadonlyArray<Question>;
+          tags: ReadonlyArray<string>;
+          place: string | null;
+          max_attendees: number | null;
+          hide_places_left: boolean;
+          is_streamed: boolean;
+          stream_link: string | null;
+          published_heads: Heads;
+          published_at: Date;
+          first_published_at: Date;
+          team_name: string;
+          team_logo: string | null;
+          team_logo_dark: string | null;
+          visible: boolean;
+        }>`
+        SELECT e.id, e.title, e.summary, e.starts_at, e.ends_at, e.signup_deadline,
+          e.time_zone, e.body, e.cover, e.is_public, e.allow_guests, e.ask_dietary, e.food,
+          e.food_deadline, e.questions, e.tags, e.place, e.max_attendees,
+          e.hide_places_left, e.is_streamed, e.stream_link,
+          e.published_heads, e.published_at,
+          e.first_published_at,
+          t.name AS team_name, t.logo AS team_logo, t.logo_dark AS team_logo_dark,
+          (e.is_public OR ${audience === "members"}) AND e.deleted_at IS NULL AS visible
+        FROM events e
+          JOIN documents d ON d.id = e.id
+          JOIN teams t ON t.id = d.team_id
+        WHERE e.id = ANY(${keys}::uuid[])
+      `.pipe(
+          Effect.map((rows) =>
+            rows
+              .filter((row) => row.visible)
+              .map((row) =>
+                EventRow.make({
+                  id: row.id,
+                  title: row.title,
+                  summary: row.summary,
+                  startsAt: row.starts_at,
+                  endsAt: row.ends_at,
+                  signupDeadline: row.signup_deadline,
+                  timeZone: row.time_zone,
+                  body: row.body,
+                  cover: row.cover,
+                  organizer: {
+                    name: row.team_name,
+                    logo: row.team_logo,
+                    logoDark: row.team_logo_dark,
+                  },
+                  isPublic: row.is_public,
+                  allowGuests: row.allow_guests,
+                  askDietary: row.ask_dietary,
+                  food: row.food,
+                  foodDeadline: row.food_deadline,
+                  questions: row.questions,
+                  tags: row.tags,
+                  place: row.place,
+                  maxAttendees: row.max_attendees,
+                  hidePlacesLeft: row.hide_places_left,
+                  isStreamed: row.is_streamed,
+                  streamLink: row.stream_link,
+                  publishedHeads: row.published_heads,
+                  publishedAt: row.published_at,
+                  firstPublishedAt: row.first_published_at,
+                }),
+              ),
+          ),
+        );
+
       const events = Effect.fn("Sync.events")(function* (
         since: Token | undefined,
         audience: Audience,
       ) {
         return yield* pull("events", since, (keys) =>
-          sql<{
-            id: DocumentId;
-            title: string;
-            summary: string | null;
-            starts_at: Date;
-            ends_at: Date;
-            signup_deadline: Date | null;
-            time_zone: string;
-            body: RichText;
-            cover: Cover | null;
-            is_public: boolean;
-            allow_guests: boolean;
-            ask_dietary: boolean;
-            food: string;
-            food_deadline: Date | null;
-            questions: ReadonlyArray<Question>;
-            tags: ReadonlyArray<string>;
-            place: string | null;
-            max_attendees: number | null;
-            hide_places_left: boolean;
-            is_streamed: boolean;
-            stream_link: string | null;
-            published_heads: Heads;
-            published_at: Date;
-            first_published_at: Date;
-            team_name: string;
-            team_logo: string | null;
-            team_logo_dark: string | null;
-            visible: boolean;
-          }>`
-            SELECT e.id, e.title, e.summary, e.starts_at, e.ends_at, e.signup_deadline,
-              e.time_zone, e.body, e.cover, e.is_public, e.allow_guests, e.ask_dietary, e.food,
-              e.food_deadline, e.questions, e.tags, e.place, e.max_attendees,
-              e.hide_places_left, e.is_streamed, e.stream_link,
-              e.published_heads, e.published_at,
-              e.first_published_at,
-              t.name AS team_name, t.logo AS team_logo, t.logo_dark AS team_logo_dark,
-              (e.is_public OR ${audience === "members"}) AND e.deleted_at IS NULL AS visible
-            FROM events e
-              JOIN documents d ON d.id = e.id
-              JOIN teams t ON t.id = d.team_id
-            WHERE e.id = ANY(${keys}::uuid[])
-          `.pipe(
-            Effect.map((rows) =>
-              rows
-                .filter((row) => row.visible)
-                .map((row) =>
-                  EventRow.make({
-                    id: row.id,
-                    title: row.title,
-                    summary: row.summary,
-                    startsAt: row.starts_at,
-                    endsAt: row.ends_at,
-                    signupDeadline: row.signup_deadline,
-                    timeZone: row.time_zone,
-                    body: row.body,
-                    cover: row.cover,
-                    organizer: {
-                      name: row.team_name,
-                      logo: row.team_logo,
-                      logoDark: row.team_logo_dark,
-                    },
-                    isPublic: row.is_public,
-                    allowGuests: row.allow_guests,
-                    askDietary: row.ask_dietary,
-                    food: row.food,
-                    foodDeadline: row.food_deadline,
-                    questions: row.questions,
-                    tags: row.tags,
-                    place: row.place,
-                    maxAttendees: row.max_attendees,
-                    hidePlacesLeft: row.hide_places_left,
-                    isStreamed: row.is_streamed,
-                    streamLink: row.stream_link,
-                    publishedHeads: row.published_heads,
-                    publishedAt: row.published_at,
-                    firstPublishedAt: row.first_published_at,
-                  }),
-                ),
-            ),
-          ),
+          loadEvents(keys, audience),
         );
+      });
+
+      const event = Effect.fn("Sync.event")(function* (id: DocumentId) {
+        const [row] = yield* loadEvents([id], "members").pipe(Effect.orDie);
+        return Option.fromNullishOr(row);
       });
 
       const attendees = Effect.fn("Sync.attendees")(function* (
@@ -311,7 +326,7 @@ export class Sync extends Context.Service<
         );
       });
 
-      return Sync.of({ teams, documents, tags, events, attendees });
+      return Sync.of({ teams, documents, tags, events, event, attendees });
     }),
   );
 }

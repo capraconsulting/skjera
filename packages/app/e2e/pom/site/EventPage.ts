@@ -25,6 +25,11 @@ export class EventPage {
     await this.page.reload();
   }
 
+  /** Follows the page's «All events» link to the front page. */
+  async clickAllEvents(): Promise<void> {
+    await this.article().getByRole("link", { name: "All events" }).click();
+  }
+
   async expectAt(id: string): Promise<void> {
     await expect(this.page).toHaveURL(new RegExp(`/events/${id}$`));
   }

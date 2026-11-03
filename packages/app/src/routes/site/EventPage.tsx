@@ -1,6 +1,8 @@
-import type { DocumentId } from "@skjera/documents/api";
+import { DocumentId, type EventRow } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
+import { defaultPollEveryMs } from "@skjera/snapsync/client";
 import { eq, useLiveQuery } from "@tanstack/react-db";
+import { Effect, Schema } from "effect";
 import {
   ArrowLeft,
   Building2,
@@ -13,6 +15,7 @@ import {
   UtensilsCrossed,
   Video,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import {
   data,
   isRouteErrorResponse,
@@ -26,6 +29,7 @@ import {
 import { Organizer } from "../../components/Organizer.tsx";
 import { RichText } from "../../components/RichText.tsx";
 import { usePageTitle } from "../../pageTitle.ts";
+import { runPublic } from "../../site/client.ts";
 import {
   rememberGuestSignup,
   storedGuestSignup,
@@ -39,6 +43,56 @@ import type { siteLoader } from "./SiteLayout.tsx";
 
 /** The event whose link, just opened, led to no signup: said once. */
 let goneLink: DocumentId | null = null;
+
+const isDocumentId = Schema.is(DocumentId);
+
+/**
+ * The published event at `id`, members-only too, as anyone with its address
+ * may read it: null when it isn't published. Not a part of the synced copy,
+ * so the front page never lists it. Other failures reject.
+ */
+const linkedEvent = (id: DocumentId) =>
+  runPublic((client) =>
+    client.events
+      .event({ params: { id } })
+      .pipe(Effect.catchTag("EventNotFound", () => Effect.succeed(null))),
+  );
+
+/**
+ * The event read by its address while the synced copy lacks it: the loader's
+ * row at first, then read again every few seconds while the page is visible,
+ * as the synced copy follows what is published. Null: not published.
+ */
+const useLinkedEvent = (
+  id: DocumentId,
+  loaded: EventRow | null,
+  needed: boolean,
+) => {
+  const [read, setRead] = useState<{
+    readonly id: DocumentId;
+    readonly event: EventRow | null;
+  }>({ id, event: loaded });
+  useEffect(() => {
+    if (!needed) return;
+    let stopped = false;
+    const poll = async () => {
+      if (document.hidden) return;
+      try {
+        const event = await linkedEvent(id);
+        if (!stopped) setRead({ id, event });
+      } catch {
+        // Keeps what is shown; the next read tries again.
+      }
+    };
+    void poll();
+    const timer = setInterval(poll, defaultPollEveryMs);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, [id, needed]);
+  return read.id === id ? read.event : loaded;
+};
 
 export const eventLoader = async ({ params, request }: LoaderFunctionArgs) => {
   const id = params.id as DocumentId;
@@ -62,10 +116,11 @@ export const eventLoader = async ({ params, request }: LoaderFunctionArgs) => {
   ]);
   // It may be new: published since the last pull.
   if (!events.collection.has(id)) await events.refresh();
-  if (!events.collection.has(id)) {
-    throw data("Event not found", { status: 404 });
-  }
-  return { id, linkGone };
+  if (events.collection.has(id)) return { id, linkGone, linked: null };
+  // Not in the copy: members only, to someone not logged in, or not published.
+  const linked = isDocumentId(id) ? await linkedEvent(id) : null;
+  if (linked === null) throw data("Event not found", { status: 404 });
+  return { id, linkGone, linked };
 };
 
 /** Everyone signed up for the event. */
@@ -78,20 +133,22 @@ const useSignups = (id: DocumentId) =>
   }).data;
 
 export function EventPage() {
-  const { id, linkGone } = useLoaderData<typeof eventLoader>();
+  const { id, linkGone, linked: loaded } = useLoaderData<typeof eventLoader>();
   const signups = useSignups(id);
   const me = useRouteLoaderData<typeof siteLoader>("site");
   const signedIn = me !== null && me !== undefined;
-  const event = useLiveQuery({
+  const live = useLiveQuery({
     query: (q) =>
       q
         .from({ event: events.collection })
         .where(({ event }) => eq(event.id, id))
         .findOne(),
   }).data;
+  const linked = useLinkedEvent(id, loaded, live === undefined);
+  const event = live ?? linked;
   usePageTitle({ page: "event", title: event?.title ?? "" });
   // Unpublished, deleted or hidden since the page opened.
-  if (event === undefined) {
+  if (event === null) {
     return <p className={styles.missing}>{m.site_event_missing()}</p>;
   }
   return (

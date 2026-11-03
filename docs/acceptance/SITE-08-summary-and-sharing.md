@@ -2,7 +2,7 @@
 
 An event has a summary, and a link to it shared on LinkedIn or Slack shows its title, image and summary.
 
-**Events:** one public event with a summary and a cover image, one event for members only, and bob signed up to the public one.
+**Events:** one public event with a summary and a cover image, bob signed up to the public one, and «AC-5: A members-only event shares its title, summary and image», for members only, with a summary and a cover image.
 
 What a shared link shows is only served by the built app, not by `pnpm dev`. Test AC-4 to AC-7 on a test server ([OPS-07](OPS-07-test-servers.md)): `PORT=8801 mise exec -- pnpm test-server`. It has a database of its own, so create the two events there first, at http://localhost:8801/studio.
 
@@ -54,17 +54,17 @@ WHEN `/events/:id` is fetched for an event shown to everyone, the server SHALL a
 
 **Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/documents/test/site/Sharing.test.ts`
 
-## AC-5: A members-only event shares nothing of itself
+## AC-5: A members-only event shares as a public one does
 
-IF `/events/:id` is fetched for an event shown only to members, THEN the server SHALL answer with only the site's name for sharing, never the event's title, summary or image.
+WHEN `/events/:id` is fetched for a published event shown only to members, the server SHALL answer with the event's title, summary and cover image as the page's title, description and image for sharing, as for a public event.
 
 **Test**
 
-- **Given** the members-only event on the test server
+- **Given** «AC-5: A members-only event shares its title, summary and image» on the test server
 - **When** you fetch it the same way
-- **Then** only the site's name is there, and nothing of the event
+- **Then** `og:title`, `og:description` and `og:image` have its title, summary and cover
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/documents/test/site/Sharing.test.ts`
+**Automated:** `packages/documents/test/site/Sharing.test.ts`
 
 ## AC-6: An unknown event shares only the site's name
 

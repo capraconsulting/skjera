@@ -654,7 +654,14 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
       event("AC-3: An empty list says so", { ...guests, ...week }),
     ]),
     team("SITE-07: Members-only events", [
-      event("AC-1: Members only", { ...week }),
+      event("AC-1: Members only", {
+        ...week,
+        summary: "A members-only event, opened from its link.",
+        cover: "purple",
+        body: [
+          text("Text of a members-only event, shown to anyone with its link."),
+        ],
+      }),
       event("AC-3: Made members-only", { ...members, ...week }),
     ]),
     team("SITE-08: Summary and sharing", [
@@ -665,7 +672,14 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
         cover: "orange",
         signups: [bob()],
       }),
-      event("AC-5: A members-only event shares nothing of itself", { ...week }),
+      event("AC-5: A members-only event shares its title, summary and image", {
+        ...week,
+        summary: "A members-only event, shared with its summary.",
+        cover: "teal",
+        body: [
+          text("Text of a members-only event, shown to anyone with its link."),
+        ],
+      }),
     ]),
     team("SITE-09: The site updates without reloading", [
       event("AC-1: New", { ...members, ...week, state: "draft" }),

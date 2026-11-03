@@ -223,16 +223,25 @@ layer(TestLayer, { excludeTestServices: true })("Sharing", (it) => {
     }),
   );
 
-  it.effect("shows nothing of an event shown only to members", () =>
-    Effect.gen(function* () {
-      const id = yield* publishedEvent({
-        title: "Secret launch",
-        summary: "Only for us.",
-        cover,
-        public: false,
-      });
-      assert.isTrue(Option.isNone(yield* Sharing.sharedEvent(id)));
-    }),
+  it.effect(
+    "shares an event shown only to members as one shown to everyone",
+    () =>
+      Effect.gen(function* () {
+        const id = yield* publishedEvent({
+          title: "Members launch",
+          summary: "Only for us.",
+          cover,
+          public: false,
+        });
+        const event = yield* Sharing.sharedEvent(id);
+        const meta = metaOf(Sharing.sharingTags({ site, event }));
+        assert.strictEqual(meta.get("og:title"), "Members launch");
+        assert.strictEqual(meta.get("og:description"), "Only for us.");
+        assert.strictEqual(
+          meta.get("og:image"),
+          "https://skjera.test/api/images/AAAAAAAAAAAAAAAAAAAAAA",
+        );
+      }),
   );
 
   it.effect("shows nothing of an event that is gone", () =>
@@ -307,36 +316,6 @@ layer(TestLayer, { excludeTestServices: true })("Sharing", (it) => {
         }),
       );
     }),
-  );
-
-  it.effect(
-    "answers a members-only event's page with the site's name only",
-    () =>
-      Effect.gen(function* () {
-        const id = yield* publishedEvent({
-          title: "Secret launch",
-          summary: "Only for us.",
-          cover,
-          public: false,
-        });
-        yield* withPages((page) =>
-          Effect.gen(function* () {
-            const response = yield* page(`/events/${id}`);
-            assert.strictEqual(response.status, 200);
-            const html = yield* Effect.promise(() => response.text());
-            for (const secret of [
-              "Secret launch",
-              "Only for us.",
-              "AAAAAAAAAAAAAAAAAAAAAA",
-            ]) {
-              assert.notInclude(html, secret);
-            }
-            const meta = metaOf(html);
-            assert.strictEqual(meta.get("og:title"), siteName);
-            assert.strictEqual(meta.get("og:site_name"), siteName);
-          }),
-        );
-      }),
   );
 
   it.effect(
