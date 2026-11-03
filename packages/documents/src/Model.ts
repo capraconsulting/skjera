@@ -107,17 +107,49 @@ const Picture = Schema.Struct({
   darkSrc: Schema.optionalKey(Schema.String),
 });
 
+/**
+ * A text in the footer: the same in every language, or one per language,
+ * with Bokmål shown where the page's language has none.
+ */
+export const FooterText = Schema.Union([
+  Schema.String,
+  Schema.Struct({
+    nb: Schema.String,
+    nn: Schema.optionalKey(Schema.String),
+    en: Schema.optionalKey(Schema.String),
+  }),
+]);
+export type FooterText = typeof FooterText.Type;
+
+/** A logo in a group: its description, its image(s), and a link or none. */
+export const FooterLogo = Schema.Struct({
+  label: FooterText,
+  ...Picture.fields,
+  href: Schema.optionalKey(Schema.String),
+});
+
+/** Logos side by side, under a title or none. */
+export const FooterGroup = Schema.Struct({
+  title: Schema.optionalKey(FooterText),
+  logos: Schema.Array(FooterLogo),
+});
+
 /** A link in the footer: words, or a logo (with them as its description). */
 export const FooterLink = Schema.Struct({
-  label: Schema.String,
+  label: FooterText,
   href: Schema.String,
   logo: Schema.optionalKey(Picture),
 });
 
-/** The footer, from `SITE_FOOTER` (JSON): a line of text, and links. */
+/**
+ * The footer, from `SITE_FOOTER` (JSON): a heading, groups of logos, links,
+ * and a line of text where `{year}` is the year.
+ */
 export const SiteFooter = Schema.Struct({
-  text: Schema.optionalKey(Schema.String),
+  heading: Schema.optionalKey(FooterText),
+  groups: Schema.optionalKey(Schema.Array(FooterGroup)),
   links: Schema.optionalKey(Schema.Array(FooterLink)),
+  text: Schema.optionalKey(FooterText),
 });
 export type SiteFooter = typeof SiteFooter.Type;
 

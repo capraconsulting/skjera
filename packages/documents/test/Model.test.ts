@@ -1,5 +1,13 @@
 import { assert, describe, it } from "@effect/vitest";
-import { Config, ConfigProvider, Effect, Exit, Option, Schema } from "effect";
+import {
+  Cause,
+  Config,
+  ConfigProvider,
+  Effect,
+  Exit,
+  Option,
+  Schema,
+} from "effect";
 import {
   GuestDetails,
   guestProblems,
@@ -256,6 +264,82 @@ describe("SiteConfig", () => {
         });
       }
     }),
+  );
+
+  it.effect(
+    "reads a footer with a heading, groups and per-language texts (AC-1, AC-2, AC-3, AC-6)",
+    () =>
+      Effect.gen(function* () {
+        const footer = {
+          heading: { nb: "Vi er en del av Capra-gruppen", en: "Part of Capra" },
+          groups: [
+            {
+              title: { nb: "Sertifiseringer", nn: "Sertifiseringar" },
+              logos: [
+                { label: "DNV", src: "/dnv.webp", darkSrc: "/dnv-dark.webp" },
+              ],
+            },
+            {
+              logos: [
+                {
+                  label: { nb: "Capra-logo", en: "Capra logo" },
+                  src: "/capra.webp",
+                  href: "https://www.capraconsulting.no/",
+                },
+              ],
+            },
+          ],
+          text: { nb: "{year} © Capra" },
+        };
+        const site = yield* readSite({ SITE_FOOTER: JSON.stringify(footer) });
+        assert.isTrue(Exit.isSuccess(site));
+        if (Exit.isSuccess(site)) {
+          assert.deepStrictEqual(site.value.footer, footer);
+        }
+      }),
+  );
+
+  it.effect("reads a footer in today's form unchanged (AC-7)", () =>
+    Effect.gen(function* () {
+      const footer = {
+        text: "Skjera · Events, together · privacy@skjera.localhost",
+        links: [
+          {
+            label: "Example Ltd",
+            href: "https://example.com",
+            logo: {
+              src: "/site-assets/logo.svg",
+              darkSrc: "/site-assets/logo-dark.svg",
+            },
+          },
+        ],
+      };
+      const site = yield* readSite({ SITE_FOOTER: JSON.stringify(footer) });
+      assert.isTrue(Exit.isSuccess(site));
+      if (Exit.isSuccess(site)) {
+        assert.deepStrictEqual(site.value.footer, footer);
+      }
+    }),
+  );
+
+  it.effect(
+    "refuses a footer that is not valid, naming SITE_FOOTER (AC-8)",
+    () =>
+      Effect.gen(function* () {
+        for (const given of [
+          '{"groups":[{"logos":[{"label":"DNV"}]}]}',
+          '{"heading":{"en":"Part of Capra"}}',
+          '{"groups":[{"title":"Certifications"}]}',
+          '{"heading":42}',
+          "not json",
+        ]) {
+          const site = yield* readSite({ SITE_FOOTER: given });
+          assert.isTrue(Exit.isFailure(site), given);
+          if (Exit.isFailure(site)) {
+            assert.include(Cause.pretty(site.cause), "SITE_FOOTER", given);
+          }
+        }
+      }),
   );
 });
 

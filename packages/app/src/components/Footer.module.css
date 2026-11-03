@@ -74,3 +74,82 @@
 .line a {
   color: var(--color-text);
 }
+
+.heading {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 1.125rem;
+  font-weight: 300;
+}
+
+/* With groups: Skjer's layout, a column under 40rem, a row from it. */
+.row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.group {
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+}
+
+.title {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 1rem;
+}
+
+.groupLogos {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Logos in a group with a title, and in one without. */
+.certification {
+  height: 4rem;
+}
+
+.company {
+  height: 5rem;
+}
+
+.privacy {
+  color: var(--color-text);
+}
+
+.rowText {
+  margin: 0;
+  padding-top: 1rem;
+}
+
+.rowText a {
+  color: var(--color-text);
+}
+
+@media (min-width: 40rem) {
+  .row {
+    flex-direction: row;
+    justify-content: space-evenly;
+  }
+
+  .certification {
+    height: 5rem;
+  }
+
+  .company {
+    height: 7rem;
+  }
+
+  .groupLogos:has(.company) {
+    gap: 2.75rem;
+  }
+}

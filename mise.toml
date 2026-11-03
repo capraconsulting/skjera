@@ -31,17 +31,52 @@ WEBSITE_ORIGINS = "http://website.localhost"
 # development or the browser tests.
 # Branding, all optional. Files in SITE_ASSETS_DIR are served at /site-assets/.
 SITE_ASSETS_DIR = "{{config_root}}/dev/site-assets"
-# A line of text and links (each with an optional logo), as JSON.
+# The footer, as JSON: a heading, groups of logos (each with a title or none;
+# a logo with an "href" is a link), links, and a line of text where {year} is
+# the year. Every text is a string, or one per language (nb is required, nn and
+# en optional). This is Capra's, as in Skjer; its logos are in
+# packages/app/public/footer. The "src" of a logo is for a light background.
 SITE_FOOTER = """
 {
-  "text": "Skjera · Events, together · privacy@skjera.localhost",
-  "links": [
+  "heading": {
+    "nb": "Vi er en del av Capra-gruppen",
+    "nn": "Vi er ein del av Capra-gruppa",
+    "en": "We are part of the Capra Group"
+  },
+  "groups": [
     {
-      "label": "Example Ltd",
-      "href": "https://example.com",
-      "logo": { "src": "/site-assets/logo.svg", "darkSrc": "/site-assets/logo-dark.svg" }
+      "title": { "nb": "Sertifiseringer", "nn": "Sertifiseringar", "en": "Certifications" },
+      "logos": [
+        {
+          "label": { "nb": "Miljøfyrtårn-sertifisering", "en": "Eco-Lighthouse certification" },
+          "src": "/footer/miljofyrtarn-dark.webp",
+          "darkSrc": "/footer/miljofyrtarn-light.webp"
+        },
+        {
+          "label": { "nb": "DNV-sertifisering", "en": "DNV certification" },
+          "src": "/footer/dnv-dark.webp",
+          "darkSrc": "/footer/dnv-light.webp"
+        }
+      ]
+    },
+    {
+      "logos": [
+        {
+          "label": { "nb": "Capra-logo", "en": "Capra logo" },
+          "src": "/footer/capra-black-vertical.webp",
+          "darkSrc": "/footer/capra-white-vertical.webp",
+          "href": "https://www.capraconsulting.no/"
+        },
+        {
+          "label": { "nb": "Liflig-logo", "en": "Liflig logo" },
+          "src": "/footer/liflig-black-vertical.webp",
+          "darkSrc": "/footer/liflig-white-vertical.webp",
+          "href": "https://www.liflig.no/"
+        }
+      ]
     }
-  ]
+  ],
+  "text": "{year} © Capra | Torggata 2-4, 0180 Oslo | post@capraconsulting.no"
 }
 """
 # For the privacy page: who answers for the data kept, and how to reach them.
