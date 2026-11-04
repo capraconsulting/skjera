@@ -21,6 +21,33 @@ export class Footer {
     );
   }
 
+  /** A logo shown as an image only: visible, and not inside a link. */
+  async expectUnlinkedLogo(name: string): Promise<void> {
+    await expect(this.footer().getByRole("img", { name })).toBeVisible();
+    await expect(this.footer().getByRole("link", { name })).toHaveCount(0);
+  }
+
+  /** The logo image shown now (the theme's version) is this file. */
+  async expectLogoFile(name: string, src: string): Promise<void> {
+    await expect(this.footer().getByRole("img", { name })).toHaveAttribute(
+      "src",
+      src,
+    );
+  }
+
+  /** Every logo shown in the footer has loaded. */
+  async expectLogosLoaded(): Promise<void> {
+    const images = this.footer().getByRole("img");
+    await expect(images.first()).toBeVisible();
+    await expect
+      .poll(() =>
+        images.evaluateAll((all) =>
+          all.every((image) => (image as HTMLImageElement).naturalWidth > 0),
+        ),
+      )
+      .toBe(true);
+  }
+
   async clickPrivacy(): Promise<void> {
     await this.footer().getByRole("link", { name: "Privacy" }).click();
   }

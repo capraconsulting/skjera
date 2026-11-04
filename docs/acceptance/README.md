@@ -55,6 +55,7 @@ These files say what to test and how. Which criteria have passed in a round of t
 | SITE-08 | [Summary and sharing](SITE-08-summary-and-sharing.md) |
 | SITE-09 | [The site updates without reloading](SITE-09-live-updates.md) |
 | SITE-10 | [Privacy page](SITE-10-privacy-page.md) |
+| SITE-11 | [Search engines and sharing services](SITE-11-search-engines-and-sharing.md) |
 
 ## SIGN: Signing up
 

@@ -218,6 +218,13 @@ export class EventPage {
     await expect(this.sharingTag(name)).toHaveAttribute("content", content);
   }
 
+  /** The address search engines are told is the page's own. */
+  async expectCanonical(href: string | RegExp): Promise<void> {
+    await expect(
+      this.page.locator('head link[rel="canonical"]'),
+    ).toHaveAttribute("href", href);
+  }
+
   async expectNoSharingTag(name: string): Promise<void> {
     await expect(this.sharingTag(name)).toHaveCount(0);
   }

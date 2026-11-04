@@ -399,8 +399,6 @@ test("the site has its logo, its footer and a privacy page (AC-2, AC-3)", async 
   await header.expectBrandLogo("logo-dark", true);
   // The tab: the site and its companies, as in Skjer.
   await new HomePage(page).expectTabTitle("Skjera | Capra Liflig");
-  await footer.expectText("Events, together");
-  await footer.expectLink("Example Ltd", "https://example.com");
 
   // Dark: the logo for a dark background.
   await header.pickTheme("Dark");
@@ -413,6 +411,44 @@ test("the site has its logo, its footer and a privacy page (AC-2, AC-3)", async 
   await privacy.expectTitle();
   await privacy.expectTabTitle("Privacy policy | Skjera");
   await privacy.expectOperatorDetails();
+});
+
+test("the footer is Capra's, as in Skjer (AC-3, AC-4, AC-9)", async ({
+  browser,
+}) => {
+  const page = await visitor(browser);
+  const footer = new Footer(page);
+  await new HomePage(page).goto();
+  // In English: heading, certifications that are not links, company logos
+  // that are, and the line with the year.
+  await footer.expectText("We are part of the Capra Group");
+  await footer.expectText("Certifications");
+  await footer.expectUnlinkedLogo("Eco-Lighthouse certification");
+  await footer.expectUnlinkedLogo("DNV certification");
+  await footer.expectLink("Capra logo", "https://www.capraconsulting.no/");
+  await footer.expectLink("Liflig logo", "https://www.liflig.no/");
+  await footer.expectText(
+    `${new Date().getFullYear()} © Capra | Torggata 2-4, 0180 Oslo |`,
+  );
+  await footer.expectLink(
+    "post@capraconsulting.no",
+    "mailto:post@capraconsulting.no",
+  );
+  await footer.expectLogosLoaded();
+  await footer.expectLogoFile(
+    "Capra logo",
+    "/footer/capra-black-vertical.webp",
+  );
+  // SITE_ASSETS_DIR's files are still served, though the footer no longer
+  // uses them.
+  const asset = await page.request.get("/site-assets/logo.svg");
+  expect(asset.status()).toBe(200);
+
+  await new Header(page).pickTheme("Dark");
+  await footer.expectLogoFile(
+    "Capra logo",
+    "/footer/capra-white-vertical.webp",
+  );
 });
 
 test("the privacy page has the sections of Skjer's policy (AC-1)", async ({
@@ -606,7 +642,7 @@ test("a team's new logo shows on the open list without reloading", async ({
   await cleanUp(alice, team, event.id);
 });
 
-test("a link to a public event shows its title, summary and cover; others the site's name", async ({
+test("a link to a public event shows its title, summary and cover; others the site's name (AC-3, AC-6)", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -630,6 +666,11 @@ test("a link to a public event shows its title, summary and cover; others the si
   await page.expectSharingTag("og:image", new RegExp(`${cover}$`));
   await page.expectSharingTag("og:image:alt", "A full room");
   await page.expectSharingTag("twitter:card", "summary_large_image");
+  await page.expectCanonical(new RegExp(`/events/${shown.id}$`));
+
+  // The front page has the site's description.
+  await new HomePage(reader).goto();
+  await new HomePage(reader).expectDescription("Skjer | Capra Liflig");
 
   // No such event: the site's name only.
   await page.goto(crypto.randomUUID());

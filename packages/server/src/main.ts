@@ -264,13 +264,9 @@ const App = Layer.unwrap(
         prefix: "/assets",
         cacheControl: "public, max-age=31536000, immutable",
       }),
-      // An event's page, with what a shared link shows.
-      Documents.Sharing.layerHttp({ index: `${root}/index.html` }),
-      HttpStaticServer.layer({
-        root: root,
-        spa: true,
-        cacheControl: "no-cache",
-      }),
+      // The app's files, and its pages with what search engines and shared
+      // links are told.
+      Documents.Sharing.layerHttp({ root }),
     );
   }),
 );
@@ -295,7 +291,10 @@ const LoginFailurePage = Layer.unwrap(
     const root = yield* Documents.optionalSetting("STATIC_DIR", Config.String);
     if (root === undefined) return Layer.empty;
     const fs = yield* FileSystem.FileSystem;
-    const page = yield* fs.readFileString(`${root}/index.html`);
+    const page = Documents.Sharing.withSharing(
+      yield* fs.readFileString(`${root}/index.html`),
+      Documents.Sharing.siteTags(yield* Documents.Sharing.SharingSite),
+    );
     return Layer.succeed(OAuth.LoginFailurePage, (failure) =>
       Effect.succeed(
         HttpServerResponse.text(
@@ -363,6 +362,8 @@ const Routes = Layer.mergeAll(
   Documents.PublicEvents.layerHttp,
   // The coming events as a calendar to subscribe to, members only ones too.
   Documents.CalendarFeed.layerHttp,
+  // What a phone is told when the site is added to its home screen.
+  Documents.Manifest.layerHttp,
   Health,
   site,
   SiteAssets,
