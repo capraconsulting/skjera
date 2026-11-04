@@ -253,10 +253,13 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
               }),
             });
 
-            // The organiser's own subject, and text in place of the opening.
+            // The organiser's own subject, followed by the event's title, and
+            // text in place of the opening.
             const subjectOf = (kind: string, standard: string) => {
               const written = event.email_texts[`${kind}Subject`];
-              return typeof written === "string" ? written : standard;
+              return typeof written === "string"
+                ? `${written} ${event.title}`
+                : standard;
             };
             const textOf = (
               kind: string,

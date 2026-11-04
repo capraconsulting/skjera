@@ -23,7 +23,7 @@ import {
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Mail: own texts", (it) => {
   it.effect(
-    "sends the written subject of each email, to guests in either language",
+    "sends the written subject of each email followed by the event's title, to guests in either language (AC-1)",
     () =>
       Effect.gen(function* () {
         for (const locale of ["en", "nb"] as const) {
@@ -34,12 +34,12 @@ layer(TestLayer, { excludeTestServices: true })("Mail: own texts", (it) => {
           assert.deepStrictEqual(
             sent.map((message) => message.subject),
             [
-              "Written for signedUp",
-              "Written for eventChanged",
-              "Written for eventChanged",
-              "Written for eventChanged",
-              "Written for signupCancelled",
-              "Written for eventCancelled",
+              "Written for signedUp Launch",
+              "Written for eventChanged Launch",
+              "Written for eventChanged Launch",
+              "Written for eventChanged Launch",
+              "Written for signupCancelled Launch",
+              "Written for eventCancelled Launch",
             ],
             locale,
           );
@@ -154,7 +154,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: own texts", (it) => {
           });
 
         const first = yield* emailFor(onlySubject);
-        assert.strictEqual(first?.subject, "Welcome aboard");
+        assert.strictEqual(first?.subject, "Welcome aboard Launch");
         assert.include(
           first?.html ?? "",
           m.email_signed_up_heading({}, { locale: "nb" }),
@@ -248,7 +248,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: own texts", (it) => {
         yield* documents.delete(id, alice);
 
         const [, cancelled] = yield* emailsTo(address, 2);
-        assert.strictEqual(cancelled?.message.subject, "Subject A");
+        assert.strictEqual(cancelled?.message.subject, "Subject A Launch");
         assert.include(cancelled?.message.html ?? "", "Text A");
         assert.notInclude(cancelled?.message.html ?? "", "Text B");
         assert.isDefined(heads);
@@ -284,7 +284,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: own texts", (it) => {
         yield* documents.publish(id, seen, alice);
 
         const [, moved] = yield* emailsTo(address, 2);
-        assert.strictEqual(moved?.message.subject, "Subject C");
+        assert.strictEqual(moved?.message.subject, "Subject C Launch");
       }),
   );
   it.effect(
@@ -311,7 +311,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: own texts", (it) => {
         const [, removed] = yield* emailsTo(address, 2);
         assert.strictEqual(
           removed?.message.subject,
-          "Written for signupCancelled",
+          "Written for signupCancelled Launch",
         );
         const html = removed?.message.html ?? "";
         assert.match(html, /<h2[^>]*>Big news<\/h2>/);

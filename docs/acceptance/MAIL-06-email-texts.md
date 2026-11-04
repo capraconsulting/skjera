@@ -20,15 +20,15 @@ The studio shall let an organiser write, for each event, an optional subject and
 
 **Automated:** `packages/app/e2e/specs/attendance/emails.spec.ts`, `packages/documents/test/events/emails.test.ts`
 
-## AC-2: The email carries the subject written
+## AC-2: The email carries the subject written, then the event's title
 
-When Skjera sends one of these four emails for an event whose organiser has written a subject for it, the email shall carry that subject.
+When Skjera sends one of these four emails for an event whose organiser has written a subject for it, the email's subject shall be that subject, a space, and the event's title.
 
 **Test**
 
 - **Given** «Own texts»
 - **When** bob signs up and cancels; signs up again; you change the time and **Publish**; and you delete the event
-- **Then** each of the four emails to bob in Mailpit has the subject written for it
+- **Then** each of the four emails to bob in Mailpit has the subject written for it, followed by a space and the event's title
 
 **Automated:** `packages/app/e2e/specs/attendance/emails.spec.ts`, `packages/documents/test/notices/texts.test.tsx`
 
