@@ -179,6 +179,7 @@ function EventSession({ id }: { readonly id: DocumentId }) {
             path={bodyPath}
             label={m.studio_body()}
             rich
+            imageChoices
             presence={session.presence}
           />
         </Field>

@@ -8,7 +8,7 @@ import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
 
 const imagePath = /^\/api\/images\/[A-Za-z0-9_-]{22}$/;
 
-test("images are uploaded into the body and shown on the site", async ({
+test("images are uploaded into the body and shown on the site (AC-1, AC-7)", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -33,6 +33,9 @@ test("images are uploaded into the body and shown on the site", async ({
     buffer: pixel,
   });
   await dialog.fillDescription("A pixel");
+  await dialog.fillCaption("A caption");
+  await dialog.choosePlacement("Float left");
+  await dialog.chooseSize("Small");
   await dialog.clickConfirm();
   await dialog.expectClosed();
   await editor.bodyImages.expect("A pixel");
@@ -41,19 +44,32 @@ test("images are uploaded into the body and shown on the site", async ({
 
   await editor.publish();
 
-  // Anyone with the link can see it, as the image it is.
+  // Anyone with the link can see it, as the image it is, with its caption.
   const reader = await visitor(browser);
   const page = new EventPage(reader);
   await page.goto(event.id);
   await page.expectBodyImage("A pixel", new RegExp(`${src}$`));
+  await page.expectBodyFigure("A pixel", "A caption");
   const headers = await page.imageHeaders(src);
   expect(headers["content-type"]).toBe("image/png");
   expect(headers["x-content-type-options"]).toBe("nosniff");
 
+  // The choices are kept in the event: they are there when the image is
+  // opened again after a reload.
+  await editor.reload();
+  await editor.bodyImages.select("A pixel");
+  const described = await editor.toolbar.openDescribeImageDialog();
+  await described.expectChoices({
+    placement: "left",
+    size: "small",
+    caption: "A caption",
+  });
+  await described.cancel();
+
   await cleanUp(alice, team, event.id);
 });
 
-test("images pasted or dropped into the body are uploaded", async ({
+test("images pasted or dropped into the body are uploaded (AC-2, AC-8)", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -81,6 +97,27 @@ test("images pasted or dropped into the body are uploaded", async ({
   await page.goto(event.id);
   await page.expectBodyImageCount(2);
   await page.expectBodyImage("A pixel");
+  // The dropped image was never described: it is named for those who can't
+  // see it, and is shown with the choices a new image gets.
+  await page.expectBodyImage("Illustration in the event description");
+  await page.expectBodyFigure("Illustration in the event description");
+
+  await cleanUp(alice, team, event.id);
+});
+
+test("the email texts' editor has no choices for an image (AC-1)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Emails"));
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({ public: true });
+
+  await editor.openEmail("signed up");
+  await editor.emailText("signed up").click();
+  const dialog = await editor.emailToolbar("signed up").openImageDialog();
+  await dialog.expectNoChoices();
+  await dialog.cancel();
 
   await cleanUp(alice, team, event.id);
 });

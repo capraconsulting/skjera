@@ -1,16 +1,21 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
-/** The body's formatting toolbar, and the dialogs it opens. */
+/**
+ * The formatting toolbar of a rich text field, the body unless `field` names
+ * another, and the dialogs it opens.
+ */
 export class BodyToolbar {
   private readonly page: Page;
+  private readonly field: string;
 
-  constructor(page: Page) {
+  constructor(page: Page, field = "Body") {
     this.page = page;
+    this.field = field;
   }
 
   private readonly button = (name: string) =>
     this.page
-      .getByRole("toolbar", { name: "Body formatting" })
+      .getByRole("toolbar", { name: `${this.field} formatting` })
       .getByRole("button", { name, exact: true });
 
   async clickBold(): Promise<void> {
@@ -59,6 +64,57 @@ export class ImageDialog {
 
   async fillDescription(text: string): Promise<void> {
     await this.dialog.getByRole("textbox", { name: "Description" }).fill(text);
+  }
+
+  async fillCaption(text: string): Promise<void> {
+    await this.dialog.getByRole("textbox", { name: "Caption" }).fill(text);
+  }
+
+  /** Picks a placement by its name, e.g. "Float left". */
+  async choosePlacement(name: string): Promise<void> {
+    await this.dialog
+      .getByRole("combobox", { name: "Placement" })
+      .selectOption({ label: name });
+  }
+
+  /** Picks a size by its name, e.g. "Small". */
+  async chooseSize(name: string): Promise<void> {
+    await this.dialog
+      .getByRole("combobox", { name: "Size" })
+      .selectOption({ label: name });
+  }
+
+  /** The dialog shows these choices, by the values of its fields (e.g. "left"). */
+  async expectChoices(choices: {
+    readonly placement: string;
+    readonly size: string;
+    readonly caption: string;
+  }): Promise<void> {
+    await expect(
+      this.dialog.getByRole("combobox", { name: "Placement" }),
+    ).toHaveValue(choices.placement);
+    await expect(
+      this.dialog.getByRole("combobox", { name: "Size" }),
+    ).toHaveValue(choices.size);
+    await expect(
+      this.dialog.getByRole("textbox", { name: "Caption" }),
+    ).toHaveValue(choices.caption);
+  }
+
+  async cancel(): Promise<void> {
+    await this.dialog.getByRole("button", { name: "Cancel" }).click();
+  }
+
+  async expectNoChoices(): Promise<void> {
+    await expect(
+      this.dialog.getByRole("textbox", { name: "Caption" }),
+    ).toHaveCount(0);
+    await expect(
+      this.dialog.getByRole("combobox", { name: "Placement" }),
+    ).toHaveCount(0);
+    await expect(
+      this.dialog.getByRole("combobox", { name: "Size" }),
+    ).toHaveCount(0);
   }
 
   async clickConfirm(): Promise<void> {

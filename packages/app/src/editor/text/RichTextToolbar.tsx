@@ -6,11 +6,15 @@ import { Button } from "../../components/Button.tsx";
 import { Dialog, dialogStyles } from "../../components/Dialog.tsx";
 import { Input } from "../../components/Input.tsx";
 import { acceptedImages, uploadImage } from "../uploadImage.ts";
+import { ImageChoiceFields, readChoices } from "./ImageChoiceFields.tsx";
 import styles from "./RichTextToolbar.module.css";
 import {
+  choicesToStore,
+  defaultChoices,
+  type ImageChoices,
   insertImage,
   safeHref,
-  setImageAlt,
+  setImage,
   setLink,
   toolbarState,
 } from "./richText.ts";
@@ -20,6 +24,8 @@ export function RichTextToolbar(props: {
   readonly view: EditorView;
   /** The editor's label, e.g. "Body", to name the toolbar. */
   readonly label: string;
+  /** Whether an image has a caption, placement and size to choose. */
+  readonly imageChoices?: boolean;
 }) {
   const { view } = props;
   const tools = toolbarState(view.state);
@@ -100,13 +106,14 @@ export function RichTextToolbar(props: {
       </Tool>
       <ImageDialog
         open={addingImage}
+        choices={props.imageChoices === true}
         onClose={() => {
           setAddingImage(false);
           view.focus();
         }}
-        onImage={(src, alt) => {
+        onImage={(src, alt, choices) => {
           setAddingImage(false);
-          run(insertImage(src, alt));
+          run(insertImage(src, alt, choices));
         }}
       />
       {tools.image === null ? null : (
@@ -120,13 +127,24 @@ export function RichTextToolbar(props: {
       <DescribeImageDialog
         open={describing}
         alt={tools.image?.alt ?? ""}
+        choices={
+          props.imageChoices === true
+            ? (tools.image?.choices ?? defaultChoices)
+            : null
+        }
         onClose={() => {
           setDescribing(false);
           view.focus();
         }}
-        onDescribe={(alt) => {
+        onDescribe={(alt, chosen) => {
           setDescribing(false);
-          run(setImageAlt(alt));
+          const stored = tools.image?.stored ? tools.image.choices : null;
+          run(
+            setImage(
+              alt,
+              chosen === null ? null : choicesToStore(stored, chosen),
+            ),
+          );
         }}
       />
     </div>
@@ -224,8 +242,14 @@ function LinkDialog(props: {
 /** Uploads an image, with a description for those who can't see it. */
 function ImageDialog(props: {
   readonly open: boolean;
+  /** Whether the caption, placement and size are asked for. */
+  readonly choices: boolean;
   readonly onClose: () => void;
-  readonly onImage: (src: string, alt: string) => void;
+  readonly onImage: (
+    src: string,
+    alt: string,
+    choices: ImageChoices | undefined,
+  ) => void;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -247,7 +271,11 @@ function ImageDialog(props: {
     try {
       const src = await uploadImage(file);
       setError(null);
-      props.onImage(src, String(form.get("alt") ?? "").trim());
+      props.onImage(
+        src,
+        String(form.get("alt") ?? "").trim(),
+        props.choices ? readChoices(form) : undefined,
+      );
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
@@ -273,6 +301,7 @@ function ImageDialog(props: {
           placeholder={m.editor_describe_placeholder()}
           className={`${dialogStyles.input} ${styles.description}`}
         />
+        {props.choices ? <ImageChoiceFields choices={defaultChoices} /> : null}
         {error === null ? null : (
           <p role="alert" className={dialogStyles.error}>
             {error}
@@ -289,17 +318,22 @@ function ImageDialog(props: {
   );
 }
 
-/** What an image shows, for those who can't see it. */
+/** What an image shows, for those who can't see it, and how it is placed. */
 function DescribeImageDialog(props: {
   readonly open: boolean;
   readonly alt: string;
+  /** The image's choices to show; null when it has none to choose. */
+  readonly choices: ImageChoices | null;
   readonly onClose: () => void;
-  readonly onDescribe: (alt: string) => void;
+  readonly onDescribe: (alt: string, choices: ImageChoices | null) => void;
 }) {
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const alt = new FormData(event.currentTarget).get("alt");
-    props.onDescribe(String(alt ?? "").trim());
+    const form = new FormData(event.currentTarget);
+    props.onDescribe(
+      String(form.get("alt") ?? "").trim(),
+      props.choices === null ? null : readChoices(form),
+    );
   };
   return (
     <Dialog
@@ -316,6 +350,9 @@ function DescribeImageDialog(props: {
           defaultValue={props.alt}
           autoFocus
         />
+        {props.choices === null ? null : (
+          <ImageChoiceFields choices={props.choices} />
+        )}
         <div className={dialogStyles.actions}>
           <Button onClick={props.onClose}>{m.common_cancel()}</Button>
           <Button type="submit" variant="primary">

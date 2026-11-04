@@ -1,4 +1,6 @@
+import { ImmutableString } from "@automerge/automerge/slim";
 import { basicSchemaAdapter } from "@automerge/prosemirror";
+import { m } from "@skjera/i18n/messages";
 import { setBlockType, toggleMark } from "prosemirror-commands";
 import {
   type InputRule,
@@ -7,7 +9,7 @@ import {
   wrappingInputRule,
 } from "prosemirror-inputrules";
 import { keymap } from "prosemirror-keymap";
-import type { MarkType, NodeType, Schema } from "prosemirror-model";
+import type { Attrs, MarkType, NodeType, Schema } from "prosemirror-model";
 import {
   liftListItem,
   sinkListItem,
@@ -112,6 +114,101 @@ const selectedImage = (state: EditorState) => {
     : null;
 };
 
+export const imagePlacements = ["full", "left", "right", "center"] as const;
+export const imageSizes = ["small", "medium", "large"] as const;
+
+/** How an image in the text is placed, how big it is, and what it says. */
+export interface ImageChoices {
+  readonly placement: (typeof imagePlacements)[number];
+  readonly size: (typeof imageSizes)[number];
+  /** Empty when there is none. */
+  readonly caption: string;
+}
+
+export const defaultChoices: ImageChoices = {
+  placement: "full",
+  size: "medium",
+  caption: "",
+};
+
+/**
+ * The choices are block attributes the schema doesn't declare, which
+ * @automerge/prosemirror keeps in the node's `unknownAttrs` and writes back.
+ */
+const storedAttrs = (attrs: Attrs): Record<string, unknown> => {
+  const stored: unknown = attrs["unknownAttrs"];
+  return typeof stored === "object" && stored !== null
+    ? (stored as Record<string, unknown>)
+    : {};
+};
+
+const oneOf = <T extends string>(
+  list: ReadonlyArray<T>,
+  value: unknown,
+  fallback: T,
+): T => list.find((item) => item === String(value)) ?? fallback;
+
+/**
+ * The choices stored on an image, or null for one placed before there were
+ * any. A value that isn't a known one reads as the default. Values are
+ * strings in the editor's document and in the published body alike, or
+ * immutable strings read from Automerge.
+ */
+export const imageChoices = (attrs: Attrs): ImageChoices | null => {
+  const stored = storedAttrs(attrs);
+  if (stored["placement"] === undefined && stored["size"] === undefined) {
+    return null;
+  }
+  return {
+    placement: oneOf(imagePlacements, stored["placement"], "full"),
+    size: oneOf(imageSizes, stored["size"], "medium"),
+    caption: String(stored["caption"] ?? "").trim(),
+  };
+};
+
+/** What the site shows for an image: its alt text, or the fallback, and its choices. */
+export const shownImage = (attrs: Attrs) => ({
+  alt: String(attrs["alt"] ?? "").trim() || m.site_image_alt(),
+  choices: imageChoices(attrs),
+});
+
+const sameChoices = (a: ImageChoices, b: ImageChoices) =>
+  a.placement === b.placement && a.size === b.size && a.caption === b.caption;
+
+/**
+ * What to store when an image's dialog is saved: nothing for an image
+ * without choices whose dialog was left at the defaults, so it keeps its
+ * look; otherwise all three.
+ */
+export const choicesToStore = (
+  stored: ImageChoices | null,
+  chosen: ImageChoices,
+) => (stored === null && sameChoices(chosen, defaultChoices) ? null : chosen);
+
+const choiceKeys = ["placement", "size", "caption"];
+
+/**
+ * The choices as block attributes: immutable strings, as the library stores
+ * `src`, because a plain string is Automerge text and a change that removes
+ * characters from it throws in the sync. No caption when it is empty.
+ */
+const toAttrs = (choices: ImageChoices) => {
+  const caption = choices.caption.trim();
+  return {
+    placement: new ImmutableString(choices.placement),
+    size: new ImmutableString(choices.size),
+    ...(caption === "" ? {} : { caption: new ImmutableString(caption) }),
+  };
+};
+
+/** A new image, with the default choices unless others are given. */
+export const newImage = (
+  schema: Schema,
+  src: string,
+  alt: string,
+  choices: ImageChoices = defaultChoices,
+) => nodes(schema).image.create({ src, alt, unknownAttrs: toAttrs(choices) });
+
 /** What the toolbar can do, and what's on where the selection is. */
 export const toolbarState = (state: EditorState) => {
   const schema = state.schema;
@@ -130,8 +227,19 @@ export const toolbarState = (state: EditorState) => {
 
   const image = selectedImage(state);
   return {
-    /** The selected image's description, if an image is selected. */
-    image: image === null ? null : { alt: String(image.attrs["alt"] ?? "") },
+    /**
+     * The selected image's description and choices, if an image is selected.
+     * `choices` are the defaults for one without any, and `stored` says
+     * whether it has any.
+     */
+    image:
+      image === null
+        ? null
+        : {
+            alt: String(image.attrs["alt"] ?? ""),
+            choices: imageChoices(image.attrs) ?? defaultChoices,
+            stored: imageChoices(image.attrs) !== null,
+          },
     bold: { active: markActive(state, strong), run: toggleMark(strong) },
     italic: { active: markActive(state, em), run: toggleMark(em) },
     heading: {
@@ -183,30 +291,46 @@ export const setLink =
 
 /** Puts an image where the selection is. */
 export const insertImage =
-  (src: string, alt: string): Command =>
+  (src: string, alt: string, choices?: ImageChoices): Command =>
   (state, dispatch) => {
-    const { image } = nodes(state.schema);
     if (dispatch) {
-      dispatch(state.tr.replaceSelectionWith(image.create({ src, alt })));
+      dispatch(
+        state.tr.replaceSelectionWith(
+          newImage(state.schema, src, alt, choices),
+        ),
+      );
     }
     return true;
   };
 
 /**
- * Describes the selected image. The image is replaced rather than changed,
- * as that is what syncs.
+ * Sets the selected image's description and choices, keeping anything else
+ * stored on it. No choices (null) leaves the stored ones as they are. The
+ * image is replaced rather than changed, as that is what syncs.
  */
-export const setImageAlt =
-  (alt: string): Command =>
+export const setImage =
+  (alt: string, choices: ImageChoices | null): Command =>
   (state, dispatch) => {
     const image = selectedImage(state);
     if (image === null) return false;
     if (dispatch) {
       const { from, to } = state.selection;
+      const kept = Object.entries(storedAttrs(image.attrs)).filter(
+        ([key]) => choices === null || !choiceKeys.includes(key),
+      );
+      const unknownAttrs =
+        choices === null
+          ? kept
+          : [...kept, ...Object.entries(toAttrs(choices))];
       const tr = state.tr.replaceWith(
         from,
         to,
-        image.type.create({ ...image.attrs, alt }),
+        image.type.create({
+          ...image.attrs,
+          alt,
+          unknownAttrs:
+            unknownAttrs.length === 0 ? null : Object.fromEntries(unknownAttrs),
+        }),
       );
       dispatch(tr.setSelection(NodeSelection.create(tr.doc, from)));
     }

@@ -340,6 +340,11 @@ export class EventEditor {
     return this.field(`Text of the ${emailNames[email]} email`);
   }
 
+  /** The formatting toolbar of an email's text. */
+  emailToolbar(email: EventEmail): BodyToolbar {
+    return new BodyToolbar(this.page, `Text of the ${emailNames[email]} email`);
+  }
+
   async checkPublic(): Promise<void> {
     await this.checkbox(/Public event/).check();
   }

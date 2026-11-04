@@ -170,6 +170,20 @@ export class EventPage {
       .toBe(1);
   }
 
+  /**
+   * An image in the body shown as a figure, with its caption if one is
+   * given. The figure is found by the image's name.
+   */
+  async expectBodyFigure(imageName: string, caption?: string): Promise<void> {
+    const figure = this.body()
+      .getByRole("figure")
+      .filter({ has: this.page.getByRole("img", { name: imageName }) });
+    await expect(figure).toBeVisible();
+    if (caption !== undefined) {
+      await expect(figure.locator("figcaption")).toHaveText(caption);
+    }
+  }
+
   async expectBodyImageCount(count: number): Promise<void> {
     await expect(this.body().locator('img[src*="/api/images/"]')).toHaveCount(
       count,

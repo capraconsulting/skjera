@@ -1,8 +1,9 @@
 import { m } from "@skjera/i18n/messages";
-import type { Schema } from "prosemirror-model";
+import { Fragment, type Node, type Schema, Slice } from "prosemirror-model";
 import { NodeSelection, Plugin, PluginKey } from "prosemirror-state";
 import { Decoration, DecorationSet, type EditorView } from "prosemirror-view";
 import { imageFiles, uploadImage } from "../uploadImage.ts";
+import { imageChoices, newImage } from "./richText.ts";
 
 // Images pasted or dropped into rich text are uploaded, with a placeholder
 // where they go until then, as in ProseMirror's upload example. The
@@ -36,8 +37,7 @@ const upload = async (
 ) => {
   onError(null);
   const schema: Schema = view.state.schema;
-  const image = schema.nodes["image"];
-  if (image === undefined) return;
+  if (schema.nodes["image"] === undefined) return;
   await Promise.all(
     files.map(async (file) => {
       const id = {};
@@ -49,7 +49,7 @@ const upload = async (
         const at = findPlaceholder(view, id);
         if (at === null) return;
         const tr = view.state.tr
-          .replaceWith(at, at, image.create({ src, alt: "" }))
+          .replaceWith(at, at, newImage(schema, src, ""))
           .setMeta(key, { remove: { id } });
         // Selected, so the toolbar offers to describe it.
         view.dispatch(tr.setSelection(NodeSelection.create(tr.doc, at)));
@@ -60,6 +60,27 @@ const upload = async (
       }
     }),
   );
+};
+
+/** Images without choices, e.g. from pasted HTML, get the defaults of a new one. */
+export const withDefaults = (fragment: Fragment): Fragment => {
+  const nodes: Array<Node> = [];
+  fragment.forEach((node) => {
+    if (node.type.name === "image") {
+      nodes.push(
+        imageChoices(node.attrs) === null
+          ? newImage(
+              node.type.schema,
+              String(node.attrs["src"]),
+              String(node.attrs["alt"] ?? ""),
+            )
+          : node,
+      );
+    } else {
+      nodes.push(node.copy(withDefaults(node.content)));
+    }
+  });
+  return Fragment.from(nodes);
 };
 
 /** Uploads images pasted or dropped into the editor. */
@@ -96,6 +117,8 @@ export const imageUploads = (options: {
     },
     props: {
       decorations: (state) => key.getState(state),
+      transformPasted: (slice) =>
+        new Slice(withDefaults(slice.content), slice.openStart, slice.openEnd),
       handlePaste: (view, event) => {
         const files = imageFiles(event.clipboardData);
         if (files.length === 0) return false;

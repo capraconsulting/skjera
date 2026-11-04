@@ -2,8 +2,12 @@ import { type next as A, ImmutableString } from "@automerge/automerge/slim";
 import { pmDocFromSpans } from "@automerge/prosemirror";
 import type { RichText as Spans } from "@skjera/documents/api";
 import type { Mark, Node } from "prosemirror-model";
-import { type ReactNode, useMemo } from "react";
-import { richTextAdapter } from "../editor/text/richText.ts";
+import { Fragment, type ReactNode, useMemo } from "react";
+import {
+  imageChoices,
+  richTextAdapter,
+  shownImage,
+} from "../editor/text/richText.ts";
 import styles from "./RichText.module.css";
 
 // Published rich text, as React elements rather than HTML, so nothing in
@@ -62,6 +66,21 @@ const withMark = (mark: Mark, children: ReactNode, key: number) => {
   }
 };
 
+/** Whether the paragraph holds an image shown as a figure. */
+const holdsFigure = (paragraph: Node) => {
+  let found = false;
+  paragraph.forEach((child) => {
+    if (
+      child.type.name === "image" &&
+      imageChoices(child.attrs) !== null &&
+      safeUrl(child.attrs["src"], ["http:", "https:"]) !== undefined
+    ) {
+      found = true;
+    }
+  });
+  return found;
+};
+
 const render = (node: Node, key: number): ReactNode => {
   const children = () => {
     const list: Array<ReactNode> = [];
@@ -78,7 +97,14 @@ const render = (node: Node, key: number): ReactNode => {
         node.text ?? "",
       );
     case "paragraph":
-      return <p key={key}>{children()}</p>;
+      // A figure is not allowed inside a <p>.
+      return holdsFigure(node) ? (
+        <div key={key} className={styles.paragraph}>
+          {children()}
+        </div>
+      ) : (
+        <p key={key}>{children()}</p>
+      );
     case "heading": {
       const level = Math.min(Math.max(Number(node.attrs["level"]), 2), 4);
       const Heading = `h${level}` as "h2" | "h3" | "h4";
@@ -108,13 +134,23 @@ const render = (node: Node, key: number): ReactNode => {
       return <br key={key} />;
     case "image": {
       const src = safeUrl(node.attrs["src"], ["http:", "https:"]);
-      return src === undefined ? null : (
-        <img
+      if (src === undefined) return null;
+      const { alt, choices } = shownImage(node.attrs);
+      const img = <img src={src} alt={alt} loading="lazy" />;
+      // An image placed before there were choices keeps its look.
+      if (choices === null) return <Fragment key={key}>{img}</Fragment>;
+      return (
+        <figure
           key={key}
-          src={src}
-          alt={String(node.attrs["alt"] ?? "")}
-          loading="lazy"
-        />
+          className={styles.figure}
+          data-placement={choices.placement}
+          data-size={choices.size}
+        >
+          {img}
+          {choices.caption === "" ? null : (
+            <figcaption>{choices.caption}</figcaption>
+          )}
+        </figure>
       );
     }
     default:

@@ -39,6 +39,11 @@ export class BodyImages {
     await expect(this.image(name)).toBeVisible();
   }
 
+  /** Selects a described image, as clicking it does. */
+  async select(name: string): Promise<void> {
+    await this.image(name).click();
+  }
+
   async src(name: string): Promise<string> {
     return (await this.image(name).getAttribute("src")) ?? "";
   }

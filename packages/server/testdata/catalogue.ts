@@ -748,7 +748,7 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
       }),
     ]),
     team("STU-08: Images in the event text", [
-      event("AC-1 to AC-5: Images", { ...members, ...week, state: "draft" }),
+      event("AC-1 to AC-13: Images", { ...members, ...week, state: "draft" }),
     ]),
     team("STU-09: Cover image", [
       event("AC-1 to AC-5: Cover", {

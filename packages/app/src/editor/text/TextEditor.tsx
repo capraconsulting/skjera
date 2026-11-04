@@ -23,6 +23,8 @@ export interface TextEditorProps {
   readonly multiline?: boolean;
   /** Rich text: headings, lists, links, bold and italics, images. */
   readonly rich?: boolean;
+  /** With `rich`: whether an image has a caption, placement and size. */
+  readonly imageChoices?: boolean;
   /** Bigger text, e.g. for a title. */
   readonly large?: boolean;
   readonly label: string;
@@ -40,6 +42,7 @@ export function TextEditor({
   path,
   multiline = false,
   rich = false,
+  imageChoices = false,
   large = false,
   label,
   presence,
@@ -137,7 +140,11 @@ export function TextEditor({
         .join(" ")}
     >
       {rich && view !== null ? (
-        <RichTextToolbar view={view} label={label} />
+        <RichTextToolbar
+          view={view}
+          label={label}
+          imageChoices={imageChoices}
+        />
       ) : null}
       <div ref={mount} className={rich ? richText.content : undefined} />
       {uploadError === null ? null : (

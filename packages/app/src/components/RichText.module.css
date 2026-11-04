@@ -41,6 +41,95 @@
   border-radius: var(--radius);
 }
 
+/* A paragraph holding a figure: a <div>, as a figure can't be in a <p>. */
+.paragraph {
+  margin: 0 0 0.75em;
+}
+
+.content :global(li) > .paragraph {
+  margin: 0.125em 0;
+}
+
+/* An image with choices. Sizes and floats follow Skjer. */
+.content .figure {
+  width: 100%;
+  margin: 1.5rem 0;
+}
+
+.content .figure :global(img) {
+  width: 100%;
+  margin: 0;
+}
+
+.content .figure :global(figcaption) {
+  padding-top: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+.content .figure[data-placement="center"] {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.content .figure[data-size="small"] {
+  max-width: 24rem;
+}
+
+.content .figure[data-size="medium"] {
+  max-width: 36rem;
+}
+
+.content .figure[data-size="large"] {
+  max-width: 48rem;
+}
+
+@media (min-width: 480px) {
+  .content .figure:is([data-placement="left"], [data-placement="right"]) {
+    width: 38%;
+  }
+
+  .content
+    .figure[data-size="small"]:is(
+      [data-placement="left"],
+      [data-placement="right"]
+    ) {
+    max-width: 9rem;
+  }
+
+  .content
+    .figure[data-size="medium"]:is(
+      [data-placement="left"],
+      [data-placement="right"]
+    ) {
+    max-width: 12rem;
+  }
+
+  .content
+    .figure[data-size="large"]:is(
+      [data-placement="left"],
+      [data-placement="right"]
+    ) {
+    max-width: 16rem;
+  }
+
+  .content .figure[data-placement="left"] {
+    float: left;
+    margin: 0 1rem 1rem 0;
+  }
+
+  .content .figure[data-placement="right"] {
+    float: right;
+    margin: 0 0 1rem 1rem;
+  }
+
+  /* Text with a floated image contains it, so what follows never wraps. */
+  .content:has(.figure:is([data-placement="left"], [data-placement="right"])) {
+    display: flow-root;
+  }
+}
+
 .content :global(blockquote) {
   margin: 0 0 0.75em;
   padding-left: 0.875em;
