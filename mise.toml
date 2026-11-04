@@ -97,8 +97,10 @@ EMAIL_TRANSPORT = "smtp"
 EMAIL_SMTP_URL = "smtp://localhost:1025"
 # Test servers (pnpm test-server, see the Readme) are reached at
 # SKJERA_TEST_SERVER_URL, which belongs to the machine: set it in its own mise
-# config, not here. Where it's set, Mailpit's web UI is open to other machines.
-MAILPIT_UI_ADDRESS = "{% if env.SKJERA_TEST_SERVER_URL | default(value='') %}0.0.0.0{% else %}127.0.0.1{% endif %}"
+# config, not here. Where it's an http:// address, Mailpit's web UI is open to
+# other machines; with https:// the TLS proxy holds port 8025 on the machine's
+# other addresses, so Mailpit listens on 127.0.0.1 behind it.
+MAILPIT_UI_ADDRESS = "{% if env.SKJERA_TEST_SERVER_URL | default(value='') | truncate(length=7, end='') == 'http://' %}0.0.0.0{% else %}127.0.0.1{% endif %}"
 
 [tasks.hooks]
 description = "Activate git hooks in .hooks/"
