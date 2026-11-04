@@ -322,6 +322,7 @@ layer(TestLayer, { excludeTestServices: true })("Sync", (it) => {
           "draftHeads",
           "id",
           "startsAt",
+          "tags",
           "teamId",
           "timeZone",
           "title",

@@ -48,6 +48,8 @@ export const DocumentRow = Schema.Struct({
   timeZone: Schema.NullOr(Schema.String),
   /** The draft's version, sorted like `EventRow.publishedHeads`. */
   draftHeads: Heads,
+  /** The draft's tags, as written. */
+  tags: Schema.Array(Schema.String),
   createdAt: Schema.Date,
   updatedAt: Schema.Date,
 });

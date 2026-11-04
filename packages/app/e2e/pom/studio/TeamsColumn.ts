@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page } from "@playwright/test";
+import { m } from "@skjera/i18n/messages";
 import { pixel } from "../images.ts";
 
 /** The studio's teams column, with each team's menu and dialogs. */
@@ -127,6 +128,42 @@ export class TeamsColumn {
     const src = await dialog.logoSrc(theme);
     await dialog.close();
     return src;
+  }
+
+  private readonly searchAllField = () =>
+    this.region().getByRole("searchbox", { name: m.studio_search_all() });
+  private readonly result = (title: string) =>
+    this.region().getByRole("link").filter({ hasText: title });
+
+  /** Types `text` in the search across every team, replacing what was there. */
+  async searchAll(text: string): Promise<void> {
+    await this.searchAllField().fill(text);
+  }
+
+  /** The event is listed in the search across teams, with its team's name. */
+  async expectResult(title: string, team: string): Promise<void> {
+    await expect(this.result(title)).toContainText(team);
+  }
+
+  /** The events with these titles are listed in the search, in this order. */
+  async expectResultsInOrder(titles: ReadonlyArray<string>): Promise<void> {
+    await expect
+      .poll(async () => {
+        const texts = await this.region().getByRole("link").allTextContents();
+        return texts.flatMap((text) => {
+          const title = titles.find((each) => text.includes(each));
+          return title === undefined ? [] : [title];
+        });
+      })
+      .toEqual([...titles]);
+  }
+
+  async openResult(title: string): Promise<void> {
+    await this.result(title).click();
+  }
+
+  async expectNothingFound(): Promise<void> {
+    await expect(this.region().getByText(m.studio_no_matches())).toBeVisible();
   }
 
   /** Deletes a team that has no events left, and checks it's gone. */

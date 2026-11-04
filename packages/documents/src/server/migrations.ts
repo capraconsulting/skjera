@@ -1247,4 +1247,27 @@ export const migrations = Migrator.fromRecord({
     // The same address once per event, whatever its case; also the index by event.
     `CREATE UNIQUE INDEX invitations_event_id_email_key ON invitations (event_id, lower(email))`,
   ),
+  "0031_document_tags": statements(
+    // The draft's tags, as written, so the studio can search its lists by them.
+    `ALTER TABLE documents ADD COLUMN tags text[] NOT NULL DEFAULT '{}'`,
+    `CREATE OR REPLACE FUNCTION documents_summarize() RETURNS trigger LANGUAGE plpgsql AS $$
+    DECLARE
+      content jsonb := NEW.draft::jsonb;
+    BEGIN
+      NEW.title := coalesce(content->>'title', '');
+      NEW.starts_at := zoned_instant(content->>'start');
+      NEW.time_zone := zoned_zone(content->>'start');
+      NEW.tags := CASE jsonb_typeof(content->'tags')
+        WHEN 'array' THEN ARRAY(
+          SELECT tag FROM jsonb_array_elements_text(content->'tags') WITH ORDINALITY AS t (tag, n)
+          ORDER BY n)
+        ELSE '{}'::text[] END;
+      -- Sorted, like published_heads, so the two can be compared.
+      NEW.draft_heads := automerge_heads(NEW.draft);
+      RETURN NEW;
+    END
+    $$`,
+    // Fills the column for the drafts already there; updated_at is left as it is.
+    `UPDATE documents SET draft = draft`,
+  ),
 });

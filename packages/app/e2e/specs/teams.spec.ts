@@ -238,3 +238,170 @@ test("a team's logos are chosen, replaced and removed in its logo dialog", async
 
   await teams.delete(team);
 });
+
+test("a team's events are searched by title and tags, and ordered (AC-1, AC-2, AC-4)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const teams = new TeamsColumn(alice);
+  const events = new EventsColumn(alice);
+  const editor = new EventEditor(alice);
+  const redName = uniqueTeamName("Search");
+  const red = await teams.create(redName);
+  const word = red.slice(-8);
+  const party = `Party ${word}`;
+  const evening = `Evening ${word}`;
+  const feast = `Feast ${word}`;
+
+  // Made in turn. The party is tagged and never published; the evening is
+  // the only one with a start.
+  const partyId = await events.newEvent();
+  await editor.title.type(party);
+  await editor.tags.add("Sosialt");
+  await editor.tags.close();
+  const eveningId = await events.newEvent();
+  await editor.title.type(evening);
+  await editor.times.pick();
+  const feastId = await events.newEvent();
+  await editor.title.type(feast);
+  // The party is edited last.
+  await editor.goto(red, partyId);
+  await editor.title.typeAt("end", "!");
+  await editor.expectSaved();
+
+  // «Sist endret» is the order to begin with.
+  await events.expectOrder("updated");
+  await events.expectTitles([`${party}!`, feast, evening]);
+  await events.chooseOrder("created");
+  await events.expectTitles([feast, evening, `${party}!`]);
+  await events.chooseOrder("starts");
+  await events.expectTitles([evening, `${party}!`, feast]);
+  await events.chooseOrder("updated");
+
+  // By title, whatever the case; by the draft's tag, never published.
+  await events.search(`FEAST ${word}`);
+  await events.expectTitles([feast]);
+  await events.search("sosi");
+  await events.expectTitles([`${party}!`]);
+  // Nothing typed, or only spaces: the whole list.
+  await events.search("   ");
+  await events.expectTitles([`${party}!`, feast, evening]);
+  await events.search(`nothing like this ${word}`);
+  await events.expectNothingFound();
+
+  // Opening an event keeps the search; another team starts without one.
+  await events.search(`Evening ${word}`);
+  await events.open(evening);
+  await editor.expectAt(red, eveningId);
+  await events.expectSearchText(`Evening ${word}`);
+  await events.expectTitles([evening]);
+  const blueName = uniqueTeamName("Other");
+  const blue = await teams.create(blueName);
+  await events.expectSearchText("");
+  await teams.goto(red);
+  await events.expectSearchText("");
+  await events.expectTitles([`${party}!`, feast, evening]);
+
+  for (const id of [partyId, eveningId, feastId]) {
+    await editor.goto(red, id);
+    await editor.delete(id);
+  }
+  await teams.delete(red);
+  await teams.delete(blue);
+});
+
+test("events are found across teams in the order chosen, which is kept (AC-3, AC-4, AC-6)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const teams = new TeamsColumn(alice);
+  const events = new EventsColumn(alice);
+  const editor = new EventEditor(alice);
+  const redName = uniqueTeamName("Red");
+  const blueName = uniqueTeamName("Blue");
+  const red = await teams.create(redName);
+  const word = red.slice(-8);
+  const first = `First ${word}`;
+  const second = `Second ${word}`;
+  const firstId = await events.newEvent();
+  await editor.title.type(first);
+  const blue = await teams.create(blueName);
+  const secondId = await events.newEvent();
+  await editor.title.type(second);
+  // The first made is edited last: «Sist endret» and «Opprettet» differ.
+  await editor.goto(red, firstId);
+  await editor.title.typeAt("end", "!");
+  await editor.expectSaved();
+
+  await events.chooseOrder("created");
+  await teams.searchAll(word);
+  await teams.expectResult(second, blueName);
+  await teams.expectResult(first, redName);
+  await teams.expectResultsInOrder([second, first]);
+  // The results are in place of the teams.
+  await teams.expectTeamCount(blueName, 1);
+  await teams.searchAll(`nothing like this ${word}`);
+  await teams.expectNothingFound();
+
+  // A result opens in its own team.
+  await teams.searchAll(word);
+  await teams.openResult(second);
+  await editor.expectAt(blue, secondId);
+  await teams.expectSelected(blueName);
+  await events.expectTitles([second]);
+  // With the field emptied, the teams are listed again.
+  await teams.searchAll("");
+  await teams.expectTeam(redName);
+  await teams.expectTeam(blueName);
+
+  // The order is kept: in another team, in an open event, after a reload.
+  await events.expectOrder("created");
+  await teams.goto(red);
+  await events.expectOrder("created");
+  await editor.goto(red, firstId);
+  await events.expectOrder("created");
+  await editor.reload();
+  await events.expectOrder("created");
+  await events.expectTitles([`${first}!`]);
+
+  await editor.delete(firstId);
+  await editor.goto(blue, secondId);
+  await editor.delete(secondId);
+  await teams.delete(red);
+  await teams.delete(blue);
+});
+
+test("a search and an order keep following others' edits without reloading (AC-7)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const teams = new TeamsColumn(alice);
+  const events = new EventsColumn(alice);
+  const editor = new EventEditor(alice);
+  const redName = uniqueTeamName("Followed");
+  const red = await teams.create(redName);
+  const word = red.slice(-8);
+  const early = `Early ${word}`;
+  const earlyId = await events.newEvent();
+  await editor.title.type(early);
+  await editor.expectSaved();
+  await events.chooseOrder("created");
+  await events.search(word);
+  await teams.searchAll(word);
+  await events.expectTitles([early]);
+
+  // Bob makes an event that matches, and it is first for her in both lists.
+  const bob = await signedIn(browser, "bob@example.com");
+  await new TeamsColumn(bob).goto(red);
+  const added = `Added by Bob ${word}`;
+  const addedId = await new EventsColumn(bob).newEvent();
+  const bobsEditor = new EventEditor(bob);
+  await bobsEditor.title.type(added);
+  await events.expectTitles([added, early]);
+  await teams.expectResultsInOrder([added, early]);
+
+  await bobsEditor.delete(addedId);
+  await editor.goto(red, earlyId);
+  await editor.delete(earlyId);
+  await teams.delete(red);
+});

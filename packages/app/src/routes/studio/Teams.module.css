@@ -75,3 +75,13 @@
   color: var(--color-danger);
   font-size: 0.875rem;
 }
+
+/* The search across every team above the list. */
+.search {
+  padding: 0.5rem 0.5rem 0;
+}
+
+.search input {
+  box-sizing: border-box;
+  width: 100%;
+}

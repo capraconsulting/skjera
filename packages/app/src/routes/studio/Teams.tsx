@@ -12,9 +12,11 @@ import {
 } from "../../components/Dropdown.tsx";
 import { Input } from "../../components/Input.tsx";
 import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
-import { documents, teams } from "../../sync/tables.ts";
+import { documents, events, teams } from "../../sync/tables.ts";
 import { ColumnHandle } from "./ColumnHandle.tsx";
 import { defaultWidths, useColumnWidths } from "./columnWidths.ts";
+import { searchEvents, sortEvents, useEventOrder } from "./eventList.ts";
+import { EventItem } from "./Team.tsx";
 import { TeamLogosDialog } from "./TeamLogos.tsx";
 import styles from "./Teams.module.css";
 
@@ -23,6 +25,7 @@ export const teamsLoader = async () => {
   await Promise.all([
     teams.collection.preload(),
     documents.collection.preload(),
+    events.collection.preload(),
   ]);
   return null;
 };
@@ -46,6 +49,55 @@ const useTeams = () =>
 
 type Team = ReturnType<typeof useTeams>[number];
 
+/** Every team's events, with their team's name and how published. */
+const useAllEvents = () =>
+  useLiveQuery((q) =>
+    q
+      .from({ document: documents.collection })
+      .innerJoin({ team: teams.collection }, ({ document, team }) =>
+        eq(document.teamId, team.id),
+      )
+      .leftJoin({ event: events.collection }, ({ document, event }) =>
+        eq(document.id, event.id),
+      )
+      .select(({ document, team, event }) => ({
+        id: document.id,
+        teamId: document.teamId,
+        teamName: team.name,
+        title: document.title,
+        // The draft's tags, not the published version's: `event.tags`.
+        tags: document.tags,
+        startsAt: document.startsAt,
+        timeZone: document.timeZone,
+        draftHeads: document.draftHeads,
+        publishedHeads: event?.publishedHeads,
+        createdAt: document.createdAt,
+        updatedAt: document.updatedAt,
+      })),
+  ).data;
+
+/** The events of every team that `text` finds, in the order chosen. */
+function FoundEvents(props: { readonly text: string }) {
+  const found = useAllEvents();
+  const { order } = useEventOrder();
+  const shown = sortEvents(searchEvents(found, props.text), order);
+  return shown.length === 0 ? (
+    <p className={styles.empty}>{m.studio_no_matches()}</p>
+  ) : (
+    <ul className={styles.list}>
+      {shown.map((event) => (
+        <li key={event.id}>
+          <EventItem
+            teamId={event.teamId}
+            event={event}
+            team={event.teamName}
+          />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 type DialogState =
   | { readonly kind: "create" }
   | { readonly kind: "rename"; readonly team: Team }
@@ -62,6 +114,10 @@ export function Teams() {
   const { widths, resize } = useColumnWidths();
   const [dialog, setDialog] = useState<DialogState>(null);
   const [failure, setFailure] = useState<string | null>(null);
+  // Kept while the organiser moves between teams and events: this column
+  // stays mounted.
+  const [search, setSearch] = useState("");
+  const searching = search.trim() !== "";
   return (
     <div
       className={styles.columns}
@@ -104,12 +160,23 @@ export function Teams() {
           </Dropdown>
         }
       >
+        <div className={styles.search}>
+          <Input
+            type="search"
+            aria-label={m.studio_search_all()}
+            placeholder={m.studio_search_all()}
+            value={search}
+            onChange={(event) => setSearch(event.currentTarget.value)}
+          />
+        </div>
         {failure === null ? null : (
           <p role="alert" className={styles.failure}>
             {failure}
           </p>
         )}
-        {all.length === 0 ? (
+        {searching ? (
+          <FoundEvents text={search} />
+        ) : all.length === 0 ? (
           <p className={styles.empty}>{m.studio_no_teams()}</p>
         ) : (
           <ul className={styles.list}>

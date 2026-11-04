@@ -5,6 +5,7 @@ import type { EventContent } from "../../src/events/ContentTypes.ts";
 import { Documents } from "../../src/events/Documents.ts";
 import type { DocumentId } from "../../src/Model.ts";
 import {
+  addTags,
   alice,
   bob,
   interruptedWhileLocked,
@@ -259,7 +260,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
     }),
   );
 
-  it.effect("syncs what lists show, in step with the draft", () =>
+  it.effect("syncs what lists show, in step with the draft (AC-1, AC-7)", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;
       const team = yield* newTeam;
@@ -279,6 +280,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         ["", null, null],
       );
       assert.deepStrictEqual(draft?.draftHeads, [...A.getHeads(editor.doc())]);
+      assert.deepStrictEqual(draft?.tags, []);
       assert.isUndefined(yield* publishedAs(id, "members"));
       assert.isTrue(yield* unpublished);
 
@@ -289,6 +291,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
             A.updateText(event, ["title"], "Listed");
             setTimes(event);
             setPlace(event);
+            addTags(event, "Sosialt");
           }),
         ],
         alice,
@@ -299,6 +302,7 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
         [published?.title, published?.startsAt, published?.timeZone],
         ["Listed", new Date("2036-10-15T16:00:00Z"), "Europe/Oslo"],
       );
+      assert.deepStrictEqual(published?.tags, ["Sosialt"]);
       assert.isFalse(yield* unpublished);
       assert.deepStrictEqual(
         (yield* publishedAs(id, "members"))?.publishedHeads,
@@ -308,13 +312,15 @@ layer(TestLayer, { excludeTestServices: true })("Documents", (it) => {
       yield* documents.applyChanges(
         id,
         [
-          editor.edit((event) =>
-            A.updateText(event, ["title"], "Listed again"),
-          ),
+          editor.edit((event) => {
+            A.updateText(event, ["title"], "Listed again");
+            addTags(event, "Fag");
+          }),
         ],
         alice,
       );
       assert.strictEqual((yield* find)?.title, "Listed again");
+      assert.deepStrictEqual((yield* find)?.tags, ["Sosialt", "Fag"]);
       assert.isTrue(yield* unpublished);
     }),
   );

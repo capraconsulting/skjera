@@ -136,11 +136,12 @@ export class Sync extends Context.Service<
             starts_at: Date | null;
             time_zone: string | null;
             draft_heads: Heads;
+            tags: ReadonlyArray<string>;
             created_at: Date;
             updated_at: Date;
           }>`
             SELECT id, type, team_id, title, starts_at, time_zone,
-              draft_heads, created_at, updated_at
+              draft_heads, tags, created_at, updated_at
             FROM documents
             WHERE id = ANY(${keys}::uuid[]) AND deleted_at IS NULL
           `.pipe(
@@ -154,6 +155,7 @@ export class Sync extends Context.Service<
                   startsAt: row.starts_at,
                   timeZone: row.time_zone,
                   draftHeads: row.draft_heads,
+                  tags: row.tags,
                   createdAt: row.created_at,
                   updatedAt: row.updated_at,
                 }),

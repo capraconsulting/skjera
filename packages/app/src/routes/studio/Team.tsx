@@ -14,9 +14,17 @@ import {
 } from "react-router";
 import { Badge } from "../../components/Badge.tsx";
 import { Button } from "../../components/Button.tsx";
+import inputStyles from "../../components/Input.module.css";
+import { Input } from "../../components/Input.tsx";
 import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
 import { documents, events, teams } from "../../sync/tables.ts";
 import { formatDateIn } from "../../time.ts";
+import {
+  readOrder,
+  searchEvents,
+  sortEvents,
+  useEventOrder,
+} from "./eventList.ts";
 import styles from "./Team.module.css";
 
 export const teamLoader = async ({ params }: LoaderFunctionArgs) => {
@@ -34,7 +42,7 @@ export const teamLoader = async ({ params }: LoaderFunctionArgs) => {
   return { teamId };
 };
 
-/** The team's events, most recently edited first, with how published. */
+/** The team's events, with how published and what the lists search and order by. */
 const useTeamEvents = (teamId: TeamId) =>
   useLiveQuery({
     query: (q) =>
@@ -44,18 +52,29 @@ const useTeamEvents = (teamId: TeamId) =>
           eq(document.id, event.id),
         )
         .where(({ document }) => eq(document.teamId, teamId))
-        .orderBy(({ document }) => document.updatedAt, "desc")
         .select(({ document, event }) => ({
           id: document.id,
           title: document.title,
+          // The draft's tags, not the published version's: `event.tags`.
+          tags: document.tags,
           startsAt: document.startsAt,
           timeZone: document.timeZone,
           draftHeads: document.draftHeads,
           publishedHeads: event?.publishedHeads,
+          createdAt: document.createdAt,
+          updatedAt: document.updatedAt,
         })),
   }).data;
 
-type TeamEvent = ReturnType<typeof useTeamEvents>[number];
+/** What a row of a list of events shows of an event. */
+export type ListedEvent = {
+  readonly id: string;
+  readonly title: string;
+  readonly startsAt: Date | null;
+  readonly timeZone: string | null;
+  readonly draftHeads: ReadonlyArray<string>;
+  readonly publishedHeads: ReadonlyArray<string> | undefined;
+};
 
 /** The second column: the selected team's events. */
 export function Team() {
@@ -77,6 +96,7 @@ export function Team() {
         startsAt: null,
         timeZone: null,
         draftHeads: [],
+        tags: [],
         createdAt: now,
         updatedAt: now,
       })
@@ -87,6 +107,13 @@ export function Team() {
       .finally(() => setCreating(false));
   };
   const rows = useTeamEvents(teamId);
+  const { order, choose } = useEventOrder();
+  // The search belongs to the team's list: opening one of its events keeps it,
+  // and another team, or coming back to this one, starts with an empty field.
+  const [search, setSearch] = useState({ teamId, text: "" });
+  if (search.teamId !== teamId) setSearch({ teamId, text: "" });
+  const text = search.teamId === teamId ? search.text : "";
+  const shown = sortEvents(searchEvents(rows, text), order);
   return (
     <>
       <Pane
@@ -98,11 +125,34 @@ export function Team() {
           </Button>
         }
       >
+        <div className={styles.tools}>
+          <Input
+            type="search"
+            aria-label={m.studio_events_search()}
+            placeholder={m.studio_events_search()}
+            value={text}
+            onChange={(event) =>
+              setSearch({ teamId, text: event.currentTarget.value })
+            }
+          />
+          <select
+            aria-label={m.studio_events_order()}
+            className={inputStyles.input}
+            value={order}
+            onChange={(event) => choose(readOrder(event.currentTarget.value))}
+          >
+            <option value="updated">{m.studio_order_updated()}</option>
+            <option value="created">{m.studio_order_created()}</option>
+            <option value="starts">{m.studio_order_starts()}</option>
+          </select>
+        </div>
         {rows.length === 0 ? (
           <p className={styles.empty}>{m.studio_no_events()}</p>
+        ) : shown.length === 0 ? (
+          <p className={styles.empty}>{m.studio_no_matches()}</p>
         ) : (
           <ul className={styles.list}>
-            {rows.map((event) => (
+            {shown.map((event) => (
               <li key={event.id}>
                 <EventItem teamId={teamId} event={event} />
               </li>
@@ -115,11 +165,13 @@ export function Team() {
   );
 }
 
-function EventItem(props: {
+/** One event in a list; `team` is its team's name, where the list spans teams. */
+export function EventItem(props: {
   readonly teamId: TeamId;
-  readonly event: TeamEvent;
+  readonly event: ListedEvent;
+  readonly team?: string;
 }) {
-  const { teamId, event } = props;
+  const { teamId, event, team } = props;
   const { id } = event;
   const title = event.title.trim();
   return (
@@ -138,6 +190,7 @@ function EventItem(props: {
           <span className={styles.title}>{title}</span>
         )}
       </span>
+      {team === undefined ? null : <span className={styles.team}>{team}</span>}
       <span className={styles.meta}>
         {event.startsAt == null || event.timeZone == null
           ? m.studio_no_date()

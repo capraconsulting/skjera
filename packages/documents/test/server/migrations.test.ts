@@ -7,6 +7,7 @@ import { Announcements } from "../../src/notices/Announcements.ts";
 import { Notifications } from "../../src/notices/Notifications.ts";
 import { migrations } from "../../src/server/migrations.ts";
 import { Teams } from "../../src/Teams.ts";
+import { addTags, openEditor } from "../helpers.ts";
 import { UnmigratedTestDatabase } from "../TestDatabase.ts";
 
 const alice = new Identity({ issuer: "https://idp.example", subject: "alice" });
@@ -121,6 +122,47 @@ layer(TestLayer, { excludeTestServices: true })(
           assert.strictEqual(yield* reminds(tickedWithGuests), true);
           assert.strictEqual(yield* reminds(tickedMembersOnly), false);
           assert.strictEqual(yield* reminds(unticked), false);
+        }),
+    );
+  },
+);
+
+// A database of its own: each block above migrates its database whole.
+layer(TestLayer, { excludeTestServices: true })(
+  "Migrations: document tags",
+  (it) => {
+    it.effect(
+      "gives a draft made before the tags column its tags, and leaves when it was edited as it was (AC-1, AC-7)",
+      () =>
+        Effect.gen(function* () {
+          const sql = yield* SqlClient.SqlClient;
+          yield* Migrator.make({})({ loader: upTo(30) });
+
+          const documents = yield* Documents;
+          const team = yield* (yield* Teams).create("Team", alice);
+          const tagged = yield* documents.create("event", team.id, alice);
+          const editor = yield* openEditor(tagged);
+          yield* documents.applyChanges(
+            tagged,
+            [editor.edit((event) => addTags(event, "Sosialt", "Fag"))],
+            alice,
+          );
+          const untagged = yield* documents.create("event", team.id, alice);
+          const editedAt = (id: string) =>
+            sql<{ updated_at: Date }>`
+              SELECT updated_at FROM documents WHERE id = ${id}
+            `.pipe(Effect.map(([row]) => row?.updated_at));
+          const before = yield* editedAt(tagged);
+
+          yield* Migrator.make({})({ loader: migrations });
+
+          const tagsOf = (id: string) =>
+            sql<{ tags: ReadonlyArray<string> }>`
+              SELECT tags FROM documents WHERE id = ${id}
+            `.pipe(Effect.map(([row]) => row?.tags));
+          assert.deepStrictEqual(yield* tagsOf(tagged), ["Sosialt", "Fag"]);
+          assert.deepStrictEqual(yield* tagsOf(untagged), []);
+          assert.deepStrictEqual(yield* editedAt(tagged), before);
         }),
     );
   },

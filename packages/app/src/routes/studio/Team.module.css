@@ -54,3 +54,27 @@
   gap: 0.5rem;
   min-width: 0;
 }
+
+/* The search and the order choice above the list. */
+.tools {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 0.5rem 0;
+}
+
+.tools input {
+  flex: 1;
+  min-width: 0;
+}
+
+.tools select {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* The team an event in a search across teams belongs to. */
+.team {
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
