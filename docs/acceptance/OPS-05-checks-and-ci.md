@@ -49,6 +49,6 @@ WHEN code is pushed to `main` or to a pull request, GitHub Actions SHALL run the
 
 - **Given** the repository on GitHub
 - **When** you open **Actions** and the latest run of **CI** on `main`
-- **Then** it has the jobs «Lint, types and tests», «End-to-end tests» and «Image builds»
+- **Then** it has the jobs «Lint, types and tests», «End-to-end tests (1/4)» to «End-to-end tests (4/4)», and «Image builds»
 
 **Automated:** none

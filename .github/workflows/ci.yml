@@ -40,10 +40,17 @@ jobs:
       - run: mise exec -- pnpm typecheck
       - run: mise exec -- pnpm test
 
+  # The site's browser tests, split by file across four machines that run at
+  # once: on one, a test at a time, they took about 20 minutes.
   e2e:
-    name: End-to-end tests
+    name: End-to-end tests (${{ matrix.shard }}/4)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    strategy:
+      # Each part reports its own failures; one failing stops none of the others.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
@@ -66,12 +73,15 @@ jobs:
         run: docker compose up --detach --wait postgres dex rustfs mailpit
       # The tests start the server and the app themselves (see
       # playwright.config.ts); CI=true makes them retry and report here.
-      - run: mise exec -- pnpm test:e2e
+      # The login's own few tests run once, in the first part.
+      - if: matrix.shard == 1
+        run: mise exec -- pnpm --filter @skjera/oauth test:e2e
+      - run: mise exec -- pnpm --filter @skjera/app test:e2e --shard=${{ matrix.shard }}/4
       - name: The report and traces, when something failed
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
           path: |
             packages/*/playwright-report/
             packages/*/test-results/
