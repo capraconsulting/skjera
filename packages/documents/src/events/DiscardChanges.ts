@@ -31,17 +31,23 @@ const textPaths = (value: Plain, path: Path = []): Array<Path> =>
     return [];
   });
 
-/** Whether `doc` has the same content as itself at `heads`, text spans included. */
-export const sameContent = <T>(doc: A.Doc<T>, heads: A.Heads): boolean => {
-  const published = forkAt(doc, heads);
-  const content = A.toJS(published) as Plain;
+/** Whether two documents have the same content, text spans included. */
+export const sameContentAs = (
+  doc: A.Doc<unknown>,
+  other: A.Doc<unknown>,
+): boolean => {
+  const content = A.toJS(other) as Plain;
   // Structural: JSON would hide text versus an ImmutableString, and the
   // blocks in spans do not keep their key order.
   if (!isDeepStrictEqual(A.toJS(doc), content)) return false;
   return textPaths(content).every((path) =>
-    isDeepStrictEqual(A.spans(doc, [...path]), A.spans(published, [...path])),
+    isDeepStrictEqual(A.spans(doc, [...path]), A.spans(other, [...path])),
   );
 };
+
+/** Whether `doc` has the same content as itself at `heads`, text spans included. */
+export const sameContent = <T>(doc: A.Doc<T>, heads: A.Heads): boolean =>
+  sameContentAs(doc, forkAt(doc, heads));
 
 /** The blocks of `spans`, in order. */
 const blocksOf = (spans: ReadonlyArray<A.Span>) =>
@@ -119,16 +125,15 @@ const restoreMap = (
 };
 
 /**
- * Makes `doc` equal to itself as of `heads`, in every field, by one change
- * on top of its current heads. A field the earlier version lacks is
- * deleted; text is set by its spans, so marks and images come back too.
+ * Makes `doc` equal to `other` in every field, by one change on top of its
+ * current heads. A field `other` lacks is deleted; text is set by its spans,
+ * so marks and images come too.
  */
-export const restorePublished = <T>(
+export const copyContent = <T>(
   doc: A.Doc<T>,
-  heads: A.Heads,
+  other: A.Doc<unknown>,
 ): A.Doc<T> => {
-  const published = forkAt(doc, heads);
-  const wanted = A.toJS(published) as Plain;
+  const wanted = A.toJS(other) as Plain;
   const current = A.toJS(doc) as Plain;
   return A.change(doc, (draft) => {
     restoreMap(
@@ -136,9 +141,16 @@ export const restorePublished = <T>(
       doc as A.Doc<unknown>,
       draft as Plain,
       [],
-      published,
+      other,
       wanted,
       current,
     );
   });
 };
+
+/**
+ * Makes `doc` equal to itself as of `heads`, in every field, by one change
+ * on top of its current heads.
+ */
+export const restorePublished = <T>(doc: A.Doc<T>, heads: A.Heads): A.Doc<T> =>
+  copyContent(doc, forkAt(doc, heads));

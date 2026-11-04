@@ -24,9 +24,11 @@ export function EditorFooter(props: {
   readonly publishing: boolean;
   readonly unpublishing: boolean;
   readonly discarding: boolean;
+  readonly copying: boolean;
   readonly onPublish: () => void;
   readonly onUnpublish: () => void;
   readonly onDiscard: () => void;
+  readonly onCopy: () => void;
   readonly onDelete: () => void;
 }) {
   const version = useVersion(props.handle);
@@ -149,6 +151,9 @@ export function EditorFooter(props: {
           </a>
           <Button variant="danger" onClick={remove}>
             {m.common_delete()}
+          </Button>
+          <Button onClick={props.onCopy} disabled={props.copying}>
+            {m.studio_copy()}
           </Button>
           {changed && (
             <Button

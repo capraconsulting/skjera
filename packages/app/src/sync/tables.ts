@@ -185,6 +185,20 @@ export const discardChanges = (id: DocumentId) =>
   );
 
 /**
+ * Makes a new, never-published event in the same team with the content of an
+ * event's draft, under `copy`, the id the studio picked. Asking again with the
+ * same id makes no second copy.
+ */
+export const copyDocument = (id: DocumentId, copy: DocumentId) =>
+  provideHttp(
+    makeClient.pipe(
+      Effect.flatMap((client) =>
+        client.documents.copy({ params: { id }, payload: { id: copy } }),
+      ),
+    ),
+  );
+
+/**
  * What people can't eat at an event, for its organizers: the texts, sorted,
  * with nothing that says who gave them.
  */

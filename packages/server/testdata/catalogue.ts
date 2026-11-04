@@ -927,5 +927,23 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
       }),
       event("AC-2: Up to date", { ...guests, ...week }),
     ]),
+    team("STU-24: Making a copy", [
+      event("AC-1: Not published", { ...guests, ...week, state: "draft" }),
+      event("AC-1 to AC-5: Julebord", {
+        ...guests,
+        ...week,
+        summary: "Last year's julebord, again.",
+        cover: "teal",
+        body: richBody,
+        questions: [towel],
+        emails: {
+          signedUp: {
+            subject: "Welcome to the julebord",
+            text: "We look forward to it.",
+          },
+        },
+        signups: [bob(), guest("STU-24", 1)],
+      }),
+    ]),
   ];
 };
