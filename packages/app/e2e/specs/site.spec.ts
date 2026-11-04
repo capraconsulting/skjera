@@ -1,7 +1,8 @@
-import { expect, type Page, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { m } from "@skjera/i18n/messages";
 import { cleanUp } from "../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName, visitor } from "../fixtures/support.ts";
+import { expect, test } from "../fixtures/test.ts";
 import { Header } from "../pom/Header.ts";
 import { LoginPage } from "../pom/LoginPage.ts";
 import { AccountPage } from "../pom/site/AccountPage.ts";

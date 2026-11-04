@@ -1,7 +1,7 @@
-import { expect, test } from "@playwright/test";
 import { m } from "@skjera/i18n/messages";
 import { cleanUp } from "../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName, visitor } from "../fixtures/support.ts";
+import { expect, test } from "../fixtures/test.ts";
 import { Header } from "../pom/Header.ts";
 import { Mailbox } from "../pom/Mailbox.ts";
 import { Attendance } from "../pom/site/Attendance.ts";

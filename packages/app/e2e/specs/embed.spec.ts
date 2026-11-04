@@ -1,6 +1,6 @@
-import { expect, test } from "@playwright/test";
 import { cleanUp } from "../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName, visitor } from "../fixtures/support.ts";
+import { expect, test } from "../fixtures/test.ts";
 import { EmbedPage } from "../pom/site/EmbedPage.ts";
 import { HubSpot } from "../pom/site/HubSpot.ts";
 import { Website } from "../pom/site/Website.ts";

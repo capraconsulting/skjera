@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
 import { visitor } from "../fixtures/support.ts";
+import { expect, test } from "../fixtures/test.ts";
 import { Header } from "../pom/Header.ts";
 import { LoginPage } from "../pom/LoginPage.ts";
 import { AccountPage } from "../pom/site/AccountPage.ts";

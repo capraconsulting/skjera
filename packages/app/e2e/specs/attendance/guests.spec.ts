@@ -1,4 +1,3 @@
-import { expect, test } from "@playwright/test";
 import { cleanUp } from "../../fixtures/cleanUp.ts";
 import {
   signedIn,
@@ -6,6 +5,7 @@ import {
   uniqueTeamName,
   visitor,
 } from "../../fixtures/support.ts";
+import { expect, test } from "../../fixtures/test.ts";
 import { Mailbox } from "../../pom/Mailbox.ts";
 import { Attendance, CancelByEmail } from "../../pom/site/Attendance.ts";
 import { CancelSignupPage } from "../../pom/site/CancelSignupPage.ts";

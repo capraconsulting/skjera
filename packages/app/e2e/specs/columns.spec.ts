@@ -1,5 +1,5 @@
-import { test } from "@playwright/test";
 import { signedIn, uniqueTeamName } from "../fixtures/support.ts";
+import { test } from "../fixtures/test.ts";
 import { ColumnHandles } from "../pom/studio/ColumnHandles.ts";
 import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
 

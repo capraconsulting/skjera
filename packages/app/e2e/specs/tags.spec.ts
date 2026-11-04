@@ -1,6 +1,6 @@
-import { test } from "@playwright/test";
 import { m } from "@skjera/i18n/messages";
 import { signedIn, uniqueTeamName, visitor } from "../fixtures/support.ts";
+import { test } from "../fixtures/test.ts";
 import { Header } from "../pom/Header.ts";
 import { EventPage } from "../pom/site/EventPage.ts";
 import { HomePage } from "../pom/site/HomePage.ts";
