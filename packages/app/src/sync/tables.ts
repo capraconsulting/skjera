@@ -172,6 +172,19 @@ export const unpublishDocument = (id: DocumentId) =>
   );
 
 /**
+ * Makes a published event's draft the published version again. The event's
+ * row of `events` follows the draft's new heads.
+ */
+export const discardChanges = (id: DocumentId) =>
+  provideHttp(
+    makeClient.pipe(
+      Effect.flatMap((client) =>
+        client.documents.discardChanges({ params: { id } }),
+      ),
+    ),
+  );
+
+/**
  * What people can't eat at an event, for its organizers: the texts, sorted,
  * with nothing that says who gave them.
  */

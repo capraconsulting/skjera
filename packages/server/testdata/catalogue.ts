@@ -918,5 +918,14 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
         state: "draft",
       }),
     ]),
+    team("STU-23: Discarding changes", [
+      event("AC-1: Not published", { ...guests, ...week, state: "draft" }),
+      event("AC-1 to AC-7: Changed", {
+        ...guests,
+        ...week,
+        signups: [bob(), guest("STU-23", 1)],
+      }),
+      event("AC-2: Up to date", { ...guests, ...week }),
+    ]),
   ];
 };

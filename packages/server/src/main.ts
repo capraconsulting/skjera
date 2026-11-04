@@ -240,6 +240,9 @@ const DocumentsHandlers = HttpApiBuilder.group(Api, "documents", (handlers) =>
         }),
       )
       .handle("unpublish", ({ params }) => documents.unpublish(params.id))
+      .handle("discardChanges", ({ params }) =>
+        documents.discardChanges(params.id),
+      )
       .handle("delete", ({ params }) =>
         Effect.gen(function* () {
           return yield* documents.delete(params.id, yield* OAuth.CurrentUser);

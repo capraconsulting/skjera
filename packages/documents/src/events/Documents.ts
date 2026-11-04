@@ -23,7 +23,9 @@ import {
   type ContentTypeName,
   cantPublish,
   contentTypes,
+  type EventContent,
 } from "./ContentTypes.ts";
+import { restorePublished, sameContent } from "./DiscardChanges.ts";
 
 /** When and where an event is, as published. */
 interface WhenAndWhere {
@@ -101,6 +103,14 @@ export class Documents extends Context.Service<
      * Not published, or unpublished already: nothing to do.
      */
     readonly unpublish: (
+      id: DocumentId,
+    ) => Effect.Effect<void, DocumentNotFound>;
+    /**
+     * Makes the draft the published version again, in every field, and
+     * publishes it at its new heads in the name of whoever published last.
+     * Nobody is emailed. Not published: nothing to discard.
+     */
+    readonly discardChanges: (
       id: DocumentId,
     ) => Effect.Effect<void, DocumentNotFound>;
     /**
@@ -436,6 +446,77 @@ export class Documents extends Context.Service<
         }
       }, Effect.uninterruptible);
 
+      const discardChanges = Effect.fn("Documents.discardChanges")(function* (
+        id: DocumentId,
+      ) {
+        const found = yield* Effect.gen(function* () {
+          // The document first, then the event: the order `delete` locks them in.
+          const [document] = yield* sql<{ draft: Uint8Array }>`
+            SELECT draft::bytea AS draft FROM documents
+            WHERE id = ${id} AND deleted_at IS NULL FOR UPDATE
+          `;
+          if (document === undefined) return false;
+          const [event] = yield* sql<{
+            published_heads: Heads;
+            published_by_issuer: string;
+            published_by_subject: string;
+          }>`
+            SELECT published_heads, published_by_issuer, published_by_subject
+            FROM events WHERE id = ${id} AND deleted_at IS NULL FOR UPDATE
+          `;
+          // Never published, or unpublished: nothing to go back to.
+          if (event === undefined) return true;
+
+          const published = [...event.published_heads];
+          const restored = restorePublished(
+            A.load<EventContent>(document.draft),
+            published,
+          );
+          // A version other than the published one is never published by a
+          // discard.
+          if (!sameContent(restored, published)) {
+            return yield* Effect.die(
+              `Discarding the changes of ${id} did not give the published version back`,
+            );
+          }
+          const change = A.getLastLocalChange(restored);
+          if (change !== undefined) {
+            // The server's change must fit the draft's schema, as an editor's must.
+            const [merged] = yield* sql<{ content: unknown }>`
+              SELECT merge(draft, ${change}::bytea)::jsonb AS content
+              FROM documents WHERE id = ${id}
+            `;
+            yield* Schema.decodeUnknownEffect(contentTypes.event.schema)(
+              merged?.content,
+              { onExcessProperty: "error" },
+            );
+            yield* sql`
+              UPDATE documents SET draft = merge(draft, ${change}::bytea), updated_at = now()
+              WHERE id = ${id}
+            `;
+          }
+
+          // Published again at the draft's heads, which differ from the
+          // published ones even when the content is the same (an edit typed
+          // and undone). No notices and no announcement: nothing published
+          // changed, and the signups stay.
+          const heads = [...A.getHeads(restored)].sort();
+          if (heads.join() !== [...published].sort().join()) {
+            const [row] = yield* sql`
+              SELECT id FROM publish_event(${id}, ${heads}::text[],
+                ${event.published_by_issuer}, ${event.published_by_subject})
+            `;
+            if (row === undefined) {
+              return yield* Effect.die(`Event ${id} was not published again`);
+            }
+          }
+          return true;
+        }).pipe(sql.withTransaction, Effect.orDie);
+        if (!found) {
+          return yield* new DocumentNotFound({ id });
+        }
+      }, Effect.uninterruptible);
+
       const deleteDocument = Effect.fn("Documents.delete")(function* (
         id: DocumentId,
         user: Identity,
@@ -476,6 +557,7 @@ export class Documents extends Context.Service<
         applyChanges,
         publish,
         unpublish,
+        discardChanges,
         delete: deleteDocument,
       });
     }),

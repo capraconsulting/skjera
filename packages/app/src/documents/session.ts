@@ -18,6 +18,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { DraftPresence } from "../presence/presence.ts";
 import { sayWhy } from "../problems.ts";
 import {
+  discardChanges,
   documents,
   events,
   publishDraft,
@@ -36,11 +37,13 @@ export interface SessionState {
   readonly saving: boolean;
   readonly publishing: boolean;
   readonly unpublishing: boolean;
+  readonly discarding: boolean;
   readonly error: string | null;
   /** Someone deleted the document; the session has stopped. */
   readonly deleted: boolean;
   readonly publish: () => void;
   readonly unpublish: () => void;
+  readonly discard: () => void;
 }
 
 class SessionStore {
@@ -51,10 +54,12 @@ class SessionStore {
     saving: false,
     publishing: false,
     unpublishing: false,
+    discarding: false,
     error: null,
     deleted: false,
     publish: () => {},
     unpublish: () => {},
+    discard: () => {},
   };
   readonly #listeners = new Set<() => void>();
 
@@ -73,7 +78,7 @@ class SessionStore {
   };
 }
 
-/** How long publishing waits for the server to have every edit. */
+/** How long publishing and discarding wait for the server to have every edit. */
 const saveTimeout = "10 seconds";
 
 class DocumentNotFound {
@@ -144,21 +149,25 @@ const session = (id: DocumentId, store: SessionStore) =>
         }),
     );
 
-    /** The copy's version, once the server has all of it. */
-    const savedVersion = Effect.suspend(() =>
-      saved()
-        ? Effect.succeed(A.getHeads(handle.doc()))
-        : Effect.fail(new NotSavedYet()),
-    ).pipe(
-      Effect.retry({ schedule: Schedule.spaced("100 millis") }),
-      Effect.timeoutOrElse({
-        duration: saveTimeout,
-        orElse: () => Effect.fail(new Error(m.studio_publish_unsaved())),
-      }),
-    );
+    /**
+     * The copy's version, once the server has all of it. It fails with
+     * `unsaved`'s message if that takes too long.
+     */
+    const savedVersion = (unsaved: () => string) =>
+      Effect.suspend(() =>
+        saved()
+          ? Effect.succeed(A.getHeads(handle.doc()))
+          : Effect.fail(new NotSavedYet()),
+      ).pipe(
+        Effect.retry({ schedule: Schedule.spaced("100 millis") }),
+        Effect.timeoutOrElse({
+          duration: saveTimeout,
+          orElse: () => Effect.fail(new Error(unsaved())),
+        }),
+      );
 
     // Publishes what this copy shows, once the server has all of it.
-    const publish = savedVersion.pipe(
+    const publish = savedVersion(() => m.studio_publish_unsaved()).pipe(
       Effect.flatMap((heads) => publishDraft(id, heads)),
       // The published version reaches the page as a row of `events`.
       Effect.tap(() =>
@@ -190,6 +199,24 @@ const session = (id: DocumentId, store: SessionStore) =>
       Effect.ensuring(Effect.sync(() => store.set({ unpublishing: false }))),
     );
 
+    // Goes back to the published version, once the server has every edit
+    // this copy has, so they are discarded too. The change reaches the copy
+    // through the sync, and the published row through the refresh.
+    const discard = savedVersion(() => m.studio_discard_unsaved()).pipe(
+      Effect.andThen(discardChanges(id)),
+      Effect.tap(() =>
+        Effect.promise(() => events.refresh()).pipe(
+          Effect.andThen(Effect.sync(() => store.set({ error: null }))),
+        ),
+      ),
+      Effect.catch((error) =>
+        Effect.sync(() =>
+          store.set({ error: sayWhy(error, m.studio_discard_failed()) }),
+        ),
+      ),
+      Effect.ensuring(Effect.sync(() => store.set({ discarding: false }))),
+    );
+
     const presence = yield* Effect.acquireRelease(
       Effect.sync(() => new DraftPresence(handle as DocHandle<unknown>)),
       (presence) => Effect.sync(() => presence.stop()),
@@ -201,6 +228,7 @@ const session = (id: DocumentId, store: SessionStore) =>
       teamId: row.teamId,
       publishing: false,
       unpublishing: false,
+      discarding: false,
       publish: () => {
         store.set({ publishing: true });
         void Effect.runPromise(publish);
@@ -208,6 +236,10 @@ const session = (id: DocumentId, store: SessionStore) =>
       unpublish: () => {
         store.set({ unpublishing: true });
         void Effect.runPromise(unpublish);
+      },
+      discard: () => {
+        store.set({ discarding: true });
+        void Effect.runPromise(discard);
       },
     });
     showSaving();

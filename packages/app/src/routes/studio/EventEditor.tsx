@@ -85,8 +85,10 @@ function EventSession({ id }: { readonly id: DocumentId }) {
           saving={session.saving}
           publishing={session.publishing}
           unpublishing={session.unpublishing}
+          discarding={session.discarding}
           onPublish={session.publish}
           onUnpublish={session.unpublish}
+          onDiscard={session.discard}
           onDelete={remove}
         />
       }

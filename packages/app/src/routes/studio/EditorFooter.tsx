@@ -11,6 +11,7 @@ import { useVersion } from "../../documents/version.ts";
 import { attendees, events } from "../../sync/tables.ts";
 import { timeAgo } from "../../time.ts";
 import styles from "./EditorFooter.module.css";
+import { publishState } from "./publishState.ts";
 
 /**
  * The editor's footer: save and publish state, and the actions. It follows
@@ -22,8 +23,10 @@ export function EditorFooter(props: {
   readonly saving: boolean;
   readonly publishing: boolean;
   readonly unpublishing: boolean;
+  readonly discarding: boolean;
   readonly onPublish: () => void;
   readonly onUnpublish: () => void;
+  readonly onDiscard: () => void;
   readonly onDelete: () => void;
 }) {
   const version = useVersion(props.handle);
@@ -36,10 +39,11 @@ export function EditorFooter(props: {
         .where(({ event }) => eq(event.id, id))
         .findOne(),
   }).data;
-  const upToDate =
-    publication !== undefined &&
-    !props.saving &&
-    [...publication.publishedHeads].sort().join(",") === version;
+  const { upToDate, changed } = publishState({
+    publishedHeads: publication?.publishedHeads,
+    version,
+    saving: props.saving,
+  });
   const signedUp = useLiveQuery({
     query: (q) =>
       q
@@ -100,6 +104,10 @@ export function EditorFooter(props: {
     if (window.confirm(question)) props.onUnpublish();
   };
 
+  const discard = () => {
+    if (window.confirm(m.studio_confirm_discard())) props.onDiscard();
+  };
+
   return (
     <footer className={styles.footer}>
       <div className={styles.bar}>
@@ -142,10 +150,22 @@ export function EditorFooter(props: {
           <Button variant="danger" onClick={remove}>
             {m.common_delete()}
           </Button>
+          {changed && (
+            <Button
+              onClick={discard}
+              disabled={
+                props.publishing || props.unpublishing || props.discarding
+              }
+            >
+              {m.studio_discard_changes()}
+            </Button>
+          )}
           {publication !== undefined && (
             <Button
               onClick={unpublish}
-              disabled={props.publishing || props.unpublishing}
+              disabled={
+                props.publishing || props.unpublishing || props.discarding
+              }
             >
               {m.studio_unpublish()}
             </Button>
@@ -154,7 +174,7 @@ export function EditorFooter(props: {
             variant="primary"
             className={styles.publish}
             onClick={publish}
-            disabled={props.publishing || upToDate}
+            disabled={props.publishing || props.discarding || upToDate}
           >
             {props.publishing
               ? m.studio_publishing()

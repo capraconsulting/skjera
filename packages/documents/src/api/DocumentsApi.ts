@@ -45,6 +45,14 @@ export class DocumentsApi extends HttpApiGroup.make("documents")
       params: { id: DocumentId },
       error: DocumentNotFound,
     }),
+    /**
+     * Discards the draft's changes since it was last published: the draft
+     * becomes the published version again. Not published: nothing to discard.
+     */
+    HttpApiEndpoint.delete("discardChanges", "/api/documents/:id/changes", {
+      params: { id: DocumentId },
+      error: DocumentNotFound,
+    }),
     /** Deletes the document, taking its published version off the site. */
     HttpApiEndpoint.delete("delete", "/api/documents/:id", {
       params: { id: DocumentId },

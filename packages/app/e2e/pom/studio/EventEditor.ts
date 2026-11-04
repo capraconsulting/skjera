@@ -194,6 +194,13 @@ export class EventEditor {
     await expect(this.publishButton()).toBeEnabled();
   }
 
+  /** The Publish button reads "Published" and can't be clicked. */
+  async expectPublishedButtonDisabled(): Promise<void> {
+    await expect(
+      this.page.getByRole("button", { name: "Published", exact: true }),
+    ).toBeDisabled();
+  }
+
   async expectRefused(message: string): Promise<void> {
     await expect(this.page.getByRole("alert")).toHaveText(message);
   }
@@ -307,6 +314,37 @@ export class EventEditor {
         : Promise.resolve();
     const clicked = this.page
       .getByRole("button", { name: "Unpublish", exact: true })
+      .click();
+    return { question: clicked.then(() => question), done };
+  }
+
+  /**
+   * Clicks Discard changes, answering the question it asks. Its `question` is
+   * what was asked; `done` the server's answer to the discard, which only an
+   * accepted question sends.
+   */
+  clickDiscardAnswering(answer: "accept" | "dismiss"): {
+    readonly question: Promise<string>;
+    readonly done: Promise<unknown>;
+  } {
+    const question = new Promise<string>((resolve) => {
+      this.page.once("dialog", (dialog) => {
+        resolve(dialog.message());
+        return answer === "accept" ? dialog.accept() : dialog.dismiss();
+      });
+    });
+    const done =
+      answer === "accept"
+        ? this.page.waitForResponse(
+            (response) =>
+              response.request().method() === "DELETE" &&
+              /^\/api\/documents\/[0-9a-f-]+\/changes$/.test(
+                new URL(response.url()).pathname,
+              ),
+          )
+        : Promise.resolve();
+    const clicked = this.page
+      .getByRole("button", { name: "Discard changes", exact: true })
       .click();
     return { question: clicked.then(() => question), done };
   }

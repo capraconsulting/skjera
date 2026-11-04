@@ -1,6 +1,6 @@
 # STU-17: Publishing
 
-An event is written in the studio and reaches the site only when an organiser clicks **Publish**. Edits made after that stay in the studio until it is published again.
+An event is written in the studio and reaches the site only when an organiser clicks **Publish**. Edits made after that stay in the studio until it is published again or discarded ([STU-23](STU-23-discarding-changes.md)).
 
 Publishing also needs a place, as [STU-11](STU-11-place.md) AC-2 says. A published event is taken off the site by unpublishing it ([STU-20](STU-20-unpublishing.md)), deleting it ([STU-19](STU-19-deleting.md)) or making it members only ([STU-12](STU-12-visibility.md)).
 
