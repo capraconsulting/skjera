@@ -1,75 +1,40 @@
 import {
-  type Answers,
   type AttendeeRow,
-  type DocumentId,
   describe,
   type GuestProblem,
   guestProblems,
-  type Question,
   type ShownEvent,
 } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { getLocale } from "@skjera/i18n/runtime";
-import {
-  type FormEvent,
-  type InputHTMLAttributes,
-  useEffect,
-  useId,
-  useState,
-} from "react";
+import { type FormEvent, type ReactNode, useState } from "react";
 import { Link } from "react-router";
 import { Button } from "../../components/Button.tsx";
-import { Input } from "../../components/Input.tsx";
 import { currentSite } from "../../i18n.ts";
-import { sayWhy } from "../../problems.ts";
 import { loginUrl } from "../../site/client.ts";
 import {
   type GuestSignup,
   guestSignup,
   rememberGuestSignup,
-  requestCancelByEmail,
   storedGuestSignup,
 } from "../../site/guestSignups.ts";
 import { placesLeft } from "../../site/signupCount.ts";
-import {
-  checkboxWords,
-  chosenOption,
-  fieldOf,
-  type GuestField,
-} from "../../site/signupForm.ts";
-import {
-  attendees,
-  type GuestCancel,
-  type Signup,
-  type SignupChange,
-} from "../../sync/tables.ts";
+import { changeFrom, fieldOf, signupFrom } from "../../site/signupForm.ts";
+import { attendees, type GuestCancel } from "../../sync/tables.ts";
 import { formatDateTime } from "../../time.ts";
 import styles from "./Attend.module.css";
-
-/** Whether `at` has passed, turning true when it does; never without one. */
-export const useHasPassed = (at: Date | null) => {
-  const time = at?.getTime() ?? null;
-  const [passed, setPassed] = useState(
-    () => time !== null && time <= Date.now(),
-  );
-  useEffect(() => {
-    if (time === null) {
-      setPassed(false);
-      return;
-    }
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const wait = () => {
-      const left = time - Date.now();
-      setPassed(left <= 0);
-      if (left <= 0) return;
-      // setTimeout takes at most about 24 days: wait again until it has passed.
-      timer = setTimeout(wait, Math.min(left, 2 ** 31 - 1));
-    };
-    wait();
-    return () => clearTimeout(timer);
-  }, [time]);
-  return passed;
-};
+import {
+  AttendanceInput,
+  DietaryInput,
+  type FieldMessages,
+  type Given,
+  GuestContactInputs,
+  GuestInput,
+  HoneypotInput,
+  QuestionInputs,
+} from "./AttendInputs.tsx";
+import { CancelByEmail } from "./CancelByEmail.tsx";
+import { useHasPassed } from "./useHasPassed.ts";
 
 /**
  * Signing up to attend an event, and changing one's mind, until sign-up
@@ -156,43 +121,18 @@ export function Attend(props: {
   const signUp = (submitted: FormEvent<HTMLFormElement>, asGuest: boolean) => {
     submitted.preventDefault();
     const form = new FormData(submitted.currentTarget);
-    if (asGuest) {
-      const problems = guestProblems({
-        name: String(form.get("firstname") ?? ""),
-        phone: String(form.get("telephone") ?? ""),
-        company: String(form.get("company") ?? ""),
-      });
+    const signup = signupFrom(event, form, asGuest, getLocale());
+    if (signup.guest !== undefined) {
+      const problems = guestProblems(signup.guest);
       if (problems.length > 0) return refuse(problems);
     }
     setSignedUpSince(true);
-    const confirmedTo = asGuest
-      ? String(form.get("email") ?? "").trim()
-      : props.email;
+    const confirmedTo = signup.guest?.email.trim() ?? props.email;
     setLast(
       confirmedTo === undefined || confirmedTo === ""
         ? null
         : { kind: "signedUp", email: confirmedTo },
     );
-    const dietary = form.get("dietary");
-    const online = onlineFrom(event, form);
-    const signup: Signup = {
-      // Emails to them are in it.
-      locale: getLocale(),
-      ...(dietary === null ? {} : { dietary: String(dietary) }),
-      answers: answersFrom(event.questions, form),
-      ...(online === undefined ? {} : { online }),
-      ...(asGuest
-        ? {
-            guest: {
-              name: String(form.get("firstname") ?? ""),
-              email: String(form.get("email") ?? ""),
-              phone: String(form.get("telephone") ?? ""),
-              company: String(form.get("company") ?? ""),
-            },
-            honeypot: String(form.get("subject") ?? ""),
-          }
-        : {}),
-    };
     if (!asGuest) setGiven(signup);
     settle(
       attendees.collection.insert(
@@ -202,7 +142,7 @@ export function Attend(props: {
           signedUpAt: new Date(),
           changedAt: new Date(),
           mine: !asGuest,
-          online: online === true,
+          online: signup.online === true,
           details: null,
         },
         { metadata: signup },
@@ -215,31 +155,17 @@ export function Attend(props: {
   const change = (submitted: FormEvent<HTMLFormElement>, id: string) => {
     submitted.preventDefault();
     const form = new FormData(submitted.currentTarget);
+    const changed = changeFrom(event, form, id === guest?.id);
     if (id === guest?.id) {
-      const problems = guestProblems({
-        phone: String(form.get("telephone") ?? ""),
-        company: String(form.get("company") ?? ""),
-      });
+      const problems = guestProblems(changed);
       if (problems.length > 0) return refuse(problems);
     }
-    const online = onlineFrom(event, form);
-    const changed: SignupChange = {
-      answers: answersFrom(event.questions, form),
-      ...(online === undefined ? {} : { online }),
-      // Only a guest's form has them; empty clears.
-      ...(id === guest?.id
-        ? {
-            phone: String(form.get("telephone") ?? ""),
-            company: String(form.get("company") ?? ""),
-          }
-        : {}),
-    };
     const transaction = attendees.collection.update(
       id,
       { metadata: changed },
       (draft) => {
         draft.changedAt = new Date();
-        if (online !== undefined) draft.online = online;
+        if (changed.online !== undefined) draft.online = changed.online;
       },
     );
     settle(transaction);
@@ -351,12 +277,41 @@ export function Attend(props: {
     </p>
   );
 
+  const closes = (
+    <p className={styles.closes}>
+      {m.attend_closes({ when: formatDateTime(closesAt, event.timeZone) })}
+      {food === null ? null : ` ${food}`}
+    </p>
+  );
+
   // Members only, to someone not logged in: they log in to sign up. They
-  // get no signups of it, so there is no count to show.
-  if (!props.signedIn && !event.isPublic) {
-    return (
-      <section className={styles.box} aria-label={m.attend_region()}>
-        <h2 className={styles.heading}>{m.attend_region()}</h2>
+  // get no signups of it, so the box shows nothing but its heading.
+  const membersOnly = !props.signedIn && !event.isPublic;
+
+  /** The sign-up box: what every branch shows, then the branch's own. */
+  const box = (own: ReactNode) => (
+    <section className={styles.box} aria-label={m.attend_region()}>
+      <h2 className={styles.heading}>{m.attend_region()}</h2>
+      {membersOnly ? null : (
+        <>
+          {count}
+          {gone}
+          {cancelled}
+          {closed ? null : (
+            <>
+              {closes}
+              {places}
+            </>
+          )}
+        </>
+      )}
+      {own}
+    </section>
+  );
+
+  if (membersOnly) {
+    return box(
+      <>
         <p className={styles.status}>{m.attend_log_in_members_only()}</p>
         <div className={styles.row}>
           <Button
@@ -368,17 +323,13 @@ export function Attend(props: {
             {m.common_log_in()}
           </Button>
         </div>
-      </section>
+      </>,
     );
   }
 
   if (closed) {
-    return (
-      <section className={styles.box} aria-label={m.attend_region()}>
-        <h2 className={styles.heading}>{m.attend_region()}</h2>
-        {count}
-        {gone}
-        {cancelled}
+    return box(
+      <>
         {mine !== undefined || guest !== null ? (
           <p className={styles.status}>
             {mine !== undefined
@@ -388,16 +339,10 @@ export function Attend(props: {
         ) : null}
         <p className={styles.closes}>{m.attend_closed()}</p>
         {food === null ? null : <p className={styles.closes}>{food}</p>}
-      </section>
+      </>,
     );
   }
 
-  const closes = (
-    <p className={styles.closes}>
-      {m.attend_closes({ when: formatDateTime(closesAt, event.timeZone) })}
-      {food === null ? null : ` ${food}`}
-    </p>
-  );
   const asked = (given: Given = {}, signingUp = false) => (
     <>
       {event.isStreamed ? (
@@ -477,14 +422,8 @@ export function Attend(props: {
     );
 
   if (props.signedIn) {
-    return (
-      <section className={styles.box} aria-label={m.attend_region()}>
-        <h2 className={styles.heading}>{m.attend_region()}</h2>
-        {count}
-        {gone}
-        {cancelled}
-        {closes}
-        {places}
+    return box(
+      <>
         {mine !== undefined ? (
           signedUp(mine.id, signedUpNow ?? m.attend_you_attending(), {
             ...(given ?? {
@@ -512,189 +451,90 @@ export function Attend(props: {
           </form>
         )}
         {failure}
-      </section>
+      </>,
     );
   }
 
   if (!event.allowGuests) {
-    return (
-      <section className={styles.box} aria-label={m.attend_region()}>
-        <h2 className={styles.heading}>{m.attend_region()}</h2>
-        {count}
-        {gone}
-        {cancelled}
-        {closes}
-        {places}
-        {noMore ? (
-          logInWhenFull
-        ) : (
-          <p className={styles.row}>
-            <a href={loginUrl(`/events/${event.id}`)}>
-              {m.attend_log_in_to_attend()}
-            </a>
-          </p>
-        )}
-      </section>
+    return box(
+      noMore ? (
+        logInWhenFull
+      ) : (
+        <p className={styles.row}>
+          <a href={loginUrl(`/events/${event.id}`)}>
+            {m.attend_log_in_to_attend()}
+          </a>
+        </p>
+      ),
     );
   }
 
   return (
     <>
-      <section className={styles.box} aria-label={m.attend_region()}>
-        <h2 className={styles.heading}>{m.attend_region()}</h2>
-        {count}
-        {gone}
-        {cancelled}
-        {closes}
-        {places}
-        {guest === null && noMore ? (
-          logInWhenFull
-        ) : guest === null ? (
-          <form
-            className={styles.form}
-            onSubmit={(submitted) => signUp(submitted, true)}
-          >
-            <div className={styles.fields}>
-              <GuestInput
-                name="firstname"
-                messages={messages}
-                autoComplete="name"
-                aria-label={m.attend_your_name()}
-                placeholder={m.attend_your_name()}
-                required
-              />
-              <GuestInput
-                name="email"
-                messages={messages}
-                type="email"
-                aria-label={m.attend_your_email()}
-                placeholder={m.attend_your_email()}
-                required
-              />
-              <HoneypotInput />
-            </div>
-            <GuestContactInputs given={{}} messages={messages} />
-            {asked({}, true)}
-            <div className={styles.row}>
-              <Button type="submit" variant="primary">
-                {m.attend_sign_up()}
-              </Button>
-              <span>
-                {m.attend_or()}{" "}
-                <a href={loginUrl(`/events/${event.id}`)}>
-                  {m.attend_log_in()}
-                </a>
-              </span>
-            </div>
-            <p className={styles.privacy}>
-              <PrivacyLink />
-            </p>
-          </form>
-        ) : (
-          signedUp(
-            guest.id,
-            signedUpNow ?? m.attend_you_signed_up(),
-            {
-              ...(stored ?? {}),
-              online: signups.find((signup) => signup.id === guest.id)?.online,
-            },
-            true,
-          )
-        )}
-        {failure}
-      </section>
+      {box(
+        <>
+          {guest === null && noMore ? (
+            logInWhenFull
+          ) : guest === null ? (
+            <form
+              className={styles.form}
+              onSubmit={(submitted) => signUp(submitted, true)}
+            >
+              <div className={styles.fields}>
+                <GuestInput
+                  name="firstname"
+                  messages={messages}
+                  autoComplete="name"
+                  aria-label={m.attend_your_name()}
+                  placeholder={m.attend_your_name()}
+                  required
+                />
+                <GuestInput
+                  name="email"
+                  messages={messages}
+                  type="email"
+                  aria-label={m.attend_your_email()}
+                  placeholder={m.attend_your_email()}
+                  required
+                />
+                <HoneypotInput />
+              </div>
+              <GuestContactInputs given={{}} messages={messages} />
+              {asked({}, true)}
+              <div className={styles.row}>
+                <Button type="submit" variant="primary">
+                  {m.attend_sign_up()}
+                </Button>
+                <span>
+                  {m.attend_or()}{" "}
+                  <a href={loginUrl(`/events/${event.id}`)}>
+                    {m.attend_log_in()}
+                  </a>
+                </span>
+              </div>
+              <p className={styles.privacy}>
+                <PrivacyLink />
+              </p>
+            </form>
+          ) : (
+            signedUp(
+              guest.id,
+              signedUpNow ?? m.attend_you_signed_up(),
+              {
+                ...(stored ?? {}),
+                online: signups.find((signup) => signup.id === guest.id)
+                  ?.online,
+              },
+              true,
+            )
+          )}
+          {failure}
+        </>,
+      )}
       {guest === null ? <CancelByEmail eventId={event.id} /> : null}
     </>
   );
 }
-
-/**
- * Cancelling without the signup's own link, for a guest who has lost the
- * email: a link that cancels is sent to the address they signed up with.
- * It has a region of its own, apart from the sign-up box.
- */
-function CancelByEmail(props: { readonly eventId: DocumentId }) {
-  const [sent, setSent] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const ask = (submitted: FormEvent<HTMLFormElement>) => {
-    submitted.preventDefault();
-    const form = new FormData(submitted.currentTarget);
-    const email = String(form.get("cancelEmail") ?? "").trim();
-    setBusy(true);
-    requestCancelByEmail(
-      props.eventId,
-      email,
-      String(form.get("subject") ?? ""),
-    ).then(
-      (refused) => {
-        setBusy(false);
-        setSent(refused === null ? email : null);
-        setError(
-          refused === null
-            ? null
-            : sayWhy(refused.why, m.common_something_wrong()),
-        );
-      },
-      () => {
-        setBusy(false);
-        setSent(null);
-        setError(m.common_something_wrong());
-      },
-    );
-  };
-
-  return (
-    <section
-      className={`${styles.box} ${styles.cancelByEmail}`}
-      aria-label={m.attend_cancel_by_email()}
-    >
-      <h2 className={styles.heading}>{m.attend_cancel_by_email()}</h2>
-      <form className={styles.form} onSubmit={ask}>
-        <div className={styles.fields}>
-          <div className={styles.field}>
-            <Input
-              name="cancelEmail"
-              type="email"
-              autoComplete="email"
-              aria-label={m.attend_cancel_email_placeholder()}
-              placeholder={m.attend_cancel_email_placeholder()}
-              required
-            />
-          </div>
-          <HoneypotInput />
-        </div>
-        <div className={styles.row}>
-          <Button type="submit" disabled={busy}>
-            {m.attend_cancel_signup()}
-          </Button>
-        </div>
-      </form>
-      {sent === null ? null : (
-        <p role="status" className={styles.status}>
-          {m.attend_cancel_email_sent({ email: sent })}
-        </p>
-      )}
-      {error === null ? null : (
-        <p role="alert" className={styles.error}>
-          {error}
-        </p>
-      )}
-    </section>
-  );
-}
-
-/** For bots: people never see it, and screen readers and the keyboard skip it. */
-const HoneypotInput = () => (
-  <input
-    name="subject"
-    hidden
-    tabIndex={-1}
-    autoComplete="off"
-    aria-hidden="true"
-  />
-);
 
 /** Where guests read how their details are handled. */
 function PrivacyLink() {
@@ -706,19 +546,6 @@ function PrivacyLink() {
   );
 }
 
-/** What someone told when signing up, to change it. */
-type Given = {
-  readonly answers?: Answers | undefined;
-  /** Follows online rather than in person; unknown for a new signup. */
-  readonly online?: boolean | undefined;
-  /** A guest's own. */
-  readonly phone?: string | undefined;
-  readonly company?: string | undefined;
-};
-
-/** Why guest inputs were refused, by the input's name. */
-type FieldMessages = Partial<Record<GuestField, string>>;
-
 const messagesFor = (problems: ReadonlyArray<GuestProblem>): FieldMessages =>
   Object.fromEntries(
     problems.flatMap((problem) => {
@@ -726,214 +553,3 @@ const messagesFor = (problems: ReadonlyArray<GuestProblem>): FieldMessages =>
       return field === undefined ? [] : [[field, describe(problem)]];
     }),
   );
-
-/**
- * One of a guest's inputs and, while it is refused, its message beneath,
- * which is also the input's description.
- */
-function GuestInput({
-  name,
-  messages,
-  ...props
-}: InputHTMLAttributes<HTMLInputElement> & {
-  readonly name: GuestField;
-  readonly messages: FieldMessages;
-}) {
-  const messageId = useId();
-  const message = messages[name];
-  return (
-    <div className={styles.field}>
-      <Input
-        {...props}
-        name={name}
-        aria-invalid={message === undefined ? undefined : true}
-        aria-describedby={message === undefined ? undefined : messageId}
-      />
-      {message === undefined ? null : (
-        <p id={messageId} className={styles.error}>
-          {message}
-        </p>
-      )}
-    </div>
-  );
-}
-
-/** A guest's phone number and company, both optional; members aren't asked. */
-const GuestContactInputs = (props: {
-  readonly given: Given;
-  readonly messages: FieldMessages;
-}) => (
-  <div className={styles.fields}>
-    <GuestInput
-      name="telephone"
-      messages={props.messages}
-      type="tel"
-      autoComplete="tel"
-      defaultValue={props.given.phone}
-      aria-label={m.attend_your_phone()}
-      placeholder={`${m.attend_your_phone()} ${m.attend_optional()}`}
-      maxLength={50}
-    />
-    <GuestInput
-      name="company"
-      messages={props.messages}
-      autoComplete="organization"
-      defaultValue={props.given.company}
-      aria-label={m.attend_your_company()}
-      placeholder={`${m.attend_your_company()} ${m.attend_optional()}`}
-      maxLength={100}
-    />
-  </div>
-);
-
-/** Asked, optionally, of everyone signing up when the event serves food. */
-const DietaryInput = () => (
-  <Input
-    name="dietary"
-    aria-label={m.attend_dietary()}
-    placeholder={`${m.attend_dietary()} ${m.attend_optional()}`}
-    maxLength={500}
-  />
-);
-
-const field = (question: Question) => `question-${question.id}`;
-
-/** What the attendance question was answered: online or not; undefined while not asked. */
-const onlineFrom = (event: ShownEvent, form: FormData) =>
-  event.isStreamed ? form.get("attendance") === "online" : undefined;
-
-/**
- * In person or online, picked by everyone signing up to a streamed event:
- * neither is chosen in advance.
- */
-function AttendanceInput(props: {
-  readonly defaultOnline: boolean | undefined;
-  /** No place is left in person. */
-  readonly inPersonDisabled: boolean;
-}) {
-  return (
-    <fieldset className={styles.choice}>
-      <legend>{m.attend_how()}</legend>
-      <label className={styles.check}>
-        <input
-          type="radio"
-          name="attendance"
-          value="in-person"
-          required
-          disabled={props.inPersonDisabled}
-          defaultChecked={props.defaultOnline === false}
-        />
-        {props.inPersonDisabled
-          ? m.attend_in_person_full()
-          : m.attend_in_person()}
-      </label>
-      <label className={styles.check}>
-        <input
-          type="radio"
-          name="attendance"
-          value="online"
-          required
-          defaultChecked={props.defaultOnline === true}
-        />
-        {m.attend_online()}
-      </label>
-    </fieldset>
-  );
-}
-
-/** The answers in a signup form, by question id. */
-const answersFrom = (
-  questions: ReadonlyArray<Question>,
-  form: FormData,
-): Answers => {
-  const answers: Record<string, string | boolean> = {};
-  for (const question of questions) {
-    const value = form.get(field(question));
-    if (question.type === "checkbox") answers[question.id] = value !== null;
-    else if (value !== null) answers[question.id] = String(value);
-  }
-  return answers;
-};
-
-/** The event's questions, as form fields. */
-function QuestionInputs(props: {
-  readonly questions: ReadonlyArray<Question>;
-  /** Answers given before, to start from. */
-  readonly given?: Answers | undefined;
-}) {
-  const given = props.given ?? {};
-  return props.questions.map((question) => {
-    switch (question.type) {
-      case "text":
-        return (
-          <div key={question.id} className={styles.question}>
-            <label htmlFor={field(question)}>
-              {question.text}
-              {question.required ? null : (
-                <span className={styles.optional}> {m.attend_optional()}</span>
-              )}
-            </label>
-            <Input
-              id={field(question)}
-              name={field(question)}
-              defaultValue={
-                typeof given[question.id] === "string"
-                  ? String(given[question.id])
-                  : undefined
-              }
-              required={question.required}
-              maxLength={1000}
-            />
-          </div>
-        );
-      case "checkbox": {
-        // With a label, the question is above the box, as a choice's is.
-        const { above, beside } = checkboxWords(question);
-        const box = (
-          <label key={question.id} className={styles.check}>
-            <input
-              type="checkbox"
-              name={field(question)}
-              required={question.required}
-              defaultChecked={given[question.id] === true}
-            />
-            {beside}
-          </label>
-        );
-        return above === undefined ? (
-          box
-        ) : (
-          <fieldset key={question.id} className={styles.choice}>
-            <legend>{above}</legend>
-            {box}
-          </fieldset>
-        );
-      }
-      case "choice":
-        return (
-          <fieldset key={question.id} className={styles.choice}>
-            <legend>
-              {question.text}
-              {question.required ? null : (
-                <span className={styles.optional}> {m.attend_optional()}</span>
-              )}
-            </legend>
-            {question.options.map((option) => (
-              <label key={option.id} className={styles.check}>
-                <input
-                  type="radio"
-                  name={field(question)}
-                  value={option.id}
-                  required={question.required}
-                  defaultChecked={option.id === chosenOption(question, given)}
-                />
-                {option.text}
-              </label>
-            ))}
-          </fieldset>
-        );
-      default:
-        return null;
-    }
-  });
-}
