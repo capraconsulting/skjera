@@ -112,7 +112,10 @@ test("an organizer writes the signed-up email's own subject and text", async ({
 
   // The written subject and text, in place of the standard greeting and
   // opening; then the event, the invitation and the guest's own link.
-  const signedUp = await new Mailbox().emailTo(address, wording);
+  const signedUp = await new Mailbox().emailTo(
+    address,
+    `${wording} ${event.title}`,
+  );
   expect(signedUp.text).toContain("Bring a friend");
   expect(signedUp.text).not.toContain("Hi Gina,");
   expect(signedUp.text).not.toContain(`You're signed up for ${event.title}`);
@@ -251,7 +254,10 @@ test("the cancelled, changed and cancelled-event emails go out as written for th
   const ginas = new Attendance(first);
   await ginas.signUpAsGuest("Gina", gina);
   await ginas.cancelSignup();
-  const left = await new Mailbox().emailTo(gina, written["sign-up cancelled"]);
+  const left = await new Mailbox().emailTo(
+    gina,
+    `${written["sign-up cancelled"]} ${event.title}`,
+  );
   expect(left.text).toContain("Sorry to see you go, in a few words");
 
   // Gus signs up, the event moves, then it's deleted.
@@ -264,7 +270,10 @@ test("the cancelled, changed and cancelled-event emails go out as written for th
   await editor.expectSaved();
   await editor.clickPublishAnswering("accept");
   await editor.expectPublished();
-  const moved = await new Mailbox().emailTo(gus, written["event changed"]);
+  const moved = await new Mailbox().emailTo(
+    gus,
+    `${written["event changed"]} ${event.title}`,
+  );
   expect(moved.text).toContain("We moved things around, in a few words");
 
   // Deleted: the attendees' emails have the written subject, not the
@@ -275,7 +284,7 @@ test("the cancelled, changed and cancelled-event emails go out as written for th
   await deleting.done;
   const cancelled = await new Mailbox().emailTo(
     gus,
-    written["event cancelled"],
+    `${written["event cancelled"]} ${event.title}`,
   );
   expect(cancelled.text).toContain("No meetup this time, in a few words");
 
@@ -311,9 +320,9 @@ test("a cancelled event's email has the subject published, not a later draft's",
   await deleting.question;
   await editor.expectDeleted(event.id);
   await deleting.done;
-  await new Mailbox().emailTo(address, "Called off");
+  await new Mailbox().emailTo(address, `Called off ${event.title}`);
   expect(await new Mailbox().subjectsTo(address)).not.toContain(
-    "Called off for good",
+    `Called off for good ${event.title}`,
   );
 
   await new Mailbox().deleteEmailsTo(address);
