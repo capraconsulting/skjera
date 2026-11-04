@@ -89,12 +89,15 @@ export class EventTimes {
 
   /** Sets a sign-up deadline at midnight on the 1st, which has passed. */
   async setPassedDeadline(): Promise<void> {
-    await this.page.getByRole("button", { name: "Deadline date" }).click();
+    // Exact: the food deadline's date and time have these words in theirs.
+    await this.page
+      .getByRole("button", { name: "Deadline date", exact: true })
+      .click();
     await this.page
       .getByRole("button", { name: /1st, \d{4}/ })
       .first()
       .click();
-    await this.page.getByLabel("Deadline time").fill("00:00");
+    await this.page.getByLabel("Deadline time", { exact: true }).fill("00:00");
   }
 
   private readonly foodDate = () =>
