@@ -670,5 +670,6 @@
   "studio_restore_unsaved": "Couldn't restore: your edits haven't been saved yet",
   "studio_restore_failed": "Restoring failed",
   "preview_version_loading": "Loading the version …",
-  "preview_version_notice": "An earlier version – this isn't published."
+  "preview_version_notice": "An earlier version – this isn't published.",
+  "studio_organizer_locked": "The organizer can't be changed once the event has been published."
 }

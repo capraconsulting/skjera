@@ -7,6 +7,7 @@ import {
   DocumentNotFound,
   InvalidChanges,
   InvalidContent,
+  MoveRejected,
   PublishRejected,
   RestoreRejected,
   TeamNotFound,
@@ -84,6 +85,14 @@ export class Documents extends Context.Service<
       id: DocumentId,
       author: Identity,
     ) => Effect.Effect<DocumentId, DocumentNotFound>;
+    /**
+     * Moves a document to another team, while it has never been published:
+     * refused once it has, also after it is unpublished.
+     */
+    readonly move: (
+      id: DocumentId,
+      team: TeamId,
+    ) => Effect.Effect<void, DocumentNotFound | TeamNotFound | MoveRejected>;
     readonly get: (
       id: DocumentId,
     ) => Effect.Effect<DocumentSnapshot, DocumentNotFound>;
@@ -817,9 +826,36 @@ export class Documents extends Context.Service<
         }
       }, Effect.uninterruptible);
 
+      // `updated_at` stays as it is: moving does not edit the event.
+      const move = Effect.fn("Documents.move")(function* (
+        id: DocumentId,
+        team: TeamId,
+      ) {
+        const [moved] = yield* sql<{ id: DocumentId }>`
+          UPDATE documents SET team_id = ${team}
+          WHERE id = ${id} AND deleted_at IS NULL AND first_published_at IS NULL
+          RETURNING id
+        `.pipe(
+          Effect.catchIf(SqlError.isSqlError, (error) =>
+            pgCode(error) === "23503"
+              ? Effect.fail(new TeamNotFound({ id: team }))
+              : Effect.die(error),
+          ),
+        );
+        if (moved !== undefined) return;
+        const [found] = yield* sql`
+          SELECT 1 FROM documents WHERE id = ${id} AND deleted_at IS NULL
+        `.pipe(Effect.orDie);
+        if (found === undefined) {
+          return yield* new DocumentNotFound({ id });
+        }
+        return yield* new MoveRejected(refused({ _tag: "OrganizerLocked" }));
+      }, Effect.uninterruptible);
+
       return Documents.of({
         create,
         copy,
+        move,
         get,
         changesSince,
         applyChanges,

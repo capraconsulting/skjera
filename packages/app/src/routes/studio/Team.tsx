@@ -8,6 +8,7 @@ import {
   type LoaderFunctionArgs,
   NavLink,
   Outlet,
+  redirect,
   useLoaderData,
   useNavigate,
   useRouteError,
@@ -37,6 +38,16 @@ export const teamLoader = async ({ params }: LoaderFunctionArgs) => {
   // It may be new: made by someone else since the last pull.
   if (!teams.collection.has(teamId)) await teams.refresh();
   if (!teams.collection.has(teamId)) {
+    // An old address of an event that was moved out of a team that is gone
+    // since: it opens in the event's own team.
+    const event = params.id as DocumentId | undefined;
+    if (event !== undefined) {
+      await documents.refresh();
+      const moved = documents.collection.get(event);
+      if (moved !== undefined && teams.collection.has(moved.teamId)) {
+        throw redirect(`/studio/teams/${moved.teamId}/events/${event}`);
+      }
+    }
     throw data("Team not found", { status: 404 });
   }
   return { teamId };
@@ -97,6 +108,7 @@ export function Team() {
         timeZone: null,
         draftHeads: [],
         tags: [],
+        firstPublishedAt: null,
         createdAt: now,
         updatedAt: now,
       })

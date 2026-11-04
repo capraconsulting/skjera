@@ -1,8 +1,12 @@
+import type { Question } from "@skjera/documents/api";
 import { describe, expect, it } from "vitest";
 import {
+  changeFrom,
   checkboxWords,
   chosenOption,
   fieldOf,
+  questionField,
+  signupFrom,
 } from "../src/site/signupForm.ts";
 
 const small = "00000000-0000-4000-8000-000000000001";
@@ -70,5 +74,133 @@ describe("fieldOf", () => {
     expect(fieldOf({ _tag: "Unheard of" })).toBeUndefined();
     expect(fieldOf(undefined)).toBeUndefined();
     expect(fieldOf("EmailTaken")).toBeUndefined();
+  });
+});
+
+const formOf = (fields: Record<string, string>) => {
+  const form = new FormData();
+  for (const [name, value] of Object.entries(fields)) form.append(name, value);
+  return form;
+};
+
+const nickname = "00000000-0000-4000-8000-0000000000b1";
+const notes = "00000000-0000-4000-8000-0000000000b2";
+const waiver = "00000000-0000-4000-8000-0000000000b3";
+const updates = "00000000-0000-4000-8000-0000000000b4";
+const asked = (
+  id: string,
+  type: Question["type"],
+  options: Question["options"] = [],
+): Question => ({ id, type, text: "Question", required: false, options });
+const questions = [
+  asked(nickname, "text"),
+  asked(notes, "text"),
+  asked(waiver, "checkbox"),
+  asked(updates, "checkbox"),
+  asked(towels, "choice", question.options),
+];
+const plain = { questions: [], isStreamed: false };
+const streamed = { questions: [], isStreamed: true };
+const withQuestions = { questions, isStreamed: false };
+
+describe("signupFrom", () => {
+  it("reads a member's answers by question id (AC-2)", () => {
+    const form = formOf({
+      [questionField({ id: nickname })]: "Nico",
+      [questionField({ id: waiver })]: "on",
+      [questionField({ id: towels })]: large,
+    });
+    expect(signupFrom(withQuestions, form, false, "nb")).toEqual({
+      locale: "nb",
+      answers: {
+        [nickname]: "Nico",
+        [waiver]: true,
+        [updates]: false,
+        [towels]: large,
+      },
+    });
+  });
+
+  it("reads a guest's details as written, the email untrimmed, and the hidden field (AC-3)", () => {
+    const form = formOf({
+      firstname: "Kari Nordmann",
+      email: "  kari@example.com ",
+      telephone: "91234567",
+      company: "Acme",
+      subject: "spam",
+    });
+    expect(signupFrom(plain, form, true, "en")).toEqual({
+      locale: "en",
+      answers: {},
+      guest: {
+        name: "Kari Nordmann",
+        email: "  kari@example.com ",
+        phone: "91234567",
+        company: "Acme",
+      },
+      honeypot: "spam",
+    });
+  });
+
+  it("gives a guest empty strings for the fields left out of the form (AC-3)", () => {
+    expect(signupFrom(plain, formOf({}), true, "en")).toMatchObject({
+      guest: { name: "", email: "", phone: "", company: "" },
+      honeypot: "",
+    });
+  });
+
+  it("has dietary only when the form has the field (AC-4)", () => {
+    const asked = signupFrom(plain, formOf({ dietary: "Vegan" }), false, "nb");
+    expect(asked.dietary).toBe("Vegan");
+    const notAsked = signupFrom(plain, formOf({}), false, "nb");
+    expect("dietary" in notAsked).toBe(false);
+  });
+
+  it("has online only when the event is streamed (AC-5)", () => {
+    const online = formOf({ attendance: "online" });
+    const inPerson = formOf({ attendance: "in-person" });
+    expect(signupFrom(streamed, online, false, "nb").online).toBe(true);
+    expect(signupFrom(streamed, inPerson, false, "nb").online).toBe(false);
+    expect("online" in signupFrom(plain, online, false, "nb")).toBe(false);
+  });
+});
+
+describe("changeFrom", () => {
+  it("reads a guest's phone and company as written, an empty one as an empty string (AC-6)", () => {
+    expect(
+      changeFrom(plain, formOf({ telephone: "91234567", company: "" }), true),
+    ).toEqual({ answers: {}, phone: "91234567", company: "" });
+    expect(changeFrom(plain, formOf({}), true)).toEqual({
+      answers: {},
+      phone: "",
+      company: "",
+    });
+  });
+
+  it("gives a member no phone or company (AC-6)", () => {
+    const changed = changeFrom(
+      plain,
+      formOf({ telephone: "91234567", company: "Acme" }),
+      false,
+    );
+    expect(changed).toEqual({ answers: {} });
+  });
+
+  it("reads the answers (AC-6)", () => {
+    const form = formOf({ [questionField({ id: nickname })]: "Nico" });
+    expect(changeFrom(withQuestions, form, false).answers).toEqual({
+      [nickname]: "Nico",
+      [waiver]: false,
+      [updates]: false,
+    });
+  });
+
+  it("has online only when the event is streamed (AC-5)", () => {
+    const online = formOf({ attendance: "online" });
+    expect(changeFrom(streamed, online, false).online).toBe(true);
+    expect(
+      changeFrom(streamed, formOf({ attendance: "in-person" }), false).online,
+    ).toBe(false);
+    expect("online" in changeFrom(plain, online, false)).toBe(false);
   });
 });

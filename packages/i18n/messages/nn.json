@@ -670,5 +670,6 @@
   "studio_restore_unsaved": "Kunne ikkje gjenopprette: endringane dine er ikkje lagra enno",
   "studio_restore_failed": "Gjenopprettinga mislukkast",
   "preview_version_loading": "Hentar utgåva …",
-  "preview_version_notice": "Førehandsvising av ei tidlegare utgåve – dette er ikkje publisert."
+  "preview_version_notice": "Førehandsvising av ei tidlegare utgåve – dette er ikkje publisert.",
+  "studio_organizer_locked": "Arrangøren kan ikkje endrast etter at arrangementet er publisert."
 }

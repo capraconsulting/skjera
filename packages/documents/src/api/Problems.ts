@@ -58,6 +58,8 @@ export const Problem = Schema.Union([
   // Invitations.
   Schema.TaggedStruct("InvitedEmailInvalid", {}),
   Schema.TaggedStruct("AlreadyInvited", { email: Schema.String }),
+  // Moving an event to another team.
+  Schema.TaggedStruct("OrganizerLocked", {}),
 ]);
 export type Problem = typeof Problem.Type;
 
@@ -163,6 +165,8 @@ export const describe = (problem: Problem, locale?: Locale): string => {
       return m.problem_invited_email_invalid({}, options);
     case "AlreadyInvited":
       return m.problem_already_invited(problem, options);
+    case "OrganizerLocked":
+      return m.studio_organizer_locked({}, options);
   }
 };
 

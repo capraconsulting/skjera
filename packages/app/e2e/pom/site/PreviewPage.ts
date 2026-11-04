@@ -13,9 +13,9 @@ export class PreviewPage {
   private readonly publishedLink = () =>
     this.page.getByRole("link", { name: "View the published page" });
   // Role queries skip what is inside an `inert` part, so the button is found
-  // by its text.
+  // by its text. The preview is shown to those logged in, so it is a member's.
   private readonly signUpButton = () =>
-    this.page.locator("button", { hasText: /^Sign up$/ });
+    this.page.locator("button", { hasText: /^Attend$/ });
 
   async goto(id: string): Promise<void> {
     await this.page.goto(`/events/${id}/preview`);
@@ -32,6 +32,13 @@ export class PreviewPage {
 
   async expectHeading(title: string): Promise<void> {
     await expect(this.page.getByRole("heading", { name: title })).toBeVisible();
+  }
+
+  /** The event's organizer is the team named `name`. */
+  async expectOrganizer(name: string): Promise<void> {
+    await expect(
+      this.page.getByRole("listitem").filter({ hasText: "Organizer:" }),
+    ).toContainText(name);
   }
 
   async expectNotice(): Promise<void> {

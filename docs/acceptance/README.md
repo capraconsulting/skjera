@@ -46,7 +46,8 @@ These files say what to test and how. Which criteria have passed in a round of t
 | STU-24 | [Making a copy of an event](STU-24-copying.md) |
 | STU-25 | [Cropping the cover](STU-25-cropping-the-cover.md) |
 | STU-26 | [Searching and ordering events](STU-26-searching-and-ordering.md) |
-| STU-27 | [History](STU-27-history.md) |
+| STU-27 | [Moving an event to another team](STU-27-moving-to-another-team.md) |
+| STU-28 | [History](STU-28-history.md) |
 
 ## SITE: The public site
 

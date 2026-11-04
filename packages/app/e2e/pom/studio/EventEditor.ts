@@ -526,6 +526,38 @@ export class EventEditor {
     await this.reminders().selectOption(choice);
   }
 
+  private organizer() {
+    return this.page.getByRole("combobox", { name: "Organizer" });
+  }
+
+  /** «Organizer» has the team with this id chosen. */
+  async expectOrganizer(team: string): Promise<void> {
+    await expect(this.organizer()).toHaveValue(team);
+  }
+
+  /** «Organizer» lists these teams, by name, and no others of the test's. */
+  async expectOrganizerChoices(names: ReadonlyArray<string>): Promise<void> {
+    for (const name of names) {
+      await expect(
+        this.organizer().getByRole("option", { name, exact: true }),
+      ).toHaveCount(1);
+    }
+  }
+
+  async chooseOrganizer(name: string): Promise<void> {
+    await this.organizer().selectOption({ label: name });
+  }
+
+  /** «Organizer» can't be changed, and says why. */
+  async expectOrganizerLocked(): Promise<void> {
+    await expect(this.organizer()).toBeDisabled();
+    await expect(
+      this.page.getByText(
+        "The organizer can't be changed once the event has been published.",
+      ),
+    ).toBeVisible();
+  }
+
   async fillMaxAttendees(limit: number): Promise<void> {
     await this.page
       .getByRole("spinbutton", { name: "Maximum attendees" })

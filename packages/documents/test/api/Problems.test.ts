@@ -42,6 +42,7 @@ const problems: ReadonlyArray<Problem> = [
   { _tag: "ImageFormat" },
   { _tag: "InvitedEmailInvalid" },
   { _tag: "AlreadyInvited", email: "gina@example.org" },
+  { _tag: "OrganizerLocked" },
 ];
 
 group("Problems", () => {

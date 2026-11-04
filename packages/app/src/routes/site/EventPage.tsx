@@ -44,10 +44,11 @@ import {
 import { placesForVisitor } from "../../site/signupCount.ts";
 import { attendees, events } from "../../sync/tables.ts";
 import { formatDaysIn, formatHoursIn } from "../../time.ts";
-import { Attend, useHasPassed } from "./Attend.tsx";
+import { Attend } from "./Attend.tsx";
 import styles from "./EventPage.module.css";
 import { Signups } from "./Signups.tsx";
 import type { siteLoader } from "./SiteLayout.tsx";
+import { useHasPassed } from "./useHasPassed.ts";
 
 /** The event whose link, just opened, led to no signup: said once. */
 let goneLink: DocumentId | null = null;

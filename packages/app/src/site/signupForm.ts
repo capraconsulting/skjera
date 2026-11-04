@@ -1,5 +1,12 @@
-import { type Answers, Problem, type Question } from "@skjera/documents/api";
+import {
+  type Answers,
+  type Locale,
+  Problem,
+  type Question,
+  type ShownEvent,
+} from "@skjera/documents/api";
 import { Option, Schema } from "effect";
+import type { Signup, SignupChange } from "../sync/tables.ts";
 
 /** A guest's inputs, by the `name` they carry (the names HubSpot reads). */
 export type GuestField = "firstname" | "email" | "telephone" | "company";
@@ -51,4 +58,80 @@ export const fieldOf = (problem: unknown): GuestField | undefined => {
     default:
       return undefined;
   }
+};
+
+/** The name a question's input carries in the sign-up and change forms. */
+export const questionField = (question: Pick<Question, "id">) =>
+  `question-${question.id}`;
+
+/** The answers in a form, by question id: a checkbox is always answered. */
+const answersFrom = (
+  questions: ReadonlyArray<Question>,
+  form: FormData,
+): Answers => {
+  const answers: Record<string, string | boolean> = {};
+  for (const question of questions) {
+    const value = form.get(questionField(question));
+    if (question.type === "checkbox") answers[question.id] = value !== null;
+    else if (value !== null) answers[question.id] = String(value);
+  }
+  return answers;
+};
+
+/** Online or in person; undefined while the event is not streamed. */
+const onlineFrom = (event: Pick<ShownEvent, "isStreamed">, form: FormData) =>
+  event.isStreamed ? form.get("attendance") === "online" : undefined;
+
+/** A text field of the form as written; empty when it is not there. */
+const textOf = (form: FormData, name: string) => String(form.get(name) ?? "");
+
+/** What a sign-up form sends, each field read once. */
+export const signupFrom = (
+  event: Pick<ShownEvent, "questions" | "isStreamed">,
+  form: FormData,
+  asGuest: boolean,
+  locale: Locale,
+): Signup => {
+  const dietary = form.get("dietary");
+  const online = onlineFrom(event, form);
+  return {
+    // Emails to them are in it.
+    locale,
+    ...(dietary === null ? {} : { dietary: String(dietary) }),
+    answers: answersFrom(event.questions, form),
+    ...(online === undefined ? {} : { online }),
+    ...(asGuest
+      ? {
+          guest: {
+            name: textOf(form, "firstname"),
+            email: textOf(form, "email"),
+            phone: textOf(form, "telephone"),
+            company: textOf(form, "company"),
+          },
+          honeypot: textOf(form, "subject"),
+        }
+      : {}),
+  };
+};
+
+/**
+ * What a change form sends. Only a guest's form has phone and company;
+ * empty clears.
+ */
+export const changeFrom = (
+  event: Pick<ShownEvent, "questions" | "isStreamed">,
+  form: FormData,
+  asGuest: boolean,
+): SignupChange => {
+  const online = onlineFrom(event, form);
+  return {
+    answers: answersFrom(event.questions, form),
+    ...(online === undefined ? {} : { online }),
+    ...(asGuest
+      ? {
+          phone: textOf(form, "telephone"),
+          company: textOf(form, "company"),
+        }
+      : {}),
+  };
 };

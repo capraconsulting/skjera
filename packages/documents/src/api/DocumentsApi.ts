@@ -11,6 +11,7 @@ import {
 } from "../Model.ts";
 import {
   DocumentNotFound,
+  MoveRejected,
   PublishRejected,
   RestoreRejected,
   TeamNotFound,
@@ -47,6 +48,15 @@ export class DocumentsApi extends HttpApiGroup.make("documents")
       payload: Schema.Struct({ id: DocumentId }),
       success: DocumentId,
       error: DocumentNotFound,
+    }),
+    /**
+     * Moves the event to another team. Refused with `OrganizerLocked` once
+     * the event has been published, also after it is unpublished.
+     */
+    HttpApiEndpoint.put("move", "/api/documents/:id/team", {
+      params: { id: DocumentId },
+      payload: Schema.Struct({ teamId: TeamId }),
+      error: [DocumentNotFound, TeamNotFound, MoveRejected],
     }),
     /**
      * Publishes the draft as of `heads`: the version the user saw, which

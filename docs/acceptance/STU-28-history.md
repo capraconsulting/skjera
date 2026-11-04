@@ -1,8 +1,8 @@
-# STU-27: History
+# STU-28: History
 
 An organiser can see an event's history in the studio with **History**: who changed it and when, an earlier version as it was, and **Restore this version** to make the draft that version again. The question before restoring is the browser's own, answered with **OK** or **Cancel**.
 
-**Events:** in team «STU-27: History», public events open to guests:
+**Events:** in team «STU-28: History», public events open to guests:
 
 - «AC-1 to AC-8: Edited by two», published by alice with the summary «Published by alice.», and then given the summary «Changed by bob.» by bob. Two people signed up.
 

@@ -27,6 +27,7 @@ import { EditorFooter } from "./EditorFooter.tsx";
 import { EmailTexts } from "./EmailTexts.tsx";
 import styles from "./EventEditor.module.css";
 import { Invitations } from "./Invitations.tsx";
+import { OrganizerField } from "./OrganizerField.tsx";
 
 const titlePath = ["title"] as const;
 const bodyPath = ["body"] as const;
@@ -106,6 +107,14 @@ function EventSession({ id }: { readonly id: DocumentId }) {
           <p role="alert" className={styles.error}>
             {session.error}
           </p>
+        )}
+        {owner === null ? null : (
+          <OrganizerField
+            teamId={owner}
+            locked={session.firstPublishedAt !== null}
+            moving={session.moving}
+            onChoose={session.move}
+          />
         )}
         <Field label={m.studio_title()}>
           <TextEditor

@@ -46,8 +46,9 @@ test("the preview follows the draft without a reload (AC-3)", async ({
   const tab = await editor.openPreview();
   const preview = new PreviewPage(tab);
   await preview.expectHeading(event.title);
-  // Changed after the preview opened; the tab is never reloaded.
-  await editor.title.type(" now live");
+  // Changed after the preview opened; the tab is never reloaded. At the end:
+  // back from the new tab, the caret may be anywhere in the title.
+  await editor.title.typeAt("end", " now live");
   await preview.expectHeading(`${event.title} now live`);
 
   await cleanUp(alice, team, event.id);
@@ -120,8 +121,8 @@ test("someone not logged in, or an unknown draft, gets the missing-event message
   await closed.expectMissing();
   await closed.expectNowhere(event.title);
 
-  // Logged in, but no such draft.
-  const unknown = new PreviewPage(alice);
+  // Logged in, but no such draft: in a tab of its own, so the editor stays.
+  const unknown = new PreviewPage(await alice.context().newPage());
   await unknown.goto(crypto.randomUUID());
   await unknown.expectMissing();
 

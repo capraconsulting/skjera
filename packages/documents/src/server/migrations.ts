@@ -1270,7 +1270,25 @@ export const migrations = Migrator.fromRecord({
     // Fills the column for the drafts already there; updated_at is left as it is.
     `UPDATE documents SET draft = draft`,
   ),
-  "0032_history": statements(
+  "0032_first_published": statements(
+    // When the event was first published, kept after it is unpublished: an
+    // event can change team only until then.
+    `ALTER TABLE documents ADD COLUMN first_published_at timestamptz`,
+    // When an event is first published, its document says so, and is pulled again.
+    `CREATE FUNCTION events_mark_first_published() RETURNS trigger LANGUAGE plpgsql AS $$
+    BEGIN
+      UPDATE documents SET first_published_at = NEW.first_published_at
+        WHERE id = NEW.id AND first_published_at IS NULL;
+      RETURN NULL;
+    END
+    $$`,
+    `CREATE TRIGGER events_mark_first_published AFTER INSERT ON events
+      FOR EACH ROW EXECUTE FUNCTION events_mark_first_published()`,
+    // Events published before, unpublished ones too: their events row is kept.
+    `UPDATE documents d SET first_published_at = e.first_published_at
+      FROM events e WHERE e.id = d.id`,
+  ),
+  "0033_history": statements(
     // The name each person goes by, as the identity provider last gave it.
     `CREATE TABLE people (
       issuer text NOT NULL,
