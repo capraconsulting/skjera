@@ -446,6 +446,11 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
         maxAttendees: 2,
         signups: [bob(), guest("SIGN-06", 4)],
       }),
+      event("AC-10: The number of places left goes at the sign-up deadline", {
+        ...guests,
+        ...week,
+        maxAttendees: 2,
+      }),
     ]),
     team("SIGN-07: Streaming, in person or online", [
       event("AC-1: Streaming is set in the studio", {

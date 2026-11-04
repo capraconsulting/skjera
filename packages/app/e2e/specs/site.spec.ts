@@ -220,13 +220,18 @@ test("sign-up closes at the deadline, in the event's time zone (AC-2)", async ({
   const alice = await signedIn(browser, "alice@example.com");
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Deadline"));
   const editor = new EventEditor(alice);
-  const event = await editor.createPublished({ public: true, guests: true });
+  const event = await editor.createPublished({
+    public: true,
+    guests: true,
+    maxAttendees: 2,
+  });
   const reader = await visitor(browser);
   const page = new EventPage(reader);
   const attendance = new Attendance(reader);
   await page.goto(event.id);
   // Without a deadline, sign-up closes when the event starts.
   await attendance.expectText(/Sign-up closes .* at 6:00\s*PM\./);
+  await page.expectInfoItem("2 places left");
 
   // Moved to New York, it starts at 18:00 there: shown as such, and named.
   await editor.times.selectTimeZone("America/New_York");
@@ -240,6 +245,8 @@ test("sign-up closes at the deadline, in the event's time zone (AC-2)", async ({
   await editor.publish();
   await page.reload();
   await attendance.expectText("Sign-up has closed.");
+  // The places left go with the deadline, once the page has loaded.
+  await page.expectNowhere(/places? left/);
   await attendance.expectNoButtons();
   await new CancelByEmail(reader).expectAbsent();
 

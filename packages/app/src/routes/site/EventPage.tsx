@@ -43,7 +43,7 @@ import {
 import { placesForVisitor } from "../../site/signupCount.ts";
 import { attendees, events } from "../../sync/tables.ts";
 import { formatDaysIn, formatHoursIn } from "../../time.ts";
-import { Attend } from "./Attend.tsx";
+import { Attend, useHasPassed } from "./Attend.tsx";
 import styles from "./EventPage.module.css";
 import { Signups } from "./Signups.tsx";
 import type { siteLoader } from "./SiteLayout.tsx";
@@ -179,8 +179,12 @@ export function EventView(props: {
   readonly preview?: boolean;
 }) {
   const { event, signups, signedIn, linkGone } = props;
+  // Turns true at the deadline, as the sign-up box closes; never without one.
+  const deadlinePassed = useHasPassed(event.signupDeadline);
   // Visitors not logged in are told the places left, not how many are signed up.
-  const places = signedIn ? null : placesForVisitor(event, signups);
+  const places = signedIn
+    ? null
+    : placesForVisitor(event, signups, deadlinePassed);
   return (
     <article className={styles.event}>
       <Link to="/" className={styles.back}>

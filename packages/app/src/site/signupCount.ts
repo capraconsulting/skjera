@@ -19,8 +19,10 @@ export const placesLeft = (
 /**
  * What a visitor not logged in is told of the signups: the places left, or
  * that none are left; nothing otherwise. None left is said whatever the
- * organiser hides, as the sign-up box does. Nothing for an event shown only
- * to members: visitors are sent no signups of it to count.
+ * organiser hides, as the sign-up box does. Once the sign-up deadline has
+ * passed the number of places left is not said, as nobody can take one. Nothing
+ * for an event shown only to members: visitors are sent no signups of it to
+ * count.
  */
 export const placesForVisitor = (
   event: Pick<
@@ -28,10 +30,11 @@ export const placesForVisitor = (
     "maxAttendees" | "isStreamed" | "hidePlacesLeft" | "isPublic"
   >,
   signups: ReadonlyArray<Pick<AttendeeRow, "online">>,
+  deadlinePassed: boolean,
 ): { readonly left: number } | "none" | null => {
   if (!event.isPublic) return null;
   const left = placesLeft(event, signups);
   if (left === null) return null;
   if (left === 0) return "none";
-  return event.hidePlacesLeft ? null : { left };
+  return event.hidePlacesLeft || deadlinePassed ? null : { left };
 };

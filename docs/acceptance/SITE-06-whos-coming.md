@@ -42,7 +42,7 @@ IF no one of a kind has signed up, THEN the event page SHALL say so in that kind
 
 ## AC-4: Not logged in, only the places left
 
-WHILE no one is logged in, the event page SHALL NOT show how many are signed up. For an event with a limit it SHALL show «N places left», or «No places left» when none is left, as Skjer does.
+WHILE no one is logged in, the event page SHALL NOT show how many are signed up. For an event with a limit it SHALL show «N places left» until the sign-up deadline has passed (see [SIGN-06 AC-10](SIGN-06-max-attendees.md#ac-10-the-number-of-places-left-goes-at-the-sign-up-deadline)), or «No places left» when none is left, as Skjer does.
 
 **Test**
 

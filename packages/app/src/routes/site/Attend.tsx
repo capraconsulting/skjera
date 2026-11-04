@@ -45,19 +45,26 @@ import {
 import { formatDateTime } from "../../time.ts";
 import styles from "./Attend.module.css";
 
-/** Whether `at` has passed, turning true when it does. */
-const useHasPassed = (at: Date) => {
-  const time = at.getTime();
-  const [passed, setPassed] = useState(() => time <= Date.now());
+/** Whether `at` has passed, turning true when it does; never without one. */
+export const useHasPassed = (at: Date | null) => {
+  const time = at?.getTime() ?? null;
+  const [passed, setPassed] = useState(
+    () => time !== null && time <= Date.now(),
+  );
   useEffect(() => {
-    const left = time - Date.now();
-    setPassed(left <= 0);
-    if (left <= 0) return;
-    // setTimeout takes at most about 24 days.
-    const timer = setTimeout(
-      () => setPassed(time <= Date.now()),
-      Math.min(left, 2 ** 31 - 1),
-    );
+    if (time === null) {
+      setPassed(false);
+      return;
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const wait = () => {
+      const left = time - Date.now();
+      setPassed(left <= 0);
+      if (left <= 0) return;
+      // setTimeout takes at most about 24 days: wait again until it has passed.
+      timer = setTimeout(wait, Math.min(left, 2 ** 31 - 1));
+    };
+    wait();
     return () => clearTimeout(timer);
   }, [time]);
   return passed;
