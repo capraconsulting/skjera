@@ -1,10 +1,11 @@
 import { m } from "@skjera/i18n/messages";
 import type { Command } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
-import { type FormEvent, type ReactNode, useState } from "react";
+import { type FormEvent, type ReactNode, useRef, useState } from "react";
 import { Button } from "../../components/Button.tsx";
 import { Dialog, dialogStyles } from "../../components/Dialog.tsx";
 import { Input } from "../../components/Input.tsx";
+import { ImagePicker } from "../ImagePicker.tsx";
 import { acceptedImages, uploadImage } from "../uploadImage.ts";
 import { ImageChoiceFields, readChoices } from "./ImageChoiceFields.tsx";
 import styles from "./RichTextToolbar.module.css";
@@ -239,7 +240,10 @@ function LinkDialog(props: {
   );
 }
 
-/** Uploads an image, with a description for those who can't see it. */
+/**
+ * Adds an image, uploaded or picked from those already in Skjera, with a
+ * description for those who can't see it.
+ */
 function ImageDialog(props: {
   readonly open: boolean;
   /** Whether the caption, placement and size are asked for. */
@@ -253,28 +257,35 @@ function ImageDialog(props: {
 }) {
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  // Where the image picked from the list is served: it is added in place of
+  // a file, and a file chosen after it takes its place.
+  const [picked, setPicked] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
+  const form = useRef<HTMLFormElement>(null);
 
   const close = () => {
     setError(null);
+    setPicked(null);
     props.onClose();
   };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const file = form.get("image");
-    if (!(file instanceof File) || file.size === 0) {
-      setError(m.editor_pick_image());
-      return;
-    }
+    const data = new FormData(event.currentTarget);
     setUploading(true);
     try {
-      const src = await uploadImage(file);
+      const file = data.get("image");
+      if (picked === null && (!(file instanceof File) || file.size === 0)) {
+        throw new Error(m.editor_pick_image());
+      }
+      const src =
+        picked ?? (file instanceof File ? await uploadImage(file) : "");
       setError(null);
+      setPicked(null);
       props.onImage(
         src,
-        String(form.get("alt") ?? "").trim(),
-        props.choices ? readChoices(form) : undefined,
+        String(data.get("alt") ?? "").trim(),
+        props.choices ? readChoices(data) : undefined,
       );
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -284,37 +295,61 @@ function ImageDialog(props: {
   };
 
   return (
-    <Dialog open={props.open} title={m.editor_add_image()} onClose={close}>
-      <form onSubmit={submit}>
-        <Input
-          name="image"
-          type="file"
-          accept={acceptedImages}
-          aria-label={m.editor_image_file()}
-          className={dialogStyles.input}
-          required
-          autoFocus
-        />
-        <Input
-          name="alt"
-          aria-label={m.editor_description()}
-          placeholder={m.editor_describe_placeholder()}
-          className={`${dialogStyles.input} ${styles.description}`}
-        />
-        {props.choices ? <ImageChoiceFields choices={defaultChoices} /> : null}
-        {error === null ? null : (
-          <p role="alert" className={dialogStyles.error}>
-            {error}
-          </p>
-        )}
-        <div className={dialogStyles.actions}>
-          <Button onClick={close}>{m.common_cancel()}</Button>
-          <Button type="submit" variant="primary" disabled={uploading}>
-            {uploading ? m.editor_uploading() : m.editor_add_image()}
-          </Button>
-        </div>
-      </form>
-    </Dialog>
+    <>
+      <Dialog open={props.open} title={m.editor_add_image()} onClose={close}>
+        <form ref={form} onSubmit={submit}>
+          <Input
+            name="image"
+            type="file"
+            accept={acceptedImages}
+            aria-label={m.editor_image_file()}
+            className={dialogStyles.input}
+            required={picked === null}
+            onChange={() => setPicked(null)}
+            autoFocus
+          />
+          <div className={styles.existing}>
+            <Button onClick={() => setPicking(true)}>
+              {m.editor_existing_pick()}
+            </Button>
+            {picked === null ? null : (
+              <img className={styles.picked} src={picked} alt="" />
+            )}
+          </div>
+          <Input
+            name="alt"
+            aria-label={m.editor_description()}
+            placeholder={m.editor_describe_placeholder()}
+            className={`${dialogStyles.input} ${styles.description}`}
+          />
+          {props.choices ? (
+            <ImageChoiceFields choices={defaultChoices} />
+          ) : null}
+          {error === null ? null : (
+            <p role="alert" className={dialogStyles.error}>
+              {error}
+            </p>
+          )}
+          <div className={dialogStyles.actions}>
+            <Button onClick={close}>{m.common_cancel()}</Button>
+            <Button type="submit" variant="primary" disabled={uploading}>
+              {uploading ? m.editor_uploading() : m.editor_add_image()}
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+      {/* Beside the Image dialog, not inside it: a dialog's close event
+          reaches the onClose of every dialog around it. */}
+      <ImagePicker
+        open={picking}
+        onClose={() => setPicking(false)}
+        onPick={(url) => {
+          setPicked(url);
+          const file = form.current?.elements.namedItem("image");
+          if (file instanceof HTMLInputElement) file.value = "";
+        }}
+      />
+    </>
   );
 }
 

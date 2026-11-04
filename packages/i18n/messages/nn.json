@@ -380,6 +380,12 @@
   "editor_cover_file": "Fil for forsidebilete",
   "editor_cover_description": "Skildring av forsidebiletet",
   "editor_cover_hint": "Skildre biletet for dei som ikkje kan sjå det.",
+  "editor_existing_pick": "Vel eit eksisterande bilete",
+  "editor_existing_title": "Bilete i Skjera",
+  "editor_existing_image": "Bilete lasta opp {date}",
+  "editor_existing_empty": "Ingen bilete er lasta opp enno.",
+  "editor_existing_failed": "Klarte ikkje hente bileta",
+  "editor_existing_retry": "Prøv igjen",
   "studio_confirm_move": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

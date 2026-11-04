@@ -404,17 +404,17 @@ const deleteImages = (sources: ReadonlyArray<string>) =>
 /**
  * Removes every team of the catalogue, whoever made it, with its documents,
  * and what goes with them: events, signups, dietary preferences, the actors
- * of the drafts, the images they show and the tags only they used. In a
- * shared team only the catalogue's events go, and the team itself when the
- * command made it and nothing else is left. Tells nobody. Returns the teams
- * removed.
+ * of the drafts, the images they show, unless a team, event or draft that is
+ * left shows them too, and the tags only they used. In a shared team only the
+ * catalogue's events go, and the team itself when the command made it and
+ * nothing else is left. Tells nobody. Returns the teams removed.
  */
 export const clear = (teams: ReadonlyArray<TeamSpec>) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const removed: Array<string> = [];
     const images = new Set<string>();
-    yield* Effect.gen(function* () {
+    const unused = yield* Effect.gen(function* () {
       for (const team of teams) {
         const [found] = yield* sql<{ id: string }>`
           SELECT id FROM teams WHERE lower(name) = lower(${team.name})`;
@@ -462,8 +462,32 @@ export const clear = (teams: ReadonlyArray<TeamSpec>) =>
           AND NOT EXISTS (
             SELECT 1 FROM events e, unnest(e.tags) AS used
             WHERE lower(used) = lower(tags.name))`;
+      // The images nothing left shows. A draft's rich texts are read as
+      // publishing reads them: `draft::jsonb` leaves out their image blocks.
+      // An empty array can't be sent as a parameter.
+      if (images.size === 0) return [] as ReadonlyArray<string>;
+      const free = yield* sql<{ src: string }>`
+        SELECT src FROM unnest(${[...images]}::text[]) AS src
+        WHERE NOT EXISTS (
+            SELECT 1 FROM teams WHERE logo = src OR logo_dark = src)
+          AND NOT EXISTS (
+            SELECT 1 FROM events e WHERE strpos(to_jsonb(e)::text, src) > 0)
+          AND NOT EXISTS (
+            SELECT 1 FROM documents d
+            CROSS JOIN LATERAL (
+              SELECT automerge_heads(d.draft) AS heads, d.draft::jsonb AS content
+            ) h
+            WHERE d.type = 'event' AND strpos(concat_ws(' ',
+              h.content::text,
+              automerge_spans(d.draft, '{body}', h.heads)::text,
+              email_text_spans(d.draft, 'signedUpText', h.heads, h.content)::text,
+              email_text_spans(d.draft, 'signupCancelledText', h.heads, h.content)::text,
+              email_text_spans(d.draft, 'eventChangedText', h.heads, h.content)::text,
+              email_text_spans(d.draft, 'eventCancelledText', h.heads, h.content)::text
+            ), src) > 0)`;
+      return free.map(({ src }) => src);
     }).pipe(sql.withTransaction, Effect.orDie);
-    yield* deleteImages([...images]);
+    yield* deleteImages(unused);
     return removed as ReadonlyArray<string>;
   });
 

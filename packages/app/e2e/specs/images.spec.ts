@@ -1,7 +1,12 @@
 import { expect, test } from "@playwright/test";
 import { cleanUp } from "../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName, visitor } from "../fixtures/support.ts";
-import { pixel } from "../pom/images.ts";
+import {
+  firstPageOfImages,
+  pixel,
+  uploadPng,
+  watchUploads,
+} from "../pom/images.ts";
 import { EventPage } from "../pom/site/EventPage.ts";
 import { EventEditor } from "../pom/studio/EventEditor.ts";
 import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
@@ -152,6 +157,132 @@ test("an event's cover image is shown on the site", async ({ browser }) => {
   await page.goto(event.id);
   await page.expectHeading(event.title);
   await page.expectNoImages();
+
+  await cleanUp(alice, team, event.id);
+});
+
+test("the cover offers to pick an image already in Skjera (AC-1)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(
+    uniqueTeamName("Pick cover"),
+  );
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({ public: true });
+
+  await editor.cover.expectCanPickExisting();
+  await editor.cover.chooseFile();
+  await editor.cover.expect(imagePath);
+  await editor.cover.expectCanPickExisting();
+
+  await cleanUp(alice, team, event.id);
+});
+
+test("the Image dialog of the body and of an email text offers to pick an image already in Skjera (AC-1)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Pick text"));
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({ public: true });
+
+  await editor.body.click();
+  const body = await editor.toolbar.openImageDialog();
+  await body.expectCanPickExisting();
+  await body.cancel();
+
+  await editor.openEmail("signed up");
+  await editor.emailText("signed up").click();
+  const email = await editor.emailToolbar("signed up").openImageDialog();
+  await email.expectCanPickExisting();
+  await email.cancel();
+
+  await cleanUp(alice, team, event.id);
+});
+
+test("an image picked for the cover is used without uploading it again (AC-4)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(
+    uniqueTeamName("Pick cover"),
+  );
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({ public: true });
+  const image = await uploadPng(alice);
+  const uploads = watchUploads(alice);
+
+  const picker = await editor.cover.openPicker();
+  await picker.pick(image);
+  await picker.expectClosed();
+  await editor.cover.expect(image);
+  expect(uploads.count()).toBe(0);
+
+  await cleanUp(alice, team, event.id);
+});
+
+test("an image picked in the Image dialog is added without uploading it again, also after a file was chosen (AC-4)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Pick body"));
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({ public: true });
+  await editor.body.click();
+  const image = await uploadPng(alice);
+  const uploads = watchUploads(alice);
+
+  // The picker opens beside the dialog: picking leaves the dialog open.
+  const dialog = await editor.toolbar.openImageDialog();
+  const picker = await dialog.openPicker();
+  await picker.pick(image);
+  await picker.expectClosed();
+  await dialog.expectPicked(image);
+  await dialog.fillDescription("Picked");
+  await dialog.clickConfirm();
+  await dialog.expectClosed();
+  await editor.bodyImages.expect("Picked");
+  expect(await editor.bodyImages.src("Picked")).toBe(image);
+
+  // A file chosen first does not get in when an image is picked after it.
+  const second = await editor.toolbar.openImageDialog();
+  await second.chooseFile({
+    name: "pixel.png",
+    mimeType: "image/png",
+    buffer: pixel,
+  });
+  const again = await second.openPicker();
+  await again.pick(image);
+  await second.fillDescription("Picked again");
+  await second.clickConfirm();
+  await second.expectClosed();
+  await editor.bodyImages.expect("Picked again");
+  expect(await editor.bodyImages.src("Picked again")).toBe(image);
+  expect(uploads.count()).toBe(0);
+
+  await cleanUp(alice, team, event.id);
+});
+
+test("the list of images loads more as it is scrolled (AC-3)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Pick more"));
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({ public: true });
+
+  // A page holds 30: upload only as many as it takes to make a second.
+  const first = await firstPageOfImages(alice);
+  if (!first.more) {
+    for (let have = first.count; have <= 30; have++) await uploadPng(alice);
+  }
+  const page = await firstPageOfImages(alice);
+  expect(page.more).toBe(true);
+
+  const picker = await editor.cover.openPicker();
+  expect(await picker.count()).toBeLessThanOrEqual(page.count);
+  await picker.expectMoreThan(page.count);
 
   await cleanUp(alice, team, event.id);
 });

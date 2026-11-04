@@ -46,3 +46,45 @@ export const dropPng = async (target: Locator): Promise<void> => {
   await target.dispatchEvent("dragover", { dataTransfer, ...at });
   await target.dispatchEvent("drop", { dataTransfer, ...at });
 };
+
+/**
+ * Uploads the PNG as the signed-in user of `page` would, returning where it
+ * is served.
+ */
+export const uploadPng = (page: Page): Promise<string> =>
+  page.evaluate(async (base64) => {
+    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    const response = await fetch("/api/images", {
+      method: "POST",
+      body: bytes,
+      headers: { "Content-Type": "image/png" },
+    });
+    return ((await response.json()) as { url: string }).url;
+  }, pixelBase64);
+
+/** How many images the list's first page holds, and whether it goes on. */
+export const firstPageOfImages = (
+  page: Page,
+): Promise<{ readonly count: number; readonly more: boolean }> =>
+  page.evaluate(async () => {
+    const response = await fetch("/api/images");
+    const body = (await response.json()) as {
+      images: ReadonlyArray<unknown>;
+      next: string | null;
+    };
+    return { count: body.images.length, more: body.next !== null };
+  });
+
+/** Counts the uploads `page` makes from now on. */
+export const watchUploads = (page: Page): { count: () => number } => {
+  let uploads = 0;
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      new URL(request.url()).pathname === "/api/images"
+    ) {
+      uploads++;
+    }
+  });
+  return { count: () => uploads };
+};

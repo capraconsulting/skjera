@@ -380,6 +380,12 @@
   "editor_cover_file": "Fil for forsidebilde",
   "editor_cover_description": "Beskrivelse av forsidebildet",
   "editor_cover_hint": "Beskriv bildet for dem som ikke kan se det.",
+  "editor_existing_pick": "Velg et eksisterende bilde",
+  "editor_existing_title": "Bilder i Skjera",
+  "editor_existing_image": "Bilde lastet opp {date}",
+  "editor_existing_empty": "Ingen bilder er lastet opp ennå.",
+  "editor_existing_failed": "Kunne ikke hente bildene",
+  "editor_existing_retry": "Prøv igjen",
   "studio_confirm_move": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

@@ -12,6 +12,7 @@ import {
 import { Button } from "../components/Button.tsx";
 import type { DraftPresence } from "../presence/presence.ts";
 import styles from "./CoverField.module.css";
+import { ImagePicker } from "./ImagePicker.tsx";
 import { TextEditor } from "./text/TextEditor.tsx";
 import { acceptedImages, imageFiles, uploadImage } from "./uploadImage.ts";
 
@@ -46,23 +47,26 @@ export function CoverField(props: {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [picking, setPicking] = useState(false);
   const picker = useRef<HTMLInputElement>(null);
+
+  const setCover = (url: string) =>
+    handle.change((doc) => {
+      const draft = doc as Draft;
+      // Keeps the description of the image it replaces.
+      if (draft.cover === undefined) {
+        draft.cover = { src: new A.ImmutableString(url), alt: "" };
+      } else {
+        draft.cover.src = new A.ImmutableString(url);
+      }
+    });
 
   const use = async (file: File | undefined) => {
     if (file === undefined) return;
     setError(null);
     setUploading(true);
     try {
-      const url = await uploadImage(file);
-      handle.change((doc) => {
-        const draft = doc as Draft;
-        // Keeps the description of the image it replaces.
-        if (draft.cover === undefined) {
-          draft.cover = { src: new A.ImmutableString(url), alt: "" };
-        } else {
-          draft.cover.src = new A.ImmutableString(url);
-        }
-      });
+      setCover(await uploadImage(file));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
@@ -123,6 +127,9 @@ export function CoverField(props: {
           <Button onClick={() => picker.current?.click()} disabled={uploading}>
             {src === null ? m.editor_cover_choose() : m.editor_cover_replace()}
           </Button>
+          <Button onClick={() => setPicking(true)} disabled={uploading}>
+            {m.editor_existing_pick()}
+          </Button>
           {src === null ? null : (
             <Button variant="ghost" onClick={remove} disabled={uploading}>
               {m.editor_cover_remove()}
@@ -146,6 +153,11 @@ export function CoverField(props: {
           {error}
         </p>
       )}
+      <ImagePicker
+        open={picking}
+        onClose={() => setPicking(false)}
+        onPick={setCover}
+      />
       {objectId === null ? null : (
         <>
           <TextEditor

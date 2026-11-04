@@ -17,7 +17,7 @@ import { SqlClient } from "effect/sql";
 import { Temporal } from "temporal-polyfill";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { catalogue } from "../testdata/catalogue.ts";
-import { clear, fill, type TeamSpec } from "../testdata/fill.ts";
+import { type Colour, clear, fill, type TeamSpec } from "../testdata/fill.ts";
 import { layerOn, localDatabase, people, run } from "../testdata.ts";
 
 const serverUrl =
@@ -621,6 +621,164 @@ describe("fill and clear on small catalogues", () => {
     await using(url, clear(small()));
     expect(await teamNames(url)).not.toContain("Capra Gruppen");
   }, 60_000);
+});
+
+// ---- Images another team or event still shows -----------------------------
+
+describe("clear and the images in use", () => {
+  let database: { name: string; url: string };
+
+  beforeAll(async () => {
+    database = await newDatabase();
+  }, 60_000);
+
+  afterAll(async () => {
+    await dropDatabase(database.name);
+  }, 60_000);
+
+  const open = (title: string, cover: Colour) => {
+    const now = nowOslo();
+    return {
+      title,
+      public: true,
+      guests: true,
+      place: "Kantina",
+      start: now.add({ days: 7 }),
+      end: now.add({ days: 7, hours: 2 }),
+      cover,
+    };
+  };
+
+  /** A draft made by hand that `edit` has written into. */
+  const handMadeDraft = (
+    team: TeamId,
+    title: string,
+    edit: (draft: EventContent) => void,
+  ) =>
+    Effect.gen(function* () {
+      const documents = yield* Documents;
+      const id = yield* Effect.orDie(documents.create("event", team, alice));
+      const snapshot = yield* Effect.orDie(documents.get(id));
+      const edited = A.change(A.load<EventContent>(snapshot.draft), (doc) => {
+        A.updateText(doc, ["title"], title);
+        edit(doc);
+      });
+      const change = A.getLastLocalChange(edited);
+      if (change === undefined) throw new Error("no change");
+      yield* Effect.orDie(documents.applyChanges(id, [change], alice));
+    });
+
+  const imageBlock = (doc: EventContent, key: string, src: string): void => {
+    (doc as unknown as Record<string, unknown>)[key] = "";
+    A.splitBlock(doc, [key], 0, {
+      type: new A.ImmutableString("image"),
+      parents: [],
+      attrs: {
+        src: new A.ImmutableString(src),
+        alt: new A.ImmutableString(""),
+      },
+    });
+  };
+
+  it("keeps the images a team, a published event or a draft still shows, and deletes the rest (AC-5)", async () => {
+    const url = database.url;
+    const catalogueTeams: ReadonlyArray<TeamSpec> = [
+      {
+        name: "Catalogue team",
+        logo: "red",
+        events: [
+          open("AC-1: Green", "green"),
+          open("AC-2: Blue", "blue"),
+          open("AC-3: Yellow", "yellow"),
+          open("AC-4: Purple", "purple"),
+          open("AC-5: Orange", "orange"),
+        ],
+      },
+    ];
+    const others: ReadonlyArray<TeamSpec> = [
+      { name: "Kept team", events: [open("Published by hand", "teal")] },
+    ];
+    await using(url, fill(catalogueTeams, people(issuer)));
+    await using(url, fill(others, people(issuer)));
+
+    const cover = async (title: string) =>
+      (
+        await query(
+          url,
+          (sql) =>
+            sql<{
+              src: string;
+            }>`SELECT cover->>'src' AS src FROM events WHERE title = ${title}`,
+        )
+      )[0]?.src ?? "";
+    const [red, green, blue, yellow, purple, orange] = [
+      (
+        await query(
+          url,
+          (sql) =>
+            sql<{
+              src: string;
+            }>`SELECT logo AS src FROM teams WHERE name = 'Catalogue team'`,
+        )
+      )[0]?.src ?? "",
+      await cover("AC-1: Green"),
+      await cover("AC-2: Blue"),
+      await cover("AC-3: Yellow"),
+      await cover("AC-4: Purple"),
+      await cover("AC-5: Orange"),
+    ];
+
+    // What the catalogue's images are shown by, outside the catalogue.
+    await query(
+      url,
+      (sql) =>
+        sql`UPDATE events SET cover = jsonb_build_object('src', ${green}::text, 'alt', '') WHERE title = 'Published by hand'`,
+    );
+    await using(
+      url,
+      Effect.gen(function* () {
+        const team = yield* handMadeTeam("Hand-made");
+        yield* handMadeDraft(team.id, "Draft cover", (doc) => {
+          (doc as unknown as Record<string, unknown>).cover = {
+            src: new A.ImmutableString(blue),
+            alt: "",
+          };
+        });
+        yield* handMadeDraft(team.id, "Draft body", (doc) =>
+          imageBlock(doc, "body", yellow),
+        );
+        yield* handMadeDraft(team.id, "Draft email text", (doc) =>
+          imageBlock(doc, "signedUpText", purple),
+        );
+      }),
+    );
+    await query(
+      url,
+      (sql) => sql`UPDATE teams SET logo = ${red} WHERE name = 'Hand-made'`,
+    );
+
+    await using(url, clear(catalogueTeams));
+
+    const served = await using(
+      url,
+      Effect.gen(function* () {
+        const images = yield* Images.Images;
+        return yield* Effect.forEach(
+          [red, green, blue, yellow, purple, orange],
+          (src) => images.get(src.split("/").pop() ?? ""),
+        );
+      }),
+    );
+    expect(served.map((image) => image._tag)).toEqual([
+      "Some", // a team's logo
+      "Some", // a published event's cover
+      "Some", // a draft's cover
+      "Some", // an image in a draft's body
+      "Some", // an image in a draft's email text
+      "None", // nothing shows it
+    ]);
+    expect(await teamNames(url)).toEqual(["Hand-made", "Kept team"]);
+  }, 120_000);
 });
 
 // ---- The catalogue's times, at any hour -----------------------------------

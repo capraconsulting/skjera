@@ -2,7 +2,8 @@
 
 /**
  * Where images are uploaded to (POST, the image as the body) and served
- * from (GET `${imagesPath}/:id`). Uploading returns `{ id, url }`.
+ * from (GET `${imagesPath}/:id`). Uploading returns `{ id, url }`. GET
+ * `${imagesPath}` lists them.
  */
 export const imagesPath = "/api/images";
 
@@ -19,3 +20,18 @@ export const imageTypes = [
 ] as const;
 
 export type ImageType = (typeof imageTypes)[number];
+
+/** How many images one page of the list holds. */
+export const imagePageSize = 30;
+
+/**
+ * A page of uploaded images, newest first (GET `${imagesPath}`, with `?after=`
+ * the previous page's `next`). `next` is null after the last page.
+ */
+export interface ImagePage {
+  readonly images: ReadonlyArray<{
+    readonly url: string;
+    readonly uploadedAt: string;
+  }>;
+  readonly next: string | null;
+}

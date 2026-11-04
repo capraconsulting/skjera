@@ -41,6 +41,7 @@ These files say what to test and how. Which criteria have passed in a round of t
 | STU-19 | [Deleting an event](STU-19-deleting.md) |
 | STU-20 | [Unpublishing an event](STU-20-unpublishing.md) |
 | STU-21 | [Previewing an event](STU-21-preview.md) |
+| STU-22 | [Picking an existing image](STU-22-picking-an-existing-image.md) |
 
 ## SITE: The public site
 

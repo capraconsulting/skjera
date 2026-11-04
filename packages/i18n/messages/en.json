@@ -380,6 +380,12 @@
   "editor_cover_file": "Cover image file",
   "editor_cover_description": "Cover description",
   "editor_cover_hint": "Describe the image for those who can't see it.",
+  "editor_existing_pick": "Pick an existing image",
+  "editor_existing_title": "Images in Skjera",
+  "editor_existing_image": "Image uploaded {date}",
+  "editor_existing_empty": "No images have been uploaded yet.",
+  "editor_existing_failed": "Couldn't load the images",
+  "editor_existing_retry": "Try again",
   "studio_confirm_move": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

@@ -3,6 +3,7 @@ import { AwsClient } from "aws4fetch";
 import {
   Config,
   Context,
+  Data,
   Effect,
   Layer,
   Option,
@@ -11,7 +12,13 @@ import {
 } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import { InvalidImage } from "../api/errors.ts";
-import { type ImageType, imagesPath, maxImageBytes } from "../api/ImagesApi.ts";
+import {
+  type ImagePage,
+  type ImageType,
+  imagePageSize,
+  imagesPath,
+  maxImageBytes,
+} from "../api/ImagesApi.ts";
 import { refused } from "../api/Problems.ts";
 
 // Uploaded images, in an S3-compatible bucket. The bucket stays private:
@@ -266,6 +273,94 @@ export interface StoredImage {
   readonly size: number | null;
 }
 
+/** An image in the bucket, and when it was uploaded. */
+export interface ListedImage {
+  readonly id: string;
+  readonly uploadedAt: Date;
+}
+
+/** The bucket would not list its images. */
+export class ImageListFailed extends Data.TaggedError("ImageListFailed") {}
+
+const unescapeXml = (text: string) =>
+  text
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&apos;", "'")
+    .replaceAll("&amp;", "&");
+
+const tagIn = (xml: string, tag: string) =>
+  new RegExp(`<${tag}>([^<]*)</${tag}>`).exec(xml)?.[1];
+
+/**
+ * The images in one ListObjectsV2 response, and its continuation token (null
+ * on the last response). Keys that are no image id are left out.
+ */
+export const listedObjects = (
+  xml: string,
+): {
+  readonly images: ReadonlyArray<ListedImage>;
+  readonly next: string | null;
+} => {
+  const images: Array<ListedImage> = [];
+  for (const [, entry = ""] of xml.matchAll(
+    /<Contents>([\s\S]*?)<\/Contents>/g,
+  )) {
+    const key = tagIn(entry, "Key");
+    const modified = tagIn(entry, "LastModified");
+    if (key === undefined || modified === undefined || !validId.test(key)) {
+      continue;
+    }
+    const uploadedAt = new Date(modified);
+    if (Number.isNaN(uploadedAt.getTime())) continue;
+    images.push({ id: key, uploadedAt });
+  }
+  const token = tagIn(xml, "NextContinuationToken");
+  return { images, next: token === undefined ? null : unescapeXml(token) };
+};
+
+const newestFirst = (a: ListedImage, b: ListedImage) =>
+  b.uploadedAt.getTime() - a.uploadedAt.getTime() ||
+  (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+/**
+ * The page of `images` after the cursor `after` (none: the first page):
+ * newest first, images uploaded at the same time in id order. A page's
+ * `next` is the cursor of its last image, `<uploaded at in ms>.<id>`, or null
+ * when no image follows. Undefined for a cursor that cannot be read.
+ */
+export const pageOf = (
+  images: ReadonlyArray<ListedImage>,
+  after: string | undefined,
+  size: number,
+):
+  | {
+      readonly images: ReadonlyArray<ListedImage>;
+      readonly next: string | null;
+    }
+  | undefined => {
+  const sorted = [...images].sort(newestFirst);
+  let from = 0;
+  if (after !== undefined) {
+    const match = /^(\d+)\.([A-Za-z0-9_-]{22})$/.exec(after);
+    const uploadedAt = new Date(Number(match?.[1]));
+    if (match === null || Number.isNaN(uploadedAt.getTime())) return undefined;
+    const marker = { id: match[2] ?? "", uploadedAt };
+    const found = sorted.findIndex((image) => newestFirst(image, marker) > 0);
+    from = found < 0 ? sorted.length : found;
+  }
+  const page = sorted.slice(from, from + size);
+  const last = page.at(-1);
+  return {
+    images: page,
+    next:
+      last === undefined || from + size >= sorted.length
+        ? null
+        : `${last.uploadedAt.getTime()}.${last.id}`,
+  };
+};
+
 export class Images extends Context.Service<
   Images,
   {
@@ -277,6 +372,11 @@ export class Images extends Context.Service<
       InvalidImage
     >;
     readonly get: (id: string) => Effect.Effect<Option.Option<StoredImage>>;
+    /** Every image in the bucket, in no particular order. */
+    readonly list: () => Effect.Effect<
+      ReadonlyArray<ListedImage>,
+      ImageListFailed
+    >;
   }
 >()("@skjera/documents/Images") {
   /** On the bucket `S3_BUCKET` at `S3_ENDPOINT`, created if missing. */
@@ -311,6 +411,13 @@ export class Images extends Context.Service<
         );
       }
 
+      // The bucket's whole listing, kept briefly: every page of the list is
+      // cut from it, so only the first look pays for reading the bucket.
+      const listingTtlMs = 30_000;
+      let listing:
+        | { readonly at: number; readonly images: ReadonlyArray<ListedImage> }
+        | undefined;
+
       const upload = Effect.fn("Images.upload")(function* (bytes: Uint8Array) {
         if (bytes.byteLength > maxImageBytes) {
           return yield* new InvalidImage(
@@ -335,6 +442,13 @@ export class Images extends Context.Service<
             new Error(`Storing image failed: ${response.status}`),
           );
         }
+        // A new image is in the list at once, without reading the bucket again.
+        if (listing !== undefined) {
+          listing = {
+            ...listing,
+            images: [...listing.images, { id, uploadedAt: new Date() }],
+          };
+        }
         return { id, url: `${imagesPath}/${id}` };
       });
 
@@ -358,7 +472,34 @@ export class Images extends Context.Service<
         });
       });
 
-      return { upload, get };
+      // Every page of the bucket's listing. A request the store refuses, or
+      // that fails, ends in an error of its own rather than a defect.
+      const list = Effect.fn("Images.list")(function* () {
+        if (listing !== undefined && Date.now() - listing.at < listingTtlMs) {
+          return listing.images;
+        }
+        const found: Array<ListedImage> = [];
+        let token: string | null = null;
+        do {
+          const query = new URLSearchParams({ "list-type": "2" });
+          if (token !== null) query.set("continuation-token", token);
+          const xml: string = yield* Effect.tryPromise({
+            try: async () => {
+              const response = await client.fetch(`${url()}?${query}`);
+              if (!response.ok) throw new Error(String(response.status));
+              return await response.text();
+            },
+            catch: () => new ImageListFailed(),
+          });
+          const listed = listedObjects(xml);
+          found.push(...listed.images);
+          token = listed.next;
+        } while (token !== null);
+        listing = { at: Date.now(), images: found };
+        return found;
+      });
+
+      return { upload, get, list };
     }),
   );
 }
@@ -367,8 +508,8 @@ const failure = (status: number, message: string) =>
   HttpServerResponse.jsonUnsafe({ message }, { status });
 
 /**
- * Uploading images, for signed-in users, and serving them, to anyone with
- * the link.
+ * Uploading images and listing them, for signed-in users, and serving them,
+ * to anyone with the link.
  */
 export const layerHttp = Layer.unwrap(
   Effect.gen(function* () {
@@ -431,7 +572,44 @@ export const layerHttp = Layer.unwrap(
       );
     });
 
+    // A page of the images, newest first. It changes nothing, so it needs the
+    // session only: no `Origin`, which a same-origin GET often leaves out.
+    const list = Effect.gen(function* () {
+      const request = yield* HttpServerRequest.HttpServerRequest;
+      const user = yield* authenticator.fromCookieHeader(
+        request.headers.cookie,
+      );
+      if (Option.isNone(user)) {
+        return failure(401, "Log in to see the images");
+      }
+      const after =
+        new URL(request.url, "http://localhost").searchParams.get("after") ??
+        undefined;
+      return yield* images.list().pipe(
+        Effect.match({
+          onFailure: () => failure(500, "Couldn't list the images"),
+          onSuccess: (all) => {
+            const page = pageOf(all, after, imagePageSize);
+            if (page === undefined) {
+              return failure(400, "That is not a place in the list");
+            }
+            const body: ImagePage = {
+              images: page.images.map((image) => ({
+                url: `${imagesPath}/${image.id}`,
+                uploadedAt: image.uploadedAt.toISOString(),
+              })),
+              next: page.next,
+            };
+            return HttpServerResponse.jsonUnsafe(body, {
+              headers: { "Cache-Control": "no-store" },
+            });
+          },
+        }),
+      );
+    });
+
     return Layer.mergeAll(
+      HttpRouter.add("GET", imagesPath, list),
       HttpRouter.add("POST", imagesPath, upload),
       HttpRouter.add("GET", `${imagesPath}/:id`, serve),
     );

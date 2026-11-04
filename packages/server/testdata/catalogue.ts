@@ -911,5 +911,12 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
       }),
       event("AC-5: No times", { state: "titled" }),
     ]),
+    team("STU-22: Picking an image already in Skjera", [
+      event("AC-1 to AC-4: Pick an image", {
+        ...members,
+        ...nextMonth(now),
+        state: "draft",
+      }),
+    ]),
   ];
 };

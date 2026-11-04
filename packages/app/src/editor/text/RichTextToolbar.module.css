@@ -48,3 +48,18 @@
 .description {
   margin-top: 0.5rem;
 }
+
+.existing {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.picked {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  object-fit: cover;
+}

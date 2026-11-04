@@ -1,4 +1,9 @@
-import { imagesPath, imageTypes, maxImageBytes } from "@skjera/documents/api";
+import {
+  type ImagePage,
+  imagesPath,
+  imageTypes,
+  maxImageBytes,
+} from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { sayWhy } from "../problems.ts";
 
@@ -30,6 +35,26 @@ export const uploadImage = async (file: File): Promise<string> => {
     throw new Error(sayWhy(body, m.editor_upload_failed()));
   }
   return body.url;
+};
+
+/**
+ * A page of the images already uploaded, newest first: the first, or the one
+ * after the cursor `after` (a page's `next`). Fails with a message to show if
+ * it can't be had.
+ */
+export const listImages = async (after?: string): Promise<ImagePage> => {
+  const response = await fetch(
+    after === undefined
+      ? imagesPath
+      : `${imagesPath}?after=${encodeURIComponent(after)}`,
+  ).catch(() => {
+    throw new Error(m.editor_existing_failed());
+  });
+  const body = (await response.json().catch(() => ({}))) as Partial<ImagePage>;
+  if (!response.ok || body.images === undefined || body.next === undefined) {
+    throw new Error(sayWhy(body, m.editor_existing_failed()));
+  }
+  return { images: body.images, next: body.next };
 };
 
 /** The images among pasted or dropped files. */

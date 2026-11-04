@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page } from "@playwright/test";
+import { ImagePicker } from "./ImagePicker.ts";
 
 /**
  * The formatting toolbar of a rich text field, the body unless `field` names
@@ -46,12 +47,39 @@ export class BodyToolbar {
 
 /** A dialog about an image in the body: adding one, or describing it. */
 export class ImageDialog {
+  private readonly page: Page;
   private readonly dialog: Locator;
   private readonly confirm: string;
 
   constructor(page: Page, name: string, confirm: string) {
+    this.page = page;
     this.dialog = page.getByRole("dialog", { name });
     this.confirm = confirm;
+  }
+
+  private readonly pickExisting = () =>
+    this.dialog.getByRole("button", {
+      name: "Pick an existing image",
+      exact: true,
+    });
+
+  async expectCanPickExisting(): Promise<void> {
+    await expect(this.pickExisting()).toBeVisible();
+  }
+
+  /** Opens the list of images already in Skjera, beside this dialog. */
+  async openPicker(): Promise<ImagePicker> {
+    await this.pickExisting().click();
+    const picker = new ImagePicker(this.page);
+    await picker.expectOpen();
+    return picker;
+  }
+
+  /** The image picked from the list is the one this dialog will add. */
+  async expectPicked(src: string): Promise<void> {
+    await expect(
+      this.dialog.locator('img[src^="/api/images/"]'),
+    ).toHaveAttribute("src", src);
   }
 
   async chooseFile(file: {

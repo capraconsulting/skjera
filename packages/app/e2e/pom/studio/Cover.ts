@@ -1,6 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 import { dropPng, pixel } from "../images.ts";
 import { TextField } from "../TextField.ts";
+import { ImagePicker } from "./ImagePicker.ts";
 
 /** The event's cover image, and its description. */
 export class Cover {
@@ -40,6 +41,24 @@ export class Cover {
 
   async expectNot(src: string): Promise<void> {
     await expect(this.preview()).not.toHaveAttribute("src", src);
+  }
+
+  private readonly pickExisting = () =>
+    this.page.getByRole("button", {
+      name: "Pick an existing image",
+      exact: true,
+    });
+
+  async expectCanPickExisting(): Promise<void> {
+    await expect(this.pickExisting()).toBeVisible();
+  }
+
+  /** Opens the list of images already in Skjera. */
+  async openPicker(): Promise<ImagePicker> {
+    await this.pickExisting().click();
+    const picker = new ImagePicker(this.page);
+    await picker.expectOpen();
+    return picker;
   }
 
   async remove(): Promise<void> {

@@ -1,8 +1,16 @@
 import { assert, describe, layer, it as plain } from "@effect/vitest";
-import { Effect, Option, Stream } from "effect";
+import { Authenticator } from "@skjera/oauth";
+import { Identity } from "@skjera/oauth/api";
+import { type Context, Effect, Layer, Option, Stream } from "effect";
+import { HttpRouter } from "effect/http";
+import type { ImagePage } from "../../src/api/ImagesApi.ts";
 import {
+  ImageListFailed,
   Images,
   imageSize,
+  layerHttp,
+  listedObjects,
+  pageOf,
   readImageSize,
   sniffImageType,
 } from "../../src/events/Images.ts";
@@ -22,6 +30,42 @@ const read = (body: ReadableStream<Uint8Array>) =>
     Stream.runCollect,
     Effect.map((chunks) => Buffer.concat([...chunks])),
   );
+
+const alice = new Identity({ issuer: "https://idp.example", subject: "alice" });
+const signedIn = "session=alice";
+const authenticator = Authenticator.of({
+  fromCookies: () => Effect.succeedNone,
+  fromCookieHeader: (header) =>
+    Effect.succeed(header === signedIn ? Option.some(alice) : Option.none()),
+  origin: "http://localhost:5173",
+});
+
+/** Asks `layerHttp`, over `store`, for `path`, with the cookie header `cookie`. */
+const withRoutes = <A, E, R>(
+  store: Context.Service.Shape<typeof Images>,
+  use: (
+    get: (path: string, cookie?: string) => Effect.Effect<Response>,
+  ) => Effect.Effect<A, E, R>,
+) =>
+  Effect.gen(function* () {
+    const { handler, dispose } = HttpRouter.toWebHandler(
+      layerHttp.pipe(
+        Layer.provide(Layer.succeed(Images, store)),
+        Layer.provide(Layer.succeed(Authenticator, authenticator)),
+      ),
+      { disableLogger: true },
+    );
+    yield* Effect.addFinalizer(() => Effect.promise(dispose));
+    return yield* use((path, cookie) =>
+      Effect.promise(() =>
+        handler(
+          new Request(`http://localhost${path}`, {
+            headers: cookie === undefined ? {} : { cookie },
+          }),
+        ),
+      ),
+    );
+  }).pipe(Effect.scoped);
 
 // Real clock: these tests talk to the object storage from compose.yml.
 layer(Images.layer, { excludeTestServices: true })("Images", (it) => {
@@ -73,6 +117,227 @@ layer(Images.layer, { excludeTestServices: true })("Images", (it) => {
         .pipe(Effect.flip);
       assert.strictEqual(error._tag, "InvalidImage");
     }),
+  );
+
+  it.effect("lists an image just uploaded, with when it came (AC-2)", () =>
+    Effect.gen(function* () {
+      const images = yield* Images;
+      const { id } = yield* images.upload(png);
+      const listed = (yield* images.list()).find((image) => image.id === id);
+      assert.isDefined(listed);
+      if (listed === undefined) return;
+      assert.isBelow(
+        Math.abs(Date.now() - listed.uploadedAt.getTime()),
+        60_000,
+      );
+    }),
+  );
+
+  it.effect(
+    "gives a signed-in user the images newest first, page by page (AC-2)",
+    () =>
+      Effect.gen(function* () {
+        const images = yield* Images;
+        const older = yield* images.upload(png);
+        // The bucket dates an object to the second.
+        yield* Effect.sleep("1100 millis");
+        const newer = yield* images.upload(png);
+        yield* withRoutes(images, (get) =>
+          Effect.gen(function* () {
+            const urls: Array<string> = [];
+            let after: string | null = null;
+            do {
+              const response: Response = yield* get(
+                after === null
+                  ? "/api/images"
+                  : `/api/images?after=${encodeURIComponent(after)}`,
+                signedIn,
+              );
+              assert.strictEqual(response.status, 200);
+              const page = (yield* Effect.promise(() =>
+                response.json(),
+              )) as ImagePage;
+              for (const image of page.images) {
+                assert.isTrue(Number.isFinite(Date.parse(image.uploadedAt)));
+                urls.push(image.url);
+              }
+              after = page.next;
+            } while (
+              after !== null &&
+              !(urls.includes(older.url) && urls.includes(newer.url))
+            );
+            assert.isTrue(urls.includes(newer.url));
+            assert.isTrue(urls.includes(older.url));
+            assert.isBelow(urls.indexOf(newer.url), urls.indexOf(older.url));
+          }),
+        );
+      }),
+  );
+
+  it.effect("refuses the list to someone who is not signed in (AC-6)", () =>
+    Effect.gen(function* () {
+      const images = yield* Images;
+      yield* withRoutes(images, (get) =>
+        Effect.gen(function* () {
+          for (const cookie of [undefined, "session=someone-else"]) {
+            const response = yield* get("/api/images", cookie);
+            assert.strictEqual(response.status, 401);
+            const body = (yield* Effect.promise(() => response.json())) as {
+              message?: unknown;
+              images?: unknown;
+            };
+            assert.isString(body.message);
+            assert.isUndefined(body.images);
+          }
+        }),
+      );
+    }),
+  );
+
+  it.effect("answers 400 to a cursor it cannot read (AC-3)", () =>
+    Effect.gen(function* () {
+      const images = yield* Images;
+      yield* withRoutes(images, (get) =>
+        Effect.gen(function* () {
+          const response = yield* get("/api/images?after=nonsense", signedIn);
+          assert.strictEqual(response.status, 400);
+          const body = (yield* Effect.promise(() => response.json())) as {
+            message?: unknown;
+          };
+          assert.isString(body.message);
+        }),
+      );
+    }),
+  );
+
+  it.effect("answers 500 with a message when the listing fails (AC-2)", () =>
+    Effect.gen(function* () {
+      const images = yield* Images;
+      const failing = {
+        ...images,
+        list: () => Effect.fail(new ImageListFailed()),
+      };
+      yield* withRoutes(failing, (get) =>
+        Effect.gen(function* () {
+          const response = yield* get("/api/images", signedIn);
+          assert.strictEqual(response.status, 500);
+          const body = (yield* Effect.promise(() => response.json())) as {
+            message?: unknown;
+          };
+          assert.isString(body.message);
+        }),
+      );
+    }),
+  );
+});
+
+const listed = (id: string, at: string) => ({
+  id,
+  uploadedAt: new Date(at),
+});
+const idA = "AAAAAAAAAAAAAAAAAAAAAA";
+const idB = "BBBBBBBBBBBBBBBBBBBBBB";
+const idC = "CCCCCCCCCCCCCCCCCCCCCC";
+const idD = "DDDDDDDDDDDDDDDDDDDDDD";
+
+describe("pageOf", () => {
+  plain("puts the newest first and ties in id order (AC-2)", () => {
+    const page = pageOf(
+      [
+        listed(idC, "2026-11-04T10:00:00.000Z"),
+        listed(idB, "2026-11-04T12:00:00.000Z"),
+        listed(idD, "2026-11-04T10:00:00.000Z"),
+        listed(idA, "2026-11-04T11:00:00.000Z"),
+      ],
+      undefined,
+      10,
+    );
+    assert.deepStrictEqual(
+      page?.images.map((image) => image.id),
+      [idB, idA, idC, idD],
+    );
+    assert.isNull(page?.next);
+  });
+
+  plain("follows next to the end, each image once (AC-3)", () => {
+    const all = [idA, idB, idC, idD, "EEEEEEEEEEEEEEEEEEEEEE"].map((id, at) =>
+      listed(id, `2026-11-04T10:00:0${at % 3}.000Z`),
+    );
+    const seen: Array<string> = [];
+    let after: string | undefined;
+    let pages = 0;
+    while (true) {
+      const page = pageOf(all, after, 2);
+      assert.isDefined(page);
+      if (page === undefined) return;
+      pages++;
+      seen.push(...page.images.map((image) => image.id));
+      if (page.next === null) break;
+      after = page.next;
+    }
+    assert.strictEqual(pages, 3);
+    assert.deepStrictEqual(
+      [...seen].sort(),
+      all.map((image) => image.id).sort(),
+    );
+    assert.strictEqual(new Set(seen).size, all.length);
+  });
+
+  plain("gives none for a cursor it cannot read (AC-3)", () => {
+    const all = [listed(idA, "2026-11-04T10:00:00.000Z")];
+    for (const after of [
+      "nonsense",
+      "abc.def",
+      ".",
+      "12.",
+      "x.AAAAAAAAAAAAAAAAAAAAAA",
+    ]) {
+      assert.isUndefined(pageOf(all, after, 10), after);
+    }
+  });
+});
+
+describe("listedObjects", () => {
+  const xml = (contents: string, token = "") =>
+    `<?xml version="1.0" encoding="UTF-8"?><ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>skjera-images</Name><KeyCount>2</KeyCount>${contents}${token}</ListBucketResult>`;
+  const entry = (key: string, at: string) =>
+    `<Contents><Key>${key}</Key><LastModified>${at}</LastModified><ETag>"x"</ETag><Size>10</Size></Contents>`;
+
+  plain("reads keys, times and the continuation token (AC-2)", () => {
+    const found = listedObjects(
+      xml(
+        entry(idA, "2026-11-04T10:00:00.000Z") +
+          entry(idB, "2026-11-04T11:00:00Z"),
+        "<IsTruncated>true</IsTruncated><NextContinuationToken>token-1</NextContinuationToken>",
+      ),
+    );
+    assert.deepStrictEqual(
+      found.images.map((image) => [image.id, image.uploadedAt.toISOString()]),
+      [
+        [idA, "2026-11-04T10:00:00.000Z"],
+        [idB, "2026-11-04T11:00:00.000Z"],
+      ],
+    );
+    assert.strictEqual(found.next, "token-1");
+  });
+
+  plain(
+    "has no token on the last page, and leaves out keys that are no image id (AC-2)",
+    () => {
+      const found = listedObjects(
+        xml(
+          entry("not-an-image-id", "2026-11-04T10:00:00.000Z") +
+            entry(`${idA}x`, "2026-11-04T10:00:00.000Z") +
+            entry(idC, "2026-11-04T10:00:00.000Z"),
+          "<IsTruncated>false</IsTruncated>",
+        ),
+      );
+      assert.deepStrictEqual(
+        found.images.map((image) => image.id),
+        [idC],
+      );
+      assert.isNull(found.next);
+    },
   );
 });
 
