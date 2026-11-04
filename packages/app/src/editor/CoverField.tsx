@@ -1,36 +1,58 @@
 import * as A from "@automerge/automerge/slim";
 import type { DocHandle } from "@automerge/automerge-repo/slim";
-import type { EventContent } from "@skjera/documents/api";
+import { type EventContent, shownCover } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import {
   type ClipboardEvent,
   type DragEvent,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
 } from "react";
 import { Button } from "../components/Button.tsx";
 import type { DraftPresence } from "../presence/presence.ts";
+import { CoverCrop } from "./CoverCrop.tsx";
 import styles from "./CoverField.module.css";
+import { CoverFocus } from "./CoverFocus.tsx";
+import {
+  type Draft,
+  resetCropAndFocus,
+  setCrop,
+  setFocus,
+  setPicture,
+} from "./coverEdits.ts";
+import type { Frame, Point } from "./cropFrame.ts";
+import { cropImage } from "./cropImage.ts";
 import { ImagePicker } from "./ImagePicker.tsx";
 import { TextEditor } from "./text/TextEditor.tsx";
 import { acceptedImages, imageFiles, uploadImage } from "./uploadImage.ts";
 
 const altPath = ["cover", "alt"] as const;
 
-type Draft = { cover?: { src: unknown; alt: string } };
+/** The cover as the field reads it: addresses as strings. */
+type ShownDraft = {
+  readonly id: string;
+  readonly src: string;
+  readonly crop:
+    | (Frame & { readonly from: string; readonly src: string })
+    | null;
+  readonly focus: (Point & { readonly from: string | null }) | null;
+};
 
 /**
  * An event's cover image. Its `src` is an ImmutableString, so a new image
  * replaces the old one whole; the description is text, edited together.
- * Images can also be dropped or pasted onto the field.
+ * Images can also be dropped or pasted onto the field. The organiser can crop
+ * the picture (the part is uploaded as an image of its own) and choose the
+ * point that must stay in view.
  */
 export function CoverField(props: {
   readonly handle: DocHandle<EventContent>;
   readonly presence?: DraftPresence | null;
 }) {
   const { handle } = props;
-  const cover = useSyncExternalStore(
+  const snapshot = useSyncExternalStore(
     (onChange) => {
       handle.on("change", onChange);
       return () => handle.off("change", onChange);
@@ -38,41 +60,115 @@ export function CoverField(props: {
     () => {
       const value = (handle.doc() as Draft).cover;
       if (value === undefined) return null;
-      // The object, to start a new description editor if someone else
-      // replaces the cover as a whole.
-      return `${A.getObjectId(value)} ${String(value.src)}`;
+      const crop = value.crop as
+        | (Frame & { from: unknown; src: unknown })
+        | undefined;
+      const focus = value.focus as (Point & { from?: unknown }) | undefined;
+      return JSON.stringify({
+        // The object, to start a new description editor if someone else
+        // replaces the cover as a whole.
+        id: String(A.getObjectId(value)),
+        src: String(value.src),
+        crop:
+          crop === undefined
+            ? null
+            : {
+                x: crop.x,
+                y: crop.y,
+                width: crop.width,
+                height: crop.height,
+                from: String(crop.from),
+                src: String(crop.src),
+              },
+        focus:
+          focus === undefined
+            ? null
+            : {
+                x: focus.x,
+                y: focus.y,
+                from: focus.from === undefined ? null : String(focus.from),
+              },
+      } satisfies ShownDraft);
     },
   );
-  const [objectId, src] = cover?.split(" ") ?? [null, null];
+  const cover = useMemo(
+    () => (snapshot === null ? null : (JSON.parse(snapshot) as ShownDraft)),
+    [snapshot],
+  );
+  const objectId = cover?.id ?? null;
+  const src = cover?.src ?? null;
+  // A crop of another picture, left by a merge, is not used.
+  const crop = cover?.crop?.from === src ? (cover?.crop ?? null) : null;
+  // A point set on another picture, left by a merge, is not used.
+  const focus =
+    cover?.focus === undefined ||
+    cover.focus === null ||
+    (cover.focus.from !== null && cover.focus.from !== src)
+      ? null
+      : { x: cover.focus.x, y: cover.focus.y };
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [cropping, setCropping] = useState(false);
+  const [focusing, setFocusing] = useState(false);
   const picker = useRef<HTMLInputElement>(null);
 
-  const setCover = (url: string) =>
-    handle.change((doc) => {
-      const draft = doc as Draft;
-      // Keeps the description of the image it replaces.
-      if (draft.cover === undefined) {
-        draft.cover = { src: new A.ImmutableString(url), alt: "" };
-      } else {
-        draft.cover.src = new A.ImmutableString(url);
-      }
-    });
+  const choosePicture = (url: string) =>
+    handle.change((doc) => setPicture(doc as Draft, url));
+
+  // What the site shows of the cover: the cropped part, else the picture.
+  const shown =
+    src === null
+      ? null
+      : shownCover({
+          src,
+          alt: "",
+          ...(crop === null ? {} : { crop }),
+          ...(focus === null ? {} : { focus }),
+        });
 
   const use = async (file: File | undefined) => {
     if (file === undefined) return;
     setError(null);
     setUploading(true);
     try {
-      setCover(await uploadImage(file));
+      choosePicture(await uploadImage(file));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setUploading(false);
     }
   };
+
+  const applyCrop = async (frame: Frame) => {
+    setCropping(false);
+    if (src === null) return;
+    // Nothing to cut: the whole picture, and no part cut from it before.
+    if (crop === null && frame.width >= 1 && frame.height >= 1) return;
+    setError(null);
+    setUploading(true);
+    try {
+      const url = await uploadImage(await cropImage(src, frame));
+      // Not written if the picture was replaced while the part was cut.
+      handle.change((doc) => {
+        setCrop(doc as Draft, { ...frame, from: src, src: url });
+      });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const applyFocus = (point: Point) => {
+    setFocusing(false);
+    handle.change((doc) => {
+      setFocus(doc as Draft, point);
+    });
+  };
+
+  const reset = () => handle.change((doc) => resetCropAndFocus(doc as Draft));
 
   const remove = () =>
     handle.change((doc) => {
@@ -111,14 +207,15 @@ export function CoverField(props: {
         onDrop={onDrop}
         onPaste={onPaste}
       >
-        {src === null ? (
+        {src === null || shown === null ? (
           <p className={styles.empty}>
             {uploading ? m.editor_uploading() : m.editor_cover_drop()}
           </p>
         ) : (
           <img
             className={styles.preview}
-            src={src}
+            src={shown.src}
+            style={{ objectPosition: shown.position }}
             alt={m.editor_cover_alt()}
             aria-busy={uploading}
           />
@@ -130,6 +227,21 @@ export function CoverField(props: {
           <Button onClick={() => setPicking(true)} disabled={uploading}>
             {m.editor_existing_pick()}
           </Button>
+          {src === null ? null : (
+            <>
+              <Button onClick={() => setCropping(true)} disabled={uploading}>
+                {m.editor_cover_crop()}
+              </Button>
+              <Button onClick={() => setFocusing(true)} disabled={uploading}>
+                {m.editor_cover_focus()}
+              </Button>
+            </>
+          )}
+          {crop === null && focus === null ? null : (
+            <Button variant="ghost" onClick={reset} disabled={uploading}>
+              {m.editor_cover_reset()}
+            </Button>
+          )}
           {src === null ? null : (
             <Button variant="ghost" onClick={remove} disabled={uploading}>
               {m.editor_cover_remove()}
@@ -156,8 +268,27 @@ export function CoverField(props: {
       <ImagePicker
         open={picking}
         onClose={() => setPicking(false)}
-        onPick={setCover}
+        onPick={choosePicture}
       />
+      {src === null || shown === null ? null : (
+        <>
+          <CoverCrop
+            open={cropping}
+            src={src}
+            crop={crop}
+            onClose={() => setCropping(false)}
+            onApply={(frame) => void applyCrop(frame)}
+          />
+          <CoverFocus
+            open={focusing}
+            src={shown.src}
+            crop={crop}
+            focus={focus}
+            onClose={() => setFocusing(false)}
+            onApply={applyFocus}
+          />
+        </>
+      )}
       {objectId === null ? null : (
         <>
           <TextEditor

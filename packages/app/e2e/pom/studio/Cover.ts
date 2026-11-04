@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 import { dropPng, pixel } from "../images.ts";
 import { TextField } from "../TextField.ts";
 import { ImagePicker } from "./ImagePicker.ts";
@@ -18,11 +18,11 @@ export class Cover {
   private readonly preview = () =>
     this.page.getByRole("img", { name: "Cover" });
 
-  async chooseFile(): Promise<void> {
+  async chooseFile(image: Buffer = pixel): Promise<void> {
     await this.page.getByLabel("Cover image file").setInputFiles({
-      name: "pixel.png",
+      name: "picture.png",
       mimeType: "image/png",
-      buffer: pixel,
+      buffer: image,
     });
   }
 
@@ -59,6 +59,77 @@ export class Cover {
     const picker = new ImagePicker(this.page);
     await picker.expectOpen();
     return picker;
+  }
+
+  private readonly reset = () =>
+    this.page.getByRole("button", { name: "Reset crop and focal point" });
+
+  /**
+   * Crops to the part between two points of the picture, each as a share of
+   * its width and height, and applies it.
+   */
+  async crop(
+    from: { readonly x: number; readonly y: number },
+    to: { readonly x: number; readonly y: number },
+  ): Promise<void> {
+    await this.page.getByRole("button", { name: "Crop", exact: true }).click();
+    await this.drag(this.page.getByTestId("crop-picture"), from, to);
+    await this.page.getByRole("button", { name: "Apply" }).click();
+  }
+
+  /** Sets the focal point to a point of the picture shown, and applies it. */
+  async setFocalPoint(at: { readonly x: number; readonly y: number }) {
+    await this.page
+      .getByRole("button", { name: "Focal point", exact: true })
+      .click();
+    const picture = this.page.getByTestId("focus-picture");
+    const box = await picture.boundingBox();
+    expect(box, "the picture is shown").not.toBeNull();
+    await picture.click({
+      position: { x: (box?.width ?? 0) * at.x, y: (box?.height ?? 0) * at.y },
+    });
+    await this.page.getByRole("button", { name: "Apply" }).click();
+  }
+
+  private async drag(
+    picture: Locator,
+    from: { readonly x: number; readonly y: number },
+    to: { readonly x: number; readonly y: number },
+  ): Promise<void> {
+    const box = await picture.boundingBox();
+    expect(box, "the picture is shown").not.toBeNull();
+    const { x, y, width, height } = box ?? { x: 0, y: 0, width: 0, height: 0 };
+    await this.page.mouse.move(x + width * from.x, y + height * from.y);
+    await this.page.mouse.down();
+    await this.page.mouse.move(x + width * to.x, y + height * to.y, {
+      steps: 5,
+    });
+    await this.page.mouse.up();
+  }
+
+  async resetCropAndFocus(): Promise<void> {
+    await this.reset().click();
+  }
+
+  async expectCanReset(): Promise<void> {
+    await expect(this.reset()).toBeVisible();
+  }
+
+  async expectCannotReset(): Promise<void> {
+    await expect(this.reset()).toHaveCount(0);
+  }
+
+  /** The picture in the field is about as wide as it is high. */
+  async expectAboutSquare(): Promise<void> {
+    await expect
+      .poll(async () =>
+        this.preview().evaluate((image: HTMLImageElement) =>
+          image.naturalHeight === 0
+            ? 0
+            : image.naturalWidth / image.naturalHeight,
+        ),
+      )
+      .toBeCloseTo(1, 0);
   }
 
   async remove(): Promise<void> {

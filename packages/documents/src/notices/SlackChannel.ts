@@ -16,6 +16,7 @@ import {
   eventCategory,
   type Locale,
   SiteLocale,
+  shownCover,
 } from "../Model.ts";
 import { Announcements } from "./Announcements.ts";
 import { formatAt } from "./emails/format.ts";
@@ -128,7 +129,7 @@ export const announcement = (
   if (event.cover !== null) {
     blocks.push({
       type: "image",
-      image_url: new URL(event.cover.src, site.url).href,
+      image_url: new URL(shownCover(event.cover).src, site.url).href,
       alt_text: event.cover.alt.trim() === "" ? event.title : event.cover.alt,
     });
   }

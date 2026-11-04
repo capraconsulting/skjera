@@ -84,6 +84,37 @@ describe("The messages", () => {
     assert.include(words, "*Where:*\nKantina");
   });
 
+  it("shows the cover's cropped part as the image, and the picture without one (AC-2, AC-4)", () => {
+    const part = "BBBBBBBBBBBBBBBBBBBBBB";
+    const cropped = SlackChannel.announcement(
+      {
+        ...launch,
+        cover: {
+          src: `/api/images/${imageId}`,
+          alt: "The stage",
+          crop: {
+            x: 0,
+            y: 0,
+            width: 0.5,
+            height: 1,
+            from: `/api/images/${imageId}`,
+            src: `/api/images/${part}`,
+          },
+        },
+      },
+      site,
+    );
+    assert.strictEqual(
+      blockOfType(cropped.blocks, "image")?.image_url,
+      `https://skjera.example/api/images/${part}`,
+    );
+    assert.strictEqual(
+      blockOfType(SlackChannel.announcement(launch, site).blocks, "image")
+        ?.image_url,
+      `https://skjera.example/api/images/${imageId}`,
+    );
+  });
+
   it("gives the event's category beside when and where, in the site's language (AC-9)", () => {
     const words = leaves(
       SlackChannel.announcement({ ...launch, category: "Fag" }, site).blocks,

@@ -14,6 +14,7 @@ import {
   DocumentId,
   optionalSetting,
   SiteConfig,
+  shownCover,
 } from "../Model.ts";
 
 // What a link to an event shows when it is shared: LinkedIn, Slack and the
@@ -151,7 +152,7 @@ export const sharingTags = (options: {
   }
   const { id, title, summary, cover, publishedAt } = event.value;
   const url = at(`/events/${id}`);
-  const image = cover === null ? undefined : at(cover.src);
+  const image = cover === null ? undefined : at(shownCover(cover).src);
   tags.push(meta("property", "og:type", "website"));
   tags.push(meta("property", "og:title", title));
   // The summary, else the site's: never two descriptions.
@@ -245,8 +246,10 @@ export const layerHttp = (options: { readonly root: string }) =>
       const coverSize = (cover: Cover | null) =>
         Effect.gen(function* () {
           const prefix = `${imagesPath}/`;
-          if (cover === null || !cover.src.startsWith(prefix)) return undefined;
-          const id = cover.src.slice(prefix.length);
+          if (cover === null) return undefined;
+          const { src } = shownCover(cover);
+          if (!src.startsWith(prefix)) return undefined;
+          const id = src.slice(prefix.length);
           const known = sizes.get(id);
           if (known !== undefined) return known;
           const stored = yield* images.get(id);

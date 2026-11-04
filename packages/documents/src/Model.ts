@@ -435,9 +435,85 @@ export const RichText = Schema.Array(
 );
 export type RichText = typeof RichText.Type;
 
-/** An event's cover image, with a description for those who can't see it. */
-export const Cover = Schema.Struct({ src: ImageSrc, alt: Schema.String });
+/** A share of the picture's width or height, from 0 to 1. */
+const Share = Schema.Number.check(
+  Schema.makeFilter(
+    (n: number) => (n >= 0 && n <= 1) || "Expected a number from 0 to 1",
+  ),
+);
+
+/** The part of a cover's picture used, and that part as an image of its own. */
+export const CoverCrop = Schema.Struct({
+  x: Share,
+  y: Share,
+  width: Share,
+  height: Share,
+  /** The picture it was cut from: a crop of another picture is not used. */
+  from: ImageSrc,
+  /** The part, uploaded as an image of its own. */
+  src: ImageSrc,
+}).check(
+  Schema.makeFilter(
+    (crop) =>
+      (crop.width > 0 &&
+        crop.height > 0 &&
+        crop.x + crop.width <= 1 &&
+        crop.y + crop.height <= 1) ||
+      "Expected a part inside the picture",
+  ),
+);
+export type CoverCrop = typeof CoverCrop.Type;
+
+/** The point of a cover's picture that must stay in view, as shares of it. */
+export const CoverFocus = Schema.Struct({
+  x: Share,
+  y: Share,
+  /** The picture it was set on: a point on another picture is not used. */
+  from: Schema.optionalKey(ImageSrc),
+});
+export type CoverFocus = typeof CoverFocus.Type;
+
+/**
+ * An event's cover image, with a description for those who can't see it. A
+ * crop and a focal point are kept apart from the picture, which is never
+ * changed; a cover without them is the whole picture, cut around its centre.
+ */
+export const Cover = Schema.Struct({
+  src: ImageSrc,
+  alt: Schema.String,
+  crop: Schema.optionalKey(CoverCrop),
+  focus: Schema.optionalKey(CoverFocus),
+});
 export type Cover = typeof Cover.Type;
+
+/** A share as a CSS percentage, to two decimals and without trailing zeros. */
+const percent = (share: number) => `${Math.round(share * 10000) / 100}%`;
+
+const within = (n: number) => Math.min(1, Math.max(0, n));
+
+/**
+ * What the site shows of a cover: the file (the cropped part, else the
+ * picture) and, for a box of another shape, the CSS `object-position` that
+ * keeps the focal point in view: it sits as far into the box as it is into the
+ * part shown. Without a focal point: the centre.
+ */
+export const shownCover = (
+  cover: Cover,
+): { readonly src: string; readonly position: string } => {
+  const crop = cover.crop?.from === cover.src ? cover.crop : undefined;
+  const focus =
+    cover.focus === undefined ||
+    (cover.focus.from !== undefined && cover.focus.from !== cover.src)
+      ? undefined
+      : cover.focus;
+  // No focal point: the centre of the part shown.
+  const position = (share: number | undefined, start = 0, length = 1) =>
+    percent(share === undefined ? 0.5 : within((share - start) / length));
+  return {
+    src: crop?.src ?? cover.src,
+    position: `${position(focus?.x, crop?.x, crop?.width)} ${position(focus?.y, crop?.y, crop?.height)}`,
+  };
+};
 
 /** Who organizes an event, as the site shows it: its team. */
 export const Organizer = Schema.Struct({

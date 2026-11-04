@@ -6,6 +6,7 @@ import {
   pixel,
   uploadPng,
   watchUploads,
+  wide,
 } from "../pom/images.ts";
 import { EventPage } from "../pom/site/EventPage.ts";
 import { EventEditor } from "../pom/studio/EventEditor.ts";
@@ -157,6 +158,62 @@ test("an event's cover image is shown on the site", async ({ browser }) => {
   await page.goto(event.id);
   await page.expectHeading(event.title);
   await page.expectNoImages();
+
+  await cleanUp(alice, team, event.id);
+});
+
+test("the organiser crops the cover, and the site shows the cropped part (AC-1, AC-2)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Crop"));
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({ public: true });
+
+  await editor.cover.chooseFile(wide);
+  await editor.cover.expect(imagePath);
+  const picture = await editor.cover.src();
+  await editor.cover.expectCannotReset();
+
+  // The left half of a 200 × 100 picture is about square.
+  await editor.cover.crop({ x: 0.02, y: 0.02 }, { x: 0.5, y: 1 });
+  await editor.cover.expectNot(picture);
+  await editor.cover.expect(imagePath);
+  await editor.cover.expectAboutSquare();
+  await editor.cover.expectCanReset();
+  const part = await editor.cover.src();
+  await editor.cover.description.type("The left half");
+
+  await editor.publish();
+  const reader = await visitor(browser);
+  const page = new EventPage(reader);
+  await page.goto(event.id);
+  await page.expectCover("The left half", part);
+
+  await cleanUp(alice, team, event.id);
+});
+
+test("the organiser sets the cover's focal point, and resets it (AC-1, AC-8)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Focus"));
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({ public: true });
+
+  await editor.cover.chooseFile(wide);
+  await editor.cover.expect(imagePath);
+  const picture = await editor.cover.src();
+  await editor.cover.setFocalPoint({ x: 0.8, y: 0.3 });
+  await editor.cover.expectCanReset();
+  // The picture itself is still the one shown.
+  await editor.cover.expect(picture);
+
+  await editor.cover.crop({ x: 0.02, y: 0.02 }, { x: 0.5, y: 1 });
+  await editor.cover.expectNot(picture);
+  await editor.cover.resetCropAndFocus();
+  await editor.cover.expect(picture);
+  await editor.cover.expectCannotReset();
 
   await cleanUp(alice, team, event.id);
 });
