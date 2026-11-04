@@ -217,6 +217,15 @@ export class EventEditor {
     ).toBeVisible();
   }
 
+  /** Clicks **Preview** and gives the tab it opens the event's preview in. */
+  async openPreview(): Promise<Page> {
+    const opening = this.page.context().waitForEvent("page");
+    await this.page.getByRole("link", { name: "Preview", exact: true }).click();
+    const preview = await opening;
+    await preview.waitForLoadState();
+    return preview;
+  }
+
   async expectDeletedMessage(): Promise<void> {
     await expect(this.page.getByRole("alert")).toContainText(
       "This event was deleted",

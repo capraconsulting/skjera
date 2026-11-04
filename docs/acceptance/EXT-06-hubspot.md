@@ -1,6 +1,6 @@
 # EXT-06: HubSpot
 
-The site loads HubSpot on every page but the embed.
+The site loads HubSpot on every page but the embed and the preview.
 
 **Set-up:** for AC-1, AC-2 and AC-5, put a HubSpot account id under `[env]` in `mise.local.toml`, such as `HUBSPOT_ACCOUNT_ID = "12345678"`, and restart `pnpm dev`. A made-up id is enough to see the script being fetched, and sends nothing to a real account. Remove it again for AC-3 and AC-6.
 
@@ -20,12 +20,12 @@ Where the server is configured with a HubSpot account id, every page of the site
 
 ## AC-2: Not the embed page or the studio
 
-The page at `/embed` and the studio shall not load HubSpot's script.
+The page at `/embed`, the preview at `/events/<id>/preview` and the studio shall not load HubSpot's script.
 
 **Test**
 
 - **Given** the same
-- **When** you visit `/embed` and the studio
+- **When** you visit `/embed`, the preview of an event and the studio
 - **Then** nothing is fetched from HubSpot
 
 **Automated:** `packages/app/e2e/specs/embed.spec.ts`, `packages/app/e2e/specs/site.spec.ts`, `packages/documents/test/site/Embed.test.ts`

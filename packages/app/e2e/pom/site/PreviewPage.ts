@@ -1,0 +1,89 @@
+import { expect, type Page } from "@playwright/test";
+
+/** An event's preview: its page as the draft is now, under a fixed notice. */
+export class PreviewPage {
+  private readonly page: Page;
+
+  constructor(page: Page) {
+    this.page = page;
+  }
+
+  private readonly notice = () =>
+    this.page.getByText("Preview – this isn't published.");
+  private readonly publishedLink = () =>
+    this.page.getByRole("link", { name: "View the published page" });
+  // Role queries skip what is inside an `inert` part, so the button is found
+  // by its text.
+  private readonly signUpButton = () =>
+    this.page.locator("button", { hasText: /^Sign up$/ });
+
+  async goto(id: string): Promise<void> {
+    await this.page.goto(`/events/${id}/preview`);
+  }
+
+  async expectAt(id: string): Promise<void> {
+    await expect(this.page).toHaveURL(new RegExp(`/events/${id}/preview$`));
+  }
+
+  async expectHeading(title: string): Promise<void> {
+    await expect(this.page.getByRole("heading", { name: title })).toBeVisible();
+  }
+
+  async expectNotice(): Promise<void> {
+    await expect(this.notice()).toBeVisible();
+  }
+
+  /** The notice is in view where the page is scrolled to its end. */
+  async expectNoticeInViewAtEnd(): Promise<void> {
+    await this.page.evaluate(() =>
+      window.scrollTo(0, document.documentElement.scrollHeight),
+    );
+    await expect(this.notice()).toBeInViewport();
+  }
+
+  /** The notice links to the event's published page. */
+  async expectPublishedLink(id: string): Promise<void> {
+    await expect(this.publishedLink()).toHaveAttribute("href", `/events/${id}`);
+  }
+
+  async expectNoPublishedLink(): Promise<void> {
+    await expect(this.notice()).toBeVisible();
+    await expect(this.publishedLink()).toHaveCount(0);
+  }
+
+  /** The line shown instead of the page while the event lacks times. */
+  async expectNeedsTimes(): Promise<void> {
+    await expect(
+      this.page.getByText(
+        "The page is shown once the event has a start and an end.",
+      ),
+    ).toBeVisible();
+  }
+
+  async expectMissing(): Promise<void> {
+    await expect(
+      this.page.getByText("This event doesn't exist, or isn't published."),
+    ).toBeVisible();
+  }
+
+  /** Nothing of `text` is anywhere on the page. */
+  async expectNowhere(text: string): Promise<void> {
+    await expect(this.page.locator("body")).not.toContainText(text);
+  }
+
+  /** The sign-up box is shown, but nothing in it can be clicked or reached. */
+  async expectSignUpUnusable(): Promise<void> {
+    const button = this.signUpButton();
+    await expect(button).toBeVisible();
+    expect(await button.evaluate((el) => el.closest("[inert]") !== null)).toBe(
+      true,
+    );
+    await button.focus({ timeout: 1_000 }).catch(() => undefined);
+    expect(await button.evaluate((el) => document.activeElement === el)).toBe(
+      false,
+    );
+    // A click that goes through anyway changes nothing.
+    await button.click({ force: true });
+    await expect(button).toBeVisible();
+  }
+}

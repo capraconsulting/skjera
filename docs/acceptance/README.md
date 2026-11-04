@@ -40,6 +40,7 @@ These files say what to test and how. Which criteria have passed in a round of t
 | STU-18 | [Confirming a new time before publishing it](STU-18-confirm-new-time.md) |
 | STU-19 | [Deleting an event](STU-19-deleting.md) |
 | STU-20 | [Unpublishing an event](STU-20-unpublishing.md) |
+| STU-21 | [Previewing an event](STU-21-preview.md) |
 
 ## SITE: The public site
 

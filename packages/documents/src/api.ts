@@ -11,4 +11,5 @@ export * from "./api/SyncApi.ts";
 export * from "./api/TeamsApi.ts";
 export * from "./events/ContentTypes.ts";
 export * from "./events/DraftSyncProtocol.ts";
+export * from "./events/Preview.ts";
 export * from "./Model.ts";

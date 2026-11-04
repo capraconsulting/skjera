@@ -1,26 +1,16 @@
-import * as A from "@automerge/automerge/slim";
 import type { DocHandle } from "@automerge/automerge-repo/slim";
 import type { DocumentId, EventContent } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { getLocale } from "@skjera/i18n/runtime";
 import { eq, useLiveQuery } from "@tanstack/react-db";
-import { useSyncExternalStore } from "react";
 import { Link } from "react-router";
 import { Temporal } from "temporal-polyfill";
+import buttonStyles from "../../components/Button.module.css";
 import { Button } from "../../components/Button.tsx";
+import { useVersion } from "../../documents/version.ts";
 import { attendees, events } from "../../sync/tables.ts";
 import { timeAgo } from "../../time.ts";
 import styles from "./EditorFooter.module.css";
-
-/** The draft's version, as a string that changes whenever the draft does. */
-const useVersion = (handle: DocHandle<EventContent>) =>
-  useSyncExternalStore(
-    (onChange) => {
-      handle.on("change", onChange);
-      return () => handle.off("change", onChange);
-    },
-    () => [...A.getHeads(handle.doc())].sort().join(","),
-  );
 
 /**
  * The editor's footer: save and publish state, and the actions. It follows
@@ -141,6 +131,14 @@ export function EditorFooter(props: {
           )}
         </p>
         <div className={styles.actions}>
+          <a
+            className={`${buttonStyles.button} ${styles.preview}`}
+            href={`/events/${props.id}/preview`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {m.studio_preview()}
+          </a>
           <Button variant="danger" onClick={remove}>
             {m.common_delete()}
           </Button>

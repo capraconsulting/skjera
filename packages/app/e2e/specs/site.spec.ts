@@ -11,6 +11,7 @@ import { EventPage } from "../pom/site/EventPage.ts";
 import { Footer } from "../pom/site/Footer.ts";
 import { HomePage } from "../pom/site/HomePage.ts";
 import { HubSpot, hubSpotScript } from "../pom/site/HubSpot.ts";
+import { PreviewPage } from "../pom/site/PreviewPage.ts";
 import { PrivacyPage } from "../pom/site/PrivacyPage.ts";
 import { EventEditor } from "../pom/studio/EventEditor.ts";
 import { EventsColumn } from "../pom/studio/EventsColumn.ts";
@@ -783,6 +784,36 @@ test("the studio never runs HubSpot's script, however it is entered", async ({
   await teams.expectShown();
   await hubSpot.expectRuns(0);
   await hubSpot.expectLoaders(0);
+});
+
+test("the preview never runs HubSpot's script, however it is entered", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(
+    uniqueTeamName("Preview HubSpot"),
+  );
+  const event = await new EventEditor(alice).createPublished({ public: true });
+  const hubSpot = new HubSpot(alice);
+  const asked = await hubSpot.install();
+  const preview = new PreviewPage(alice);
+
+  // Entered directly.
+  await preview.goto(event.id);
+  await preview.expectHeading(event.title);
+  expect(asked).toEqual([]);
+  await hubSpot.expectRunsNow(0);
+  await hubSpot.expectLoaders(0);
+
+  // After a site page that has run it.
+  await alice.goto(`/events/${event.id}`);
+  await hubSpot.expectRuns(1);
+  await preview.goto(event.id);
+  await preview.expectHeading(event.title);
+  await hubSpot.expectRuns(0);
+  await hubSpot.expectLoaders(0);
+
+  await cleanUp(alice, team, event.id);
 });
 
 test("without a HubSpot account id, nothing goes to HubSpot", async ({

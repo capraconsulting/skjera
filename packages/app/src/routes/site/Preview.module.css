@@ -1,0 +1,34 @@
+/* The notice is fixed to the bottom of the window; the page leaves room under
+   itself so the notice covers nothing. */
+.preview {
+  padding-bottom: 5rem;
+}
+
+.notice {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 1.5rem;
+  padding: 0.75rem 1.5rem;
+  border-top: 1px solid var(--color-border-strong);
+  background: var(--color-warning-soft);
+  color: var(--color-text);
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.notice a {
+  color: var(--color-link);
+}
+
+.needsTimes {
+  color: var(--color-text-muted);
+  font-size: 1.25rem;
+  font-weight: 300;
+}

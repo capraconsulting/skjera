@@ -44,6 +44,10 @@
   gap: 0.5rem;
 }
 
+.preview {
+  text-decoration: none;
+}
+
 .publish {
   min-width: 7.5rem;
 }

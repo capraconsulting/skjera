@@ -23,6 +23,11 @@ import {
   LoginFailed,
   loginFailedRedirect,
 } from "./routes/site/LoginFailed.tsx";
+import {
+  Preview,
+  previewLoader,
+  previewSiteLoader,
+} from "./routes/site/Preview.tsx";
 import { SiteLayout, siteLoader } from "./routes/site/SiteLayout.tsx";
 import { EventEditor } from "./routes/studio/EventEditor.tsx";
 import { StudioLayout, studioLoader } from "./routes/studio/StudioLayout.tsx";
@@ -82,6 +87,22 @@ const router = createBrowserRouter([
           // OAUTH_REDIRECT_URI: the path must be the same.
           { path: "auth/callback", loader: loginFailedRedirect },
           { path: "login-failed", Component: LoginFailed },
+        ],
+      },
+      // An event's preview, behind login. Beside the site, not under it: it has
+      // the site's header, but not the site's loader, which loads HubSpot.
+      {
+        path: "/events/:id/preview",
+        Component: SiteLayout,
+        loader: previewSiteLoader,
+        HydrateFallback: Loading,
+        children: [
+          {
+            index: true,
+            Component: Preview,
+            loader: previewLoader,
+            ErrorBoundary: EventError,
+          },
         ],
       },
       // The studio: everything else, behind login. Its columns nest: teams,

@@ -896,5 +896,15 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
         repeat: { every: 1, unit: "week" },
       }),
     ]),
+    team("STU-21: Preview", [
+      event("AC-1 to AC-4 and AC-7: Published", { ...guests, ...week }),
+      event("AC-5: Never published", {
+        ...guests,
+        ...week,
+        state: "draft",
+        place: "Kantina",
+      }),
+      event("AC-5: No times", { state: "titled" }),
+    ]),
   ];
 };

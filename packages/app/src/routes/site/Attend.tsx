@@ -3,10 +3,10 @@ import {
   type AttendeeRow,
   type DocumentId,
   describe,
-  type EventRow,
   type GuestProblem,
   guestProblems,
   type Question,
+  type ShownEvent,
 } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { getLocale } from "@skjera/i18n/runtime";
@@ -68,7 +68,7 @@ const useHasPassed = (at: Date) => {
  * closes. Changes show at once; a refused one is undone, and says why.
  */
 export function Attend(props: {
-  readonly event: EventRow;
+  readonly event: ShownEvent;
   /** Everyone signed up for the event. */
   readonly signups: ReadonlyArray<AttendeeRow>;
   readonly signedIn: boolean;
@@ -791,7 +791,7 @@ const DietaryInput = () => (
 const field = (question: Question) => `question-${question.id}`;
 
 /** What the attendance question was answered: online or not; undefined while not asked. */
-const onlineFrom = (event: EventRow, form: FormData) =>
+const onlineFrom = (event: ShownEvent, form: FormData) =>
   event.isStreamed ? form.get("attendance") === "online" : undefined;
 
 /**

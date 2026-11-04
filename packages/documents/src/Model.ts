@@ -344,6 +344,19 @@ export const Tag = Schema.String.check(
 );
 export type Tag = typeof Tag.Type;
 
+/** Tags without repeats, ignoring case: each as first written. */
+export const uniqueTags = (
+  tags: ReadonlyArray<string>,
+): ReadonlyArray<string> => {
+  const seen = new Set<string>();
+  return tags.filter((tag) => {
+    const key = tag.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 /**
  * A question asked of everyone signing up. "text" takes a written answer,
  * "checkbox" a tick (the text is its label, e.g. "I'll bring a friend"),

@@ -1,11 +1,11 @@
-import type { AttendeeRow, EventRow } from "@skjera/documents/api";
+import type { AttendeeRow, ShownEvent } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { useId } from "react";
 import styles from "./Signups.module.css";
 
 /** Who has signed up, by name, members and guests apart: for members. */
 export function Signups(props: {
-  readonly event: EventRow;
+  readonly event: ShownEvent;
   readonly signups: ReadonlyArray<AttendeeRow>;
 }) {
   // Oldest first. One's own new signup has no name until it's synced.

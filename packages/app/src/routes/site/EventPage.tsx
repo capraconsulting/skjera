@@ -1,4 +1,9 @@
-import { DocumentId, type EventRow } from "@skjera/documents/api";
+import {
+  type AttendeeRow,
+  DocumentId,
+  type EventRow,
+  type ShownEvent,
+} from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { defaultPollEveryMs } from "@skjera/snapsync/client";
 import { eq, useLiveQuery } from "@tanstack/react-db";
@@ -126,7 +131,7 @@ export const eventLoader = async ({ params, request }: LoaderFunctionArgs) => {
 };
 
 /** Everyone signed up for the event. */
-const useSignups = (id: DocumentId) =>
+export const useSignups = (id: DocumentId) =>
   useLiveQuery({
     query: (q) =>
       q
@@ -153,6 +158,27 @@ export function EventPage() {
   if (event === null) {
     return <p className={styles.missing}>{m.site_event_missing()}</p>;
   }
+  return (
+    <EventView
+      event={event}
+      signups={signups}
+      signedIn={signedIn}
+      email={me?.email}
+      linkGone={linkGone}
+    />
+  );
+}
+
+/** The event's page, published or previewed. A preview offers no sign-up. */
+export function EventView(props: {
+  readonly event: ShownEvent;
+  readonly signups: ReadonlyArray<AttendeeRow>;
+  readonly signedIn: boolean;
+  readonly email: string | undefined;
+  readonly linkGone: boolean;
+  readonly preview?: boolean;
+}) {
+  const { event, signups, signedIn, linkGone } = props;
   // Visitors not logged in are told the places left, not how many are signed up.
   const places = signedIn ? null : placesForVisitor(event, signups);
   return (
@@ -263,13 +289,15 @@ export function EventPage() {
       <div className={styles.body} data-testid="event-body">
         <RichText spans={event.body} />
       </div>
-      <Attend
-        event={event}
-        signups={signups}
-        signedIn={signedIn}
-        email={me?.email}
-        linkGone={linkGone}
-      />
+      <div inert={props.preview}>
+        <Attend
+          event={event}
+          signups={signups}
+          signedIn={signedIn}
+          email={props.email}
+          linkGone={linkGone}
+        />
+      </div>
       {signedIn ? <Signups event={event} signups={signups} /> : null}
     </article>
   );
