@@ -2,7 +2,7 @@
 
 An organiser adds questions to an event's sign-up form under **Questions**: a written answer, a checkbox, or one of several options. How people answer them is SIGN-09.
 
-**Events:** in team «STU-14: Questions on the sign-up form», one public event open to guests, with a time and a place, «AC-1 to AC-7: Questions». For AC-7, sign up bob to it once AC-1 to AC-6 are done.
+**Events:** in team «STU-14: Questions on the sign-up form», one public event open to guests, with a time and a place, «AC-1 to AC-7: Questions». For AC-7, sign up bob to it once AC-1 to AC-6 are done. AC-8 uses the same event.
 
 ## AC-1: Three kinds of question
 
@@ -89,3 +89,17 @@ WHEN an organiser rewords a question or an option after people have answered, Sk
 - **Then** under **Attendees**, bob's answers still show the old question and option
 
 **Automated:** none
+
+## AC-8: A checkbox can have an answer option
+
+The studio SHALL offer an optional field **Answer option** («Svaralternativ» in Norwegian) under each checkbox question's text: the words beside the box, with the question's text above it.
+
+**Test**
+
+- **Given** the three questions from AC-1
+- **When** you look under each question's text
+- **Then** only the checkbox has an empty **Answer option**
+- **When** you write «Yes, I'd like to rent swimming trunks» in it, and click **↑** on the checkbox
+- **Then** the checkbox has moved, with the same **Answer option**
+
+**Automated:** `packages/app/e2e/specs/attendance/questions.spec.ts`, `packages/documents/test/Model.test.ts`

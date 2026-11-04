@@ -26,6 +26,7 @@ type Draft = {
     id: unknown;
     type: unknown;
     text: string;
+    label?: string;
     required: boolean;
     options: Array<{ id: unknown; text: string }>;
   }>;
@@ -98,6 +99,9 @@ export function QuestionsField(props: {
         id: new A.ImmutableString(String(question.id)),
         type: new A.ImmutableString(String(question.type)),
         text: question.text.toString(),
+        ...(question.label === undefined
+          ? {}
+          : { label: question.label.toString() }),
         required: question.required,
         options: question.options.map((option) => ({
           id: new A.ImmutableString(String(option.id)),
@@ -198,6 +202,25 @@ export function QuestionsField(props: {
                     );
                   }}
                 />
+                {question.type !== "checkbox" ? null : (
+                  <Input
+                    aria-label={m.editor_q_label({ n })}
+                    className={inputStyles.input}
+                    placeholder={m.editor_q_label_placeholder()}
+                    value={question.label ?? ""}
+                    onChange={(event) => {
+                      const text = event.currentTarget.value;
+                      change(question.id, (draft, at) => {
+                        const target = draft.questions[at];
+                        if (target === undefined) return;
+                        // Questions made before labels have no text to edit.
+                        if (target.label === undefined) target.label = text;
+                        else
+                          A.updateText(draft, ["questions", at, "label"], text);
+                      });
+                    }}
+                  />
+                )}
                 {question.type !== "choice" ? null : (
                   <Options
                     n={n}

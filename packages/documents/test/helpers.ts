@@ -240,6 +240,7 @@ export const setQuestions = (
     readonly id: string;
     readonly type: "text" | "checkbox" | "choice";
     readonly text: string;
+    readonly label?: string;
     readonly required?: boolean;
     readonly options?: ReadonlyArray<{
       readonly id: string;
@@ -251,6 +252,7 @@ export const setQuestions = (
     id: new A.ImmutableString(question.id),
     type: new A.ImmutableString(question.type),
     text: question.text,
+    ...(question.label === undefined ? {} : { label: question.label }),
     required: question.required ?? false,
     options: (question.options ?? []).map((option) => ({
       id: new A.ImmutableString(option.id),

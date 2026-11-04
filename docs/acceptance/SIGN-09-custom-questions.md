@@ -75,3 +75,17 @@ WHEN someone signs up, Skjera SHALL keep their answers with the sign-up: the tex
 - **Then** the studio's **Attendees** shows the guest with «A poster», «Large», and «Yes» for «I accept the risks of swimming»
 
 **Automated:** `packages/app/e2e/specs/attendance/questions.spec.ts`, `packages/documents/test/attendance/signups.test.ts`
+
+## AC-7: A checkbox's answer option is beside the box
+
+WHERE a checkbox question has an **Answer option**, the sign-up form SHALL show the question's text above the box and the answer option beside it; WHERE it has none, the question's text is beside the box. The attendee list and the Excel file name the column after the question's text either way.
+
+**Test**
+
+- **Given** the event, with a fourth question added in the studio: «Will you swim?», a **Checkbox**, with the **Answer option** «Yes, I'd like to rent swimming trunks», and published
+- **When** a guest opens it in a private window
+- **Then** the form has «Will you swim?» above a box to tick, «Yes, I'd like to rent swimming trunks», and «I accept the risks of swimming» still beside its box
+- **When** the guest ticks both boxes, picks a towel size and signs up
+- **Then** the studio's **Attendees** shows «Yes» for «Will you swim?», and so does its column in the Excel file
+
+**Automated:** `packages/app/e2e/specs/attendance/questions.spec.ts`, `packages/app/test/signupForm.test.ts`, `packages/documents/test/events/preview.test.ts`, `packages/app/test/attendeesSheet.test.ts`

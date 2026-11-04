@@ -349,6 +349,8 @@
   "editor_q_remove": "Fjern spørsmål {n}",
   "editor_q_tick_placeholder": "Kva avkryssinga tyder, til dømes «Eg tek med ein ven»",
   "editor_q_placeholder": "Spørsmålet, til dømes «Kvar høyrde du om det?»",
+  "editor_q_label": "Svaralternativ for spørsmål {n}",
+  "editor_q_label_placeholder": "Svaralternativ (valfritt), til dømes «Ja, eg vil leige badebukse»",
   "editor_q_add": "Legg til spørsmål",
   "editor_q_option": "Spørsmål {n}, alternativ {option}",
   "editor_q_option_placeholder": "Alternativ {option}",

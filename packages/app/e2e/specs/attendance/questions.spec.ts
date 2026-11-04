@@ -56,6 +56,60 @@ test("events ask their own questions, and say what's served", async ({
   await cleanUp(alice, team, event.id);
 });
 
+test("a checkbox question has its answer option beside the box, apart from the question (AC-1, AC-2, AC-3, AC-5)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(
+    uniqueTeamName("Answer option"),
+  );
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({ public: true, guests: true });
+
+  // Only checkboxes offer an answer option, and it starts empty.
+  await editor.questions.add(1, "Where did you hear of it?");
+  await editor.questions.add(2, "Towel size", "One of several");
+  await editor.questions.fillOption(2, 1, "Small");
+  await editor.questions.fillOption(2, 2, "Large");
+  await editor.questions.add(3, "I accept the risks of swimming", "Checkbox");
+  await editor.questions.add(4, "Will you swim?", "Checkbox");
+  await editor.questions.expectNoLabel(1);
+  await editor.questions.expectNoLabel(2);
+  await editor.questions.expectLabel(3, "");
+  await editor.questions.expectLabel(4, "");
+  await editor.questions.fillLabel(4, "Yes, I'd like to rent swimming trunks");
+  // It moves with its question.
+  await editor.questions.moveUp(4);
+  await editor.questions.expect(3, "Will you swim?");
+  await editor.questions.expectLabel(
+    3,
+    "Yes, I'd like to rent swimming trunks",
+  );
+  await editor.questions.expectLabel(4, "");
+  await editor.publish();
+
+  // The question above the box and the answer option beside it; a checkbox
+  // without one has its question beside it.
+  const guest = await visitor(browser);
+  const page = new EventPage(guest);
+  await page.goto(event.id);
+  await page.expectShows("Will you swim?");
+  const box = new Attendance(guest);
+  await box.fillName("Gina");
+  await box.fillEmail("gina@example.org");
+  await box.checkBox("Yes, I'd like to rent swimming trunks");
+  await box.checkBox("I accept the risks of swimming");
+  await box.clickSignUp();
+  await box.expectSignedUp();
+
+  // The answer is under the question, not its answer option.
+  await editor.attendees.expectAnswer("Will you swim?", "Yes");
+  await editor.attendees.expectAnswer("I accept the risks of swimming", "Yes");
+
+  await box.cancelSignup();
+  await cleanUp(alice, team, event.id);
+});
+
 test("people change their answers; organizers export them as an Excel file and remove them", async ({
   browser,
 }) => {

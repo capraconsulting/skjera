@@ -146,6 +146,41 @@ layer(TestLayer, { excludeTestServices: true })("Event preview", (it) => {
   );
 
   it.effect(
+    "gives a checkbox question's answer option, as publishing does (AC-2)",
+    () =>
+      Effect.gen(function* () {
+        const swim = {
+          id: "6f1f6a1e-3a0b-4a53-9a44-0f6a8f3c1a05",
+          type: "checkbox",
+          text: "Skal du bade?",
+          label: "Ja, jeg vil leie badebukse",
+          required: false,
+          options: [],
+        } as const;
+        const { page, preview } = yield* publishedAndPreviewed((event) => {
+          A.updateText(event, ["title"], "Swim");
+          setTimes(event);
+          setPlace(event);
+          setQuestions(event, [
+            swim,
+            { id: question, type: "checkbox", text: "I bring a friend" },
+          ]);
+        });
+        assert.deepStrictEqual(page.questions, [
+          swim,
+          {
+            id: question,
+            type: "checkbox",
+            text: "I bring a friend",
+            required: false,
+            options: [],
+          },
+        ]);
+        assert.deepStrictEqual(preview, page);
+      }),
+  );
+
+  it.effect(
     "gives the row publishing gives, for drafts with fields missing (AC-2)",
     () =>
       Effect.gen(function* () {

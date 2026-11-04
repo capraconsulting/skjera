@@ -37,6 +37,13 @@ const answer = (id: string, question: string, text: string): Answer => ({
   value: text,
 });
 
+const yes = (id: string, question: string): Answer => ({
+  id,
+  question,
+  answer: "Yes",
+  value: true,
+});
+
 const attendee = (
   name: string,
   answers: ReadonlyArray<Answer> = [],
@@ -157,6 +164,28 @@ describe("attendeesSheet", () => {
       "Large",
       "Small",
     ]);
+  });
+
+  it("heads a checkbox question's column with its text, not its answer option (AC-5)", () => {
+    const swim = "44444444-4444-4444-8444-444444444444";
+    const { rows, columns } = read(
+      [attendee("Gina", [yes(swim, "Skal du bade?")])],
+      {
+        ...event,
+        questions: [
+          {
+            id: swim,
+            type: "checkbox",
+            text: "Skal du bade?",
+            label: "Ja, jeg vil leie badebukse",
+            required: false,
+            options: [],
+          },
+        ],
+      },
+    );
+    expect(columns).toEqual(["Name", "Email", "Skal du bade?"]);
+    expect(rows[0]?.["Skal du bade?"]).toBe("Yes");
   });
 
   it("gives answers to a question's earlier words a column of their own, after the others (AC-7)", () => {

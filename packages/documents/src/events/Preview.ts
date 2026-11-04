@@ -84,6 +84,7 @@ export const eventPreview = (draft: {
       id: String(question.id),
       type: String(question.type) as "text" | "checkbox" | "choice",
       text: question.text,
+      ...(question.label === undefined ? {} : { label: question.label }),
       required: question.required,
       options: question.options.map((option) => ({
         id: String(option.id),

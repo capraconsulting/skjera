@@ -349,6 +349,8 @@
   "editor_q_remove": "Fjern spørsmål {n}",
   "editor_q_tick_placeholder": "Hva avkrysningen betyr, for eksempel «Jeg tar med en venn»",
   "editor_q_placeholder": "Spørsmålet, for eksempel «Hvor hørte du om det?»",
+  "editor_q_label": "Svaralternativ for spørsmål {n}",
+  "editor_q_label_placeholder": "Svaralternativ (valgfritt), for eksempel «Ja, jeg vil leie badebukse»",
   "editor_q_add": "Legg til spørsmål",
   "editor_q_option": "Spørsmål {n}, alternativ {option}",
   "editor_q_option_placeholder": "Alternativ {option}",
