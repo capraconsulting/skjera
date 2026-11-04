@@ -29,21 +29,20 @@ test("visitors can read the site but not the studio", async ({ browser }) => {
   await new LoginPage(page).expectShown();
 });
 
-test("logging in from the site leads to the studio and back", async ({
+test("logging in from the site's header comes back to the page, filter and all (AC-1, AC-2)", async ({
   browser,
 }) => {
   const page = await visitor(browser);
   const header = new Header(page);
-  await new HomePage(page).goto();
+  const home = new HomePage(page);
+  await home.goto();
+  await home.clickGuestFilter("open");
+  await home.expectQuery("yes", null);
   await header.clickLogIn();
   await new LoginPage(page).signIn("alice@example.com");
-  await new TeamsColumn(page).expectAt();
+  await home.expectUrl(/\/\?guests=yes$/);
   await header.expectSignedInAs("alice@example.com");
-
-  await header.clickBrand();
-  await new HomePage(page).expectAt();
   await header.expectStudioLink();
-  await header.expectSignedInAs("alice@example.com");
 });
 
 test("a page waits for a server that is starting", async ({ browser }) => {

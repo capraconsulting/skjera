@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   loginFailedPath,
+  loginReturnFrom,
   offersLogInAgain,
   readLoginFailure,
 } from "../src/site/loginFailure.ts";
@@ -55,5 +56,25 @@ describe("loginFailedPath", () => {
         ),
       ).toEqual(failure);
     }
+  });
+});
+
+describe("loginReturnFrom", () => {
+  it("keeps the page's path and query (AC-1)", () => {
+    expect(loginReturnFrom({ pathname: "/", search: "?tag=Social" })).toBe(
+      "/?tag=Social",
+    );
+    expect(loginReturnFrom({ pathname: "/events/abc", search: "" })).toBe(
+      "/events/abc",
+    );
+  });
+
+  it("gives the front page from the failed-login page (AC-4)", () => {
+    expect(
+      loginReturnFrom({
+        pathname: "/login-failed",
+        search: "?kind=failed&returnTo=%2Faccount",
+      }),
+    ).toBe("/");
   });
 });

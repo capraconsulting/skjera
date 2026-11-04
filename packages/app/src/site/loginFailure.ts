@@ -24,14 +24,28 @@ export const readLoginFailure = (
 export const offersLogInAgain = (kind: LoginFailureKind): boolean =>
   kind !== "denied";
 
+/** The app's own address for a failed login, a page only for visitors. */
+const failedPath = "/login-failed";
+
 /** The app's own address for a failure, which `readLoginFailure` reads back. */
 export const loginFailedPath = (failure: LoginFailure): string => {
   const search = new URLSearchParams({
     kind: failure.kind,
     returnTo: failure.returnTo,
   });
-  return `/login-failed?${search}`;
+  return `${failedPath}?${search}`;
 };
+
+/**
+ * Where a login from the site's header comes back to: the page it was
+ * clicked on, with its query, or the front page from the failed-login
+ * page. The server's check keeps it on this site.
+ */
+export const loginReturnFrom = (here: {
+  readonly pathname: string;
+  readonly search: string;
+}): string =>
+  here.pathname === failedPath ? "/" : `${here.pathname}${here.search}`;
 
 /** The failure the server wrote into the page's head. */
 export const loginFailureInHead = (head: ParentNode): LoginFailure => {

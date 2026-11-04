@@ -2,18 +2,23 @@
 
 Members and organisers log in with the company's login provider, Dex in development, and log out from the account menu. Visitors read the site without logging in.
 
-## AC-1: Log in from the site, into the studio
+## AC-1: Log in from the site, back to the page
 
-WHEN a visitor clicks **Log in** in the site's header and logs in at the login provider, Skjera SHALL take them to the studio, logged in.
+WHEN a visitor clicks **Log in** in the site's header and logs in at the login provider, Skjera SHALL bring them back to the page they clicked it on, logged in, with its address and query as they were. From a page that only exists for visitors, such as the page for a failed login, Skjera SHALL bring them to the front page.
 
 **Test**
 
 - **Given** http://localhost:5173 open in a private window, not logged in
-- **When** you click **Log in**
+- **When** you click **Open to all**, so the address reads `/?guests=yes`
+- **And** you click **Log in**
 - **And** you log in at Dex's page as `alice@example.com`, password `password`
-- **Then** you land in the studio, at `/studio/teams`, with alice's account menu in the header
+- **Then** you are back at http://localhost:5173/?guests=yes, with alice's account menu and **Studio** in the header
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/oauth/e2e/specs/login.spec.ts`, `packages/oauth/test/OAuthClient.test.ts`
+- **Given** http://localhost:5173/login-failed?kind=failed&returnTo=/account open in a private window, not logged in
+- **When** you click **Log in** in the header and log in as `bob@example.com`, password `password`
+- **Then** you land on the front page, http://localhost:5173/
+
+**Automated:** `packages/app/e2e/specs/site.spec.ts` for the first, `packages/app/test/loginFailure.test.ts` for both, `packages/oauth/e2e/specs/login.spec.ts`, `packages/oauth/test/OAuthClient.test.ts`
 
 ## AC-2: A wrong password logs nobody in
 
