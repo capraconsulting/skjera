@@ -1,6 +1,7 @@
 import * as Snapsync from "@skjera/snapsync/server";
 import { Layer } from "effect";
 import { Attendance } from "./attendance/Attendance.ts";
+import { Invitations } from "./attendance/Invitations.ts";
 import * as SignupRetention from "./attendance/SignupRetention.ts";
 import { DocumentEvents } from "./events/DocumentEvents.ts";
 import { Documents } from "./events/Documents.ts";
@@ -21,6 +22,7 @@ export * from "./api/PublicApi.ts";
 export * from "./api/SyncApi.ts";
 export * from "./api/TeamsApi.ts";
 export * from "./attendance/Attendance.ts";
+export * from "./attendance/Invitations.ts";
 export * from "./events/ContentTypes.ts";
 export * from "./events/DocumentEvents.ts";
 export * from "./events/Documents.ts";
@@ -53,6 +55,7 @@ export const layer = Layer.mergeAll(
   Documents.layer,
   DocumentEvents.layer,
   Teams.layer,
+  Invitations.layer,
   Presence.layer,
   Sync.layer,
   // After a restore, clients start over: before serving pulls.

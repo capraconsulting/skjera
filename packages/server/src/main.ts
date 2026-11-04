@@ -148,14 +148,15 @@ const EventsHandlers = HttpApiBuilder.group(Api, "events", (handlers) =>
 const AttendeesHandlers = HttpApiBuilder.group(Api, "attendees", (handlers) =>
   Effect.gen(function* () {
     const attendance = yield* Documents.Attendance;
+    const invitations = yield* Documents.Invitations;
     return handlers
       .handle("remove", ({ params }) => attendance.remove(params.id))
       .handle("dietaryPreferences", ({ params }) =>
         attendance.dietaryPreferences(params.id),
       )
-      .handle("invitations", ({ params }) => attendance.invitations(params.id))
+      .handle("invitations", ({ params }) => invitations.invitations(params.id))
       .handle("invite", ({ params, payload }) =>
-        attendance.invite(params.id, payload),
+        invitations.invite(params.id, payload),
       );
   }),
 );

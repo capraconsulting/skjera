@@ -1,30 +1,14 @@
-import {
-  createHash,
-  createHmac,
-  randomBytes,
-  timingSafeEqual,
-} from "node:crypto";
 import { AllowedDomains } from "@skjera/oauth";
 import type { Identity } from "@skjera/oauth/api";
-import {
-  Clock,
-  Config,
-  Context,
-  Effect,
-  Layer,
-  Option,
-  Redacted,
-} from "effect";
+import { Clock, Context, Effect, Layer } from "effect";
 import { SqlClient, SqlError, type Statement } from "effect/sql";
 import {
-  DocumentNotFound,
   EventNotFound,
-  InvitationRejected,
   SignupNotFound,
   SignupRejected,
 } from "../api/errors.ts";
-import { type Problem, refused } from "../api/Problems.ts";
-import type { Invitation, StoredGuestSignup } from "../api/PublicApi.ts";
+import { refused } from "../api/Problems.ts";
+import type { StoredGuestSignup } from "../api/PublicApi.ts";
 import {
   type Answer,
   type Answers,
@@ -32,11 +16,19 @@ import {
   type DocumentId,
   type GuestDetails,
   guestProblems,
-  isEmailAddress,
   type Locale,
   type Question,
 } from "../Model.ts";
 import { Notifications, type Signup, tell } from "../notices/Notifications.ts";
+import { answersFor } from "./answers.ts";
+import {
+  cancelLinkLife,
+  cancelLinkToken,
+  guestToken,
+  readCancelLink,
+  signingSecret,
+  tokenHash,
+} from "./tokens.ts";
 
 /** What someone signing up tells, besides who they are. */
 export interface SignupDetails {
@@ -61,85 +53,14 @@ export interface SignupDetails {
   readonly honeypot?: string;
 }
 
-/** The guest forms' hidden field has something in it: a bot's. */
-const filled = (honeypot: string | undefined) => (honeypot ?? "").trim() !== "";
-
-/**
- * Answers checked against the questions, in the words asked and picked:
- * what is stored with the signup. Answers to other questions are ignored.
- */
-export const answersFor = (
-  questions: ReadonlyArray<Question>,
-  answers: Answers = {},
-): Effect.Effect<ReadonlyArray<Answer>, SignupRejected> => {
-  const stored: Array<Answer> = [];
-  for (const question of questions) {
-    const value = answers[question.id];
-    const reject = (problem: Problem) =>
-      Effect.fail(new SignupRejected(refused(problem)));
-    switch (question.type) {
-      case "text": {
-        const text = typeof value === "string" ? value.trim() : "";
-        if (text.length > 1000) {
-          return reject({ _tag: "AnswerTooLong", question: question.text });
-        }
-        if (text === "" && question.required) {
-          return reject({ _tag: "AnswerMissing", question: question.text });
-        }
-        if (text !== "") {
-          stored.push({
-            id: question.id,
-            question: question.text,
-            answer: text,
-            value: text,
-          });
-        }
-        break;
-      }
-      case "checkbox": {
-        const ticked = value === true;
-        if (!ticked && question.required) {
-          return reject({ _tag: "TickMissing", question: question.text });
-        }
-        stored.push({
-          id: question.id,
-          question: question.text,
-          answer: ticked ? "Yes" : "No",
-          value: ticked,
-        });
-        break;
-      }
-      case "choice": {
-        const option = question.options.find((each) => each.id === value);
-        if (option === undefined && value !== undefined && value !== "") {
-          return reject({ _tag: "AnswerUnknown", question: question.text });
-        }
-        if (option === undefined && question.required) {
-          return reject({ _tag: "AnswerMissing", question: question.text });
-        }
-        if (option !== undefined) {
-          stored.push({
-            id: question.id,
-            question: question.text,
-            answer: option.text,
-            value: option.id,
-          });
-        }
-        break;
-      }
-    }
-  }
-  return Effect.succeed(stored);
-};
+/** A guest form's hidden field: only a bot fills it in, and a filled one is refused. */
+const notByBot = (honeypot: string | undefined) =>
+  (honeypot ?? "").trim() === ""
+    ? Effect.void
+    : Effect.fail(new SignupRejected(refused({ _tag: "FormNotValid" })));
 
 /** What a typed optional text is kept as: trimmed, and nothing when blank. */
 const storedText = (text: string | undefined) => text?.trim() || null;
-
-const hash = (token: string) =>
-  createHash("sha256").update(token).digest("base64url");
-
-/** How long a link to confirm cancelling by email works. */
-const cancelLinkLife = 2 * 60 * 60 * 1000;
 
 const pgCode = (error: SqlError.SqlError) =>
   (error.reason as { cause?: { code?: string } }).cause?.code;
@@ -233,15 +154,6 @@ export class Attendance extends Context.Service<
     readonly dietaryPreferences: (
       event: DocumentId,
     ) => Effect.Effect<ReadonlyArray<string>>;
-    /** Notes someone as invited to an event, for its organizers: nothing is sent to anyone. */
-    readonly invite: (
-      event: DocumentId,
-      person: { readonly name?: string; readonly email: string },
-    ) => Effect.Effect<Invitation, DocumentNotFound | InvitationRejected>;
-    /** Those noted as invited to an event, in the order they were added. */
-    readonly invitations: (
-      event: DocumentId,
-    ) => Effect.Effect<ReadonlyArray<Invitation>>;
     /**
      * The token a guest changes and cancels their signup with: derived from
      * it, so it can be put in emails sent later, though only its hash is
@@ -250,31 +162,12 @@ export class Attendance extends Context.Service<
     readonly guestToken: (attendee: string) => string;
   }
 >()("@skjera/documents/Attendance") {
-  /**
-   * Guests' tokens are signed with `SIGNING_SECRET`. Without it, with a
-   * secret made up at start, and a warning: links sent before a restart
-   * stop working (tokens guests' browsers keep don't).
-   */
   static readonly layer = Layer.effect(
     Attendance,
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
       const notifications = yield* Notifications;
-      const secret = yield* Config.Redacted("SIGNING_SECRET").pipe(
-        Config.option,
-        Effect.flatMap(
-          Option.match({
-            onSome: Effect.succeed,
-            onNone: () =>
-              Effect.as(
-                Effect.logWarning(
-                  "SIGNING_SECRET not set: guests' links in emails stop working on restart",
-                ),
-                Redacted.make(randomBytes(32).toString("base64url")),
-              ),
-          }),
-        ),
-      );
+      const secret = yield* signingSecret;
       // The domains members log in with: an email on one is a member's.
       const memberDomains = yield* AllowedDomains;
       const isMemberEmail = (email: string) =>
@@ -284,25 +177,17 @@ export class Attendance extends Context.Service<
             .slice(email.trim().lastIndexOf("@") + 1)
             .toLowerCase(),
         );
-      const guestToken = (attendee: string) =>
-        createHmac("sha256", Redacted.value(secret))
-          .update(`guest-signup/${attendee}`)
-          .digest("base64url");
+      const guestTokenFor = (attendee: string) => guestToken(secret, attendee);
+      const cancelLinkTokenFor = (
+        event: string,
+        attendee: string,
+        expiresAt: number,
+      ) => cancelLinkToken(secret, event, attendee, expiresAt);
 
-      const cancelSignature = (
-        event: string,
-        attendee: string,
-        expiresAt: number,
-      ) =>
-        createHmac("sha256", Redacted.value(secret))
-          .update(`guest-cancel/${event}/${attendee}/${expiresAt}`)
-          .digest("base64url");
-      const cancelLinkToken = (
-        event: string,
-        attendee: string,
-        expiresAt: number,
-      ) =>
-        `${attendee}.${expiresAt}.${cancelSignature(event, attendee, expiresAt)}`;
+      /** Signing up and cancelling close at the deadline, or else when the event starts. On `events e`. */
+      const signupOpen = sql`coalesce(e.signup_deadline, e.starts_at) > now()`;
+      /** What is returned about a signup, for notices: a `Signup`. On `attendees`, unaliased. */
+      const signupColumns = sql`id, name, email, user_issuer IS NULL AS guest, locale`;
 
       const closed = new SignupRejected(refused({ _tag: "SignupClosed" }));
       const full = new SignupRejected(refused({ _tag: "EventFull" }));
@@ -360,8 +245,8 @@ export class Attendance extends Context.Service<
           SELECT allow_guests, questions, is_streamed AS streamed,
             -- After the food deadline, people can still come; not eat.
             ask_dietary AND coalesce(food_deadline > now(), true) AS ask_dietary,
-            coalesce(signup_deadline, starts_at) > now() AS open
-          FROM events
+            ${signupOpen} AS open
+          FROM events e
           WHERE id = ${event} AND (is_public OR ${audience === "members"})
             AND deleted_at IS NULL
         `.pipe(Effect.orDie);
@@ -429,7 +314,7 @@ export class Attendance extends Context.Service<
               ${user.email ?? null}, ${JSON.stringify(answers)}::jsonb,
               ${online}, ${details.locale ?? null})
             ON CONFLICT DO NOTHING
-            RETURNING id, name, email, false AS guest, locale
+            RETURNING ${signupColumns}
           `;
           if (inserted.length > 0) yield* keepDietary(event, dietary);
           yield* tell(inserted, (attendee) =>
@@ -451,7 +336,7 @@ export class Attendance extends Context.Service<
             DELETE FROM attendees
             WHERE event_id = ${event}
               AND user_issuer = ${user.issuer} AND user_subject = ${user.subject}
-            RETURNING id, name, email, false AS guest, locale
+            RETURNING ${signupColumns}
           `;
           yield* tell(deleted, (attendee) =>
             notifications.signupCancelled({ event, attendee }),
@@ -464,9 +349,7 @@ export class Attendance extends Context.Service<
         guest: GuestDetails,
         details: SignupDetails = {},
       ) {
-        if (filled(details.honeypot)) {
-          return yield* new SignupRejected(refused({ _tag: "FormNotValid" }));
-        }
+        yield* notByBot(details.honeypot);
         const { allowGuests, askDietary, questions, streamed } = yield* rules(
           event,
           "anyone",
@@ -489,16 +372,16 @@ export class Attendance extends Context.Service<
         const online = yield* onlineFor(streamed, details.online);
         const id = details.id;
         const attendee = id ?? crypto.randomUUID();
-        const token = guestToken(attendee);
+        const token = guestTokenFor(attendee);
         yield* Effect.gen(function* () {
           yield* room(event, online, sql`false`);
           const inserted = yield* sql<Signup>`
             INSERT INTO attendees (id, event_id, name, email, phone, company, answers, cancel_token_hash, online, locale)
             VALUES (${attendee}::uuid, ${event}, ${guest.name.trim()},
               ${guest.email.trim()}, ${storedText(guest.phone)}, ${storedText(guest.company)},
-              ${JSON.stringify(answers)}::jsonb, ${hash(token)},
+              ${JSON.stringify(answers)}::jsonb, ${tokenHash(token)},
               ${online}, ${details.locale ?? null})
-            RETURNING id, name, email, true AS guest, locale
+            RETURNING ${signupColumns}
           `;
           yield* keepDietary(event, dietary);
           yield* tell(inserted, (attendee) =>
@@ -520,13 +403,11 @@ export class Attendance extends Context.Service<
         cancelToken: string,
         honeypot?: string,
       ) {
-        if (filled(honeypot)) {
-          return yield* new SignupRejected(refused({ _tag: "FormNotValid" }));
-        }
+        yield* notByBot(honeypot);
         const [found] = yield* sql<{ open: boolean }>`
-          SELECT coalesce(e.signup_deadline, e.starts_at) > now() AS open
+          SELECT ${signupOpen} AS open
           FROM attendees a JOIN events e ON e.id = a.event_id
-          WHERE a.event_id = ${event} AND a.cancel_token_hash = ${hash(cancelToken)}
+          WHERE a.event_id = ${event} AND a.cancel_token_hash = ${tokenHash(cancelToken)}
             AND e.deleted_at IS NULL
         `.pipe(Effect.orDie);
         if (found === undefined) return yield* new SignupNotFound({});
@@ -534,8 +415,8 @@ export class Attendance extends Context.Service<
         yield* Effect.gen(function* () {
           const deleted = yield* sql<Signup>`
             DELETE FROM attendees
-            WHERE event_id = ${event} AND cancel_token_hash = ${hash(cancelToken)}
-            RETURNING id, name, email, true AS guest, locale
+            WHERE event_id = ${event} AND cancel_token_hash = ${tokenHash(cancelToken)}
+            RETURNING ${signupColumns}
           `;
           yield* tell(deleted, (attendee) =>
             notifications.signupCancelled({ event, attendee }),
@@ -555,26 +436,17 @@ export class Attendance extends Context.Service<
         event: DocumentId,
         token: string,
       ) {
-        const [attendee = "", expires = "", signature = "", ...rest] =
-          token.split(".");
-        const given = Buffer.from(signature);
-        const expected = Buffer.from(
-          cancelSignature(event, attendee, Number(expires)),
+        const link = readCancelLink(
+          secret,
+          event,
+          token,
+          yield* Clock.currentTimeMillis,
         );
-        if (
-          rest.length > 0 ||
-          !/^\d+$/.test(expires) ||
-          given.length !== expected.length ||
-          !timingSafeEqual(given, expected)
-        ) {
-          return yield* cancelRefusal("CancelLinkInvalid");
-        }
-        if (Number(expires) <= (yield* Clock.currentTimeMillis)) {
-          return yield* cancelRefusal("CancelLinkExpired");
-        }
+        if ("problem" in link) return yield* cancelRefusal(link.problem);
+        const { attendee } = link;
         // A deleted event has no signups to find: its link is used up.
         const [found] = yield* sql<{ title: string; open: boolean }>`
-          SELECT e.title, coalesce(e.signup_deadline, e.starts_at) > now() AS open
+          SELECT e.title, ${signupOpen} AS open
           FROM attendees a JOIN events e ON e.id = a.event_id
           WHERE a.id = ${attendee}::uuid AND a.event_id = ${event}
             AND a.user_issuer IS NULL AND e.deleted_at IS NULL
@@ -589,13 +461,11 @@ export class Attendance extends Context.Service<
         email: string,
         honeypot?: string,
       ) {
-        if (filled(honeypot)) {
-          return yield* new SignupRejected(refused({ _tag: "FormNotValid" }));
-        }
+        yield* notByBot(honeypot);
         yield* rules(event, "anyone");
         // Only a guest's signup: members log in to cancel.
         const found = yield* sql<Signup>`
-          SELECT id, name, email, true AS guest, locale
+          SELECT ${signupColumns}
           FROM attendees
           WHERE event_id = ${event} AND user_issuer IS NULL
             AND lower(email) = lower(${email.trim()})
@@ -629,7 +499,7 @@ export class Attendance extends Context.Service<
             DELETE FROM attendees
             WHERE id = ${attendee}::uuid AND event_id = ${event}
               AND user_issuer IS NULL
-            RETURNING id, name, email, true AS guest, locale
+            RETURNING ${signupColumns}
           `;
           yield* tell(deleted, (each) =>
             notifications.signupCancelled({ event, attendee: each }),
@@ -652,7 +522,7 @@ export class Attendance extends Context.Service<
         }>`
           SELECT a.id, a.phone, a.company, a.answers
           FROM attendees a JOIN events e ON e.id = a.event_id
-          WHERE a.event_id = ${event} AND a.cancel_token_hash = ${hash(cancelToken)}
+          WHERE a.event_id = ${event} AND a.cancel_token_hash = ${tokenHash(cancelToken)}
             AND e.deleted_at IS NULL
         `.pipe(Effect.orDie);
         if (found === undefined) return yield* new SignupNotFound({});
@@ -680,7 +550,7 @@ export class Attendance extends Context.Service<
         const own =
           "user" in who
             ? sql`user_issuer = ${who.user.issuer} AND user_subject = ${who.user.subject}`
-            : sql`cancel_token_hash = ${hash(who.cancelToken)}`;
+            : sql`cancel_token_hash = ${tokenHash(who.cancelToken)}`;
         const found = yield* sql`
           SELECT id FROM attendees WHERE event_id = ${event} AND ${own}
         `.pipe(Effect.orDie);
@@ -763,51 +633,6 @@ export class Attendance extends Context.Service<
         },
       );
 
-      const invite = Effect.fn("Attendance.invite")(function* (
-        event: DocumentId,
-        person: { readonly name?: string; readonly email: string },
-      ) {
-        const email = person.email.trim();
-        if (!isEmailAddress(email)) {
-          return yield* new InvitationRejected(
-            refused({ _tag: "InvitedEmailInvalid" }),
-          );
-        }
-        const name = (person.name ?? "").trim();
-        // For any event in the studio, published or not.
-        const [row] = yield* sql<Invitation>`
-            INSERT INTO invitations (event_id, name, email)
-            SELECT id, ${name === "" ? null : name}, ${email}
-            FROM documents
-            WHERE id = ${event} AND type = 'event' AND deleted_at IS NULL
-            RETURNING id, name, email, invited_at AS "invitedAt"
-          `.pipe(
-          Effect.catchIf(SqlError.isSqlError, (error) =>
-            pgCode(error) === "23505"
-              ? Effect.fail(
-                  new InvitationRejected(
-                    refused({ _tag: "AlreadyInvited", email }),
-                  ),
-                )
-              : Effect.die(error),
-          ),
-        );
-        if (row === undefined) {
-          return yield* new DocumentNotFound({ id: event });
-        }
-        return row;
-      }, Effect.uninterruptible);
-
-      const invitations = Effect.fn("Attendance.invitations")(function* (
-        event: DocumentId,
-      ) {
-        return yield* sql<Invitation>`
-          SELECT id, name, email, invited_at AS "invitedAt" FROM invitations
-          WHERE event_id = ${event}
-          ORDER BY invited_at, id
-        `.pipe(Effect.orDie);
-      });
-
       return Attendance.of({
         attend,
         leave,
@@ -816,14 +641,12 @@ export class Attendance extends Context.Service<
         requestCancel,
         cancelLink,
         confirmCancel,
-        cancelLinkToken,
+        cancelLinkToken: cancelLinkTokenFor,
         guestSignup,
         change,
         remove,
         dietaryPreferences,
-        invite,
-        invitations,
-        guestToken,
+        guestToken: guestTokenFor,
       });
     }),
   );

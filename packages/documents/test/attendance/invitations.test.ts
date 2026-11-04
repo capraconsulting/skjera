@@ -1,6 +1,6 @@
 import { assert, layer } from "@effect/vitest";
 import { Effect, Ref } from "effect";
-import { Attendance } from "../../src/attendance/Attendance.ts";
+import { Invitations } from "../../src/attendance/Invitations.ts";
 import { Documents } from "../../src/events/Documents.ts";
 import type { DocumentId } from "../../src/Model.ts";
 import { NoticesKept } from "../../src/notices/Notifications.ts";
@@ -23,22 +23,22 @@ layer(TestLayer, { excludeTestServices: true })("Invitations", (it) => {
     "notes who was invited, trimmed, with no name when none is given (AC-2)",
     () =>
       Effect.gen(function* () {
-        const attendance = yield* Attendance;
+        const invitations = yield* Invitations;
         const id = yield* publishedEvent({ public: true, guests: true });
 
-        const gina = yield* attendance.invite(id, {
+        const gina = yield* invitations.invite(id, {
           name: " Gina Guest ",
           email: " gina@example.org ",
         });
         assert.strictEqual(gina.name, "Gina Guest");
         assert.strictEqual(gina.email, "gina@example.org");
-        yield* attendance.invite(id, { email: "hana@example.org" });
-        yield* attendance.invite(id, {
+        yield* invitations.invite(id, { email: "hana@example.org" });
+        yield* invitations.invite(id, {
           name: "   ",
           email: "ivar@example.org",
         });
 
-        const listed = yield* attendance.invitations(id);
+        const listed = yield* invitations.invitations(id);
         assert.deepStrictEqual(
           listed.map(({ name, email }) => ({ name, email })),
           [
@@ -52,13 +52,13 @@ layer(TestLayer, { excludeTestServices: true })("Invitations", (it) => {
 
   it.effect("notes invitations for an event not published yet too (AC-1)", () =>
     Effect.gen(function* () {
-      const attendance = yield* Attendance;
+      const invitations = yield* Invitations;
       const id = yield* draftEvent;
 
-      yield* attendance.invite(id, { email: "gina@example.org" });
+      yield* invitations.invite(id, { email: "gina@example.org" });
 
       assert.deepStrictEqual(
-        (yield* attendance.invitations(id)).map((row) => row.email),
+        (yield* invitations.invitations(id)).map((row) => row.email),
         ["gina@example.org"],
       );
     }),
@@ -68,17 +68,17 @@ layer(TestLayer, { excludeTestServices: true })("Invitations", (it) => {
     "refuses an address that is not valid, and keeps nothing (AC-3)",
     () =>
       Effect.gen(function* () {
-        const attendance = yield* Attendance;
+        const invitations = yield* Invitations;
         const id = yield* publishedEvent({ public: true, guests: true });
 
         for (const email of ["", "   ", "gina@example"]) {
-          const refused = yield* Effect.flip(attendance.invite(id, { email }));
+          const refused = yield* Effect.flip(invitations.invite(id, { email }));
           assert.strictEqual(refused._tag, "InvitationRejected");
           assert.deepStrictEqual(problemOf(refused), {
             _tag: "InvitedEmailInvalid",
           });
         }
-        assert.lengthOf(yield* attendance.invitations(id), 0);
+        assert.lengthOf(yield* invitations.invitations(id), 0);
       }),
   );
 
@@ -86,35 +86,35 @@ layer(TestLayer, { excludeTestServices: true })("Invitations", (it) => {
     "refuses the same address again, whatever its case, once per event (AC-4)",
     () =>
       Effect.gen(function* () {
-        const attendance = yield* Attendance;
+        const invitations = yield* Invitations;
         const id = yield* publishedEvent({ public: true, guests: true });
         const other = yield* publishedEvent({ public: true, guests: true });
-        yield* attendance.invite(id, { email: "gina@example.org" });
+        yield* invitations.invite(id, { email: "gina@example.org" });
 
         const again = yield* Effect.flip(
-          attendance.invite(id, { name: "Gina", email: " Gina@Example.org " }),
+          invitations.invite(id, { name: "Gina", email: " Gina@Example.org " }),
         );
         assert.strictEqual(again._tag, "InvitationRejected");
         assert.deepStrictEqual(problemOf(again), {
           _tag: "AlreadyInvited",
           email: "Gina@Example.org",
         });
-        assert.lengthOf(yield* attendance.invitations(id), 1);
+        assert.lengthOf(yield* invitations.invitations(id), 1);
 
-        yield* attendance.invite(other, { email: "gina@example.org" });
-        assert.lengthOf(yield* attendance.invitations(other), 1);
+        yield* invitations.invite(other, { email: "gina@example.org" });
+        assert.lengthOf(yield* invitations.invitations(other), 1);
       }),
   );
 
   it.effect("lists invitations in the order they were added (AC-5)", () =>
     Effect.gen(function* () {
-      const attendance = yield* Attendance;
+      const invitations = yield* Invitations;
       const id = yield* publishedEvent({ public: true, guests: true });
       const emails = ["zed@example.org", "amy@example.org", "mia@example.org"];
-      for (const email of emails) yield* attendance.invite(id, { email });
+      for (const email of emails) yield* invitations.invite(id, { email });
 
       assert.deepStrictEqual(
-        (yield* attendance.invitations(id)).map((row) => row.email),
+        (yield* invitations.invitations(id)).map((row) => row.email),
         emails,
       );
     }),
@@ -122,7 +122,7 @@ layer(TestLayer, { excludeTestServices: true })("Invitations", (it) => {
 
   it.effect("sends nobody anything when someone is added (AC-6)", () =>
     Effect.gen(function* () {
-      const attendance = yield* Attendance;
+      const invitations = yield* Invitations;
       const kept = yield* NoticesKept;
       const id = yield* publishedEvent({ public: true, guests: true });
       const about = (event: DocumentId) =>
@@ -131,7 +131,7 @@ layer(TestLayer, { excludeTestServices: true })("Invitations", (it) => {
         );
       const before = yield* about(id);
 
-      yield* attendance.invite(id, {
+      yield* invitations.invite(id, {
         name: "Gina Guest",
         email: "gina@example.org",
       });
@@ -144,16 +144,16 @@ layer(TestLayer, { excludeTestServices: true })("Invitations", (it) => {
     "notes nothing for an event that is deleted or does not exist",
     () =>
       Effect.gen(function* () {
-        const attendance = yield* Attendance;
+        const invitations = yield* Invitations;
         const gone = yield* publishedEvent({ public: true, guests: true });
         yield* (yield* Documents).delete(gone, alice);
 
         const deleted = yield* Effect.flip(
-          attendance.invite(gone, { email: "gina@example.org" }),
+          invitations.invite(gone, { email: "gina@example.org" }),
         );
         assert.strictEqual(deleted._tag, "DocumentNotFound");
         const unknown = yield* Effect.flip(
-          attendance.invite(crypto.randomUUID() as DocumentId, {
+          invitations.invite(crypto.randomUUID() as DocumentId, {
             email: "gina@example.org",
           }),
         );

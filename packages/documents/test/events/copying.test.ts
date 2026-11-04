@@ -4,6 +4,7 @@ import { assert, layer } from "@effect/vitest";
 import { Effect, Ref } from "effect";
 import { SqlClient } from "effect/sql";
 import { Attendance } from "../../src/attendance/Attendance.ts";
+import { Invitations } from "../../src/attendance/Invitations.ts";
 import { EventContent } from "../../src/events/ContentTypes.ts";
 import { Documents } from "../../src/events/Documents.ts";
 import type { DocumentId } from "../../src/Model.ts";
@@ -104,8 +105,7 @@ const rowsOf = (id: DocumentId) =>
       SELECT to_jsonb(a) - 'xid' AS row FROM attendees a
       WHERE event_id = ${id} ORDER BY id
     `;
-    const attendance = yield* Attendance;
-    const invitations = yield* attendance.invitations(id);
+    const invitations = yield* (yield* Invitations).invitations(id);
     return {
       document: document?.row,
       event: event?.row,
@@ -129,7 +129,10 @@ const busyEvent = Effect.gen(function* () {
     { name: "Gina", email: "gina@example.org" },
     { online: false },
   );
-  yield* attendance.invite(id, { name: "Ivan", email: "ivan@example.org" });
+  yield* (yield* Invitations).invite(id, {
+    name: "Ivan",
+    email: "ivan@example.org",
+  });
   return id;
 });
 

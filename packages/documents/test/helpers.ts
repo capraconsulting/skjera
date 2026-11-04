@@ -4,6 +4,7 @@ import { Identity } from "@skjera/oauth/api";
 import { Deferred, Effect, Fiber, Layer, Option } from "effect";
 import { SqlClient } from "effect/sql";
 import { Attendance } from "../src/attendance/Attendance.ts";
+import { Invitations } from "../src/attendance/Invitations.ts";
 import type { EventContent } from "../src/events/ContentTypes.ts";
 import { DocumentEvents } from "../src/events/DocumentEvents.ts";
 import { Documents } from "../src/events/Documents.ts";
@@ -34,6 +35,7 @@ export const TestLayer = Layer.mergeAll(
   Sync.layer,
   Teams.layer,
   Attendance.layer,
+  Invitations.layer,
   Presence.layer,
 ).pipe(
   Layer.provideMerge(Announcements.layerTest),
