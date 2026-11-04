@@ -239,6 +239,9 @@ const DocumentsHandlers = HttpApiBuilder.group(Api, "documents", (handlers) =>
           );
         }),
       )
+      .handle("move", ({ params, payload }) =>
+        documents.move(params.id, payload.teamId),
+      )
       .handle("update", ({ params, payload }) =>
         Effect.gen(function* () {
           return yield* documents.publish(

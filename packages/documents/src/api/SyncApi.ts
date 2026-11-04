@@ -50,6 +50,8 @@ export const DocumentRow = Schema.Struct({
   draftHeads: Heads,
   /** The draft's tags, as written. */
   tags: Schema.Array(Schema.String),
+  /** When the event was first published; kept after it is unpublished. */
+  firstPublishedAt: Schema.NullOr(Schema.Date),
   createdAt: Schema.Date,
   updatedAt: Schema.Date,
 });

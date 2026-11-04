@@ -34,6 +34,13 @@ export class PublishRejected extends Schema.TaggedError<PublishRejected>()(
   { httpApiStatus: 400 },
 ) {}
 
+/** The event has been published, so it can't change team. */
+export class MoveRejected extends Schema.TaggedError<MoveRejected>()(
+  "MoveRejected",
+  { problem: Problem, message: Schema.String },
+  { httpApiStatus: 409 },
+) {}
+
 /** No published event with that id (it may exist as an unpublished draft). */
 export class EventNotFound extends Schema.TaggedError<EventNotFound>()(
   "EventNotFound",

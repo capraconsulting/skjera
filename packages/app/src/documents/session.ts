@@ -22,6 +22,7 @@ import {
   discardChanges,
   documents,
   events,
+  moveDocument,
   publishDraft,
   unpublishDocument,
 } from "../sync/tables.ts";
@@ -34,12 +35,15 @@ export interface SessionState {
   readonly presence: DraftPresence | null;
   /** The team the document belongs to, once it is open. */
   readonly teamId: TeamId | null;
+  /** When the event was first published, if it has been; kept once unpublished. */
+  readonly firstPublishedAt: Date | null;
   /** Local changes the server doesn't have yet. */
   readonly saving: boolean;
   readonly publishing: boolean;
   readonly unpublishing: boolean;
   readonly discarding: boolean;
   readonly copying: boolean;
+  readonly moving: boolean;
   readonly error: string | null;
   /** Someone deleted the document; the session has stopped. */
   readonly deleted: boolean;
@@ -48,6 +52,8 @@ export interface SessionState {
   readonly discard: () => void;
   /** Makes a copy of the event and calls `opened` with the copy's id. */
   readonly copy: (opened: (copy: DocumentId) => void) => void;
+  /** Moves the event to another team; the editor follows once the row does. */
+  readonly move: (team: TeamId) => void;
 }
 
 class SessionStore {
@@ -55,17 +61,20 @@ class SessionStore {
     handle: null,
     presence: null,
     teamId: null,
+    firstPublishedAt: null,
     saving: false,
     publishing: false,
     unpublishing: false,
     discarding: false,
     copying: false,
+    moving: false,
     error: null,
     deleted: false,
     publish: () => {},
     unpublish: () => {},
     discard: () => {},
     copy: () => {},
+    move: () => {},
   };
   readonly #listeners = new Set<() => void>();
 
@@ -175,11 +184,12 @@ const session = (id: DocumentId, store: SessionStore) =>
     // Publishes what this copy shows, once the server has all of it.
     const publish = savedVersion(() => m.studio_publish_unsaved()).pipe(
       Effect.flatMap((heads) => publishDraft(id, heads)),
-      // The published version reaches the page as a row of `events`.
+      // The published version reaches the page as a row of `events`; the
+      // document's row says it was published, which locks the organizer.
       Effect.tap(() =>
-        Effect.promise(() => events.refresh()).pipe(
-          Effect.andThen(Effect.sync(() => store.set({ error: null }))),
-        ),
+        Effect.promise(() =>
+          Promise.all([events.refresh(), documents.refresh()]),
+        ).pipe(Effect.andThen(Effect.sync(() => store.set({ error: null })))),
       ),
       Effect.catch((error) =>
         Effect.sync(() =>
@@ -249,6 +259,20 @@ const session = (id: DocumentId, store: SessionStore) =>
         Effect.ensuring(Effect.sync(() => store.set({ copying: false }))),
       );
 
+    // Moves the event to another team. The row is pulled again, and the
+    // session follows its team from there.
+    const move = (team: TeamId) =>
+      moveDocument(id, team).pipe(
+        Effect.tap(() => Effect.promise(() => documents.refresh())),
+        Effect.tap(() => Effect.sync(() => store.set({ error: null }))),
+        Effect.catch((error) =>
+          Effect.sync(() =>
+            store.set({ error: sayWhy(error, m.common_something_wrong()) }),
+          ),
+        ),
+        Effect.ensuring(Effect.sync(() => store.set({ moving: false }))),
+      );
+
     const presence = yield* Effect.acquireRelease(
       Effect.sync(() => new DraftPresence(handle as DocHandle<unknown>)),
       (presence) => Effect.sync(() => presence.stop()),
@@ -258,10 +282,12 @@ const session = (id: DocumentId, store: SessionStore) =>
       handle,
       presence,
       teamId: row.teamId,
+      firstPublishedAt: row.firstPublishedAt,
       publishing: false,
       unpublishing: false,
       discarding: false,
       copying: false,
+      moving: false,
       publish: () => {
         store.set({ publishing: true });
         void Effect.runPromise(publish);
@@ -278,6 +304,10 @@ const session = (id: DocumentId, store: SessionStore) =>
         store.set({ copying: true });
         void Effect.runPromise(copy(opened));
       },
+      move: (team) => {
+        store.set({ moving: true });
+        void Effect.runPromise(move(team));
+      },
     });
     showSaving();
 
@@ -286,8 +316,14 @@ const session = (id: DocumentId, store: SessionStore) =>
       // It only reports deleting rows it has reported, so start with it.
       const subscription = documents.collection.subscribeChanges(
         (changes) => {
-          if (changes.some((change) => change.type === "delete")) {
-            resume(Effect.void);
+          for (const change of changes) {
+            if (change.type === "delete") resume(Effect.void);
+            else {
+              store.set({
+                teamId: change.value.teamId,
+                firstPublishedAt: change.value.firstPublishedAt,
+              });
+            }
           }
         },
         {

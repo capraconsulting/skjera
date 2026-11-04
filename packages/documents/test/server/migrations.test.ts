@@ -167,3 +167,47 @@ layer(TestLayer, { excludeTestServices: true })(
     );
   },
 );
+
+// A database of its own: each block above migrates its database whole.
+layer(TestLayer, { excludeTestServices: true })(
+  "Migrations: first publish",
+  (it) => {
+    it.effect(
+      "marks the events published before the column as published, unpublished ones too, and leaves the rest (AC-4)",
+      () =>
+        Effect.gen(function* () {
+          const sql = yield* SqlClient.SqlClient;
+          yield* Migrator.make({})({ loader: upTo(31) });
+
+          const team = yield* (yield* Teams).create("Team", alice);
+          const document = Effect.gen(function* () {
+            return yield* (yield* Documents).create("event", team.id, alice);
+          });
+          const publish = (id: string) => sql`
+            INSERT INTO events (id, title, starts_at, ends_at, time_zone, body,
+              is_public, allow_guests, ask_dietary, published_heads,
+              published_by_issuer, published_by_subject)
+            VALUES (${id}, 'Meetup', now() + interval '1 day',
+              now() + interval '2 days', 'Europe/Oslo', '[]', true, true,
+              true, '{}', 'test', 'test')
+          `;
+          const published = yield* document;
+          const unpublished = yield* document;
+          const never = yield* document;
+          yield* publish(published);
+          yield* publish(unpublished);
+          yield* sql`UPDATE events SET deleted_at = now() WHERE id = ${unpublished}`;
+
+          yield* Migrator.make({})({ loader: migrations });
+
+          const firstPublished = (id: string) =>
+            sql<{ first_published_at: Date | null }>`
+              SELECT first_published_at FROM documents WHERE id = ${id}
+            `.pipe(Effect.map(([row]) => row?.first_published_at));
+          assert.instanceOf(yield* firstPublished(published), Date);
+          assert.instanceOf(yield* firstPublished(unpublished), Date);
+          assert.isNull(yield* firstPublished(never));
+        }),
+    );
+  },
+);

@@ -320,6 +320,7 @@ layer(TestLayer, { excludeTestServices: true })("Sync", (it) => {
         [
           "createdAt",
           "draftHeads",
+          "firstPublishedAt",
           "id",
           "startsAt",
           "tags",
@@ -337,6 +338,67 @@ layer(TestLayer, { excludeTestServices: true })("Sync", (it) => {
       assert.deepStrictEqual(pulled.deleted, [id]);
       assert.isFalse(copy.rows.has(id));
     }),
+  );
+
+  it.effect("pulls a moved document again, with its new team (AC-3)", () =>
+    Effect.gen(function* () {
+      const sync = yield* Sync;
+      const teams = yield* Teams;
+      const documents = yield* Documents;
+      const from = yield* teams.create(teamName(), alice);
+      const to = yield* teams.create(teamName(), alice);
+      const id = yield* documents.create("event", from.id, alice);
+      const copy = replica(sync.documents);
+      yield* copy.pull;
+      assert.strictEqual(copy.rows.get(id)?.teamId, from.id);
+
+      yield* documents.move(id, to.id);
+
+      const pulled = yield* copy.pull;
+      assert.deepStrictEqual(
+        pulled.rows.map((row) => row.id),
+        [id],
+      );
+      assert.strictEqual(copy.rows.get(id)?.teamId, to.id);
+    }),
+  );
+
+  it.effect(
+    "pulls when an event was first published, and keeps the time after it is unpublished and published again (AC-4)",
+    () =>
+      Effect.gen(function* () {
+        const sync = yield* Sync;
+        const teams = yield* Teams;
+        const documents = yield* Documents;
+        const sql = yield* SqlClient.SqlClient;
+        const team = yield* teams.create(teamName(), alice);
+        const id = yield* documents.create("event", team.id, alice);
+        const copy = replica(sync.documents);
+        yield* copy.pull;
+        assert.strictEqual(copy.rows.get(id)?.firstPublishedAt, null);
+
+        yield* sql`
+          INSERT INTO events (id, title, starts_at, ends_at, time_zone, body, is_public,
+            allow_guests, ask_dietary, published_heads,
+            published_by_issuer, published_by_subject)
+          VALUES (${id}, 'Event', '2036-10-15T18:00+02', '2036-10-15T21:00+02', 'Europe/Oslo', '[]', true, false,
+            false, '{}', 'test', 'test')
+        `;
+        const pulled = yield* copy.pull;
+        assert.isTrue(pulled.rows.some((row) => row.id === id));
+        const first = copy.rows.get(id)?.firstPublishedAt;
+        assert.instanceOf(first, Date);
+
+        yield* documents.unpublish(id);
+        yield* copy.pull;
+        assert.deepStrictEqual(copy.rows.get(id)?.firstPublishedAt, first);
+
+        yield* sql`
+          UPDATE events SET deleted_at = NULL, title = 'Again' WHERE id = ${id}
+        `;
+        yield* copy.pull;
+        assert.deepStrictEqual(copy.rows.get(id)?.firstPublishedAt, first);
+      }),
   );
 
   it.effect("pulls a team with its logos", () =>

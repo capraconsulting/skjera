@@ -172,6 +172,7 @@
   "studio_order_starts": "Event date",
   "studio_search_all": "Search all teams",
   "studio_no_matches": "No events found.",
+  "studio_organizer_locked": "The organizer can't be changed once the event has been published.",
   "studio_untitled": "Untitled",
   "studio_no_date": "No date",
   "studio_draft": "Draft",

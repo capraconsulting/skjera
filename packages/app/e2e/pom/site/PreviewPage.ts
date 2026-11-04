@@ -29,6 +29,13 @@ export class PreviewPage {
     await expect(this.page.getByRole("heading", { name: title })).toBeVisible();
   }
 
+  /** The event's organizer is the team named `name`. */
+  async expectOrganizer(name: string): Promise<void> {
+    await expect(
+      this.page.getByRole("listitem").filter({ hasText: "Organizer:" }),
+    ).toContainText(name);
+  }
+
   async expectNotice(): Promise<void> {
     await expect(this.notice()).toBeVisible();
   }

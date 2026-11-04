@@ -172,6 +172,7 @@
   "studio_order_starts": "Dato for arrangementet",
   "studio_search_all": "Søk i alle team",
   "studio_no_matches": "Fant ingen arrangementer.",
+  "studio_organizer_locked": "Arrangøren kan ikke endres etter at arrangementet er publisert.",
   "studio_untitled": "Uten tittel",
   "studio_no_date": "Ingen dato",
   "studio_draft": "Utkast",

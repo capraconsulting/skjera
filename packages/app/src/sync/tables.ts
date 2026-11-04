@@ -11,6 +11,7 @@ import {
   PublicSyncApi,
   SyncApi,
   type TagRow,
+  type TeamId,
   type TeamLogosChange,
   type TeamRow,
   TeamsApi,
@@ -194,6 +195,20 @@ export const copyDocument = (id: DocumentId, copy: DocumentId) =>
     makeClient.pipe(
       Effect.flatMap((client) =>
         client.documents.copy({ params: { id }, payload: { id: copy } }),
+      ),
+    ),
+  );
+
+/**
+ * Moves an event to another team, while it has never been published. The
+ * request is explicit, not an update of the table's row, so a refusal never
+ * shows the event in the other team and back.
+ */
+export const moveDocument = (id: DocumentId, teamId: TeamId) =>
+  provideHttp(
+    makeClient.pipe(
+      Effect.flatMap((client) =>
+        client.documents.move({ params: { id }, payload: { teamId } }),
       ),
     ),
   );
