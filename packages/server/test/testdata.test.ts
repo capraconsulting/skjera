@@ -822,7 +822,9 @@ describe("catalogue(now)", () => {
         }
       }
     }
-  });
+    // About 50,000 times decoded: half a second here, more than the default
+    // five seconds on CI's machines while every package's tests run at once.
+  }, 30_000);
 
   it("keeps sign-up open, and food asked for, when the signups are made (AC-3)", () => {
     for (const now of nows) {
