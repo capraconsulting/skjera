@@ -127,6 +127,20 @@ export class EventEditor {
     await this.page.reload();
   }
 
+  /** Makes a copy of the open event and returns the copy's id. */
+  async copy(): Promise<string> {
+    const before = this.page.url();
+    await this.page
+      .getByRole("button", { name: "Make a copy", exact: true })
+      .click();
+    // The copy opens in the same team, as another event.
+    await expect(this.page).not.toHaveURL(before);
+    await expect(this.page).toHaveURL(
+      /\/studio\/teams\/[0-9a-f-]+\/events\/[0-9a-f-]+$/,
+    );
+    return new URL(this.page.url()).pathname.split("/").pop() ?? "";
+  }
+
   private readonly status = () => this.page.getByTestId("status");
   private readonly publishButton = () =>
     this.page.getByRole("button", { name: "Publish", exact: true });

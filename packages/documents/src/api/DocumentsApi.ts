@@ -27,6 +27,17 @@ export class DocumentsApi extends HttpApiGroup.make("documents")
       error: TeamNotFound,
     }),
     /**
+     * Makes a new, never-published event in the same team with the content of
+     * the event's draft, under the id the client picked for it. Copying again
+     * with the same id does nothing, so a client can safely retry.
+     */
+    HttpApiEndpoint.post("copy", "/api/documents/:id/copies", {
+      params: { id: DocumentId },
+      payload: Schema.Struct({ id: DocumentId }),
+      success: DocumentId,
+      error: DocumentNotFound,
+    }),
+    /**
      * Publishes the draft as of `heads`: the version the user saw, which
      * the server must already have. The published version syncs as a row
      * of `events`.

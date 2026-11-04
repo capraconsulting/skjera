@@ -634,5 +634,8 @@
   "studio_invitation_added": "{email} was added to the list",
   "problem_invited_email_invalid": "Enter a valid email address",
   "problem_already_invited": "{email} has already been added",
-  "site_nothing_past": "No past events found 😭"
+  "site_nothing_past": "No past events found 😭",
+  "studio_copy": "Make a copy",
+  "studio_copy_unsaved": "Couldn't make a copy: your edits haven't been saved yet",
+  "studio_copy_failed": "Making a copy failed"
 }

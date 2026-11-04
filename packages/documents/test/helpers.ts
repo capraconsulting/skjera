@@ -1,4 +1,5 @@
 import * as A from "@automerge/automerge";
+import { basicSchemaAdapter } from "@automerge/prosemirror";
 import { Identity } from "@skjera/oauth/api";
 import { Deferred, Effect, Fiber, Layer, Option } from "effect";
 import { SqlClient } from "effect/sql";
@@ -322,3 +323,76 @@ export const interruptedWhileLocked = <A, E, R>(
     yield* Fiber.join(holder);
     yield* Fiber.join(interrupting);
   });
+
+const immutable = (text: string) => new A.ImmutableString(text);
+const config = basicSchemaAdapter.updateSpansConfig();
+
+/** Rich text as the editor stores it: a block, then text with marks. */
+export const paragraph = (): A.Span =>
+  ({
+    type: "block",
+    value: { type: immutable("paragraph"), parents: [], attrs: {} },
+  }) as unknown as A.Span;
+
+export const text = (value: string, marks?: Record<string, unknown>): A.Span =>
+  ({ type: "text", value, ...(marks ? { marks } : {}) }) as unknown as A.Span;
+
+export const link = JSON.stringify({ href: "https://example.com", title: "" });
+
+/** An image block as the editor stores it: choices immutable, alt text. */
+export const image = (alt: string, caption: string, size = "medium"): A.Span =>
+  ({
+    type: "block",
+    value: {
+      type: immutable("image"),
+      parents: [],
+      isEmbed: true,
+      attrs: {
+        src: immutable("/api/images/AAAAAAAAAAAAAAAAAAAAAA"),
+        alt,
+        placement: immutable("full"),
+        size: immutable(size),
+        caption: immutable(caption),
+      },
+    },
+  }) as unknown as A.Span;
+
+/** Replaces the body's rich text by spans, as the editor stores them. */
+export const writeBody = (event: EventContent, spans: ReadonlyArray<A.Span>) =>
+  A.updateSpans(event, ["body"], [...spans], config);
+
+/**
+ * Gives a new draft a value of every kind of field the schema has: text,
+ * rich text with marks, links and an image, a cover, times, a place, tags,
+ * a question and streaming.
+ */
+export const fillEveryKindOfField = (event: EventContent) => {
+  A.updateText(event, ["title"], "Launch");
+  setSummary(event, "A short summary");
+  writeBody(event, [
+    paragraph(),
+    text("See "),
+    text("the docs", { link }),
+    text(" and be "),
+    text("bold", { strong: true }),
+    image("A cat", "A long caption"),
+  ]);
+  setEmailRichText(event, "signedUpText");
+  setCover(event, "/api/images/AAAAAAAAAAAAAAAAAAAAAA");
+  A.updateText(event, ["cover", "alt"], "A full room");
+  setTimes(event);
+  setPlace(event, "Kantina");
+  addTags(event, "food", "talk");
+  setQuestions(event, [
+    {
+      id: "q1",
+      type: "choice",
+      text: "Which day?",
+      options: [
+        { id: "o1", text: "Monday" },
+        { id: "o2", text: "Tuesday" },
+      ],
+    },
+  ]);
+  setStreamed(event, true, "https://stream.example.com");
+};

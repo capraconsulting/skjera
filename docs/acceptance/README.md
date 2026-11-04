@@ -43,6 +43,7 @@ These files say what to test and how. Which criteria have passed in a round of t
 | STU-21 | [Previewing an event](STU-21-preview.md) |
 | STU-22 | [Picking an existing image](STU-22-picking-an-existing-image.md) |
 | STU-23 | [Discarding changes](STU-23-discarding-changes.md) |
+| STU-24 | [Making a copy of an event](STU-24-copying.md) |
 
 ## SITE: The public site
 

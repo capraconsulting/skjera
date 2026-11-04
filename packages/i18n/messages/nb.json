@@ -634,5 +634,8 @@
   "studio_invitation_added": "{email} ble lagt til i listen",
   "problem_invited_email_invalid": "Skriv inn en gyldig e-postadresse",
   "problem_already_invited": "{email} er allerede lagt til",
-  "site_nothing_past": "Fant ingen tidligere arrangementer 😭"
+  "site_nothing_past": "Fant ingen tidligere arrangementer 😭",
+  "studio_copy": "Lag kopi",
+  "studio_copy_unsaved": "Kunne ikke lage kopi: endringene dine er ikke lagret ennå",
+  "studio_copy_failed": "Kopieringen mislyktes"
 }

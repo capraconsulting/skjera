@@ -1,6 +1,5 @@
 import { isDeepStrictEqual } from "node:util";
 import * as A from "@automerge/automerge";
-import { basicSchemaAdapter } from "@automerge/prosemirror";
 import { assert, describe, it, layer } from "@effect/vitest";
 import { Effect, Ref } from "effect";
 import { SqlClient } from "effect/sql";
@@ -20,91 +19,29 @@ import {
   addTags,
   alice,
   bob,
+  fillEveryKindOfField,
+  image,
+  link,
   newTeam,
   openEditor,
+  paragraph,
   publishedEvent,
   setCover,
-  setEmailRichText,
   setLimit,
   setPlace,
   setQuestions,
-  setStreamed,
   setSummary,
   setTimes,
   TestLayer,
+  text,
+  writeBody,
 } from "../helpers.ts";
-
-const immutable = (text: string) => new A.ImmutableString(text);
-const config = basicSchemaAdapter.updateSpansConfig();
-
-/** Rich text as the editor stores it: a block, then text with marks. */
-const paragraph = (): A.Span =>
-  ({
-    type: "block",
-    value: { type: immutable("paragraph"), parents: [], attrs: {} },
-  }) as unknown as A.Span;
-
-const text = (value: string, marks?: Record<string, unknown>): A.Span =>
-  ({ type: "text", value, ...(marks ? { marks } : {}) }) as unknown as A.Span;
-
-const link = JSON.stringify({ href: "https://example.com", title: "" });
-
-/** An image block as the editor stores it: choices immutable, alt text. */
-const image = (alt: string, caption: string, size = "medium"): A.Span =>
-  ({
-    type: "block",
-    value: {
-      type: immutable("image"),
-      parents: [],
-      isEmbed: true,
-      attrs: {
-        src: immutable("/api/images/AAAAAAAAAAAAAAAAAAAAAA"),
-        alt,
-        placement: immutable("full"),
-        size: immutable(size),
-        caption: immutable(caption),
-      },
-    },
-  }) as unknown as A.Span;
-
-const writeBody = (event: EventContent, spans: ReadonlyArray<A.Span>) =>
-  A.updateSpans(event, ["body"], [...spans], config);
 
 const newDraft = () =>
   A.from<EventContent>({ ...contentTypes.event.initial } as EventContent);
 
 /** The draft as it is published, with a value of every kind the schema has. */
-const published = () =>
-  A.change(newDraft(), (event) => {
-    A.updateText(event, ["title"], "Launch");
-    setSummary(event, "A short summary");
-    writeBody(event, [
-      paragraph(),
-      text("See "),
-      text("the docs", { link }),
-      text(" and be "),
-      text("bold", { strong: true }),
-      image("A cat", "A long caption"),
-    ]);
-    setEmailRichText(event, "signedUpText");
-    setCover(event, "/api/images/AAAAAAAAAAAAAAAAAAAAAA");
-    A.updateText(event, ["cover", "alt"], "A full room");
-    setTimes(event);
-    setPlace(event, "Kantina");
-    addTags(event, "food", "talk");
-    setQuestions(event, [
-      {
-        id: "q1",
-        type: "choice",
-        text: "Which day?",
-        options: [
-          { id: "o1", text: "Monday" },
-          { id: "o2", text: "Tuesday" },
-        ],
-      },
-    ]);
-    setStreamed(event, true, "https://stream.example.com");
-  });
+const published = () => A.change(newDraft(), fillEveryKindOfField);
 
 /** The same draft after an organiser has changed every kind of field. */
 const edited = (doc: A.Doc<EventContent>) =>

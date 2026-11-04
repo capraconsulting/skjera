@@ -25,7 +25,12 @@ import {
   contentTypes,
   type EventContent,
 } from "./ContentTypes.ts";
-import { restorePublished, sameContent } from "./DiscardChanges.ts";
+import {
+  copyContent,
+  restorePublished,
+  sameContent,
+  sameContentAs,
+} from "./DiscardChanges.ts";
 
 /** When and where an event is, as published. */
 interface WhenAndWhere {
@@ -62,6 +67,17 @@ export class Documents extends Context.Service<
       author: Identity,
       id?: DocumentId,
     ) => Effect.Effect<DocumentId, TeamNotFound>;
+    /**
+     * Makes a new, never-published document in the source's team with the
+     * content of its draft, and none of its history, attendees or
+     * invitations. Copying again with the same `id` does nothing, so a client
+     * can safely retry.
+     */
+    readonly copy: (
+      source: DocumentId,
+      id: DocumentId,
+      author: Identity,
+    ) => Effect.Effect<DocumentId, DocumentNotFound>;
     readonly get: (
       id: DocumentId,
     ) => Effect.Effect<DocumentSnapshot, DocumentNotFound>;
@@ -181,6 +197,56 @@ export class Documents extends Context.Service<
           draft: row.draft,
         } satisfies DocumentSnapshot;
       });
+
+      const copy = Effect.fn("Documents.copy")(function* (
+        source: DocumentId,
+        id: DocumentId,
+        author: Identity,
+      ) {
+        const [row] = yield* sql<{
+          type: ContentTypeName;
+          team_id: TeamId;
+          draft: Uint8Array;
+        }>`
+          SELECT type, team_id, draft::bytea AS draft
+          FROM documents WHERE id = ${source} AND deleted_at IS NULL
+        `.pipe(Effect.orDie);
+        if (row === undefined) {
+          return yield* new DocumentNotFound({ id: source });
+        }
+
+        // A new draft, as `create` builds one, with the source's content
+        // written into it: none of the source's history comes along.
+        const original = A.load<EventContent>(row.draft);
+        const made = copyContent(
+          A.from({ ...contentTypes[row.type].initial }),
+          original,
+        );
+        if (!sameContentAs(made, original)) {
+          return yield* Effect.die(
+            `The copy of ${source} does not have the content of its source`,
+          );
+        }
+
+        yield* Effect.gen(function* () {
+          const [inserted] = yield* sql<{ content: unknown }>`
+            INSERT INTO documents (id, type, team_id, draft, created_by_issuer, created_by_subject)
+            VALUES (${id}, ${row.type}, ${row.team_id}, ${A.save(made)}::bytea,
+              ${author.issuer}, ${author.subject})
+            ON CONFLICT (id) DO NOTHING
+            RETURNING draft::jsonb AS content
+          `;
+          // Copied before, by an earlier try: nothing inserted, nothing to check.
+          if (inserted === undefined) return;
+          // The server's draft must fit the schema, as an editor's must; the
+          // transaction rolls back and nothing is stored if it does not.
+          yield* Schema.decodeUnknownEffect(contentTypes[row.type].schema)(
+            inserted.content,
+            { onExcessProperty: "error" },
+          );
+        }).pipe(sql.withTransaction, Effect.orDie);
+        return id;
+      }, Effect.uninterruptible);
 
       const typeOf = Effect.fnUntraced(function* (id: DocumentId) {
         const [row] = yield* sql<{ type: ContentTypeName }>`
@@ -552,6 +618,7 @@ export class Documents extends Context.Service<
 
       return Documents.of({
         create,
+        copy,
         get,
         changesSince,
         applyChanges,
