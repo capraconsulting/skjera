@@ -108,8 +108,8 @@ test("team names must be unique", async ({ browser }) => {
 test("teams can be renamed", async ({ browser }) => {
   const alice = await signedIn(browser, "alice@example.com");
   const teams = new TeamsColumn(alice);
-  const taken = await teams.create(uniqueTeamName("Taken"));
-  const takenName = await teams.teamName("Taken");
+  const takenName = uniqueTeamName("Taken");
+  const taken = await teams.create(takenName);
   const before = uniqueTeamName("Before");
   const team = await teams.create(before);
   const renamed = uniqueTeamName("After");
@@ -264,6 +264,7 @@ test("a team's events are searched by title and tags, and ordered (AC-1, AC-2, A
   await editor.times.pick();
   const feastId = await events.newEvent();
   await editor.title.type(feast);
+  await editor.expectSaved();
   // The party is edited last.
   await editor.goto(red, partyId);
   await editor.title.typeAt("end", "!");
@@ -325,9 +326,11 @@ test("events are found across teams in the order chosen, which is kept (AC-3, AC
   const second = `Second ${word}`;
   const firstId = await events.newEvent();
   await editor.title.type(first);
+  await editor.expectSaved();
   const blue = await teams.create(blueName);
   const secondId = await events.newEvent();
   await editor.title.type(second);
+  await editor.expectSaved();
   // The first made is edited last: «Sist endret» and «Opprettet» differ.
   await editor.goto(red, firstId);
   await editor.title.typeAt("end", "!");

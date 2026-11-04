@@ -70,11 +70,6 @@ export class TeamsColumn {
     await expect(this.link(name)).toHaveAttribute("aria-current", "page");
   }
 
-  /** The full name of the team whose link matches `name`. */
-  async teamName(name: string): Promise<string> {
-    return (await this.link(name).textContent()) ?? "";
-  }
-
   /** Opens a team's own "⋯" menu. */
   async openMenu(id: string): Promise<void> {
     const row = this.region()
