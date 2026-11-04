@@ -1,6 +1,7 @@
 import { isDeepStrictEqual } from "node:util";
 import * as A from "@automerge/automerge";
 import { assert, describe, it, layer } from "@effect/vitest";
+import { Identity } from "@skjera/oauth/api";
 import { Effect, Ref } from "effect";
 import { SqlClient } from "effect/sql";
 import { Attendance } from "../../src/attendance/Attendance.ts";
@@ -186,7 +187,7 @@ layer(TestLayer, { excludeTestServices: true })("Discarding changes", (it) => {
           alice,
         );
 
-        yield* documents.discardChanges(id);
+        yield* documents.discardChanges(id, alice);
 
         const snapshot = yield* documents.get(id);
         const draft = A.load<EventContent>(snapshot.draft);
@@ -219,7 +220,7 @@ layer(TestLayer, { excludeTestServices: true })("Discarding changes", (it) => {
           alice,
         );
         const draftBefore = yield* documents.get(unpublished);
-        yield* documents.discardChanges(unpublished);
+        yield* documents.discardChanges(unpublished, alice);
         const draftAfter = yield* documents.get(unpublished);
         assert.deepStrictEqual(draftAfter.heads, draftBefore.heads);
         assert.isUndefined(yield* rowOf(unpublished));
@@ -236,7 +237,7 @@ layer(TestLayer, { excludeTestServices: true })("Discarding changes", (it) => {
           SELECT to_jsonb(e) - 'xid' AS row FROM events e WHERE id = ${taken}
         `;
         const takenBefore = yield* documents.get(taken);
-        yield* documents.discardChanges(taken);
+        yield* documents.discardChanges(taken, alice);
         const rowAfter = yield* sql`
           SELECT to_jsonb(e) - 'xid' AS row FROM events e WHERE id = ${taken}
         `;
@@ -283,7 +284,7 @@ layer(TestLayer, { excludeTestServices: true })("Discarding changes", (it) => {
           alice,
         );
 
-        yield* documents.discardChanges(id);
+        yield* documents.discardChanges(id, alice);
 
         assert.strictEqual(kept(yield* Ref.get(notices)), noticesBefore);
         assert.strictEqual(
@@ -296,5 +297,45 @@ layer(TestLayer, { excludeTestServices: true })("Discarding changes", (it) => {
         `;
         assert.strictEqual(signed?.count, 2);
       }),
+  );
+
+  it.effect(
+    "names who discarded, as an entry of its own in the history (AC-1)",
+    () =>
+      Effect.gen(function* () {
+        const documents = yield* Documents;
+        const discarder = new Identity({
+          issuer: "https://idp.example",
+          subject: `discarder-${crypto.randomUUID()}`,
+          name: "Dina Discarder",
+        });
+        const id = yield* publishedEvent({ public: true, guests: true });
+        const editor = yield* openEditor(id);
+        yield* documents.applyChanges(
+          id,
+          [editor.edit((event) => A.updateText(event, ["title"], "Changed"))],
+          alice,
+        );
+
+        yield* documents.discardChanges(id, discarder);
+
+        const [newest, edited] = yield* documents.history(id);
+        assert.strictEqual(newest?.kind, "discarded");
+        assert.strictEqual(newest?.by, "Dina Discarder");
+        assert.isFalse(newest?.automatic);
+        assert.strictEqual(edited?.kind, "edited");
+      }),
+  );
+
+  it.effect("adds no entry for a discard that changes nothing (AC-1)", () =>
+    Effect.gen(function* () {
+      const documents = yield* Documents;
+      const id = yield* publishedEvent({ public: true, guests: true });
+      const before = yield* documents.history(id);
+
+      yield* documents.discardChanges(id, alice);
+
+      assert.strictEqual((yield* documents.history(id)).length, before.length);
+    }),
   );
 });

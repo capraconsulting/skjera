@@ -34,6 +34,13 @@ export class PublishRejected extends Schema.TaggedError<PublishRejected>()(
   { httpApiStatus: 400 },
 ) {}
 
+/** The version to restore is not one the draft has. */
+export class RestoreRejected extends Schema.TaggedError<RestoreRejected>()(
+  "RestoreRejected",
+  { problem: Problem, message: Schema.String },
+  { httpApiStatus: 400 },
+) {}
+
 /** No published event with that id (it may exist as an unpublished draft). */
 export class EventNotFound extends Schema.TaggedError<EventNotFound>()(
   "EventNotFound",

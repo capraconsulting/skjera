@@ -975,5 +975,14 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
     team("STU-25: Cropping the cover", [
       event("AC-1 to AC-9: Cover to crop", { ...guests, ...week }),
     ]),
+    team("STU-27: History", [
+      event("AC-1 to AC-8: Edited by two", {
+        ...guests,
+        ...week,
+        summary: "Published by alice.",
+        edit: { summary: "Changed by bob." },
+        signups: [bob(), guest("STU-27", 1)],
+      }),
+    ]),
   ];
 };

@@ -15,6 +15,7 @@ import {
   guestProblems,
   isEmailAddress,
   isMobileNumber,
+  isVersion,
   optionalSetting,
   organizerLogos,
   Question,
@@ -563,5 +564,20 @@ describe("shownCover", () => {
       src: picture,
       position: "50% 50%",
     });
+  });
+});
+
+describe("Version", () => {
+  const hash = "a".repeat(64);
+
+  it("is a non-empty list of change hashes (AC-3)", () => {
+    assert.isTrue(isVersion([hash]));
+    assert.isTrue(isVersion([hash, "0123456789abcdef".repeat(4)]));
+    assert.isFalse(isVersion([]));
+    assert.isFalse(isVersion([hash.toUpperCase()]));
+    assert.isFalse(isVersion([hash.slice(1)]));
+    assert.isFalse(isVersion([`${hash}0`]));
+    assert.isFalse(isVersion(["not a hash"]));
+    assert.isFalse(isVersion([hash, "g".repeat(64)]));
   });
 });

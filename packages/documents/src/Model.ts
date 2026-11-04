@@ -76,6 +76,16 @@ export class Team extends Schema.Class<Team>("@skjera/documents/Team")({
 export const Heads = Schema.Array(Schema.String);
 export type Heads = typeof Heads.Type;
 
+/**
+ * A version of a document that can be named: one or more change hashes, each
+ * 64 lower-case hexadecimal characters. `Heads` is any array of strings.
+ */
+export const Version = Schema.NonEmptyArray(
+  Schema.String.check(Schema.isPattern(/^[0-9a-f]{64}$/)),
+);
+export type Version = typeof Version.Type;
+export const isVersion = Schema.is(Version);
+
 export class Publication extends Schema.Class<Publication>(
   "@skjera/documents/Publication",
 )({
@@ -83,6 +93,20 @@ export class Publication extends Schema.Class<Publication>(
   heads: Heads,
   publishedAt: Schema.Date,
   firstPublishedAt: Schema.Date,
+}) {}
+
+/** One line of an event's history: what happened, by whom, and the version it left. */
+export class HistoryEntry extends Schema.Class<HistoryEntry>(
+  "@skjera/documents/HistoryEntry",
+)({
+  kind: Schema.Literals(["edited", "published", "restored", "discarded"]),
+  at: Schema.Date,
+  /** The draft as it was after this entry, or the version published. */
+  heads: Heads,
+  /** The person's name, or their email; null when Skjera has neither. */
+  by: Schema.NullOr(Schema.String),
+  /** Skjera did it on its own: the move of a recurring event to its next date. */
+  automatic: Schema.Boolean,
 }) {}
 
 /**

@@ -122,6 +122,8 @@ export interface EventSpec {
     readonly unit: "day" | "week" | "month" | "year";
   };
   readonly signups?: ReadonlyArray<SignupSpec>;
+  /** After the event is published, bob gives the draft another summary. */
+  readonly edit?: { readonly summary: string };
 }
 
 export interface TeamSpec {
@@ -590,6 +592,22 @@ export const fill = (teams: ReadonlyArray<TeamSpec>, people: People) =>
           .publish(id, heads, people.alice)
           .pipe(Effect.mapError(refuse));
         yield* signUp(team, spec, id, ids);
+        const edit = spec.edit;
+        if (edit !== undefined) {
+          const published = yield* documents
+            .get(id)
+            .pipe(Effect.mapError(refuse));
+          const changed = A.change(
+            A.load<EventContent>(published.draft),
+            (doc) => setText(doc, "summary", edit.summary),
+          );
+          const edited = A.getLastLocalChange(changed);
+          if (edited !== undefined) {
+            yield* documents
+              .applyChanges(id, [edited], people.bob)
+              .pipe(Effect.mapError(refuse));
+          }
+        }
         if (state !== "deleted") return undefined;
         yield* documents.delete(id, people.alice).pipe(Effect.mapError(refuse));
         return id as string;

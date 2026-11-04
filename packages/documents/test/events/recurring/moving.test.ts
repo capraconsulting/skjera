@@ -276,6 +276,23 @@ layer(TestLayer, { excludeTestServices: true })("Moving events", (it) => {
   );
 
   it.effect(
+    "shows the move and its publishing in the history as Skjera's own entries (AC-6)",
+    () =>
+      Effect.gen(function* () {
+        const documents = yield* Documents;
+        const { id } = yield* weekly("2044-01-05");
+        yield* Recurring.moveEnded(new Date("2044-01-06T06:30:00Z"));
+        const [published, moved, ...earlier] = yield* documents.history(id);
+        assert.strictEqual(published?.kind, "published");
+        assert.isTrue(published?.automatic);
+        assert.isNull(published?.by);
+        assert.strictEqual(moved?.kind, "edited");
+        assert.isTrue(moved?.automatic);
+        assert.isFalse(earlier.some((entry) => entry.automatic));
+      }),
+  );
+
+  it.effect(
     "moves neither an event that is not marked as recurring nor one with recurring off",
     () =>
       Effect.gen(function* () {

@@ -6,6 +6,13 @@ import { basicSchemaAdapter } from "@automerge/prosemirror";
 // draft cannot be wound back: every editor holds a copy that would sync the
 // removed changes in again.
 
+/**
+ * The messages that mark a change in the history: a restored version and
+ * discarded changes are entries of their own there.
+ */
+export const restoredMessage = "restored";
+export const discardedMessage = "discarded";
+
 type Plain = Record<string, unknown>;
 type Path = ReadonlyArray<string>;
 
@@ -132,10 +139,11 @@ const restoreMap = (
 export const copyContent = <T>(
   doc: A.Doc<T>,
   other: A.Doc<unknown>,
+  options: A.ChangeOptions<T> = {},
 ): A.Doc<T> => {
   const wanted = A.toJS(other) as Plain;
   const current = A.toJS(doc) as Plain;
-  return A.change(doc, (draft) => {
+  return A.change(doc, options, (draft) => {
     restoreMap(
       draft as A.Doc<unknown>,
       doc as A.Doc<unknown>,
@@ -152,5 +160,8 @@ export const copyContent = <T>(
  * Makes `doc` equal to itself as of `heads`, in every field, by one change
  * on top of its current heads.
  */
-export const restorePublished = <T>(doc: A.Doc<T>, heads: A.Heads): A.Doc<T> =>
-  copyContent(doc, forkAt(doc, heads));
+export const restorePublished = <T>(
+  doc: A.Doc<T>,
+  heads: A.Heads,
+  options: A.ChangeOptions<T> = {},
+): A.Doc<T> => copyContent(doc, forkAt(doc, heads), options);

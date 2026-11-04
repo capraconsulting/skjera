@@ -167,3 +167,46 @@ layer(TestLayer, { excludeTestServices: true })(
     );
   },
 );
+
+// A database of its own: each block above migrates its database whole.
+layer(TestLayer, { excludeTestServices: true })("Migrations: history", (it) => {
+  it.effect(
+    "gives an event published before the log its latest publishing as the log's first (AC-6)",
+    () =>
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        yield* Migrator.make({})({ loader: upTo(31) });
+
+        const team = yield* (yield* Teams).create("Team", alice);
+        const id = yield* (yield* Documents).create("event", team.id, alice);
+        yield* sql`
+            INSERT INTO events (id, title, starts_at, ends_at, time_zone, body,
+              is_public, allow_guests, ask_dietary, published_heads,
+              published_by_issuer, published_by_subject)
+            VALUES (${id}, 'Meetup', now() + interval '1 day',
+              now() + interval '2 days', 'Europe/Oslo', '[]', true, true,
+              true, '{abc,def}', 'https://idp.example', 'alice')
+          `;
+        const [before] = yield* sql<{ published_at: Date }>`
+            SELECT published_at FROM events WHERE id = ${id}
+          `;
+
+        yield* Migrator.make({})({ loader: migrations });
+
+        const log = yield* sql<{
+          heads: ReadonlyArray<string>;
+          published_at: Date;
+          published_by_issuer: string | null;
+          published_by_subject: string | null;
+        }>`
+            SELECT heads, published_at, published_by_issuer, published_by_subject
+            FROM event_publications WHERE event_id = ${id}
+          `;
+        assert.lengthOf(log, 1);
+        assert.deepStrictEqual(log[0]?.heads, ["abc", "def"]);
+        assert.deepStrictEqual(log[0]?.published_at, before?.published_at);
+        assert.strictEqual(log[0]?.published_by_issuer, "https://idp.example");
+        assert.strictEqual(log[0]?.published_by_subject, "alice");
+      }),
+  );
+});

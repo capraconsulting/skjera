@@ -21,6 +21,11 @@ export class PreviewPage {
     await this.page.goto(`/events/${id}/preview`);
   }
 
+  /** The preview of an earlier version, given as the address gives it. */
+  async gotoVersion(id: string, version: string): Promise<void> {
+    await this.page.goto(`/events/${id}/preview?version=${version}`);
+  }
+
   async expectAt(id: string): Promise<void> {
     await expect(this.page).toHaveURL(new RegExp(`/events/${id}/preview$`));
   }

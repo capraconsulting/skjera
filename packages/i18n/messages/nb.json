@@ -653,5 +653,22 @@
   "editor_cover_crop_hint": "Dra over bildet for å velge delen som skal brukes. Dra i rammen for å flytte den.",
   "editor_cover_crop_frame": "Delen som skal brukes",
   "editor_cover_focus_title": "Velg fokuspunkt",
-  "editor_cover_focus_hint": "Klikk på punktet som må være med."
+  "editor_cover_focus_hint": "Klikk på punktet som må være med.",
+  "studio_history": "Historikk",
+  "studio_history_loading": "Henter historikken …",
+  "studio_history_failed": "Kunne ikke hente historikken",
+  "studio_history_edited": "Endret",
+  "studio_history_published": "Publisert",
+  "studio_history_restored": "Gjenopprettet en tidligere versjon",
+  "studio_history_discarded": "Forkastet endringer",
+  "studio_history_by": "av {name}",
+  "studio_history_unknown": "Ukjent",
+  "studio_history_skjera": "Skjera",
+  "studio_history_view": "Vis",
+  "studio_restore_version": "Gjenopprett denne versjonen",
+  "studio_confirm_restore": "Gjenopprette denne versjonen? Utkastet blir som det var da. Ingenting publiseres før du publiserer.",
+  "studio_restore_unsaved": "Kunne ikke gjenopprette: endringene dine er ikke lagret ennå",
+  "studio_restore_failed": "Gjenopprettingen mislyktes",
+  "preview_version_loading": "Henter versjonen …",
+  "preview_version_notice": "Forhåndsvisning av en tidligere versjon – dette er ikke publisert."
 }

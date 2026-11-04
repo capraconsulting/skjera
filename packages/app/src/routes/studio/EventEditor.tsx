@@ -86,10 +86,12 @@ function EventSession({ id }: { readonly id: DocumentId }) {
           publishing={session.publishing}
           unpublishing={session.unpublishing}
           discarding={session.discarding}
+          restoring={session.restoring}
           copying={session.copying}
           onPublish={session.publish}
           onUnpublish={session.unpublish}
           onDiscard={session.discard}
+          onRestore={session.restore}
           onCopy={() =>
             session.copy((copy) =>
               navigate(`/studio/teams/${owner ?? teamId}/events/${copy}`),

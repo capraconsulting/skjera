@@ -3,6 +3,7 @@ import {
   DocumentId,
   type EventContent,
   eventPreview,
+  isVersion,
   type Organizer,
   type RichText,
 } from "@skjera/documents/api";
@@ -38,13 +39,22 @@ export const previewSiteLoader = ({ request }: { request: Request }) =>
 
 /**
  * Opens the draft for the preview. Nobody logged in, an id that is not a
- * document's, or a draft that is not there is a 404, as an unpublished
- * event's page is.
+ * document's, a `version` in the address that is not change hashes, or a
+ * draft that is not there is a 404, as an unpublished event's page is.
  */
-export const previewLoader = async ({ params }: LoaderFunctionArgs) => {
+export const previewLoader = async ({
+  params,
+  request,
+}: LoaderFunctionArgs) => {
   const id = params.id as DocumentId;
   const me = await fetchMe();
   if (me === null || !isDocumentId(id)) {
+    throw data("Event not found", { status: 404 });
+  }
+  // An earlier version of the draft, given as its heads joined by commas.
+  const asked = new URL(request.url).searchParams.get("version");
+  const heads = asked === null ? null : asked.split(",");
+  if (heads !== null && !isVersion(heads)) {
     throw data("Event not found", { status: 404 });
   }
   setLocalUser(me);
@@ -59,12 +69,12 @@ export const previewLoader = async ({ params }: LoaderFunctionArgs) => {
   }
   const handle = await openDraft<EventContent>(id).catch(() => null);
   if (handle === null) throw data("Event not found", { status: 404 });
-  return { id, handle, me };
+  return { id, handle, me, heads };
 };
 
 /** The page the draft would give when published, with the notice. */
 export function Preview() {
-  const { id, handle, me } = useLoaderData<typeof previewLoader>();
+  const { id, handle, me, heads } = useLoaderData<typeof previewLoader>();
   const version = useVersion(handle);
   const row = useLiveQuery({
     query: (q) =>
@@ -84,9 +94,15 @@ export function Preview() {
         .findOne(),
   }).data;
   const signups = useSignups(id);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the version stands for what the draft holds
+  // An earlier version shows once the local copy has those heads; it does
+  // not follow the draft after that.
+  const found = heads === null || A.hasHeads(handle.doc(), [...heads]);
+  const following = heads === null ? version : "";
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `following` stands for what the draft holds, and `heads` is set once by the loader
   const event = useMemo(() => {
-    if (team === undefined) return null;
+    if (team === undefined || !found) return null;
+    const draft =
+      heads === null ? handle.doc() : A.clone(A.view(handle.doc(), [...heads]));
     const organizer: Organizer = {
       name: team.name,
       logo: team.logo,
@@ -94,11 +110,11 @@ export function Preview() {
     };
     return eventPreview({
       id,
-      content: handle.doc(),
-      body: A.spans(handle.doc(), ["body"]) as unknown as RichText,
+      content: draft,
+      body: A.spans(draft, ["body"]) as unknown as RichText,
       organizer,
     });
-  }, [id, handle, version, team]);
+  }, [id, handle, following, team, found]);
   usePageTitle({ page: "event", title: event?.title ?? "" });
   // The draft was deleted while its preview was open.
   if (row === undefined || team === undefined) {
@@ -107,7 +123,9 @@ export function Preview() {
   return (
     <div className={styles.preview}>
       {event === null ? (
-        <p className={styles.needsTimes}>{m.preview_needs_times()}</p>
+        <p className={styles.needsTimes}>
+          {found ? m.preview_needs_times() : m.preview_version_loading()}
+        </p>
       ) : (
         <EventView
           event={event}
@@ -119,7 +137,9 @@ export function Preview() {
         />
       )}
       <aside className={styles.notice}>
-        <span>{m.preview_notice()}</span>
+        <span>
+          {heads === null ? m.preview_notice() : m.preview_version_notice()}
+        </span>
         {published === undefined ? null : (
           <Link to={`/events/${id}`}>{m.preview_view_published()}</Link>
         )}

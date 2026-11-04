@@ -14,3 +14,12 @@ export const publishState = (input: {
     [...publishedHeads].sort().join(",") === version;
   return { upToDate, changed: publishedHeads !== undefined && !upToDate };
 };
+
+/**
+ * Whether a version of the event is the draft as it is: its heads, in any
+ * order, against the draft's version from `useVersion`.
+ */
+export const isDraft = (
+  heads: ReadonlyArray<string>,
+  version: string,
+): boolean => [...heads].sort().join(",") === version;

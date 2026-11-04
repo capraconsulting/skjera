@@ -653,5 +653,22 @@
   "editor_cover_crop_hint": "Drag over the picture to choose the part to use. Drag the frame to move it.",
   "editor_cover_crop_frame": "The part to use",
   "editor_cover_focus_title": "Choose the focal point",
-  "editor_cover_focus_hint": "Click the point that must stay in view."
+  "editor_cover_focus_hint": "Click the point that must stay in view.",
+  "studio_history": "History",
+  "studio_history_loading": "Loading the history …",
+  "studio_history_failed": "Couldn't load the history",
+  "studio_history_edited": "Edited",
+  "studio_history_published": "Published",
+  "studio_history_restored": "Restored an earlier version",
+  "studio_history_discarded": "Discarded changes",
+  "studio_history_by": "by {name}",
+  "studio_history_unknown": "Unknown",
+  "studio_history_skjera": "Skjera",
+  "studio_history_view": "View",
+  "studio_restore_version": "Restore this version",
+  "studio_confirm_restore": "Restore this version? The draft becomes as it was then. Nothing is published until you publish.",
+  "studio_restore_unsaved": "Couldn't restore: your edits haven't been saved yet",
+  "studio_restore_failed": "Restoring failed",
+  "preview_version_loading": "Loading the version …",
+  "preview_version_notice": "An earlier version – this isn't published."
 }

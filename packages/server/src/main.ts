@@ -250,7 +250,22 @@ const DocumentsHandlers = HttpApiBuilder.group(Api, "documents", (handlers) =>
       )
       .handle("unpublish", ({ params }) => documents.unpublish(params.id))
       .handle("discardChanges", ({ params }) =>
-        documents.discardChanges(params.id),
+        Effect.gen(function* () {
+          return yield* documents.discardChanges(
+            params.id,
+            yield* OAuth.CurrentUser,
+          );
+        }),
+      )
+      .handle("history", ({ params }) => documents.history(params.id))
+      .handle("restore", ({ params, payload }) =>
+        Effect.gen(function* () {
+          return yield* documents.restore(
+            params.id,
+            payload.heads,
+            yield* OAuth.CurrentUser,
+          );
+        }),
       )
       .handle("delete", ({ params }) =>
         Effect.gen(function* () {

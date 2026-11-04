@@ -185,6 +185,30 @@ export const discardChanges = (id: DocumentId) =>
   );
 
 /**
+ * Makes the draft equal to its version at `heads`, in every field, without
+ * publishing. The change reaches the editor through the sync.
+ */
+export const restoreVersion = (id: DocumentId, heads: ReadonlyArray<string>) =>
+  provideHttp(
+    makeClient.pipe(
+      Effect.flatMap((client) =>
+        client.documents.restore({
+          params: { id },
+          payload: { heads: [...heads] },
+        }),
+      ),
+    ),
+  );
+
+/** An event's versions, newest first: who changed it, when, and what it was then. */
+export const eventHistory = (id: DocumentId) =>
+  request((client) =>
+    client.documents
+      .history({ params: { id } })
+      .pipe(Effect.mapError((error) => new Error(failureMessage(error)))),
+  );
+
+/**
  * Makes a new, never-published event in the same team with the content of an
  * event's draft, under `copy`, the id the studio picked. Asking again with the
  * same id makes no second copy.

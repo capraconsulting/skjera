@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { publishState } from "../src/routes/studio/publishState.ts";
+import { isDraft, publishState } from "../src/routes/studio/publishState.ts";
 
 describe("publishState", () => {
   it("has changes to discard when the draft is not the published version (AC-1)", () => {
@@ -46,5 +46,17 @@ describe("publishState", () => {
         saving: false,
       }).upToDate,
     ).toBe(true);
+  });
+});
+
+describe("isDraft", () => {
+  it("is the draft when the heads are the draft's, in any order (AC-3)", () => {
+    expect(isDraft(["b", "a"], "a,b")).toBe(true);
+    expect(isDraft(["a", "b"], "a,b")).toBe(true);
+  });
+
+  it("is not the draft when the heads differ from the draft's (AC-3)", () => {
+    expect(isDraft(["a"], "a,b")).toBe(false);
+    expect(isDraft(["a", "c"], "a,b")).toBe(false);
   });
 });

@@ -8,12 +8,15 @@ import {
   InvalidChanges,
   InvalidContent,
   PublishRejected,
+  RestoreRejected,
   TeamNotFound,
 } from "../api/errors.ts";
 import { refused } from "../api/Problems.ts";
 import {
   type DocumentId,
   type Heads,
+  type HistoryEntry,
+  isVersion,
   Publication,
   type TeamId,
 } from "../Model.ts";
@@ -27,10 +30,13 @@ import {
 } from "./ContentTypes.ts";
 import {
   copyContent,
+  discardedMessage,
+  restoredMessage,
   restorePublished,
   sameContent,
   sameContentAs,
 } from "./DiscardChanges.ts";
+import { historyOf, type Person } from "./History.ts";
 
 /** When and where an event is, as published. */
 interface WhenAndWhere {
@@ -124,11 +130,31 @@ export class Documents extends Context.Service<
     /**
      * Makes the draft the published version again, in every field, and
      * publishes it at its new heads in the name of whoever published last.
-     * Nobody is emailed. Not published: nothing to discard.
+     * Nobody is emailed. Not published: nothing to discard. The change is
+     * the user's in the history.
      */
     readonly discardChanges: (
       id: DocumentId,
+      user: Identity,
     ) => Effect.Effect<void, DocumentNotFound>;
+    /**
+     * The document's versions, newest first: who changed it and when, with
+     * each publishing an entry of its own. Changes one person made within
+     * ten minutes of each other are one entry.
+     */
+    readonly history: (
+      id: DocumentId,
+    ) => Effect.Effect<ReadonlyArray<HistoryEntry>, DocumentNotFound>;
+    /**
+     * Makes the draft equal to its version at `heads` in every field, by one
+     * change on top of the draft as it is, which the history shows as the
+     * user's restoring. Publishes nothing and tells nobody.
+     */
+    readonly restore: (
+      id: DocumentId,
+      heads: Heads,
+      user: Identity,
+    ) => Effect.Effect<void, DocumentNotFound | RestoreRejected>;
     /**
      * Deletes the document, taking its published version off the site. It's
      * kept, marked deleted. An event's attendees are told it's cancelled,
@@ -170,11 +196,37 @@ export class Documents extends Context.Service<
               : Effect.die(error),
           ),
         );
-        if (row !== undefined) return row.id;
+        if (row !== undefined) {
+          yield* rememberName(author).pipe(Effect.orDie);
+          return row.id;
+        }
         // Created before, by an earlier try.
         if (id !== undefined) return id;
         return yield* Effect.die("INSERT returned no row");
       }, Effect.uninterruptible);
+
+      // The name a person goes by, for the history: the name, else the email.
+      // A person with neither is left out.
+      const rememberName = Effect.fnUntraced(function* (user: Identity) {
+        const name = [user.name, user.email]
+          .map((value) => value?.trim())
+          .find((value) => value !== undefined && value !== "");
+        if (name === undefined) return;
+        yield* sql`
+          INSERT INTO people (issuer, subject, name)
+          VALUES (${user.issuer}, ${user.subject}, ${name})
+          ON CONFLICT (issuer, subject) DO UPDATE
+            SET name = EXCLUDED.name, updated_at = now()
+        `;
+      });
+
+      // The user behind an actor id the server made a change under.
+      const claimActor = (id: DocumentId, actor: string, user: Identity) =>
+        sql`
+          INSERT INTO document_actors (document_id, actor, user_issuer, user_subject)
+          VALUES (${id}, ${actor}, ${user.issuer}, ${user.subject})
+          ON CONFLICT (document_id, actor) DO NOTHING
+        `;
 
       const get = Effect.fn("Documents.get")(function* (id: DocumentId) {
         const [row] = yield* sql<{
@@ -238,6 +290,7 @@ export class Documents extends Context.Service<
           `;
           // Copied before, by an earlier try: nothing inserted, nothing to check.
           if (inserted === undefined) return;
+          yield* rememberName(author);
           // The server's draft must fit the schema, as an editor's must; the
           // transaction rolls back and nothing is stored if it does not.
           yield* Schema.decodeUnknownEffect(contentTypes[row.type].schema)(
@@ -321,12 +374,15 @@ export class Documents extends Context.Service<
           }
 
           // Claim new actor ids for the sender; those taken stay taken.
-          yield* sql`
+          const claimed = yield* sql`
             INSERT INTO document_actors (document_id, actor, user_issuer, user_subject)
             SELECT ${id}, actor, ${user.issuer}, ${user.subject}
             FROM unnest(${[...actors]}::text[]) AS actor
             ON CONFLICT (document_id, actor) DO NOTHING
+            RETURNING actor
           `;
+          // A new editor session: the history names the person from now on.
+          if (claimed.length > 0) yield* rememberName(user);
           const allowed = yield* sql<{ actor: string }>`
             SELECT actor FROM document_actors
             WHERE document_id = ${id}
@@ -387,6 +443,13 @@ export class Documents extends Context.Service<
               FROM publish_event(${id}, ${heads}::text[], ${user.issuer}, ${user.subject})
             `;
             const [after] = rows;
+            if (after !== undefined) {
+              yield* sql`
+                INSERT INTO event_publications (event_id, heads, published_by_issuer, published_by_subject)
+                VALUES (${id}, ${after.published_heads}::text[], ${user.issuer}, ${user.subject})
+              `;
+              yield* rememberName(user);
+            }
             // Published for the first time: the channel is told, once.
             if (before === undefined && after !== undefined) {
               yield* announcements.eventPublished(id);
@@ -514,6 +577,7 @@ export class Documents extends Context.Service<
 
       const discardChanges = Effect.fn("Documents.discardChanges")(function* (
         id: DocumentId,
+        user: Identity,
       ) {
         const found = yield* Effect.gen(function* () {
           // The document first, then the event: the order `delete` locks them in.
@@ -537,6 +601,7 @@ export class Documents extends Context.Service<
           const restored = restorePublished(
             A.load<EventContent>(document.draft),
             published,
+            { message: discardedMessage },
           );
           // A version other than the published one is never published by a
           // discard.
@@ -556,6 +621,8 @@ export class Documents extends Context.Service<
               merged?.content,
               { onExcessProperty: "error" },
             );
+            yield* claimActor(id, A.getActorId(restored), user);
+            yield* rememberName(user);
             yield* sql`
               UPDATE documents SET draft = merge(draft, ${change}::bytea), updated_at = now()
               WHERE id = ${id}
@@ -581,6 +648,140 @@ export class Documents extends Context.Service<
         if (!found) {
           return yield* new DocumentNotFound({ id });
         }
+      }, Effect.uninterruptible);
+
+      const history = Effect.fn("Documents.history")(function* (
+        id: DocumentId,
+      ) {
+        const [document] = yield* sql<{
+          draft: Uint8Array;
+          issuer: string;
+          subject: string;
+          name: string | null;
+        }>`
+          SELECT d.draft::bytea AS draft, d.created_by_issuer AS issuer,
+            d.created_by_subject AS subject, p.name
+          FROM documents d
+          LEFT JOIN people p
+            ON p.issuer = d.created_by_issuer AND p.subject = d.created_by_subject
+          WHERE d.id = ${id} AND d.deleted_at IS NULL
+        `.pipe(Effect.orDie);
+        if (document === undefined) {
+          return yield* new DocumentNotFound({ id });
+        }
+        const owners = yield* sql<Person & { actor: string }>`
+          SELECT a.actor, a.user_issuer AS issuer, a.user_subject AS subject, p.name
+          FROM document_actors a
+          LEFT JOIN people p
+            ON p.issuer = a.user_issuer AND p.subject = a.user_subject
+          WHERE a.document_id = ${id}
+        `.pipe(Effect.orDie);
+        const publications = yield* sql<{
+          heads: ReadonlyArray<string>;
+          published_at: Date;
+          issuer: string | null;
+          subject: string | null;
+          name: string | null;
+        }>`
+          SELECT e.heads, e.published_at, e.published_by_issuer AS issuer,
+            e.published_by_subject AS subject, p.name
+          FROM event_publications e
+          LEFT JOIN people p
+            ON p.issuer = e.published_by_issuer AND p.subject = e.published_by_subject
+          WHERE e.event_id = ${id}
+          ORDER BY e.published_at, e.id
+        `.pipe(Effect.orDie);
+
+        return historyOf({
+          changes: A.getChangesMetaSince(A.load(document.draft), []).map(
+            ({ hash, actor, time, deps, message }) => ({
+              hash,
+              actor,
+              time,
+              deps,
+              message,
+            }),
+          ),
+          owners: owners.map(({ actor, ...person }) => ({ actor, person })),
+          creator: {
+            issuer: document.issuer,
+            subject: document.subject,
+            name: document.name,
+          },
+          publications: publications.map((row) => ({
+            heads: row.heads,
+            at: row.published_at,
+            by:
+              row.issuer === null || row.subject === null
+                ? null
+                : { issuer: row.issuer, subject: row.subject, name: row.name },
+          })),
+        });
+      });
+
+      const restore = Effect.fn("Documents.restore")(function* (
+        id: DocumentId,
+        heads: Heads,
+        user: Identity,
+      ) {
+        // Checked before the transaction: a string that is not a change hash
+        // never reaches `A.hasHeads`, which looks each one up.
+        if (!isVersion(heads)) {
+          return yield* new RestoreRejected(
+            refused({ _tag: "UnknownVersion" }),
+          );
+        }
+        yield* Effect.gen(function* () {
+          const [document] = yield* sql<{ draft: Uint8Array }>`
+            SELECT draft::bytea AS draft FROM documents
+            WHERE id = ${id} AND deleted_at IS NULL FOR UPDATE
+          `;
+          if (document === undefined) {
+            return yield* new DocumentNotFound({ id });
+          }
+          const doc = A.load<EventContent>(document.draft);
+          if (!A.hasHeads(doc, [...heads])) {
+            return yield* new RestoreRejected(
+              refused({ _tag: "UnknownVersion" }),
+            );
+          }
+          let restored = restorePublished(doc, [...heads], {
+            message: restoredMessage,
+          });
+          // Already that version: the restoring is still an entry.
+          if (A.getLastLocalChange(restored) === undefined) {
+            restored = A.emptyChange(doc, { message: restoredMessage });
+          }
+          if (!sameContent(restored, [...heads])) {
+            return yield* Effect.die(
+              `Restoring ${id} did not give the version back`,
+            );
+          }
+          const change = A.getLastLocalChange(restored);
+          if (change === undefined) {
+            return yield* Effect.die(`Restoring ${id} made no change`);
+          }
+          // The server's change must fit the draft's schema, as an editor's must.
+          const [merged] = yield* sql<{ content: unknown }>`
+            SELECT merge(draft, ${change}::bytea)::jsonb AS content
+            FROM documents WHERE id = ${id}
+          `;
+          yield* Schema.decodeUnknownEffect(contentTypes.event.schema)(
+            merged?.content,
+            { onExcessProperty: "error" },
+          ).pipe(Effect.orDie);
+          yield* claimActor(id, A.getActorId(restored), user);
+          yield* rememberName(user);
+          // The draft only: the published version, the signups and the site
+          // are as they were.
+          yield* sql`
+            UPDATE documents SET draft = merge(draft, ${change}::bytea), updated_at = now()
+            WHERE id = ${id}
+          `;
+        }).pipe(
+          sql.withTransaction,
+          Effect.catchIf(SqlError.isSqlError, Effect.die),
+        );
       }, Effect.uninterruptible);
 
       const deleteDocument = Effect.fn("Documents.delete")(function* (
@@ -625,6 +826,8 @@ export class Documents extends Context.Service<
         publish,
         unpublish,
         discardChanges,
+        history,
+        restore,
         delete: deleteDocument,
       });
     }),

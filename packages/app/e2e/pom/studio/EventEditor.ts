@@ -363,6 +363,72 @@ export class EventEditor {
     return { question: clicked.then(() => question), done };
   }
 
+  /** Clicks **History** and waits for the versions it lists. */
+  async openHistory(): Promise<void> {
+    await this.page
+      .getByRole("button", { name: "History", exact: true })
+      .click();
+    await expect(this.historyDialog()).toBeVisible();
+    await expect(
+      this.historyDialog().getByRole("listitem").first(),
+    ).toBeVisible();
+  }
+
+  private readonly historyDialog = () =>
+    this.page.getByRole("dialog", { name: "History" });
+
+  /** The history's entries of one kind: "Published", "Edited", … */
+  historyEntries(kind: string) {
+    return this.historyDialog().getByRole("listitem").filter({ hasText: kind });
+  }
+
+  /** Clicks **View** on the newest entry of a kind and gives the preview it opens. */
+  async viewVersion(kind: string): Promise<Page> {
+    const opening = this.page.context().waitForEvent("page");
+    await this.historyEntries(kind)
+      .first()
+      .getByRole("link", { name: "View", exact: true })
+      .click();
+    const preview = await opening;
+    await preview.waitForLoadState();
+    return preview;
+  }
+
+  /**
+   * Clicks **Restore this version** on the newest entry of a kind, answering
+   * the question it asks. Its `question` is what was asked; `done` the
+   * server's answer to the restore, which only an accepted question sends.
+   */
+  clickRestoreAnswering(
+    kind: string,
+    answer: "accept" | "dismiss",
+  ): {
+    readonly question: Promise<string>;
+    readonly done: Promise<unknown>;
+  } {
+    const question = new Promise<string>((resolve) => {
+      this.page.once("dialog", (dialog) => {
+        resolve(dialog.message());
+        return answer === "accept" ? dialog.accept() : dialog.dismiss();
+      });
+    });
+    const done =
+      answer === "accept"
+        ? this.page.waitForResponse(
+            (response) =>
+              response.request().method() === "POST" &&
+              /^\/api\/documents\/[0-9a-f-]+\/restorations$/.test(
+                new URL(response.url()).pathname,
+              ),
+          )
+        : Promise.resolve();
+    const clicked = this.historyEntries(kind)
+      .first()
+      .getByRole("button", { name: "Restore this version", exact: true })
+      .click();
+    return { question: clicked.then(() => question), done };
+  }
+
   /** Back on the event's team, without the event. */
   async expectDeleted(id: string): Promise<void> {
     await expect(this.page).toHaveURL(/\/studio\/teams\/[0-9a-f-]+$/);

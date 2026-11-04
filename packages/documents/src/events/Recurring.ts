@@ -171,6 +171,11 @@ const moveOn = (id: DocumentId, now: Date) =>
     if (published === undefined) {
       return yield* Effect.die(`Event ${id} was not published again`);
     }
+    // Skjera's own publishing: it has no publisher.
+    yield* sql`
+      INSERT INTO event_publications (event_id, heads)
+      VALUES (${id}, ${newHeads}::text[])
+    `;
     yield* announcements.eventRepeated(id, published.starts_at);
   });
 

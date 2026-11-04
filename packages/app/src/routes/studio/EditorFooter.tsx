@@ -3,6 +3,7 @@ import type { DocumentId, EventContent } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { getLocale } from "@skjera/i18n/runtime";
 import { eq, useLiveQuery } from "@tanstack/react-db";
+import { useState } from "react";
 import { Link } from "react-router";
 import { Temporal } from "temporal-polyfill";
 import buttonStyles from "../../components/Button.module.css";
@@ -11,6 +12,7 @@ import { useVersion } from "../../documents/version.ts";
 import { attendees, events } from "../../sync/tables.ts";
 import { timeAgo } from "../../time.ts";
 import styles from "./EditorFooter.module.css";
+import { History } from "./History.tsx";
 import { publishState } from "./publishState.ts";
 
 /**
@@ -24,15 +26,18 @@ export function EditorFooter(props: {
   readonly publishing: boolean;
   readonly unpublishing: boolean;
   readonly discarding: boolean;
+  readonly restoring: boolean;
   readonly copying: boolean;
   readonly onPublish: () => void;
   readonly onUnpublish: () => void;
   readonly onDiscard: () => void;
+  readonly onRestore: (heads: ReadonlyArray<string>) => void;
   readonly onCopy: () => void;
   readonly onDelete: () => void;
 }) {
   const version = useVersion(props.handle);
   const { id } = props;
+  const [historyOpen, setHistoryOpen] = useState(false);
   // The published version, if any.
   const publication = useLiveQuery({
     query: (q) =>
@@ -152,6 +157,9 @@ export function EditorFooter(props: {
           <Button variant="danger" onClick={remove}>
             {m.common_delete()}
           </Button>
+          <Button onClick={() => setHistoryOpen(true)}>
+            {m.studio_history()}
+          </Button>
           <Button onClick={props.onCopy} disabled={props.copying}>
             {m.studio_copy()}
           </Button>
@@ -189,6 +197,14 @@ export function EditorFooter(props: {
           </Button>
         </div>
       </div>
+      <History
+        id={id}
+        open={historyOpen}
+        version={version}
+        restoring={props.restoring}
+        onRestore={props.onRestore}
+        onClose={() => setHistoryOpen(false)}
+      />
     </footer>
   );
 }

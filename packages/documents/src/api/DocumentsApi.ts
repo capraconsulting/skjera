@@ -2,8 +2,19 @@ import { Authentication } from "@skjera/oauth/api";
 import { Schema } from "effect";
 import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
 import { ContentTypeName } from "../events/ContentTypes.ts";
-import { DocumentId, Heads, Publication, TeamId } from "../Model.ts";
-import { DocumentNotFound, PublishRejected, TeamNotFound } from "./errors.ts";
+import {
+  DocumentId,
+  Heads,
+  HistoryEntry,
+  Publication,
+  TeamId,
+} from "../Model.ts";
+import {
+  DocumentNotFound,
+  PublishRejected,
+  RestoreRejected,
+  TeamNotFound,
+} from "./errors.ts";
 
 /**
  * Creating, publishing, unpublishing and deleting documents, for signed-in users.
@@ -63,6 +74,24 @@ export class DocumentsApi extends HttpApiGroup.make("documents")
     HttpApiEndpoint.delete("discardChanges", "/api/documents/:id/changes", {
       params: { id: DocumentId },
       error: DocumentNotFound,
+    }),
+    /**
+     * The document's versions, newest first: who changed it and when, with
+     * each publishing an entry of its own.
+     */
+    HttpApiEndpoint.get("history", "/api/documents/:id/history", {
+      params: { id: DocumentId },
+      success: Schema.Array(HistoryEntry),
+      error: DocumentNotFound,
+    }),
+    /**
+     * Makes the draft equal to its version at `heads`, in every field,
+     * without publishing. Heads the draft doesn't have are refused.
+     */
+    HttpApiEndpoint.post("restore", "/api/documents/:id/restorations", {
+      params: { id: DocumentId },
+      payload: Schema.Struct({ heads: Heads }),
+      error: [DocumentNotFound, RestoreRejected],
     }),
     /** Deletes the document, taking its published version off the site. */
     HttpApiEndpoint.delete("delete", "/api/documents/:id", {

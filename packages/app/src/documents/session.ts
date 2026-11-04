@@ -23,6 +23,7 @@ import {
   documents,
   events,
   publishDraft,
+  restoreVersion,
   unpublishDocument,
 } from "../sync/tables.ts";
 import { forgetLocal, openDraft } from "./repo.ts";
@@ -39,6 +40,7 @@ export interface SessionState {
   readonly publishing: boolean;
   readonly unpublishing: boolean;
   readonly discarding: boolean;
+  readonly restoring: boolean;
   readonly copying: boolean;
   readonly error: string | null;
   /** Someone deleted the document; the session has stopped. */
@@ -46,6 +48,8 @@ export interface SessionState {
   readonly publish: () => void;
   readonly unpublish: () => void;
   readonly discard: () => void;
+  /** Makes the draft the version at `heads`, without publishing. */
+  readonly restore: (heads: ReadonlyArray<string>) => void;
   /** Makes a copy of the event and calls `opened` with the copy's id. */
   readonly copy: (opened: (copy: DocumentId) => void) => void;
 }
@@ -59,12 +63,14 @@ class SessionStore {
     publishing: false,
     unpublishing: false,
     discarding: false,
+    restoring: false,
     copying: false,
     error: null,
     deleted: false,
     publish: () => {},
     unpublish: () => {},
     discard: () => {},
+    restore: () => {},
     copy: () => {},
   };
   readonly #listeners = new Set<() => void>();
@@ -84,7 +90,7 @@ class SessionStore {
   };
 }
 
-/** How long publishing, discarding and copying wait for the server to have every edit. */
+/** How long publishing, discarding, restoring and copying wait for the server to have every edit. */
 const saveTimeout = "10 seconds";
 
 class DocumentNotFound {
@@ -223,6 +229,21 @@ const session = (id: DocumentId, store: SessionStore) =>
       Effect.ensuring(Effect.sync(() => store.set({ discarding: false }))),
     );
 
+    // Makes the draft a version from its history, once the server has every
+    // edit this copy has, so the restoring comes after them. The change
+    // reaches the copy through the sync.
+    const restore = (heads: ReadonlyArray<string>) =>
+      savedVersion(() => m.studio_restore_unsaved()).pipe(
+        Effect.andThen(restoreVersion(id, heads)),
+        Effect.tap(() => Effect.sync(() => store.set({ error: null }))),
+        Effect.catch((error) =>
+          Effect.sync(() =>
+            store.set({ error: sayWhy(error, m.studio_restore_failed()) }),
+          ),
+        ),
+        Effect.ensuring(Effect.sync(() => store.set({ restoring: false }))),
+      );
+
     // Copies the server's draft, once it has every edit this copy has, so the
     // last words typed are in the copy. The copy's row is pulled before it is
     // opened, as the editor needs it.
@@ -261,6 +282,7 @@ const session = (id: DocumentId, store: SessionStore) =>
       publishing: false,
       unpublishing: false,
       discarding: false,
+      restoring: false,
       copying: false,
       publish: () => {
         store.set({ publishing: true });
@@ -273,6 +295,10 @@ const session = (id: DocumentId, store: SessionStore) =>
       discard: () => {
         store.set({ discarding: true });
         void Effect.runPromise(discard);
+      },
+      restore: (heads) => {
+        store.set({ restoring: true });
+        void Effect.runPromise(restore(heads));
       },
       copy: (opened) => {
         store.set({ copying: true });

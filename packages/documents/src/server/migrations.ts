@@ -1270,4 +1270,30 @@ export const migrations = Migrator.fromRecord({
     // Fills the column for the drafts already there; updated_at is left as it is.
     `UPDATE documents SET draft = draft`,
   ),
+  "0032_history": statements(
+    // The name each person goes by, as the identity provider last gave it.
+    `CREATE TABLE people (
+      issuer text NOT NULL,
+      subject text NOT NULL,
+      name text NOT NULL CHECK (btrim(name) <> ''),
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      PRIMARY KEY (issuer, subject)
+    )`,
+    // Every publishing of an event. No publisher: Skjera did it (the
+    // recurring move).
+    `CREATE TABLE event_publications (
+      id uuid PRIMARY KEY DEFAULT uuidv7(),
+      event_id uuid NOT NULL REFERENCES documents (id) ON DELETE CASCADE,
+      heads text[] NOT NULL,
+      published_at timestamptz NOT NULL DEFAULT now(),
+      published_by_issuer text,
+      published_by_subject text,
+      CHECK ((published_by_issuer IS NULL) = (published_by_subject IS NULL))
+    )`,
+    `CREATE INDEX event_publications_event_id_idx ON event_publications (event_id, published_at)`,
+    // The latest publishing of each event published before the log existed.
+    `INSERT INTO event_publications (event_id, heads, published_at, published_by_issuer, published_by_subject)
+      SELECT id, published_heads, published_at, published_by_issuer, published_by_subject
+      FROM events`,
+  ),
 });
