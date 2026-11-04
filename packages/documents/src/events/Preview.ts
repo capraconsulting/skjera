@@ -1,6 +1,7 @@
 import { Temporal } from "temporal-polyfill";
 import type { EventRow } from "../api/SyncApi.ts";
 import {
+  type Cover,
   type DocumentId,
   type Organizer,
   type RichText,
@@ -70,10 +71,7 @@ export const eventPreview = (draft: {
     signupDeadline: instant(content.deadline),
     timeZone: zoneOf(content.start),
     body: plain(body) as RichText,
-    cover:
-      content.cover === undefined
-        ? null
-        : { src: String(content.cover.src), alt: content.cover.alt },
+    cover: content.cover === undefined ? null : (plain(content.cover) as Cover),
     organizer,
     isPublic: content.public,
     allowGuests: content.public && content.guests,

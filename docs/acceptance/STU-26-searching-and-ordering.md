@@ -1,15 +1,15 @@
-# STU-25: Searching and ordering events
+# STU-26: Searching and ordering events
 
 An organiser who has many events can find one by searching a team's list in the studio, or every team at once, and can choose whether the list is ordered by when each event was last edited, created, or held.
 
-**Events:** in team «STU-25: Searching and ordering», four drafts made in this order:
+**Events:** in team «STU-26: Searching and ordering», four drafts made in this order:
 
 - «AC-2: Sommerfest», 60 days ahead.
 - «AC-1: Julebord», tagged «Sosialt», 30 days ahead.
 - «AC-1: Fagkveld», tagged «Fag», 10 days ahead.
 - «AC-2: No date», with a title only.
 
-In team «STU-25: Another team», the draft «AC-3: Julebord in another team».
+In team «STU-26: Another team», the draft «AC-3: Julebord in another team».
 
 The test data makes and edits each event at once, so «Sist endret» and «Opprettet» list them alike until one is edited. Before you test the order, add a tag to «AC-1: Julebord».
 
@@ -19,7 +19,7 @@ WHEN the organiser types in «Søk» on a team's list, the studio SHALL show onl
 
 **Test**
 
-- **Given** team «STU-25: Searching and ordering» open in the studio
+- **Given** team «STU-26: Searching and ordering» open in the studio
 - **When** you type «JULE» in «Søk»
 - **Then** «AC-1: Julebord» is listed, and «AC-1: Fagkveld» is not
 - **When** you type «sosi»

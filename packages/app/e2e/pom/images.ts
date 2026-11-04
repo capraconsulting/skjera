@@ -1,3 +1,4 @@
+import { crc32, deflateSync } from "node:zlib";
 import { expect, type Locator, type Page } from "@playwright/test";
 
 // The smallest valid PNG: one transparent pixel.
@@ -7,6 +8,37 @@ export const pixel = Buffer.from(
 );
 
 const pixelBase64 = pixel.toString("base64");
+
+const chunk = (type: string, data: Buffer) => {
+  const body = Buffer.concat([Buffer.from(type, "ascii"), data]);
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(data.length);
+  const check = Buffer.alloc(4);
+  check.writeUInt32BE(crc32(body));
+  return Buffer.concat([length, body, check]);
+};
+
+/** A PNG of the given size, red on its left half and blue on its right. */
+const twoHalves = (width: number, height: number) => {
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header.set([8, 2, 0, 0, 0], 8); // 8 bits, RGB
+  const row = Buffer.alloc(1 + width * 3); // filter byte 0, then pixels
+  for (let x = 0; x < width; x++) {
+    row.set(x < width / 2 ? [200, 30, 30] : [30, 30, 200], 1 + x * 3);
+  }
+  const rows = Buffer.concat(Array.from({ length: height }, () => row));
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk("IHDR", header),
+    chunk("IDAT", deflateSync(rows)),
+    chunk("IEND", Buffer.alloc(0)),
+  ]);
+};
+
+/** A picture of 200 × 100 pixels, wide enough to cut a part out of. */
+export const wide = twoHalves(200, 100);
 
 /** A DataTransfer holding the PNG, as pasting or dropping a file gives. */
 const pngTransfer = (page: Page, name = "pixel.png") =>

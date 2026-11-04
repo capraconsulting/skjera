@@ -945,7 +945,7 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
         signups: [bob(), guest("STU-24", 1)],
       }),
     ]),
-    team("STU-25: Searching and ordering", [
+    team("STU-26: Searching and ordering", [
       event("AC-2: Sommerfest", {
         ...members,
         ...daysAhead(now, 60),
@@ -965,12 +965,15 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
       }),
       event("AC-2: No date", { state: "titled" }),
     ]),
-    team("STU-25: Another team", [
+    team("STU-26: Another team", [
       event("AC-3: Julebord in another team", {
         ...members,
         ...daysAhead(now, 20),
         state: "draft",
       }),
+    ]),
+    team("STU-25: Cropping the cover", [
+      event("AC-1 to AC-9: Cover to crop", { ...guests, ...week }),
     ]),
   ];
 };

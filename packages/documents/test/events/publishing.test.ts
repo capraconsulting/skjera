@@ -132,6 +132,80 @@ layer(TestLayer, { excludeTestServices: true })("Publishing", (it) => {
     }),
   );
 
+  it.effect(
+    "refuses a crop outside the picture, and publishes a crop and focal point only when published (AC-1, AC-6)",
+    () =>
+      Effect.gen(function* () {
+        const documents = yield* Documents;
+        const sql = yield* SqlClient.SqlClient;
+        const id = yield* documents.create("event", yield* newTeam, alice);
+        const picture = "/api/images/AAAAAAAAAAAAAAAAAAAAAA";
+        const part = "/api/images/BBBBBBBBBBBBBBBBBBBBBB";
+        const crop = {
+          x: 0.5,
+          y: 0,
+          width: 0.5,
+          height: 1,
+          from: picture,
+          src: part,
+        };
+        const coverRow = sql<{ cover: unknown }>`
+          SELECT cover FROM events WHERE id = ${id}
+        `;
+
+        const outside = yield* openEditor(id);
+        const refused = yield* Effect.flip(
+          documents.applyChanges(
+            id,
+            [
+              outside.edit((event) =>
+                setCover(event, picture, { crop: { ...crop, x: 0.8 } }),
+              ),
+            ],
+            alice,
+          ),
+        );
+        assert.strictEqual(refused._tag, "InvalidContent");
+
+        const editor = yield* openEditor(id);
+        const plain = yield* documents.applyChanges(
+          id,
+          [
+            editor.edit((event) => {
+              A.updateText(event, ["title"], "Launch");
+              setTimes(event);
+              setPlace(event);
+              setCover(event, picture);
+            }),
+          ],
+          alice,
+        );
+        yield* documents.publish(id, plain, alice);
+        assert.deepStrictEqual(yield* coverRow, [
+          { cover: { src: picture, alt: "" } },
+        ]);
+
+        // In the draft, not yet on the site.
+        const cropped = yield* documents.applyChanges(
+          id,
+          [
+            editor.edit((event) =>
+              setCover(event, picture, { crop, focus: { x: 0.8, y: 0.3 } }),
+            ),
+          ],
+          alice,
+        );
+        assert.deepStrictEqual(yield* coverRow, [
+          { cover: { src: picture, alt: "" } },
+        ]);
+
+        yield* documents.publish(id, cropped, alice);
+        assert.deepStrictEqual(yield* coverRow, [
+          { cover: { src: picture, alt: "", crop, focus: { x: 0.8, y: 0.3 } } },
+        ]);
+      }),
+  );
+
   it.effect("publishes the version the user saw", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;

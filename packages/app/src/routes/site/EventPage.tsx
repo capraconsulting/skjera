@@ -3,6 +3,7 @@ import {
   DocumentId,
   type EventRow,
   type ShownEvent,
+  shownCover,
 } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { defaultPollEveryMs } from "@skjera/snapsync/client";
@@ -285,7 +286,8 @@ export function EventView(props: {
         {event.cover === null ? null : (
           <img
             className={styles.cover}
-            src={event.cover.src}
+            src={shownCover(event.cover).src}
+            style={{ objectPosition: shownCover(event.cover).position }}
             alt={event.cover.alt}
           />
         )}

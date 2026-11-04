@@ -262,11 +262,48 @@ export const setQuestions = (
   }));
 };
 
-/** Sets the cover as the editor does: `src` immutable, `alt` text. */
-export const setCover = (event: EventContent, src: string | null) => {
+/** A crop of a cover, as the Model names it. */
+export type CoverCropValue = {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+  readonly from: string;
+  readonly src: string;
+};
+
+/**
+ * Sets the cover as the editor does: `src` immutable, `alt` text; a crop and
+ * a focal point as new objects, the addresses immutable.
+ */
+export const setCover = (
+  event: EventContent,
+  src: string | null,
+  options: {
+    readonly crop?: CoverCropValue;
+    readonly focus?: { readonly x: number; readonly y: number };
+  } = {},
+) => {
   const draft = event as { cover?: unknown };
-  if (src === null) delete draft.cover;
-  else draft.cover = { src: new A.ImmutableString(src), alt: "" };
+  if (src === null) {
+    delete draft.cover;
+    return;
+  }
+  const { crop, focus } = options;
+  draft.cover = {
+    src: new A.ImmutableString(src),
+    alt: "",
+    ...(crop === undefined
+      ? {}
+      : {
+          crop: {
+            ...crop,
+            from: new A.ImmutableString(crop.from),
+            src: new A.ImmutableString(crop.src),
+          },
+        }),
+    ...(focus === undefined ? {} : { focus: { ...focus } }),
+  };
 };
 
 /** An editor session: a replica of the draft with its own actor id. */

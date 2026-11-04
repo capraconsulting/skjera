@@ -644,5 +644,14 @@
   "site_nothing_past": "Fant ingen tidligere arrangementer 😭",
   "studio_copy": "Lag kopi",
   "studio_copy_unsaved": "Kunne ikke lage kopi: endringene dine er ikke lagret ennå",
-  "studio_copy_failed": "Kopieringen mislyktes"
+  "studio_copy_failed": "Kopieringen mislyktes",
+  "editor_cover_crop": "Beskjær",
+  "editor_cover_focus": "Fokuspunkt",
+  "editor_cover_apply": "Bruk",
+  "editor_cover_reset": "Tilbakestill beskjæring og fokuspunkt",
+  "editor_cover_crop_title": "Beskjær forsidebildet",
+  "editor_cover_crop_hint": "Dra over bildet for å velge delen som skal brukes. Dra i rammen for å flytte den.",
+  "editor_cover_crop_frame": "Delen som skal brukes",
+  "editor_cover_focus_title": "Velg fokuspunkt",
+  "editor_cover_focus_hint": "Klikk på punktet som må være med."
 }

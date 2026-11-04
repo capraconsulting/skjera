@@ -644,5 +644,14 @@
   "site_nothing_past": "No past events found 😭",
   "studio_copy": "Make a copy",
   "studio_copy_unsaved": "Couldn't make a copy: your edits haven't been saved yet",
-  "studio_copy_failed": "Making a copy failed"
+  "studio_copy_failed": "Making a copy failed",
+  "editor_cover_crop": "Crop",
+  "editor_cover_focus": "Focal point",
+  "editor_cover_apply": "Apply",
+  "editor_cover_reset": "Reset crop and focal point",
+  "editor_cover_crop_title": "Crop the cover image",
+  "editor_cover_crop_hint": "Drag over the picture to choose the part to use. Drag the frame to move it.",
+  "editor_cover_crop_frame": "The part to use",
+  "editor_cover_focus_title": "Choose the focal point",
+  "editor_cover_focus_hint": "Click the point that must stay in view."
 }

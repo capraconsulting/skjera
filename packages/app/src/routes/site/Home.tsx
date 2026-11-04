@@ -1,4 +1,4 @@
-import type { EventRow } from "@skjera/documents/api";
+import { type EventRow, shownCover } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { getLocale } from "@skjera/i18n/runtime";
 import { useLiveQuery } from "@tanstack/react-db";
@@ -287,7 +287,12 @@ function Card(props: { readonly event: EventRow }) {
       <span className={styles.cardImage}>
         {event.cover === null ? null : (
           // Decorative here: the title under it says what it is.
-          <img src={event.cover.src} alt="" loading="lazy" />
+          <img
+            src={shownCover(event.cover).src}
+            style={{ objectPosition: shownCover(event.cover).position }}
+            alt=""
+            loading="lazy"
+          />
         )}
       </span>
       <span className={styles.cardTitle}>{event.title}</span>

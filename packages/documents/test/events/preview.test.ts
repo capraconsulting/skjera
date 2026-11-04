@@ -146,6 +146,37 @@ layer(TestLayer, { excludeTestServices: true })("Event preview", (it) => {
   );
 
   it.effect(
+    "gives the cover's crop and focal point, as publishing does (AC-2, AC-3)",
+    () =>
+      Effect.gen(function* () {
+        const picture = "/api/images/abcdefghijklmnopqrstuv";
+        const part = "/api/images/ABCDEFGHIJKLMNOPQRSTUV";
+        const { page, preview } = yield* publishedAndPreviewed((event) => {
+          A.updateText(event, ["title"], "Cropped");
+          setTimes(event);
+          setPlace(event);
+          setCover(event, picture, {
+            crop: {
+              x: 0.5,
+              y: 0,
+              width: 0.5,
+              height: 1,
+              from: picture,
+              src: part,
+            },
+            focus: { x: 0.8, y: 0.3 },
+          });
+        });
+        assert.deepStrictEqual(page.cover?.crop?.src, part);
+        assert.deepStrictEqual(page.cover?.focus, { x: 0.8, y: 0.3 });
+        assert.deepStrictEqual(preview, page);
+        // Plain strings, as the site reads them.
+        assert.strictEqual(typeof preview?.cover?.crop?.src, "string");
+        assert.strictEqual(typeof preview?.cover?.crop?.from, "string");
+      }),
+  );
+
+  it.effect(
     "gives a checkbox question's answer option, as publishing does (AC-2)",
     () =>
       Effect.gen(function* () {

@@ -9,6 +9,7 @@ import {
   Schema,
 } from "effect";
 import {
+  Cover,
   eventCategory,
   GuestDetails,
   guestProblems,
@@ -18,6 +19,7 @@ import {
   organizerLogos,
   Question,
   SiteConfig,
+  shownCover,
   TeamLogosChange,
 } from "../src/Model.ts";
 
@@ -406,5 +408,160 @@ describe("eventCategory", () => {
     assert.isNull(eventCategory(["Faglig"]));
     assert.isNull(eventCategory(["Sosialt arrangement"]));
     assert.isNull(eventCategory([]));
+  });
+});
+
+const picture = "/api/images/AAAAAAAAAAAAAAAAAAAAAA";
+const part = "/api/images/BBBBBBBBBBBBBBBBBBBBBB";
+
+const cropOf = (over: Record<string, unknown> = {}) => ({
+  x: 0,
+  y: 0,
+  width: 0.5,
+  height: 1,
+  from: picture,
+  src: part,
+  ...over,
+});
+
+const decodeCover = Schema.decodeUnknownOption(Cover);
+
+describe("Cover", () => {
+  it("takes a crop and a focal point inside the picture, and neither (AC-1)", () => {
+    const plain = { src: picture, alt: "" };
+    for (const given of [
+      plain,
+      { ...plain, crop: cropOf() },
+      { ...plain, focus: { x: 0.8, y: 0.3 } },
+      { ...plain, crop: cropOf({ x: 0.5, width: 0.5 }), focus: { x: 0, y: 1 } },
+    ]) {
+      assert.deepStrictEqual(Option.getOrNull(decodeCover(given)), given);
+    }
+  });
+
+  it("refuses a crop that reaches outside the picture, has no width, or is not an uploaded image (AC-1)", () => {
+    const plain = { src: picture, alt: "" };
+    for (const crop of [
+      cropOf({ x: 0.6 }),
+      cropOf({ height: 1.2 }),
+      cropOf({ x: -0.1 }),
+      cropOf({ width: 0 }),
+      cropOf({ height: 0 }),
+      cropOf({ src: "https://example.com/x.png" }),
+      cropOf({ from: "https://example.com/x.png" }),
+    ]) {
+      assert.isTrue(
+        Option.isNone(decodeCover({ ...plain, crop })),
+        JSON.stringify(crop),
+      );
+    }
+  });
+
+  it("refuses a focal point outside 0 to 1 (AC-1)", () => {
+    for (const focus of [
+      { x: 1.1, y: 0.5 },
+      { x: 0.5, y: -0.2 },
+    ]) {
+      assert.isTrue(
+        Option.isNone(decodeCover({ src: picture, alt: "", focus })),
+        JSON.stringify(focus),
+      );
+    }
+  });
+});
+
+describe("shownCover", () => {
+  const plain = { src: picture, alt: "" };
+
+  it("gives the picture, cut around its centre, when there is no crop or focal point (AC-4)", () => {
+    assert.deepStrictEqual(shownCover(plain), {
+      src: picture,
+      position: "50% 50%",
+    });
+  });
+
+  it("gives the crop's file when the crop is of the cover's picture (AC-2)", () => {
+    assert.strictEqual(shownCover({ ...plain, crop: cropOf() }).src, part);
+  });
+
+  it("gives the picture when the crop was cut from another picture (AC-5)", () => {
+    const stale = cropOf({ from: "/api/images/CCCCCCCCCCCCCCCCCCCCCC" });
+    assert.deepStrictEqual(
+      shownCover({ ...plain, crop: stale, focus: { x: 0.8, y: 0.3 } }),
+      { src: picture, position: "80% 30%" },
+    );
+  });
+
+  it("centres the part shown when a crop has no focal point (AC-3, AC-4)", () => {
+    const crop = cropOf({ x: 0.5, width: 0.5 });
+    assert.strictEqual(shownCover({ ...plain, crop }).position, "50% 50%");
+  });
+
+  it("ignores a focal point set on another picture (AC-5)", () => {
+    const stale = {
+      x: 0.8,
+      y: 0.3,
+      from: "/api/images/CCCCCCCCCCCCCCCCCCCCCC",
+    };
+    assert.strictEqual(
+      shownCover({ ...plain, focus: stale }).position,
+      "50% 50%",
+    );
+    assert.strictEqual(
+      shownCover({ ...plain, focus: { ...stale, from: picture } }).position,
+      "80% 30%",
+    );
+  });
+
+  it("puts the focal point as far into the box as it is into the picture (AC-3)", () => {
+    assert.strictEqual(
+      shownCover({ ...plain, focus: { x: 0.8, y: 0.3 } }).position,
+      "80% 30%",
+    );
+  });
+
+  it("measures the focal point against the crop, as far into the part as into the picture (AC-3)", () => {
+    const crop = cropOf({ x: 0.5, y: 0, width: 0.5, height: 1 });
+    assert.strictEqual(
+      shownCover({ ...plain, crop, focus: { x: 0.8, y: 0.3 } }).position,
+      "60% 30%",
+    );
+  });
+
+  it("holds a focal point outside the crop at the crop's nearest edge (AC-3)", () => {
+    const crop = cropOf({ x: 0.5, y: 0.25, width: 0.25, height: 0.5 });
+    assert.strictEqual(
+      shownCover({ ...plain, crop, focus: { x: 0.1, y: 0.9 } }).position,
+      "0% 100%",
+    );
+    assert.strictEqual(
+      shownCover({ ...plain, crop, focus: { x: 0.95, y: 0 } }).position,
+      "100% 0%",
+    );
+  });
+
+  it("rounds the percentages to two decimals, with no trailing zeros (AC-3)", () => {
+    const crop = cropOf({ x: 0.5, width: 0.5 });
+    // (0.8 - 0.5) / 0.5 * 100 is 60.00000000000001 in JavaScript.
+    assert.strictEqual(
+      shownCover({ ...plain, crop, focus: { x: 0.8, y: 1 / 3 } }).position,
+      "60% 33.33%",
+    );
+  });
+
+  it("gives the picture and its centre once the crop and the focal point are gone (AC-8)", () => {
+    const {
+      crop: _crop,
+      focus: _focus,
+      ...reset
+    } = {
+      ...plain,
+      crop: cropOf(),
+      focus: { x: 0.8, y: 0.3 },
+    };
+    assert.deepStrictEqual(shownCover(reset), {
+      src: picture,
+      position: "50% 50%",
+    });
   });
 });

@@ -557,6 +557,49 @@ layer(TestLayer, { excludeTestServices: true })("Sharing", (it) => {
   );
 
   it.effect(
+    "shares the cover's cropped part, with that file's size, and the picture without a crop (AC-2, AC-4)",
+    () =>
+      Effect.gen(function* () {
+        const images = yield* Images;
+        const whole = yield* images.upload(pngOf(1600, 900));
+        const half = yield* images.upload(pngOf(800, 900));
+        const cropped = yield* publishedEvent({
+          cover: {
+            src: whole.url,
+            alt: "",
+            crop: {
+              x: 0,
+              y: 0,
+              width: 0.5,
+              height: 1,
+              from: whole.url,
+              src: half.url,
+            },
+          },
+        });
+        const uncropped = yield* publishedEvent({
+          cover: { src: whole.url, alt: "" },
+        });
+        yield* withPages({}, (page) =>
+          Effect.gen(function* () {
+            const read = (id: string) =>
+              Effect.gen(function* () {
+                const response = yield* page(`/events/${id}`);
+                return metaOf(yield* Effect.promise(() => response.text()));
+              });
+            const part = yield* read(cropped);
+            assert.isTrue(part.get("og:image")?.endsWith(half.url));
+            assert.strictEqual(part.get("og:image:width"), "800");
+            assert.strictEqual(part.get("og:image:height"), "900");
+            const picture = yield* read(uncropped);
+            assert.isTrue(picture.get("og:image")?.endsWith(whole.url));
+            assert.strictEqual(picture.get("og:image:width"), "1600");
+          }),
+        );
+      }).pipe(Effect.provide(Images.layer)),
+  );
+
+  it.effect(
     "answers with the cover's own size, and without one when it cannot be read (AC-5)",
     () =>
       Effect.gen(function* () {
