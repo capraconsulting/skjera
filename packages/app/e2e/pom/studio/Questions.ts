@@ -10,6 +10,11 @@ export class Questions {
 
   private readonly question = (n: number) =>
     this.page.getByRole("textbox", { name: `Question ${n}`, exact: true });
+  private readonly label = (n: number) =>
+    this.page.getByRole("textbox", {
+      name: `Question ${n} answer option`,
+      exact: true,
+    });
   private readonly type = (n: number) =>
     this.page.getByRole("combobox", { name: `Question ${n} type` });
   private readonly item = (n: number) =>
@@ -32,6 +37,11 @@ export class Questions {
       .fill(text);
   }
 
+  /** Fills in a checkbox question's "Answer option". */
+  async fillLabel(n: number, text: string): Promise<void> {
+    await this.label(n).fill(text);
+  }
+
   /** Ticks a question's "Must be ticked" or "Required". */
   async checkRule(
     n: number,
@@ -48,5 +58,14 @@ export class Questions {
 
   async expect(n: number, text: string): Promise<void> {
     await expect(this.question(n)).toHaveValue(text);
+  }
+
+  async expectLabel(n: number, text: string): Promise<void> {
+    await expect(this.label(n)).toHaveValue(text);
+  }
+
+  /** Question `n` has no "Answer option": it is not a checkbox. */
+  async expectNoLabel(n: number): Promise<void> {
+    await expect(this.label(n)).toHaveCount(0);
   }
 }

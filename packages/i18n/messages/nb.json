@@ -349,6 +349,8 @@
   "editor_q_remove": "Fjern spørsmål {n}",
   "editor_q_tick_placeholder": "Hva avkrysningen betyr, for eksempel «Jeg tar med en venn»",
   "editor_q_placeholder": "Spørsmålet, for eksempel «Hvor hørte du om det?»",
+  "editor_q_label": "Svaralternativ for spørsmål {n}",
+  "editor_q_label_placeholder": "Svaralternativ (valgfritt), for eksempel «Ja, jeg vil leie badebukse»",
   "editor_q_add": "Legg til spørsmål",
   "editor_q_option": "Spørsmål {n}, alternativ {option}",
   "editor_q_option_placeholder": "Alternativ {option}",
@@ -632,5 +634,8 @@
   "studio_invitation_added": "{email} ble lagt til i listen",
   "problem_invited_email_invalid": "Skriv inn en gyldig e-postadresse",
   "problem_already_invited": "{email} er allerede lagt til",
-  "site_nothing_past": "Fant ingen tidligere arrangementer 😭"
+  "site_nothing_past": "Fant ingen tidligere arrangementer 😭",
+  "studio_copy": "Lag kopi",
+  "studio_copy_unsaved": "Kunne ikke lage kopi: endringene dine er ikke lagret ennå",
+  "studio_copy_failed": "Kopieringen mislyktes"
 }

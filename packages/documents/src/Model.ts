@@ -359,14 +359,19 @@ export const uniqueTags = (
 
 /**
  * A question asked of everyone signing up. "text" takes a written answer,
- * "checkbox" a tick (the text is its label, e.g. "I'll bring a friend"),
- * and "choice" one of its options. Ids keep answers to the question they
- * were given for, whatever is edited.
+ * "checkbox" a tick (the text is the words beside the box, e.g. "I'll bring
+ * a friend", unless it has a label), and "choice" one of its options. Ids
+ * keep answers to the question they were given for, whatever is edited.
  */
 export const Question = Schema.Struct({
   id: Schema.String.check(Schema.isUUID()),
   type: Schema.Literals(["text", "checkbox", "choice"]),
   text: Schema.String,
+  /**
+   * Checkbox: the words beside the box, with the text above it as the
+   * question. Missing or blank: the text is beside the box.
+   */
+  label: Schema.optionalKey(Schema.String),
   /** Text and choice: an answer is needed. Checkbox: it must be ticked. */
   required: Schema.Boolean,
   /** For choice questions; empty for the others. */

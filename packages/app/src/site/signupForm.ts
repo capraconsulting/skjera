@@ -17,6 +17,19 @@ export const chosenOption = (
   return (offered ?? question.options[0])?.id;
 };
 
+/**
+ * A checkbox question's words: its text above the box and its label beside
+ * it, or, with no label or a blank one, its text beside the box.
+ */
+export const checkboxWords = (
+  question: Pick<Question, "text" | "label">,
+): { readonly above: string | undefined; readonly beside: string } => {
+  const label = (question.label ?? "").trim();
+  return label === ""
+    ? { above: undefined, beside: question.text }
+    : { above: question.text, beside: label };
+};
+
 const decodeProblem = Schema.decodeUnknownOption(Problem);
 
 /**

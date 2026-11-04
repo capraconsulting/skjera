@@ -230,6 +230,15 @@ const DocumentsHandlers = HttpApiBuilder.group(Api, "documents", (handlers) =>
           );
         }),
       )
+      .handle("copy", ({ params, payload }) =>
+        Effect.gen(function* () {
+          return yield* documents.copy(
+            params.id,
+            payload.id,
+            yield* OAuth.CurrentUser,
+          );
+        }),
+      )
       .handle("update", ({ params, payload }) =>
         Effect.gen(function* () {
           return yield* documents.publish(

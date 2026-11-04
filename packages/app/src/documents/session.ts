@@ -18,6 +18,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { DraftPresence } from "../presence/presence.ts";
 import { sayWhy } from "../problems.ts";
 import {
+  copyDocument,
   discardChanges,
   documents,
   events,
@@ -38,12 +39,15 @@ export interface SessionState {
   readonly publishing: boolean;
   readonly unpublishing: boolean;
   readonly discarding: boolean;
+  readonly copying: boolean;
   readonly error: string | null;
   /** Someone deleted the document; the session has stopped. */
   readonly deleted: boolean;
   readonly publish: () => void;
   readonly unpublish: () => void;
   readonly discard: () => void;
+  /** Makes a copy of the event and calls `opened` with the copy's id. */
+  readonly copy: (opened: (copy: DocumentId) => void) => void;
 }
 
 class SessionStore {
@@ -55,11 +59,13 @@ class SessionStore {
     publishing: false,
     unpublishing: false,
     discarding: false,
+    copying: false,
     error: null,
     deleted: false,
     publish: () => {},
     unpublish: () => {},
     discard: () => {},
+    copy: () => {},
   };
   readonly #listeners = new Set<() => void>();
 
@@ -78,7 +84,7 @@ class SessionStore {
   };
 }
 
-/** How long publishing and discarding wait for the server to have every edit. */
+/** How long publishing, discarding and copying wait for the server to have every edit. */
 const saveTimeout = "10 seconds";
 
 class DocumentNotFound {
@@ -217,6 +223,32 @@ const session = (id: DocumentId, store: SessionStore) =>
       Effect.ensuring(Effect.sync(() => store.set({ discarding: false }))),
     );
 
+    // Copies the server's draft, once it has every edit this copy has, so the
+    // last words typed are in the copy. The copy's row is pulled before it is
+    // opened, as the editor needs it.
+    const copy = (opened: (copy: DocumentId) => void) =>
+      savedVersion(() => m.studio_copy_unsaved()).pipe(
+        Effect.andThen(
+          Effect.suspend(() => {
+            const copyId = crypto.randomUUID() as DocumentId;
+            return copyDocument(id, copyId).pipe(Effect.as(copyId));
+          }),
+        ),
+        Effect.tap(() => Effect.promise(() => documents.refresh())),
+        Effect.tap((copyId) =>
+          Effect.sync(() => {
+            store.set({ error: null });
+            opened(copyId);
+          }),
+        ),
+        Effect.catch((error) =>
+          Effect.sync(() =>
+            store.set({ error: sayWhy(error, m.studio_copy_failed()) }),
+          ),
+        ),
+        Effect.ensuring(Effect.sync(() => store.set({ copying: false }))),
+      );
+
     const presence = yield* Effect.acquireRelease(
       Effect.sync(() => new DraftPresence(handle as DocHandle<unknown>)),
       (presence) => Effect.sync(() => presence.stop()),
@@ -229,6 +261,7 @@ const session = (id: DocumentId, store: SessionStore) =>
       publishing: false,
       unpublishing: false,
       discarding: false,
+      copying: false,
       publish: () => {
         store.set({ publishing: true });
         void Effect.runPromise(publish);
@@ -240,6 +273,10 @@ const session = (id: DocumentId, store: SessionStore) =>
       discard: () => {
         store.set({ discarding: true });
         void Effect.runPromise(discard);
+      },
+      copy: (opened) => {
+        store.set({ copying: true });
+        void Effect.runPromise(copy(opened));
       },
     });
     showSaving();

@@ -349,6 +349,8 @@
   "editor_q_remove": "Fjern spørsmål {n}",
   "editor_q_tick_placeholder": "Kva avkryssinga tyder, til dømes «Eg tek med ein ven»",
   "editor_q_placeholder": "Spørsmålet, til dømes «Kvar høyrde du om det?»",
+  "editor_q_label": "Svaralternativ for spørsmål {n}",
+  "editor_q_label_placeholder": "Svaralternativ (valfritt), til dømes «Ja, eg vil leige badebukse»",
   "editor_q_add": "Legg til spørsmål",
   "editor_q_option": "Spørsmål {n}, alternativ {option}",
   "editor_q_option_placeholder": "Alternativ {option}",
@@ -632,5 +634,8 @@
   "studio_invitation_added": "{email} vart lagd til i lista",
   "problem_invited_email_invalid": "Skriv inn ei gyldig e-postadresse",
   "problem_already_invited": "{email} er allereie lagd til",
-  "site_nothing_past": "Fann ingen tidlegare arrangement 😭"
+  "site_nothing_past": "Fann ingen tidlegare arrangement 😭",
+  "studio_copy": "Lag kopi",
+  "studio_copy_unsaved": "Kunne ikkje lage kopi: endringane dine er ikkje lagra enno",
+  "studio_copy_failed": "Kopieringa mislukkast"
 }

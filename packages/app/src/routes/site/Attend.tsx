@@ -32,6 +32,7 @@ import {
 } from "../../site/guestSignups.ts";
 import { placesLeft } from "../../site/signupCount.ts";
 import {
+  checkboxWords,
   chosenOption,
   fieldOf,
   type GuestField,
@@ -885,8 +886,10 @@ function QuestionInputs(props: {
             />
           </div>
         );
-      case "checkbox":
-        return (
+      case "checkbox": {
+        // With a label, the question is above the box, as a choice's is.
+        const { above, beside } = checkboxWords(question);
+        const box = (
           <label key={question.id} className={styles.check}>
             <input
               type="checkbox"
@@ -894,9 +897,18 @@ function QuestionInputs(props: {
               required={question.required}
               defaultChecked={given[question.id] === true}
             />
-            {question.text}
+            {beside}
           </label>
         );
+        return above === undefined ? (
+          box
+        ) : (
+          <fieldset key={question.id} className={styles.choice}>
+            <legend>{above}</legend>
+            {box}
+          </fieldset>
+        );
+      }
       case "choice":
         return (
           <fieldset key={question.id} className={styles.choice}>

@@ -16,6 +16,7 @@ import {
   isMobileNumber,
   optionalSetting,
   organizerLogos,
+  Question,
   SiteConfig,
   TeamLogosChange,
 } from "../src/Model.ts";
@@ -39,6 +40,29 @@ describe("GuestDetails", () => {
     assert.isTrue(Option.isNone(decode({ ...gina, company: "A".repeat(101) })));
     assert.isTrue(Option.isSome(decode({ ...gina, phone: "1".repeat(50) })));
     assert.isTrue(Option.isSome(decode({ ...gina, company: "A".repeat(100) })));
+  });
+});
+
+describe("Question", () => {
+  const decodeQuestion = Schema.decodeUnknownOption(Question);
+  const swim = {
+    id: "6f1f6a1e-3a0b-4a53-9a44-0f6a8f3c1a05",
+    type: "checkbox",
+    text: "Skal du bade?",
+    required: false,
+    options: [],
+  } as const;
+
+  it("keeps a checkbox question's answer option (AC-1)", () => {
+    const labelled = { ...swim, label: "Ja, jeg vil leie badebukse" };
+    assert.deepStrictEqual(
+      Option.getOrNull(decodeQuestion(labelled)),
+      labelled,
+    );
+  });
+
+  it("takes a question made without an answer option, as before (AC-3)", () => {
+    assert.deepStrictEqual(Option.getOrNull(decodeQuestion(swim)), swim);
   });
 });
 

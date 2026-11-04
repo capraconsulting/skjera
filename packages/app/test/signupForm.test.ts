@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { chosenOption, fieldOf } from "../src/site/signupForm.ts";
+import {
+  checkboxWords,
+  chosenOption,
+  fieldOf,
+} from "../src/site/signupForm.ts";
 
 const small = "00000000-0000-4000-8000-000000000001";
 const large = "00000000-0000-4000-8000-000000000002";
@@ -25,6 +29,31 @@ describe("chosenOption", () => {
   it("is the first option when the answer is no longer offered (AC-6)", () => {
     expect(chosenOption(question, { [towels]: "gone" })).toBe(small);
     expect(chosenOption(question, { [towels]: true })).toBe(small);
+  });
+});
+
+describe("checkboxWords", () => {
+  it("puts the question above the box and its answer option beside it (AC-2)", () => {
+    expect(
+      checkboxWords({
+        text: "Skal du bade?",
+        label: "Ja, jeg vil leie badebukse",
+      }),
+    ).toEqual({ above: "Skal du bade?", beside: "Ja, jeg vil leie badebukse" });
+  });
+
+  it("puts the question beside the box when it has no answer option, or a blank one (AC-3)", () => {
+    const text = "I accept the risks of swimming";
+    for (const given of [
+      { text },
+      { text, label: "" },
+      { text, label: "   " },
+    ]) {
+      expect(checkboxWords(given)).toEqual({
+        above: undefined,
+        beside: text,
+      });
+    }
   });
 });
 
