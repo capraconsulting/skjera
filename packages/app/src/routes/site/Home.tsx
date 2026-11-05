@@ -11,6 +11,7 @@ import { Button } from "../../components/Button.tsx";
 import { Organizer } from "../../components/Organizer.tsx";
 import { usePageTitle } from "../../pageTitle.ts";
 import {
+  chosenTag,
   frontPageLists,
   paged,
   pageSize,
@@ -80,10 +81,7 @@ export function Home() {
   const tags = uniqueTags(active.flatMap((event) => event.tags)).toSorted(
     (a, b) => a.localeCompare(b, getLocale()),
   );
-  const tag =
-    picked === null
-      ? null
-      : (tags.find((each) => sameTag(each, picked)) ?? picked);
+  const tag = chosenTag(tags, picked);
   const pick = (next: string | null) => void setPicked(next);
   // Choosing the chosen one again removes it.
   const pickGuests = (next: GuestChoice) =>

@@ -58,4 +58,4 @@ IF `SIGNING_SECRET` is not set, THEN the server SHALL start, and warn that guest
 - **When** you run `mise exec -- env -u SIGNING_SECRET pnpm --filter @skjera/server dev`
 - **Then** it starts, and logs «SIGNING_SECRET not set: guests' links in emails stop working on restart»
 
-**Automated:** none
+**Automated:** `packages/documents/test/attendance/tokens.test.ts`

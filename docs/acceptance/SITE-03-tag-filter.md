@@ -72,7 +72,7 @@ WHEN a tag is given in the address in other capitals than it is written with, th
 - **When** you open http://localhost:5173/?tag=pottery%207
 - **Then** «#Pottery 7» is marked as chosen, and «AC-1: Coming» and «AC-1: Was» show
 
-**Automated:** none
+**Automated:** `packages/app/test/frontPage.test.ts`
 
 ## AC-6: Nothing tagged coming up
 

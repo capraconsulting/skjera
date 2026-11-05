@@ -38,7 +38,7 @@ test("an account that is not allowed gets a page in the visitor's language (AC-1
   await header.expectLogIn();
 });
 
-test("an expired login offers to log in again, back where it started (AC-2, AC-4)", async ({
+test("an expired login offers to log in again, back where it started (AC-2, AC-4, ACC-04 AC-3)", async ({
   browser,
 }) => {
   const page = await visitor(browser);

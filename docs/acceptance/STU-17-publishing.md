@@ -92,7 +92,7 @@ IF the server has not received every edit within 10 seconds of **Publish** being
 - **When** you start `pnpm dev` again and reload the site
 - **Then** the site still shows the old title
 
-**Automated:** none
+**Automated:** `packages/app/test/savedVersion.test.ts`, which checks the wait, not that **Publish** uses it
 
 ## AC-7: What was seen is what is published
 

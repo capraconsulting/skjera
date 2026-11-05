@@ -1,9 +1,10 @@
 import { assert, describe, it } from "@effect/vitest";
-import { Redacted } from "effect";
+import { ConfigProvider, Effect, Logger, Redacted } from "effect";
 import {
   cancelLinkToken,
   guestToken,
   readCancelLink,
+  signingSecret,
   tokenHash,
 } from "../../src/attendance/tokens.ts";
 
@@ -136,4 +137,50 @@ describe("cancelLinkToken and readCancelLink", () => {
       invalid,
     );
   });
+});
+
+/** `signingSecret` read from these environment variables, with what it logged. */
+const readSecret = (env: Record<string, string>) =>
+  Effect.gen(function* () {
+    const log: Array<{ level: string; message: unknown }> = [];
+    const secret = yield* signingSecret.pipe(
+      Effect.provide(
+        Logger.layer([
+          Logger.make(({ logLevel, message }) => {
+            log.push({ level: logLevel, message });
+          }),
+        ]),
+      ),
+      Effect.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(env))),
+    );
+    return { secret: Redacted.value(secret), log };
+  });
+
+describe("signingSecret", () => {
+  it.effect(
+    "starts without SIGNING_SECRET, and warns that guests' links in emails stop working on restart (OPS-01 AC-5)",
+    () =>
+      Effect.gen(function* () {
+        const { secret, log } = yield* readSecret({});
+        assert.isAbove(secret.length, 0);
+        assert.deepStrictEqual(log, [
+          {
+            level: "Warn",
+            message: [
+              "SIGNING_SECRET not set: guests' links in emails stop working on restart",
+            ],
+          },
+        ]);
+      }),
+  );
+
+  it.effect(
+    "uses SIGNING_SECRET when it is set, and does not warn (OPS-01 AC-5)",
+    () =>
+      Effect.gen(function* () {
+        const { secret, log } = yield* readSecret({ SIGNING_SECRET: "given" });
+        assert.strictEqual(secret, "given");
+        assert.deepStrictEqual(log, []);
+      }),
+  );
 });

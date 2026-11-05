@@ -79,7 +79,7 @@ WHILE a visitor has not picked a language, Skjera SHALL show the site in the lan
 - **Then** the site is in Nynorsk
 - **And** remove the line from `mise.local.toml` and restart `pnpm dev` afterwards
 
-**Automated:** none
+**Automated:** `packages/documents/test/Model.test.ts`, `packages/app/test/i18n.test.ts`
 
 ## AC-7: Every word in every language
 
