@@ -53,7 +53,7 @@ The guest's link itself is in SIGN-04 AC-4.
 - **Then** bob's says «Can't make it now? You can cancel your signup on the event's page.», with **See the event**
 - **And** the guest's says «Can't make it now? Your own link cancels your signup.», with **Your signup**
 
-**Automated:** none
+**Automated:** `packages/documents/test/notices/changes.test.tsx`
 
 ## AC-5: Other changes send no email
 
