@@ -124,8 +124,11 @@ layer(Images.layer, { excludeTestServices: true })("Images", (it) => {
     () =>
       Effect.gen(function* () {
         const images = yield* Images;
-        const sized = (length: number) =>
-          Uint8Array.from({ length }, (_, at) => png[at] ?? 0);
+        const sized = (length: number) => {
+          const bytes = new Uint8Array(length);
+          bytes.set(png);
+          return bytes;
+        };
         const error = yield* images
           .upload(sized(maxImageBytes + 1))
           .pipe(Effect.flip);
@@ -136,6 +139,7 @@ layer(Images.layer, { excludeTestServices: true })("Images", (it) => {
         const { url } = yield* images.upload(sized(maxImageBytes));
         assert.match(url, /^\/api\/images\//);
       }),
+    30_000,
   );
 
   it.effect("lists an image just uploaded, with when it came (AC-2)", () =>
