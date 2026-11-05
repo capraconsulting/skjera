@@ -13,7 +13,7 @@ import {
 } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { eq } from "@tanstack/react-db";
-import { Effect, Fiber, Schedule } from "effect";
+import { Effect, Fiber } from "effect";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { DraftPresence } from "../presence/presence.ts";
 import { sayWhy } from "../problems.ts";
@@ -28,6 +28,10 @@ import {
   unpublishDocument,
 } from "../sync/tables.ts";
 import { forgetLocal, openDraft } from "./repo.ts";
+import {
+  savedVersion as versionOnceSaved,
+  versionToPublish,
+} from "./savedVersion.ts";
 
 export interface SessionState {
   /** The local copy being edited, once it's open. */
@@ -99,15 +103,8 @@ class SessionStore {
   };
 }
 
-/** How long publishing, discarding, restoring and copying wait for the server to have every edit. */
-const saveTimeout = "10 seconds";
-
 class DocumentNotFound {
   readonly _tag = "DocumentNotFound";
-}
-
-class NotSavedYet {
-  readonly _tag = "NotSavedYet";
 }
 
 /**
@@ -175,20 +172,16 @@ const session = (id: DocumentId, store: SessionStore) =>
      * `unsaved`'s message if that takes too long.
      */
     const savedVersion = (unsaved: () => string) =>
-      Effect.suspend(() =>
-        saved()
-          ? Effect.succeed(A.getHeads(handle.doc()))
-          : Effect.fail(new NotSavedYet()),
-      ).pipe(
-        Effect.retry({ schedule: Schedule.spaced("100 millis") }),
-        Effect.timeoutOrElse({
-          duration: saveTimeout,
-          orElse: () => Effect.fail(new Error(unsaved())),
-        }),
+      versionOnceSaved(
+        { saved, version: () => A.getHeads(handle.doc()) },
+        unsaved,
       );
 
     // Publishes what this copy shows, once the server has all of it.
-    const publish = savedVersion(() => m.studio_publish_unsaved()).pipe(
+    const publish = versionToPublish({
+      saved,
+      version: () => A.getHeads(handle.doc()),
+    }).pipe(
       Effect.flatMap((heads) => publishDraft(id, heads)),
       // The published version reaches the page as a row of `events`; the
       // document's row says it was published, which locks the organizer.

@@ -71,7 +71,7 @@ IF a tag has only been added to drafts, and never published, THEN the studio SHA
 - **When** you type the start of it on «AC-1 to AC-3: Tagged»
 - **Then** it is offered only with a «+», as a new tag
 
-**Automated:** none
+**Automated:** `packages/documents/test/events/content.test.ts`
 
 ## AC-6: The event page shows the tags
 

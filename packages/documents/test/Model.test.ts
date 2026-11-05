@@ -222,6 +222,23 @@ describe("SiteConfig", () => {
     }),
   );
 
+  it.effect(
+    "has the language set in SITE_LOCALE, else English (ACC-06 AC-6)",
+    () =>
+      Effect.gen(function* () {
+        const set = yield* readSite({ SITE_LOCALE: "nn" });
+        assert.isTrue(Exit.isSuccess(set));
+        if (Exit.isSuccess(set)) {
+          assert.strictEqual(set.value.locale, "nn");
+        }
+        const unset = yield* readSite({});
+        assert.isTrue(Exit.isSuccess(unset));
+        if (Exit.isSuccess(unset)) {
+          assert.strictEqual(unset.value.locale, "en");
+        }
+      }),
+  );
+
   it.effect("refuses an account id that is not digits", () =>
     Effect.gen(function* () {
       for (const given of ["abc", "1460/72525", "146072525.js", "14 6"]) {

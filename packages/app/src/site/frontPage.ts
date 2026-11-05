@@ -60,6 +60,18 @@ export const frontPageLists = <
   };
 };
 
+/**
+ * The tag chosen in the address: as the upcoming events write it, when one
+ * of theirs is the same in any case; else as given.
+ */
+export const chosenTag = (
+  tags: ReadonlyArray<string>,
+  picked: string | null,
+): string | null =>
+  picked === null
+    ? null
+    : (tags.find((each) => sameTag(each, picked)) ?? picked);
+
 /** What an upcoming event's row says at a glance. */
 export const rowMarks = (
   event: Pick<

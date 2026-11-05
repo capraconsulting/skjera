@@ -399,4 +399,52 @@ layer(TestLayer, { excludeTestServices: true })("Event content", (it) => {
       }
     }),
   );
+
+  it.effect(
+    "does not suggest a tag only added to drafts, never published (STU-15 AC-5)",
+    () =>
+      Effect.gen(function* () {
+        const sync = yield* Sync;
+        const documents = yield* Documents;
+        const unique = crypto.randomUUID().slice(0, 8);
+        const kept = `Draft only ${unique}`;
+        const removed = `Taken off ${unique}`;
+        const unpublished = `After publishing ${unique}`;
+
+        // Added to a new draft and kept.
+        const draft = yield* documents.create("event", yield* newTeam, alice);
+        const editor = yield* openEditor(draft);
+        yield* documents.applyChanges(
+          draft,
+          [editor.edit((event) => addTags(event, kept, removed))],
+          alice,
+        );
+        // Added and taken off again.
+        yield* documents.applyChanges(
+          draft,
+          [
+            editor.edit((event) => {
+              (event as unknown as { tags: Array<string> }).tags.splice(1, 1);
+            }),
+          ],
+          alice,
+        );
+        // Added to the draft of a published event, without publishing again.
+        const published = yield* publishedEvent({
+          public: true,
+          guests: false,
+        });
+        const republished = yield* openEditor(published);
+        yield* documents.applyChanges(
+          published,
+          [republished.edit((event) => addTags(event, unpublished))],
+          alice,
+        );
+
+        const suggested = (yield* sync.tags(undefined)).rows
+          .map((row) => row.name.toLowerCase())
+          .filter((name) => name.endsWith(unique.toLowerCase()));
+        assert.deepStrictEqual(suggested, []);
+      }),
+  );
 });

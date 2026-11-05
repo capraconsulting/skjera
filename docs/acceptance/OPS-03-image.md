@@ -50,7 +50,7 @@ WHEN the server is sent SIGTERM, it SHALL stop promptly.
 - **When** you send it SIGTERM: `kill $(lsof -t -iTCP:8801 -sTCP:LISTEN)`
 - **Then** it has stopped within a few seconds, and http://localhost:8801 no longer answers
 
-**Automated:** none
+**Automated:** `packages/server/test/shutdown.test.ts`
 
 ## AC-5: The Readme says how to run it
 

@@ -40,7 +40,7 @@ WHEN a visitor who is not logged in opens **Account settings** at `/account`, Sk
 - **When** you log in as bob
 - **Then** you are on **Account settings**, with bob's name and email
 
-**Automated:** none
+**Automated:** `packages/app/e2e/specs/login.spec.ts`
 
 ## AC-4: The Studio link, marked where you are
 

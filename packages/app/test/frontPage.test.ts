@@ -3,6 +3,7 @@ import { m } from "@skjera/i18n/messages";
 import { baseLocale, overwriteGetLocale } from "@skjera/i18n/runtime";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  chosenTag,
   frontPageLists,
   paged,
   pageSize,
@@ -267,5 +268,19 @@ describe("rowMarks", () => {
     );
     expect(going.happeningNow).toBe(true);
     expect(rowMarks(marked(), now).happeningNow).toBe(false);
+  });
+});
+
+describe("chosenTag", () => {
+  const tags = ["Pottery 7", "Social"];
+
+  it("is the tag as the upcoming events write it, when the address gives it in other capitals (SITE-03 AC-5)", () => {
+    expect(chosenTag(tags, "pottery 7")).toBe("Pottery 7");
+    expect(chosenTag(tags, "SOCIAL")).toBe("Social");
+  });
+
+  it("is the tag as given when no upcoming event has it, and none when the address gives none (SITE-03 AC-5)", () => {
+    expect(chosenTag(tags, "Gardening")).toBe("Gardening");
+    expect(chosenTag(tags, null)).toBeNull();
   });
 });
