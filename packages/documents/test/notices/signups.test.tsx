@@ -2,7 +2,9 @@ import { assert, layer } from "@effect/vitest";
 import { m } from "@skjera/i18n/messages";
 import { Identity } from "@skjera/oauth/api";
 import { Effect } from "effect";
+import { SqlClient } from "effect/sql";
 import { Attendance } from "../../src/attendance/Attendance.ts";
+import { formatAt } from "../../src/notices/emails/format.ts";
 import {
   descriptionOf,
   emailsTo,
@@ -196,6 +198,132 @@ layer(TestLayer, { excludeTestServices: true })("Mail: signups", (it) => {
       assert.strictEqual(cancelled?.message.calendar?.method, "CANCEL");
     }),
   );
+  it.effect(
+    "tells a guest until the sign-up deadline, and a member until the start when there is none, that they can change or cancel (MAIL-01 AC-3)",
+    () =>
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        const attendance = yield* Attendance;
+        const locale = { locale: "en" } as const;
+        const withDeadline = yield* publishedEvent();
+        const deadline = new Date("2036-10-14T12:00+02:00");
+        yield* sql`
+          UPDATE events SET signup_deadline = ${deadline}
+          WHERE id = ${withDeadline}
+        `;
+        const address = `gina-${crypto.randomUUID()}@example.org`;
+        yield* attendance.attendAsGuest(withDeadline, {
+          name: "Gina",
+          email: address,
+        });
+        const [guest] = yield* emailsTo(address, 1);
+        assert.include(
+          guest?.message.text ?? "",
+          m.email_signed_up_change_guest(
+            { until: formatAt("en", deadline, "Europe/Oslo") },
+            locale,
+          ),
+        );
+
+        const withoutDeadline = yield* publishedEvent();
+        const member = new Identity({
+          issuer: "https://idp.example",
+          subject: `m-${crypto.randomUUID()}`,
+          email: `member-${crypto.randomUUID()}@example.com`,
+          name: "Morten",
+        });
+        yield* attendance.attend(withoutDeadline, member);
+        const [signedUp] = yield* emailsTo(member.email ?? "", 1);
+        assert.include(
+          signedUp?.message.text ?? "",
+          m.email_signed_up_change_member(
+            {
+              until: formatAt(
+                "en",
+                new Date("2036-10-15T18:00+02:00"),
+                "Europe/Oslo",
+              ),
+            },
+            locale,
+          ),
+        );
+      }),
+  );
+
+  it.effect(
+    "ends the confirmation by saying why it was sent (MAIL-01 AC-4)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const event = yield* publishedEvent();
+        const address = `gina-${crypto.randomUUID()}@example.org`;
+        yield* attendance.attendAsGuest(event, {
+          name: "Gina",
+          email: address,
+        });
+        const [signedUp] = yield* emailsTo(address, 1);
+        const site = process.env.SITE_NAME ?? "Skjera";
+        assert.isTrue(
+          (signedUp?.message.text ?? "")
+            .trimEnd()
+            .endsWith(
+              m.email_reason_signed_up(
+                { title: "Launch", site },
+                { locale: "en" },
+              ),
+            ),
+        );
+      }),
+  );
+
+  it.effect(
+    "tells someone who cancelled how to sign up again, with the event's page (MAIL-02 AC-3)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const event = yield* publishedEvent();
+        const address = `gina-${crypto.randomUUID()}@example.org`;
+        const token = yield* attendance.attendAsGuest(event, {
+          name: "Gina",
+          email: address,
+        });
+        yield* attendance.leaveAsGuest(event, token);
+        const [, cancelled] = yield* emailsTo(address, 2);
+        const text = cancelled?.message.text ?? "";
+        assert.include(text, m.email_left_again({}, { locale: "en" }));
+        assert.include(text, `${process.env.SITE_URL}/events/${event}`);
+        // The event's page, not the link that cancelled.
+        assert.notInclude(text, "?guest=");
+      }),
+  );
+
+  it.effect(
+    "writes to a member in the language their signup came with (MAIL-07 AC-4)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const event = yield* publishedEvent();
+        const member = new Identity({
+          issuer: "https://idp.example",
+          subject: `m-${crypto.randomUUID()}`,
+          email: `member-${crypto.randomUUID()}@example.com`,
+          name: "Morten",
+        });
+        yield* attendance.attend(event, member, { locale: "nn" });
+        const [signedUp] = yield* emailsTo(member.email ?? "", 1);
+        // The site's own language is English, so a dropped one shows.
+        assert.strictEqual(
+          signedUp?.message.subject,
+          m.email_signed_up_subject({ title: "Launch" }, { locale: "nn" }),
+        );
+        assert.include(
+          signedUp?.message.text ?? "",
+          m.email_greeting({ name: "Morten" }, { locale: "nn" }),
+        );
+        assert.include(signedUp?.message.html ?? "", 'lang="nn"');
+      }),
+  );
+
   it.effect(
     "tells a guest an organizer took off the event, and takes it out of their calendar (AC-1, AC-2, AC-4)",
     () =>

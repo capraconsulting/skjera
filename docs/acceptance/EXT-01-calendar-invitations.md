@@ -26,7 +26,7 @@ WHEN an event has been published again, each invitation Skjera sends for it SHAL
 - **When** you compare `SEQUENCE` in the invitation of «You're signed up: …» and of «New time: …»
 - **Then** the one in «New time: …» is higher
 
-**Automated:** none
+**Automated:** `packages/documents/test/notices/changes.test.tsx`
 
 ## AC-3: Times in UTC
 

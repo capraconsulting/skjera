@@ -1,4 +1,6 @@
 import { assert, describe, it, layer } from "@effect/vitest";
+import { m } from "@skjera/i18n/messages";
+import { Identity } from "@skjera/oauth/api";
 import { Cron, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { Attendance } from "../../src/attendance/Attendance.ts";
@@ -141,6 +143,102 @@ layer(TestLayer, { excludeTestServices: true })("Mail: changes", (it) => {
     }),
   );
 
+  it.effect(
+    "tells a member and a guest how to cancel when the time changes (MAIL-03 AC-4)",
+    () =>
+      Effect.gen(function* () {
+        const notifications = yield* Notifications;
+        const event = yield* publishedEvent();
+        const run = crypto.randomUUID();
+        const attendee = (who: string, guest: boolean) => ({
+          id: crypto.randomUUID(),
+          name: who,
+          email: `${who}-${run}@example.org`,
+          guest,
+        });
+        const [member, guest] = [
+          attendee("morten", false),
+          attendee("gina", true),
+        ];
+        const previously = {
+          startsAt: "2036-10-14T16:00:00.000Z",
+          endsAt: "2036-10-14T19:00:00.000Z",
+        };
+        for (const who of [member, guest]) {
+          yield* notifications.eventChanged({
+            event,
+            attendee: who,
+            version: "1",
+            previously,
+          });
+        }
+
+        const locale = { locale: "en" } as const;
+        const page = `${process.env.SITE_URL}/events/${event}`;
+        const [forMember] = yield* emailsTo(member.email, 1);
+        assert.include(
+          forMember?.message.text ?? "",
+          m.email_moved_cancel_member({}, locale),
+        );
+        assert.include(forMember?.message.text ?? "", page);
+        assert.notInclude(forMember?.message.text ?? "", "?guest=");
+        const [forGuest] = yield* emailsTo(guest.email, 1);
+        assert.include(
+          forGuest?.message.text ?? "",
+          m.email_moved_cancel_guest({}, locale),
+        );
+        assert.include(
+          forGuest?.message.text ?? "",
+          `${page}?guest=${guest.id}&token=`,
+        );
+      }),
+  );
+
+  it.effect(
+    "gives each new invitation for a republished event a higher sequence number (EXT-01 AC-2)",
+    () =>
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        const attendance = yield* Attendance;
+        const notifications = yield* Notifications;
+        const event = yield* publishedEvent();
+        const signup = crypto.randomUUID();
+        const address = `gina-${signup}@example.org`;
+        yield* attendance.attendAsGuest(
+          event,
+          { name: "Gina", email: address },
+          { id: signup },
+        );
+        yield* emailsTo(address, 1);
+
+        // Published again a minute later: the publish times move only with
+        // the published version, so the test moves them itself.
+        yield* sql`
+          UPDATE events SET published_at = published_at + interval '1 minute'
+          WHERE id = ${event}
+        `;
+        yield* notifications.eventChanged({
+          event,
+          attendee: { id: signup, name: "Gina", email: address, guest: true },
+          version: "1",
+          previously: {
+            startsAt: "2036-10-14T16:00:00.000Z",
+            endsAt: "2036-10-14T19:00:00.000Z",
+          },
+        });
+
+        const [signedUp, moved] = yield* emailsTo(address, 2);
+        const sequenceOf = (invitation: string | undefined) =>
+          Number(/^SEQUENCE:(\d+)/m.exec(invitation ?? "")?.[1]);
+        const [before, after] = [
+          sequenceOf(signedUp?.message.calendar?.content),
+          sequenceOf(moved?.message.calendar?.content),
+        ];
+        assert.isFalse(Number.isNaN(before));
+        assert.isTrue(after > before, `${after} is not higher than ${before}`);
+      }),
+  );
+
   it.effect("tells attendees a deleted event is cancelled, and no more", () =>
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
@@ -194,9 +292,6 @@ layer(TestLayer, { excludeTestServices: true })("Mail: changes", (it) => {
         const dayAfter = yield* publishedEvent({
           startsAt: new Date("2045-03-27T00:30+02:00"),
         });
-        const deleted = yield* publishedEvent({
-          startsAt: new Date("2045-03-26T12:00+02:00"),
-        });
         const quiet = yield* publishedEvent({
           startsAt: new Date("2045-03-26T12:00+02:00"),
           reminders: false,
@@ -212,9 +307,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: changes", (it) => {
         yield* signUp(lastThing, "last");
         yield* signUp(today, "today");
         yield* signUp(dayAfter, "dayafter");
-        yield* signUp(deleted, "deleted");
         yield* signUp(quiet, "quiet");
-        yield* sql`UPDATE events SET deleted_at = now() WHERE id = ${deleted}`;
         // Signed up an hour before the run.
         yield* sql`
           UPDATE attendees SET created_at = '2045-03-25T06:05:00Z'
@@ -242,9 +335,96 @@ layer(TestLayer, { excludeTestServices: true })("Mail: changes", (it) => {
         for (const who of ["first", "sameday", "last"]) {
           assert.strictEqual(reminded(who).length, 1, who);
         }
-        for (const who of ["today", "dayafter", "deleted", "quiet"]) {
+        for (const who of ["today", "dayafter", "quiet"]) {
           assert.deepStrictEqual(reminded(who), [], who);
         }
+      }),
+  );
+
+  it.effect(
+    "tells a member and a guest how to cancel in the reminder (MAIL-05 AC-1)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const now = new Date("2045-04-09T07:05:00Z");
+        const event = yield* publishedEvent({
+          startsAt: new Date("2045-04-10T12:00+02:00"),
+        });
+        const run = crypto.randomUUID();
+        const guest = `gina-${run}@example.org`;
+        const member = new Identity({
+          issuer: "https://idp.example",
+          subject: `m-${run}`,
+          email: `morten-${run}@example.com`,
+          name: "Morten",
+        });
+        const signup = crypto.randomUUID();
+        yield* attendance.attendAsGuest(
+          event,
+          { name: "Gina", email: guest },
+          { id: signup },
+        );
+        yield* attendance.attend(event, member);
+        yield* Mail.sendReminders(now);
+
+        const reminder = (address: string) =>
+          Effect.map(emailsTo(address, 2), (sent) =>
+            sent.find((email) => email.message.subject === "Reminder: Launch"),
+          );
+        const locale = { locale: "en" } as const;
+        const page = `${process.env.SITE_URL}/events/${event}`;
+        const forMember = (yield* reminder(member.email ?? ""))?.message.text;
+        assert.include(
+          forMember ?? "",
+          m.email_reminder_cancel_member({}, locale),
+        );
+        assert.include(forMember ?? "", page);
+        assert.notInclude(forMember ?? "", "?guest=");
+        const forGuest = (yield* reminder(guest))?.message.text;
+        assert.include(
+          forGuest ?? "",
+          m.email_reminder_cancel_guest({}, locale),
+        );
+        assert.include(forGuest ?? "", `${page}?guest=${signup}&token=`);
+      }),
+  );
+
+  it.effect(
+    "sends no reminder for an event deleted before it (MAIL-05 AC-4)",
+    () =>
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        const attendance = yield* Attendance;
+        const notifications = yield* Notifications;
+        const now = new Date("2045-04-16T07:05:00Z");
+        const event = yield* publishedEvent({
+          startsAt: new Date("2045-04-17T12:00+02:00"),
+        });
+        const signup = crypto.randomUUID();
+        const address = `gina-${signup}@example.org`;
+        yield* attendance.attendAsGuest(
+          event,
+          { name: "Gina", email: address },
+          { id: signup },
+        );
+        yield* emailsTo(address, 1);
+
+        yield* sql`UPDATE events SET deleted_at = now() WHERE id = ${event}`;
+        yield* Mail.sendReminders(now);
+        // The cancellation is the one email about it; once it has arrived,
+        // anything else sent has had its time to.
+        yield* notifications.eventCancelled({
+          event,
+          attendee: { id: signup, name: "Gina", email: address, guest: true },
+        });
+        yield* emailsTo(address, 2);
+        yield* Effect.sleep("300 millis");
+        assert.deepStrictEqual(
+          outbox
+            .to(address)
+            .filter((sent) => sent.message.subject === "Reminder: Launch"),
+          [],
+        );
       }),
   );
 

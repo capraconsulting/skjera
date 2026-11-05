@@ -38,7 +38,7 @@ The email about a cancelled sign-up SHALL say that the person can sign up again 
 - **When** you read it, and click **See the event**
 - **Then** it says «Changed your mind again? You can sign up on the event's page while sign-up is open.», and the button opens the event's page
 
-**Automated:** none
+**Automated:** `packages/documents/test/notices/signups.test.tsx`
 
 ## AC-4: The same email to someone taken off
 

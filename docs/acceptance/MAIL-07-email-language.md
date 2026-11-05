@@ -51,4 +51,4 @@ WHEN a member has picked a language under **Language** in **Account settings** a
 - **When** bob signs up with **Meld meg på**
 - **Then** he gets «Du er påmeld: AC-1 to AC-4: Languages», in Nynorsk
 
-**Automated:** none
+**Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/app/test/signupForm.test.ts`, `packages/documents/test/notices/signups.test.tsx`

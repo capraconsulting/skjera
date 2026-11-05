@@ -42,7 +42,7 @@ The confirmation email SHALL say until when the sign-up can be changed or cancel
 - **When** you read it
 - **Then** it says «Changed your mind? You can change or cancel your signup on the event's page until …», followed by the sign-up deadline
 
-**Automated:** none
+**Automated:** `packages/documents/test/notices/signups.test.tsx`
 
 ## AC-4: It says why it came
 
@@ -54,7 +54,7 @@ The confirmation email SHALL end by saying why it was sent.
 - **When** you read the end of it
 - **Then** it says «You signed up for AC-1 to AC-4: Signed up on Skjera.»
 
-**Automated:** none
+**Automated:** `packages/documents/test/notices/signups.test.tsx`
 
 ## AC-5: No email for a refused sign-up
 

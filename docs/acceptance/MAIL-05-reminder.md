@@ -18,7 +18,7 @@ The reminder SHALL tell the person how to cancel, so others can take their place
 - **Then** bob's «Reminder: AC-1 to AC-3: Reminded» says «Can't make it after all? You can cancel your signup on the event's page, so others can take your place.», with **See the event**
 - **And** the guest's says «Can't make it after all? Your own link cancels your signup, so others can take your place.», with **Your signup**
 
-**Automated:** none
+**Automated:** `packages/documents/test/notices/changes.test.tsx`
 
 ## AC-2: No invitation
 
@@ -54,4 +54,4 @@ IF an event is deleted before its reminder is sent, THEN Skjera SHALL send no re
 - **When** you delete it right away, and the 07:05 UTC run on the morning before it has passed
 - **Then** bob has «Cancelled: AC-4: Deleted» in Mailpit, and no «Reminder: AC-4: Deleted»
 
-**Automated:** none
+**Automated:** `packages/documents/test/notices/changes.test.tsx`
