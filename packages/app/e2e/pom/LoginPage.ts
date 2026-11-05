@@ -14,7 +14,8 @@ export class LoginPage {
     await this.page.locator("#submit-login").click();
   }
 
+  /** Dex is at the machine's test-server address, or localhost without one. */
   async expectShown(): Promise<void> {
-    await expect(this.page).toHaveURL(/localhost:5556\/dex/);
+    await expect(this.page).toHaveURL(/:5556\/dex\//);
   }
 }
