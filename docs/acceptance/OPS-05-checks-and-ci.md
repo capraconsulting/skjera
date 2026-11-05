@@ -24,7 +24,7 @@ WHEN the browser tests run, they SHALL start a test server of their own, with a 
 
 - **Given** `pnpm dev` running, with some teams in the studio
 - **When** you run `pnpm test:e2e`
-- **Then** it serves on port 8806 while it runs, and the teams in http://localhost:5173/studio are as before
+- **Then** it serves on the first free port of 8806–8802 while it runs, and the teams in http://localhost:5173/studio are as before
 
 **Automated:** `packages/server/test/testServer.test.ts`, which checks that a test server gets a new database, never the development one
 
