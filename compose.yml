@@ -35,7 +35,8 @@ services:
       # For the test servers' callbacks in its config (gomplate renders it).
       SKJERA_TEST_SERVER_URL: ${SKJERA_TEST_SERVER_URL:-http://localhost}
     ports:
-      - "5556:5556"
+      # Every interface where test servers have an address (mise.toml).
+      - "${SERVICES_ADDRESS:-127.0.0.1}:5556:5556"
     volumes:
       - ./dev/dex/config.yaml:/etc/dex/config.yaml:ro
     healthcheck:
@@ -69,7 +70,7 @@ services:
     ports:
       - "127.0.0.1:1025:1025"
       # Every interface where test servers have an address (mise.toml).
-      - "${MAILPIT_UI_ADDRESS:-127.0.0.1}:8025:8025"
+      - "${SERVICES_ADDRESS:-127.0.0.1}:8025:8025"
     healthcheck:
       test: ["CMD", "/mailpit", "readyz"]
       interval: 2s
