@@ -64,6 +64,18 @@ export class TextField {
     await expect(this.editor.getByRole("link", { name })).toBeVisible();
   }
 
+  /** The text `name` is linked, to `href`. */
+  async expectLinkTo(name: string, href: string): Promise<void> {
+    await expect(this.editor.getByRole("link", { name })).toHaveAttribute(
+      "href",
+      href,
+    );
+  }
+
+  async expectNoLink(name: string): Promise<void> {
+    await expect(this.editor.getByRole("link", { name })).toHaveCount(0);
+  }
+
   /** Someone else's caret in the field, with their name. */
   async expectCaretOf(name: string, shown: boolean): Promise<void> {
     const caret = this.editor.locator(`[data-name="${name}"]`);

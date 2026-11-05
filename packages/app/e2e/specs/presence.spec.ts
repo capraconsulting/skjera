@@ -50,3 +50,29 @@ test("an event shows who else has it open, with their cursors", async ({
 
   await cleanUp(alice, team, id);
 });
+
+test("someone with the event open in two tabs has one avatar (STU-05 AC-2)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Tabs"));
+  const id = await new EventsColumn(alice).newEvent();
+  const editor = new EventEditor(alice);
+  await editor.title.type("Hello there");
+
+  const bob = await signedIn(browser, "bob@example.com");
+  const firstTab = new EventEditor(bob);
+  await firstTab.goto(team, id);
+  await firstTab.title.expectText("Hello there");
+  const secondTab = new EventEditor(await bob.context().newPage());
+  await secondTab.goto(team, id);
+  await secondTab.title.expectText("Hello there");
+
+  // Alice has heard of the second tab once its caret shows in her title.
+  await secondTab.title.typeAt("end", "!");
+  await editor.title.expectCaretOf("bob", true);
+  await editor.presence.expectOthersHere("bob");
+  await editor.presence.expectAvatarCount(1);
+
+  await cleanUp(alice, team, id);
+});

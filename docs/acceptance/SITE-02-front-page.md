@@ -87,7 +87,7 @@ WHERE the person reading has signed up for an upcoming event, as a member or as 
 - **When** you close every private window, and open the front page in a new one
 - **Then** «AC-6: Signed up» isn't marked
 
-**Automated:** none
+**Automated:** `packages/app/e2e/specs/attendance/members.spec.ts`
 
 ## AC-7: Past events six at a time
 
@@ -117,7 +117,7 @@ The development database has events from earlier tests, so this one is tested on
 - **When** you publish one event that is over, at http://localhost:8801/studio, and reload
 - **Then** «Upcoming events» still says «No upcoming events found in this category 😭», with the event under «Past events»
 
-**Automated:** none
+**Automated:** `packages/app/e2e/specs/tags.spec.ts`
 
 ## AC-9: Upcoming events six at a time
 

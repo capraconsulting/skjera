@@ -48,13 +48,19 @@ export class EventsColumn {
     await expect(this.region().getByText("No events yet.")).toBeVisible();
   }
 
+  private readonly row = (path: string) =>
+    this.page
+      .getByRole("listitem")
+      .filter({ has: this.page.locator(`a[href="${path}"]`) });
+
   /** The event's row, by its studio address, says `text`. */
-  async expectRow(path: string, text: string): Promise<void> {
-    await expect(
-      this.page
-        .getByRole("listitem")
-        .filter({ has: this.page.locator(`a[href="${path}"]`) }),
-    ).toContainText(text);
+  async expectRow(path: string, text: string | RegExp): Promise<void> {
+    await expect(this.row(path)).toContainText(text);
+  }
+
+  /** The event's row, by its studio address, does not say `text`. */
+  async expectRowWithout(path: string, text: string): Promise<void> {
+    await expect(this.row(path)).not.toContainText(text);
   }
 
   private readonly searchField = () =>

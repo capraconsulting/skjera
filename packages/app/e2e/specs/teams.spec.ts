@@ -408,3 +408,39 @@ test("a search and an order keep following others' edits without reloading (AC-7
   await editor.delete(earlyId);
   await teams.delete(red);
 });
+
+test("an event without a title or a start shows Untitled and No date in the list (STU-03 AC-2)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const teams = new TeamsColumn(alice);
+  const events = new EventsColumn(alice);
+  const editor = new EventEditor(alice);
+  const team = await teams.create(uniqueTeamName("Blank"));
+  const event = await events.newEvent();
+  const path = `/studio/teams/${team}/events/${event}`;
+
+  await events.expectRow(path, "Untitled");
+  await events.expectRow(path, "No date");
+
+  // A start replaces «No date» with the day.
+  await editor.times.pick();
+  await events.expectRow(path, /[A-Z][a-z]{2} 15, \d{4}/);
+  await events.expectRowWithout(path, "No date");
+  await events.expectRow(path, "Untitled");
+
+  await editor.delete(event);
+  await teams.delete(team);
+});
+
+test("a team that no longer exists says so when its address is opened (STU-03 AC-7)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const teams = new TeamsColumn(alice);
+  const team = await teams.create(uniqueTeamName("Gone"));
+
+  await teams.delete(team);
+  await teams.goto(team);
+  await teams.expectTeamGone();
+});

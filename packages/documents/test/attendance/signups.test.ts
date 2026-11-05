@@ -402,6 +402,74 @@ layer(TestLayer, { excludeTestServices: true })("Attendance", (it) => {
       }),
   );
 
+  it.effect(
+    "keeps the question and option as they read when answered, until the answer is changed (SIGN-11 AC-3, STU-14 AC-7)",
+    () =>
+      Effect.gen(function* () {
+        const documents = yield* Documents;
+        const attendance = yield* Attendance;
+        const size = crypto.randomUUID();
+        const [small, large] = [crypto.randomUUID(), crypto.randomUUID()];
+        const id = yield* publishedEvent({
+          public: true,
+          guests: true,
+          edit: (event) =>
+            setQuestions(event, [
+              {
+                id: size,
+                type: "choice",
+                text: "Towel size",
+                required: true,
+                options: [
+                  { id: small, text: "Small" },
+                  { id: large, text: "Large" },
+                ],
+              },
+            ]),
+        });
+        yield* attendance.attend(id, alice, { answers: { [size]: large } });
+        const shown = Effect.map(organizerView(id), (rows) =>
+          rows.map((each) => [
+            each?.answers[0]?.question,
+            each?.answers[0]?.answer,
+          ]),
+        );
+
+        // The organiser rewords the question and the option, and publishes.
+        const editor = yield* openEditor(id);
+        const reworded = yield* documents.applyChanges(
+          id,
+          [
+            editor.edit((event) =>
+              setQuestions(event, [
+                {
+                  id: size,
+                  type: "choice",
+                  text: "Which towel size?",
+                  required: true,
+                  options: [
+                    { id: small, text: "S" },
+                    { id: large, text: "XL" },
+                  ],
+                },
+              ]),
+            ),
+          ],
+          alice,
+        );
+        yield* documents.publish(id, reworded, alice);
+
+        assert.deepStrictEqual(yield* shown, [["Towel size", "Large"]]);
+
+        yield* attendance.change(
+          id,
+          { user: alice },
+          { answers: { [size]: large } },
+        );
+        assert.deepStrictEqual(yield* shown, [["Which towel size?", "XL"]]);
+      }),
+  );
+
   it.effect("lets organizers take people off, whenever", () =>
     Effect.gen(function* () {
       const documents = yield* Documents;

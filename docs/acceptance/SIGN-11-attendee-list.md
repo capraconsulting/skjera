@@ -40,7 +40,7 @@ WHEN an organiser rewords a question after people have answered it, the studio S
 - **When** bob clicks **Change answers** and **Save changes**
 - **Then** it is under «Size of towel»
 
-**Automated:** none
+**Automated:** `packages/documents/test/attendance/signups.test.ts`
 
 ## AC-4: The list follows sign-ups live
 

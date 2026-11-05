@@ -99,3 +99,47 @@ test("members attend and change their mind", async ({ browser }) => {
 
   await cleanUp(alice, team, event.id);
 });
+
+test("the front page marks the upcoming events the reader has signed up for (SITE-02 AC-6)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Marked"));
+  const editor = new EventEditor(alice);
+  const membersEvent = await editor.createPublished({
+    public: true,
+    guests: true,
+  });
+  const guestsEvent = await editor.createPublished({
+    public: true,
+    guests: true,
+  });
+  const signedUp = "You're signed up";
+
+  // A member, from their signup.
+  const bob = await signedIn(browser, "bob@example.com");
+  await new EventPage(bob).goto(membersEvent.id);
+  await new Attendance(bob).attend();
+  const bobsHome = new HomePage(bob);
+  await bobsHome.goto();
+  await bobsHome.expectEventSays(membersEvent.title, signedUp);
+  await bobsHome.expectEventDoesNotSay(guestsEvent.title, signedUp);
+
+  // A guest, from the signup their browser remembers.
+  const guest = await visitor(browser);
+  await new EventPage(guest).goto(guestsEvent.id);
+  await new Attendance(guest).signUpAsGuest("Gina", "gina@example.org");
+  const guestsHome = new HomePage(guest);
+  await guestsHome.goto();
+  await guestsHome.expectEventSays(guestsEvent.title, signedUp);
+  await guestsHome.expectEventDoesNotSay(membersEvent.title, signedUp);
+
+  // Someone who signed up for neither sees no mark on either.
+  const stranger = await visitor(browser);
+  const strangersHome = new HomePage(stranger);
+  await strangersHome.goto();
+  await strangersHome.expectEventDoesNotSay(membersEvent.title, signedUp);
+  await strangersHome.expectEventDoesNotSay(guestsEvent.title, signedUp);
+
+  await cleanUp(alice, team, membersEvent.id, guestsEvent.id);
+});

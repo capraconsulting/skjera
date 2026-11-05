@@ -26,7 +26,7 @@ The editor SHALL show one avatar for a person however many tabs they have the ev
 - **When** bob opens it in two tabs
 - **Then** alice still sees one avatar for «bob»
 
-**Automated:** none
+**Automated:** `packages/app/e2e/specs/presence.spec.ts`
 
 ## AC-3: Where the others write
 

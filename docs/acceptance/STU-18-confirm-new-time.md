@@ -56,7 +56,7 @@ WHERE more than one person is signed up, the question SHALL say how many.
 - **When** you change the start time and click **Publish**
 - **Then** the browser asks «Publish the new time? The 2 people signed up are emailed about it.»
 
-**Automated:** none
+**Automated:** `packages/app/e2e/specs/attendance/emails.spec.ts`
 
 ## AC-5: A new place is asked about too
 

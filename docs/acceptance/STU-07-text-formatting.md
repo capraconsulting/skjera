@@ -53,7 +53,7 @@ IF a link's address isn't a web or email address, THEN the editor SHALL refuse i
 - **And** you write `mailto:bob@example.com` instead
 - **Then** the first is refused with «Enter a web address, like https://example.com», and the second is linked
 
-**Automated:** none
+**Automated:** `packages/app/test/richTextLinks.test.ts`, `packages/app/e2e/specs/site.spec.ts`
 
 ## AC-5: Editing and removing a link
 
@@ -66,4 +66,4 @@ The editor SHALL let an organiser change a link's address, and remove the link w
 - **And** you change the address and click **Save link**, then open it again and click **Remove link**
 - **Then** the dialog is titled «Edit link» with the address filled in; the address changes, and then the word stays without a link
 
-**Automated:** none
+**Automated:** `packages/app/e2e/specs/site.spec.ts`

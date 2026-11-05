@@ -39,7 +39,7 @@ IF an image is larger than 10 MB, THEN Skjera SHALL refuse it with «Images can 
 - **When** you choose the PNG of more than 10 MB and click **Add image**
 - **Then** the dialog says «Images can be at most 10 MB», and no image is added
 
-**Automated:** none
+**Automated:** `packages/app/test/uploadImage.test.ts`, `packages/documents/test/events/Images.test.ts`
 
 ## AC-4: Pasted or dropped images are uploaded
 

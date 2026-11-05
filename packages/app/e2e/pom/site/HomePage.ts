@@ -129,6 +129,14 @@ export class HomePage {
     );
   }
 
+  /** The event is listed, and its entry does not say `text`. */
+  async expectEventDoesNotSay(title: string, text: string): Promise<void> {
+    await this.withAll("any", async () => {
+      await expect(this.link(title)).toBeVisible(attempt);
+      await expect(this.link(title)).not.toContainText(text, attempt);
+    });
+  }
+
   /** How many events a list shows now, behind «Show more events» not counted. */
   async expectRows(list: "upcoming" | "past", count: number): Promise<void> {
     await expect(this.list(list).getByRole("listitem")).toHaveCount(

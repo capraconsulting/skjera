@@ -10,6 +10,7 @@ import { Mailbox } from "../../pom/Mailbox.ts";
 import { Attendance, CancelByEmail } from "../../pom/site/Attendance.ts";
 import { CancelSignupPage } from "../../pom/site/CancelSignupPage.ts";
 import { EventPage } from "../../pom/site/EventPage.ts";
+import { PrivacyPage } from "../../pom/site/PrivacyPage.ts";
 import { EventEditor } from "../../pom/studio/EventEditor.ts";
 import { TeamsColumn } from "../../pom/studio/TeamsColumn.ts";
 
@@ -540,6 +541,45 @@ test("a site that sends no email says so after a guest cancels, on the event pag
   await confirmPage.expectText(
     "You're no longer signed up for the event 👋 Unfortunately, we couldn't send a confirmation by email.",
   );
+
+  await cleanUp(alice, team, event.id);
+});
+
+test("the cancel form's email field is named cancelEmail, not email (SIGN-16 AC-9)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(
+    uniqueTeamName("Cancel name"),
+  );
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({ public: true, guests: true });
+
+  const guest = await visitor(browser);
+  await new EventPage(guest).goto(event.id);
+  // HubSpot records a form's field called `email` as a contact.
+  const form = new CancelByEmail(guest);
+  await form.expectShown();
+  await form.expectEmailFieldName("cancelEmail");
+  await form.expectNoFieldNamed("email");
+
+  await cleanUp(alice, team, event.id);
+});
+
+test("the guest form links to the privacy page (SITE-10 AC-5)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Privacy"));
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({ public: true, guests: true });
+
+  const guest = await visitor(browser);
+  await new EventPage(guest).goto(event.id);
+  await new Attendance(guest).clickPrivacyLink();
+  const privacy = new PrivacyPage(guest);
+  await privacy.expectAt();
+  await privacy.expectTitle();
 
   await cleanUp(alice, team, event.id);
 });

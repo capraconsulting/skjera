@@ -112,6 +112,10 @@ export class SignupFields {
   async clickSaveChanges(): Promise<void> {
     await this.scope.getByRole("button", { name: "Save changes" }).click();
   }
+
+  async clickKeepAsIs(): Promise<void> {
+    await this.scope.getByRole("button", { name: "Keep as is" }).click();
+  }
 }
 
 /** An event page's Attendance box: signing up, as a member or a guest. */
@@ -132,6 +136,13 @@ export class Attendance extends SignupFields {
     return new SignupFields(
       this.scope.getByRole("form", { name: "Your answers" }),
     );
+  }
+
+  /** The link under the guest form to the privacy page. */
+  async clickPrivacyLink(): Promise<void> {
+    await this.scope
+      .getByRole("link", { name: "How we handle your details" })
+      .click();
   }
 
   async clickSignUp(name = "Sign up"): Promise<void> {
@@ -203,6 +214,13 @@ export class Attendance extends SignupFields {
 
   async clickChangeAnswers(): Promise<void> {
     await this.button("Change answers").click();
+  }
+
+  /** The form for changing answers is not open. */
+  async expectAnswersClosed(): Promise<void> {
+    await expect(
+      this.scope.getByRole("form", { name: "Your answers" }),
+    ).toHaveCount(0);
   }
 
   async expectNoChangeAnswers(): Promise<void> {
@@ -352,6 +370,16 @@ export class CancelByEmail {
 
   async expectAbsent(): Promise<void> {
     await expect(this.scope).toHaveCount(0);
+  }
+
+  /** The email field's `name`, which is what a script reading the form sees. */
+  async expectEmailFieldName(name: string): Promise<void> {
+    await expect(this.emailField()).toHaveAttribute("name", name);
+  }
+
+  /** No field of the form has this `name`. */
+  async expectNoFieldNamed(name: string): Promise<void> {
+    await expect(this.scope.locator(`[name="${name}"]`)).toHaveCount(0);
   }
 
   async fillEmail(email: string): Promise<void> {

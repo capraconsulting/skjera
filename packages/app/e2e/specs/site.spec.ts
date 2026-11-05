@@ -468,6 +468,16 @@ test("the privacy page has the sections of Skjer's policy (AC-1)", async ({
   await privacy.expectSections();
 });
 
+test("the privacy page names the operator the site gives (AC-4)", async ({
+  browser,
+}) => {
+  const reader = await visitor(browser);
+  const privacy = new PrivacyPage(reader);
+  await privacy.withOperator("Example Ltd");
+  await privacy.goto();
+  await privacy.expectInPart("controller", "Example Ltd");
+});
+
 test("without the operator's details, the privacy page leaves out their lines (AC-3)", async ({
   browser,
 }) => {
@@ -880,4 +890,99 @@ test("without a HubSpot account id, the privacy page says nothing tracks you (AC
   await privacy.expectCookiesText(m.privacy_cookies_untracked());
   await privacy.expectNoText("HubSpot");
   await privacy.expectNoCookieSettings();
+});
+
+test("the event page leads back to the front page with All events (SITE-05 AC-4)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(
+    uniqueTeamName("All events"),
+  );
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({ public: true });
+
+  const reader = await visitor(browser);
+  const page = new EventPage(reader);
+  await page.goto(event.id);
+  await page.clickAllEvents();
+  const home = new HomePage(reader);
+  await home.expectAt();
+  await home.expectUpcomingHeading();
+
+  await cleanUp(alice, team, event.id);
+});
+
+test("a deleted event leaves open front pages, and its open page says it does not exist (SITE-09 AC-3)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Deleted"));
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({ public: true });
+
+  // Both pages stay open from here, and are never reloaded.
+  const onFrontPage = await visitor(browser);
+  const home = new HomePage(onFrontPage);
+  await home.goto();
+  await home.expectEvent(event.title);
+  const onEventPage = await visitor(browser);
+  const page = new EventPage(onEventPage);
+  await page.goto(event.id);
+  await page.expectHeading(event.title);
+
+  await editor.delete(event.id);
+
+  await home.expectNoEvent(event.title);
+  await page.expectText("This event doesn't exist, or isn't published.");
+
+  await new TeamsColumn(alice).delete(team);
+});
+
+test("the editor refuses a link that is not a web or email address, and edits and removes links (STU-07 AC-4, STU-07 AC-5)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Links"));
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({ public: true });
+
+  // The word is the last of the line: select it from the end.
+  const selectFriends = async () => {
+    await editor.body.press("End");
+    for (const _ of "friends") await editor.body.press("Shift+ArrowLeft");
+  };
+  await editor.body.type("Meet our friends");
+  await selectFriends();
+
+  // Only web and email addresses are linked (AC-4).
+  const adding = await editor.toolbar.openLinkDialog("Add link");
+  await adding.fillAddress("ftp://example.com");
+  await adding.clickConfirm();
+  await adding.expectError("Enter a web address, like https://example.com");
+  await editor.body.expectNoLink("friends");
+  await adding.fillAddress("mailto:bob@example.com");
+  await adding.clickConfirm();
+  await adding.expectClosed();
+  await editor.body.expectLinkTo("friends", "mailto:bob@example.com");
+
+  // The address can be changed (AC-5)...
+  await selectFriends();
+  const editing = await editor.toolbar.openLinkDialog("Edit link");
+  await editing.expectAddress("mailto:bob@example.com");
+  await editing.fillAddress("https://example.com/friends");
+  await editing.clickConfirm();
+  await editing.expectClosed();
+  await editor.body.expectLinkTo("friends", "https://example.com/friends");
+
+  // ...and the link removed, leaving its text.
+  await selectFriends();
+  const removing = await editor.toolbar.openLinkDialog("Edit link");
+  await removing.expectAddress("https://example.com/friends");
+  await removing.clickRemove();
+  await removing.expectClosed();
+  await editor.body.expectNoLink("friends");
+  await editor.body.expectText("Meet our friends");
+
+  await cleanUp(alice, team, event.id);
 });

@@ -38,7 +38,7 @@ The studio SHALL let an organiser add options to a choice question and remove th
 - **When** you click **Add option**, fill in three options, and click **Remove** beside one of them
 - **Then** two options are left, and their **Remove** buttons can't be clicked
 
-**Automated:** none
+**Automated:** `packages/app/e2e/specs/attendance/questions.spec.ts`
 
 ## AC-4: Questions are moved
 
@@ -62,7 +62,7 @@ The studio SHALL let an organiser remove a question.
 - **When** you click **Remove** on the one you added
 - **Then** it is gone, and the others are numbered as before
 
-**Automated:** none
+**Automated:** `packages/app/e2e/specs/attendance/questions.spec.ts`
 
 ## AC-6: Half-made questions can't be published
 
@@ -88,7 +88,7 @@ WHEN an organiser rewords a question or an option after people have answered, Sk
 - **When** you change the wording of a question and of the option bob picked, and click **Publish**
 - **Then** under **Attendees**, bob's answers still show the old question and option
 
-**Automated:** none
+**Automated:** `packages/documents/test/attendance/signups.test.ts`
 
 ## AC-8: A checkbox can have an answer option
 

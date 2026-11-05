@@ -89,6 +89,11 @@ export class PrivacyPage {
     );
   }
 
+  /** Gives the page's browser the site as configured, with `operator` as its operator. */
+  async withOperator(operator: string): Promise<void> {
+    await this.reroutePrivacy((privacy) => ({ ...privacy, operator }));
+  }
+
   /** Gives the page's browser the site with only its operator's name set. */
   async withOnlyOperator(): Promise<void> {
     await this.reroutePrivacy(({ operator }) => ({ operator }));

@@ -32,6 +32,15 @@ export class BodyToolbar {
     await this.page.getByRole("button", { name: "Add link" }).click();
   }
 
+  /**
+   * Opens the link dialog for the selected text: "Add link" for text with no
+   * link, "Edit link" for text with one.
+   */
+  async openLinkDialog(title: "Add link" | "Edit link"): Promise<LinkDialog> {
+    await this.page.getByRole("button", { name: "Link", exact: true }).click();
+    return new LinkDialog(this.page, title);
+  }
+
   /** Opens the "Add image" dialog. */
   async openImageDialog(): Promise<ImageDialog> {
     await this.button("Image").click();
@@ -147,6 +156,45 @@ export class ImageDialog {
 
   async clickConfirm(): Promise<void> {
     await this.dialog.getByRole("button", { name: this.confirm }).click();
+  }
+
+  async expectError(text: string): Promise<void> {
+    await expect(this.dialog.getByRole("alert")).toHaveText(text);
+  }
+
+  async expectClosed(): Promise<void> {
+    await expect(this.dialog).toBeHidden();
+  }
+}
+
+/** The dialog that asks where a link goes: adding one, or editing it. */
+export class LinkDialog {
+  private readonly dialog: Locator;
+  private readonly confirm: string;
+
+  constructor(page: Page, title: "Add link" | "Edit link") {
+    this.dialog = page.getByRole("dialog", { name: title });
+    this.confirm = title === "Add link" ? "Add link" : "Save link";
+  }
+
+  private readonly address = () =>
+    this.dialog.getByRole("textbox", { name: "Link address" });
+
+  async fillAddress(address: string): Promise<void> {
+    await this.address().fill(address);
+  }
+
+  async expectAddress(address: string): Promise<void> {
+    await expect(this.address()).toHaveValue(address);
+  }
+
+  /** Clicks «Add link», or «Save link» when editing. */
+  async clickConfirm(): Promise<void> {
+    await this.dialog.getByRole("button", { name: this.confirm }).click();
+  }
+
+  async clickRemove(): Promise<void> {
+    await this.dialog.getByRole("button", { name: "Remove link" }).click();
   }
 
   async expectError(text: string): Promise<void> {

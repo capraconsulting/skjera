@@ -242,3 +242,26 @@ test("the guest filters are named in Bokmål and Nynorsk too", async ({
     );
   }
 });
+
+test("the front page says so when no event is coming up, or none is over (SITE-02 AC-8)", async ({
+  browser,
+}) => {
+  // The test server's database holds the events of other tests, so the
+  // browser's clock empties a list: in 2000 no event is over, in 2100 none
+  // is coming up.
+  const early = await visitor(browser);
+  await early.clock.setFixedTime(new Date("2000-01-01T12:00:00Z"));
+  const homeThen = new HomePage(early);
+  await homeThen.goto();
+  await homeThen.expectEmpty("past", m.site_nothing_past({}, { locale: "en" }));
+
+  const late = await visitor(browser);
+  await late.clock.setFixedTime(new Date("2100-01-01T12:00:00Z"));
+  const homeLater = new HomePage(late);
+  await homeLater.goto();
+  await homeLater.expectUpcomingHeading();
+  await homeLater.expectEmpty(
+    "upcoming",
+    m.site_nothing_upcoming({}, { locale: "en" }),
+  );
+});

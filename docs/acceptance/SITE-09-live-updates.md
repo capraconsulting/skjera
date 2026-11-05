@@ -40,7 +40,7 @@ WHEN a published event is deleted, the site SHALL take it off open front pages, 
 - **When** you delete it in the studio with **Delete**
 - **Then** within a few seconds it is gone from the front page, and its page says «This event doesn't exist, or isn't published.»
 
-**Automated:** none
+**Automated:** `packages/app/e2e/specs/site.spec.ts`
 
 ## AC-4: The count follows sign-ups
 

@@ -38,7 +38,7 @@ WHEN someone closes the form with **Keep as is**, Skjera SHALL keep their answer
 - **When** he clicks **Change answers**, picks «Large», and clicks **Keep as is**
 - **Then** the form closes, and the studio's **Attendees** still shows «Small»; **Change answers** opens with «Small» again
 
-**Automated:** none
+**Automated:** `packages/app/e2e/specs/attendance/questions.spec.ts`
 
 ## AC-4: Changes are checked like a sign-up
 

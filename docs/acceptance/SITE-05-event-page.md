@@ -62,7 +62,7 @@ The event page SHALL have an **All events** link to the front page.
 - **When** you open it, and click **All events**
 - **Then** the front page opens
 
-**Automated:** none
+**Automated:** `packages/app/e2e/specs/site.spec.ts`
 
 ## AC-5: An event that isn't there
 

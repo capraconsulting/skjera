@@ -193,3 +193,79 @@ test("people change their answers; organizers export them as an Excel file and r
 
   await cleanUp(alice, team, event.id);
 });
+
+test("an organizer adds and removes options, never fewer than two, and removes a question (STU-14 AC-3, STU-14 AC-5)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(
+    uniqueTeamName("Editing questions"),
+  );
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({ public: true, guests: true });
+
+  await editor.questions.add(1, "Where did you hear of it?");
+  await editor.questions.add(2, "Towel size", "One of several");
+  // It starts with two options, and neither can be removed.
+  await editor.questions.expectOptionCount(2, 2);
+  await editor.questions.expectOptionRemovable(2, 1, false);
+  await editor.questions.expectOptionRemovable(2, 2, false);
+
+  await editor.questions.fillOption(2, 1, "Small");
+  await editor.questions.fillOption(2, 2, "Large");
+  await editor.questions.addOption(2);
+  await editor.questions.fillOption(2, 3, "Medium");
+  await editor.questions.expectOptionCount(2, 3);
+  await editor.questions.expectOptionRemovable(2, 1, true);
+
+  // The one removed is gone, and the others keep their order.
+  await editor.questions.removeOption(2, 2);
+  await editor.questions.expectOptionCount(2, 2);
+  await editor.questions.expectOption(2, 1, "Small");
+  await editor.questions.expectOption(2, 2, "Medium");
+  await editor.questions.expectOptionRemovable(2, 1, false);
+  await editor.questions.expectOptionRemovable(2, 2, false);
+
+  // A question added last is removed, and the others are numbered as before.
+  await editor.questions.add(3, "Will you swim?", "Checkbox");
+  await editor.questions.expectCount(3);
+  await editor.questions.removeQuestion(3);
+  await editor.questions.expectCount(2);
+  await editor.questions.expect(1, "Where did you hear of it?");
+  await editor.questions.expect(2, "Towel size");
+
+  await cleanUp(alice, team, event.id);
+});
+
+test("Keep as is closes the form for changing answers and keeps them as they were (SIGN-10 AC-3)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Keeping"));
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({ public: true, guests: true });
+  await editor.questions.add(1, "Towel size", "One of several");
+  await editor.questions.fillOption(1, 1, "Small");
+  await editor.questions.fillOption(1, 2, "Large");
+  await editor.publish();
+
+  const bob = await signedIn(browser, "bob@example.com");
+  await new EventPage(bob).goto(event.id);
+  const member = new Attendance(bob);
+  await member.expectOption("Small", "checked");
+  await member.attend();
+  await editor.attendees.expectAnswer("Towel size", "Small", "bob");
+
+  await member.clickChangeAnswers();
+  await member.answers.checkOption("Large");
+  await member.answers.clickKeepAsIs();
+  await member.expectAnswersClosed();
+  await member.expectAttending();
+
+  // Opened again, the form starts from «Small», and so does the studio.
+  await member.clickChangeAnswers();
+  await member.answers.expectOption("Small", "checked");
+  await editor.attendees.expectAnswer("Towel size", "Small", "bob");
+
+  await cleanUp(alice, team, event.id);
+});

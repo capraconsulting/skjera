@@ -27,7 +27,7 @@ IF an event has no title or no start, THEN the events list SHALL show «Untitled
 - **And** you then pick a start date
 - **Then** the list shows «Untitled» and «No date»; with a start, the date shows instead, such as «Nov 15, 2026»
 
-**Automated:** none
+**Automated:** `packages/app/e2e/specs/teams.spec.ts`
 
 ## AC-3: Whether each event is published
 
@@ -87,4 +87,4 @@ IF a team that no longer exists is opened, THEN the studio SHALL say «This team
 - **When** you delete the team, and open the copied address
 - **Then** the studio says «This team doesn't exist anymore.»
 
-**Automated:** none
+**Automated:** `packages/app/e2e/specs/teams.spec.ts`

@@ -34,6 +34,13 @@ export class TeamsColumn {
     );
   }
 
+  /** The studio says the team opened does not exist. */
+  async expectTeamGone(): Promise<void> {
+    await expect(
+      this.page.getByText("This team doesn't exist anymore."),
+    ).toBeVisible();
+  }
+
   /** Creates a team with the "New team" dialog, opens it and returns its id. */
   async create(name: string): Promise<string> {
     await this.goto();

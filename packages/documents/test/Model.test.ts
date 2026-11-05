@@ -270,6 +270,25 @@ describe("SiteConfig", () => {
     }),
   );
 
+  it.effect(
+    "names the configured operator, or the site's name when none is (AC-4)",
+    () =>
+      Effect.gen(function* () {
+        const named = yield* readSite({
+          SITE_NAME: "Example Events",
+          SITE_OPERATOR: "Example Ltd",
+        });
+        const unnamed = yield* readSite({ SITE_NAME: "Example Events" });
+        assert.isTrue(Exit.isSuccess(named) && Exit.isSuccess(unnamed));
+        if (Exit.isSuccess(named)) {
+          assert.strictEqual(named.value.privacy.operator, "Example Ltd");
+        }
+        if (Exit.isSuccess(unnamed)) {
+          assert.strictEqual(unnamed.value.privacy.operator, "Example Events");
+        }
+      }),
+  );
+
   it.effect("reads a set optional site setting as before (AC-7)", () =>
     Effect.gen(function* () {
       const site = yield* readSite({

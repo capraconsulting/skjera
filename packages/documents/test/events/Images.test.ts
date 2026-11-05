@@ -3,7 +3,7 @@ import { Authenticator } from "@skjera/oauth";
 import { Identity } from "@skjera/oauth/api";
 import { type Context, Effect, Layer, Option, Stream } from "effect";
 import { HttpRouter } from "effect/http";
-import type { ImagePage } from "../../src/api/ImagesApi.ts";
+import { type ImagePage, maxImageBytes } from "../../src/api/ImagesApi.ts";
 import {
   ImageListFailed,
   Images,
@@ -117,6 +117,25 @@ layer(Images.layer, { excludeTestServices: true })("Images", (it) => {
         .pipe(Effect.flip);
       assert.strictEqual(error._tag, "InvalidImage");
     }),
+  );
+
+  it.effect(
+    "refuses an image over 10 MB and takes one of exactly 10 MB (AC-3)",
+    () =>
+      Effect.gen(function* () {
+        const images = yield* Images;
+        const sized = (length: number) =>
+          Uint8Array.from({ length }, (_, at) => png[at] ?? 0);
+        const error = yield* images
+          .upload(sized(maxImageBytes + 1))
+          .pipe(Effect.flip);
+        assert.strictEqual(error._tag, "InvalidImage");
+        assert.strictEqual(error.problem._tag, "ImageTooBig");
+        assert.strictEqual(error.message, "Images can be at most 10 MB");
+
+        const { url } = yield* images.upload(sized(maxImageBytes));
+        assert.match(url, /^\/api\/images\//);
+      }),
   );
 
   it.effect("lists an image just uploaded, with when it came (AC-2)", () =>

@@ -59,7 +59,7 @@ The privacy page SHALL name the configured operator as the one who answers for t
 - **When** you change it to `SITE_OPERATOR = false`, add `SITE_NAME = "Example Events"`, and restart `pnpm dev`
 - **Then** it says «Example Events, represented by its managing director, is the data controller»
 
-**Automated:** none
+**Automated:** `packages/documents/test/Model.test.ts`, `packages/app/e2e/specs/site.spec.ts`
 
 ## AC-5: A link from the guest form
 
@@ -71,7 +71,7 @@ WHERE an event is open to guests, its sign-up form SHALL link to the privacy pag
 - **When** you open it in a private window, and click «How we handle your details» under the form
 - **Then** the privacy page opens
 
-**Automated:** none
+**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`
 
 ## AC-6: A policy kept elsewhere
 

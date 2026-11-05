@@ -126,4 +126,4 @@ The cancel form's email field SHALL be named `cancelEmail`, not `email`, so that
 - **When** you cancel by email
 - **Then** HubSpot has no new contact from it
 
-**Not automated:** the browser tests run without HubSpot.
+**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`

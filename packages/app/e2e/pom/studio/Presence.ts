@@ -16,6 +16,11 @@ export class Presence {
     await expect(this.avatars()).toHaveAccessibleName(name);
   }
 
+  /** This many avatars are shown: one for each person here. */
+  async expectAvatarCount(count: number): Promise<void> {
+    await expect(this.avatars()).toHaveCount(count);
+  }
+
   async expectNobodyElse(): Promise<void> {
     await expect(this.avatars()).toHaveCount(0);
   }

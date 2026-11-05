@@ -328,3 +328,32 @@ test("a cancelled event's email has the subject published, not a later draft's",
   await new Mailbox().deleteEmailsTo(address);
   await cleanUp(alice, team);
 });
+
+test("the question before a new time is published says how many are signed up, when more than one (STU-18 AC-4)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Two"));
+  const editor = new EventEditor(alice);
+  const event = await editor.createPublished({ public: true, guests: true });
+
+  const bob = await signedIn(browser, "bob@example.com");
+  await new EventPage(bob).goto(event.id);
+  await new Attendance(bob).attend();
+  const guest = await visitor(browser);
+  await new EventPage(guest).goto(event.id);
+  await new Attendance(guest).signUpAsGuest(
+    "Gina",
+    `gina-${crypto.randomUUID()}@example.org`,
+  );
+  await editor.attendees.expectText("Gina");
+  await editor.attendees.expectText("bob");
+
+  await editor.times.fillStartTime("19:00");
+  await editor.expectSaved();
+  expect(await editor.clickPublishAnswering("dismiss")).toBe(
+    "Publish the new time? The 2 people signed up are emailed about it.",
+  );
+
+  await cleanUp(alice, team, event.id);
+});
