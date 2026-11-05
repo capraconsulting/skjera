@@ -30,7 +30,7 @@ With `pnpm dev` running, `mise run testdata` fills the local database with the t
 pnpm lint        # Biome
 pnpm typecheck
 pnpm test        # unit and integration tests, against the local Postgres and Mailpit
-pnpm test:e2e    # Playwright, against a test server of its own (port 8806, a new database each run)
+pnpm test:e2e    # Playwright, against a test server of its own (the first free port of 8806–8802, a new database each run)
 ```
 
 The browser tests are in `packages/app/e2e/specs`, and work the pages through page objects in `packages/app/e2e/pom`, one class per page or part of one: a test calls `new EventEditor(page).publish()`, not Playwright's locators. A page object missing what a test needs gets it added there. Setting a test up (browsers signed in or not, unique names, cleaning up after) is in `packages/app/e2e/fixtures`.
@@ -52,7 +52,7 @@ PORT=8801 mise exec -- pnpm test-server
 It installs, builds the app and the server from the working tree, creates a new database `skjera_testserver_<port>_<random>` in the development Postgres, and serves both on `PORT` until it is stopped (SIGINT or SIGTERM). The development services must be running: `pnpm dev`, or `docker compose up --detach --wait postgres dex rustfs mailpit` in a checkout. In a new worktree, run `mise trust` first.
 
 - **Its address** is `SKJERA_TEST_SERVER_URL`: `http://<host>` or `https://<host>`, without a port, and `http://localhost` when it isn't set. It belongs to the machine, so set it in the machine's own mise config (`~/.config/mise/config.toml`, `[env]`) or its shell, not in this repository. The test server's links, including the ones in its emails, use it with the port. With `https://` it listens on `127.0.0.1` only, since the TLS proxy holds the port on the machine's other addresses. Restart `pnpm dev` (or the services) after changing it.
-- **Logging in** works from other machines on ports 8801–8806, the callbacks Dex knows. Cookies are per host, not per port, so logging in on one test server logs you out of another at the same host.
+- **Logging in** works from other machines on ports 8801–8806, the callbacks Dex knows. The browser tests take 8802–8806, each run the first one free, so use 8801 for a test server of your own. Cookies are per host, not per port, so logging in on one test server logs you out of another at the same host.
 - **Email** is read in Mailpit at the same address on port 8025, which is open to other machines while the address is set. Dex is at the same address on port 5556. With `https://`, both need the same TLS proxy as the test servers, for example `tailscale serve --bg --https 5556 http://127.0.0.1:5556` and `tailscale serve --bg --https 8025 http://127.0.0.1:8025`.
 - **The databases** are not dropped when a test server stops, but the next test server on the same port drops those no running server uses. List them with `psql "$DATABASE_URL"` and `\l skjera_testserver_*`, and drop one with `DROP DATABASE <name>`.
 

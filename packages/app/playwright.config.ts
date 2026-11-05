@@ -1,11 +1,15 @@
 import { defineConfig, devices } from "@playwright/test";
+import { reservePort } from "./e2e/port.ts";
 
 const ci = !!process.env.CI;
 
 // A test server of its own (`pnpm test-server`), with a new database each
-// run: the tests never see what `pnpm dev`'s database holds. The last of the
-// ports Dex lets test servers log in from.
-const port = 8806;
+// run: the tests never see what `pnpm dev`'s database holds. Its port is the
+// run's own (e2e/port.ts), so runs in several worktrees can go at once. The
+// config is read again in every worker: the port is chosen once, in the main
+// process, and the workers get it through the environment.
+process.env.SKJERA_E2E_PORT ??= String(await reservePort());
+const port = Number(process.env.SKJERA_E2E_PORT);
 const site = `${process.env.SKJERA_TEST_SERVER_URL || "http://localhost"}:${port}`;
 
 export default defineConfig({
