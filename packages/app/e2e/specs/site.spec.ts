@@ -934,7 +934,7 @@ test("a deleted event leaves open front pages, and its open page says it does no
   await editor.delete(event.id);
 
   await home.expectNoEvent(event.title);
-  await page.expectText("This event doesn't exist, or isn't published.");
+  await page.expectNotPublished();
 
   await new TeamsColumn(alice).delete(team);
 });
