@@ -79,6 +79,8 @@ export class EventsApi extends HttpApiGroup.make("events").add(
       honeypot: Schema.optionalKey(Schema.String),
       /** The ad they came from, from the address of the event's page. */
       source: Schema.optionalKey(AdSource),
+      /** Asked for invitations and the newsletter; sent only when ticked. */
+      consent: Schema.optionalKey(Schema.Boolean),
     }),
     success: Schema.NullOr(GuestSignup),
     error: [EventNotFound, SignInRequired, SignupRejected, TooManyAttempts],

@@ -1,6 +1,6 @@
 # SIGN-12: Downloading attendees as an Excel file
 
-The organiser downloads the attendee list as an Excel file, as in Skjer. The phone and company columns are in SIGN-03 AC-4, the online column of a streamed event in SIGN-07 AC-5, that the file has no dietary preferences in SIGN-08 AC-5, and the columns for the ad a sign-up came from in EXT-08 AC-5.
+The organiser downloads the attendee list as an Excel file, as in Skjer. The phone and company columns are in SIGN-03 AC-4, the online column of a streamed event in SIGN-07 AC-5, that the file has no dietary preferences in SIGN-08 AC-5, the columns for the ad a sign-up came from in EXT-08 AC-5, and the column for invitations and the newsletter in EXT-09 AC-4.
 
 **Events:** one public event open to guests, with the question «Towel size», **One of several** with the options «Small» and «Large», and a **Written answer** «Where did you hear of it?». Bob and one guest signed up.
 
@@ -19,7 +19,7 @@ WHILE anyone is signed up for an event, the studio SHALL offer **Download Excel*
 
 ## AC-2: The sheet and the columns
 
-The file SHALL have one sheet, «Påmeldinger» (in the page's language: «Sign-ups» in English), with the columns Navn and Epost, then Telefon and Selskap WHERE guests can sign up, then Digitalt WHERE the event is streamed, then one for each value of the ad they came from that any attendee has (EXT-08), named `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`, `li_fat_id` or `fbclid`, then one for each question, named by the words its answers were given to. In English the headings are Name, Email, Phone, Company and Online.
+The file SHALL have one sheet, «Påmeldinger» (in the page's language: «Sign-ups» in English), with the columns Navn and Epost, then Telefon and Selskap WHERE guests can sign up, then Digitalt WHERE the event is streamed, then Invitasjoner og nyhetsbrev WHERE the event is a sales event or any attendee ticked the box (EXT-09), then one for each value of the ad they came from that any attendee has (EXT-08), named `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`, `li_fat_id` or `fbclid`, then one for each question, named by the words its answers were given to. In English the headings are Name, Email, Phone, Company, Online and Invitations and newsletter.
 
 **Test**
 

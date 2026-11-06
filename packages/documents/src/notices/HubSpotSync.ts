@@ -53,15 +53,16 @@ const Send = Rpc.make("Send", {
       "cancelled",
       "registered",
       "source",
+      "consent",
       "left",
     ]),
     /** For `event`: the Marketing Event. */
     event: Schema.optionalKey(MarketingEventFields),
     /** For `registered`: who signed up. */
     contact: Schema.optionalKey(ContactFields),
-    /** For `source` and `left`: the contact, by email. */
+    /** For `source`, `consent` and `left`: the contact, by email. */
     email: Schema.optionalKey(Schema.String),
-    /** For `source`: the contact's properties to set, by HubSpot's name. */
+    /** For `source` and `consent`: the contact's properties to set, by HubSpot's name. */
     properties: Schema.optionalKey(Schema.Record(Schema.String, Schema.String)),
     /** For `registered` and `left`: when it happened, an ISO instant. */
     at: Schema.optionalKey(Schema.String),
@@ -143,6 +144,12 @@ const adSourceProperties = (
     : { ...properties, arr_utm_arrangement: title };
 };
 
+/** What a ticked box sets on the contact: invitations and the newsletter. */
+const consentProperties = {
+  invitere_til_arrangementer: "Ja",
+  sende_nyhetsbrev: "Ja",
+};
+
 /** The private app's token, and where the site is: what sending needs. */
 const HubSpotConfig = Config.all({
   token: Config.Redacted("HUBSPOT_ACCESS_TOKEN"),
@@ -161,6 +168,7 @@ interface SignupRow {
   readonly company: string | null;
   readonly job_title: string | null;
   readonly ad_source: AdSource | null;
+  readonly marketing_consent: boolean;
   readonly created_at: Date;
 }
 
@@ -186,9 +194,9 @@ export const layerSalesEvents = Layer.effect(
     const send = (event: string, payload: typeof Send.payloadSchema.Type) =>
       sender(event).Send(payload, { discard: true }).pipe(Effect.orDie);
 
-    // The registration, then the ad it came from in a message of its own: HubSpot
-    // refuses the properties until they are made, and that must not cost the
-    // registration.
+    // The registration, then the ad it came from and the consent, each in a
+    // message of its own: HubSpot refuses the properties until they are made,
+    // and that must not cost the registration, nor one the other.
     const registered = (event: string, signup: SignupRow, title: string) => {
       const { email } = signup;
       if (email === null) return Effect.void;
@@ -208,6 +216,16 @@ export const layerSalesEvents = Layer.effect(
                 email,
                 properties,
               }),
+        ),
+        Effect.andThen(
+          signup.marketing_consent
+            ? send(event, {
+                key: `consent/${signup.id}`,
+                kind: "consent",
+                email,
+                properties: consentProperties,
+              })
+            : Effect.void,
         ),
       );
     };
@@ -232,7 +250,7 @@ export const layerSalesEvents = Layer.effect(
           // Turned on just now: those signed up before are sent, earliest first.
           if (wasSalesEvent) return;
           const signups = yield* sql<SignupRow>`
-            SELECT id, name, email, company, job_title, ad_source, created_at
+            SELECT id, name, email, company, job_title, ad_source, marketing_consent, created_at
             FROM attendees WHERE event_id = ${event}
             ORDER BY created_at, id
           `;
@@ -259,7 +277,7 @@ export const layerSalesEvents = Layer.effect(
       signedUp: (event, signup) =>
         Effect.gen(function* () {
           const [row] = yield* sql<SignupRow & { title: string }>`
-            SELECT a.id, a.name, a.email, a.company, a.job_title, a.ad_source, a.created_at,
+            SELECT a.id, a.name, a.email, a.company, a.job_title, a.ad_source, a.marketing_consent, a.created_at,
               e.title
             FROM attendees a JOIN events e ON e.id = a.event_id
             WHERE a.id = ${signup}::uuid AND e.sales_event
@@ -332,7 +350,8 @@ export const sender = (
                   ),
                 );
           }
-          case "source": {
+          case "source":
+          case "consent": {
             const { email, properties } = payload;
             return email === undefined || properties === undefined
               ? Effect.void

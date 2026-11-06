@@ -18,13 +18,14 @@ const heardOf = "22222222-2222-4222-8222-222222222222";
 
 type SheetEvent = Pick<
   EventRow,
-  "title" | "questions" | "isStreamed" | "allowGuests"
+  "title" | "questions" | "isStreamed" | "allowGuests" | "isSalesEvent"
 >;
 
 const event: SheetEvent = {
   title: "Summer party",
   isStreamed: false,
   allowGuests: false,
+  isSalesEvent: false,
   questions: [
     {
       id: towelSize,
@@ -58,6 +59,7 @@ const attendee = (
     readonly phone?: string;
     readonly company?: string;
     readonly source?: AdSource;
+    readonly consent?: boolean;
   } = {},
 ): AttendeeRow => ({
   id: name,
@@ -72,6 +74,7 @@ const attendee = (
     phone: more.phone ?? null,
     company: more.company ?? null,
     source: more.source ?? null,
+    consent: more.consent ?? false,
     answers,
     guest: false,
   },
@@ -246,6 +249,35 @@ describe("an attendee's ad source", () => {
     expect(
       adSourceText({ utm_campaign: "spring", utm_source: "linkedin" }),
     ).toBe("utm_source: linkedin, utm_campaign: spring");
+  });
+});
+
+describe("an attendee's consent", () => {
+  const heading = "Invitations and newsletter";
+  const salesEvent = { ...event, isSalesEvent: true };
+
+  it("has a column of Yes and No on a sales event, after the online column and before the questions (AC-4)", () => {
+    const { columns, rows } = read(
+      [attendee("Alice", [], { consent: true }), attendee("Bob")],
+      { ...salesEvent, isStreamed: true },
+    );
+    expect(columns).toEqual(["Name", "Email", "Online", heading, "Towel size"]);
+    expect(rows[0]?.[heading]).toBe("Yes");
+    expect(rows[1]?.[heading]).toBe("No");
+  });
+
+  it("has no such column on an event that is not a sales event, when no one ticked (AC-4)", () => {
+    const { columns } = read([attendee("Alice"), attendee("Bob")]);
+    expect(columns).not.toContain(heading);
+  });
+
+  it("keeps the column once the event is no longer a sales event, where someone ticked (AC-4)", () => {
+    const { columns, rows } = read([
+      attendee("Alice", [], { consent: true }),
+      attendee("Bob"),
+    ]);
+    expect(columns).toContain(heading);
+    expect(rows.map((row) => row[heading])).toEqual(["Yes", "No"]);
   });
 });
 

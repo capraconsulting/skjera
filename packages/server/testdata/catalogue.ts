@@ -289,6 +289,15 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
       event("AC-3: Not a sales event", { ...guests, ...week }),
     ]),
 
+    team("EXT-09: Marketing consent", [
+      event("AC-1 to AC-4: Sales event", {
+        ...guests,
+        ...week,
+        salesEvent: true,
+      }),
+      event("AC-1: Not a sales event", { ...guests, ...week }),
+    ]),
+
     // ---- MAIL ---------------------------------------------------------------
     team("MAIL-01: Confirmation email when you sign up", [
       event("AC-1 to AC-4: Signed up", {

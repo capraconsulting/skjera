@@ -88,24 +88,33 @@ const answersFrom = (
 const onlineFrom = (event: Pick<ShownEvent, "isStreamed">, form: FormData) =>
   event.isStreamed ? form.get("attendance") === "online" : undefined;
 
+/** The name of the box that asks for invitations and the newsletter. */
+export const consentField = "consent";
+
 /** A text field of the form as written; empty when it is not there. */
 const textOf = (form: FormData, name: string) => String(form.get(name) ?? "");
 
 /**
- * What a guest's form carries for the event: whether it asks for a job
- * title, and its attributes. A sales event's form is kept out of the forms
- * HubSpot's script collects, as the sign-up is sent to HubSpot with the event.
+ * What a sign-up form carries for the event: whether a guest's form asks for
+ * a job title, whether the form asks for invitations and the newsletter, and
+ * its attributes. A sales event's form is kept out of the forms HubSpot's
+ * script collects, as the sign-up is sent to HubSpot with the event.
  */
 export const salesEventForm = (event: Pick<ShownEvent, "isSalesEvent">) =>
   event.isSalesEvent
     ? {
         askJobTitle: true,
+        askConsent: true,
         formAttributes: { "data-hs-do-not-collect": "true" } as Record<
           string,
           string
         >,
       }
-    : { askJobTitle: false, formAttributes: {} as Record<string, string> };
+    : {
+        askJobTitle: false,
+        askConsent: false,
+        formAttributes: {} as Record<string, string>,
+      };
 
 /** What a sign-up form sends, each field read once. */
 export const signupFrom = (
@@ -124,6 +133,9 @@ export const signupFrom = (
     answers: answersFrom(event.questions, form),
     ...(online === undefined ? {} : { online }),
     ...(source === undefined ? {} : { source }),
+    ...(salesEventForm(event).askConsent && form.get(consentField) !== null
+      ? { consent: true }
+      : {}),
     ...(asGuest
       ? {
           guest: {

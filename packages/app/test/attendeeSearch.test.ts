@@ -17,6 +17,7 @@ const details = (
   phone: contact.phone ?? null,
   company: contact.company ?? null,
   source: null,
+  consent: false,
   answers: [],
   guest: false,
 });

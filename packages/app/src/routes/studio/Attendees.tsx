@@ -122,6 +122,9 @@ export function Attendees(props: { readonly id: DocumentId }) {
                           {online ? m.attend_online() : m.attend_in_person()}
                         </Badge>
                       ) : null}
+                      {who.consent ? (
+                        <Badge tone="neutral">{m.studio_consent()}</Badge>
+                      ) : null}
                       <Button
                         variant="ghost"
                         className={styles.remove}

@@ -301,8 +301,16 @@ export const attendees = syncedTable({
   write: {
     // Signing up, as the signed-in user or as a guest (see `Signup`).
     insert: (attendee, metadata) => {
-      const { guest, dietary, answers, online, locale, honeypot, source } =
-        metadata as Signup;
+      const {
+        guest,
+        dietary,
+        answers,
+        online,
+        locale,
+        honeypot,
+        source,
+        consent,
+      } = metadata as Signup;
       return sendPublic((client) =>
         client.events
           .attend({
@@ -316,6 +324,7 @@ export const attendees = syncedTable({
               ...(locale === undefined ? {} : { locale }),
               ...(honeypot === undefined ? {} : { honeypot }),
               ...(source === undefined ? {} : { source }),
+              ...(consent === undefined ? {} : { consent }),
             },
           })
           .pipe(
@@ -417,4 +426,6 @@ export type Signup = {
   readonly honeypot?: string;
   /** The ad they came from, kept from the address of the event's page. */
   readonly source?: AdSource;
+  /** Asked for invitations and the newsletter: set only when the box was ticked. */
+  readonly consent?: boolean;
 };

@@ -119,6 +119,8 @@ export const AttendeeDetails = Schema.Struct({
   company: Schema.NullOr(Schema.String),
   /** The ad they came from, when the address of the event's page said. */
   source: Schema.NullOr(AdSource),
+  /** Asked for invitations and the newsletter when signing up. */
+  consent: Schema.Boolean,
   /** Answers to the event's questions, as asked and picked then. */
   answers: Schema.Array(Answer),
   /** Signed up without an account. */

@@ -21,7 +21,9 @@ export interface Sheet {
 /**
  * The attendees as a spreadsheet: who they are, a guest's phone number and
  * company where guests can sign up, how each attends when the event is
- * streamed, a column for each value of the ad they came from that any of
+ * streamed, whether each asked for invitations and the newsletter where the
+ * event is a sales event or any of them did, a column for each value of the
+ * ad they came from that any of
  * them has, headed with its name, and a column for each question, headed
  * with the words its answers were given to. Answers given to a question's earlier words, and to
  * questions taken off the event since, still show, after the others, each
@@ -29,7 +31,10 @@ export interface Sheet {
  */
 export const attendeesSheet = (
   event:
-    | Pick<EventRow, "title" | "questions" | "isStreamed" | "allowGuests">
+    | Pick<
+        EventRow,
+        "title" | "questions" | "isStreamed" | "allowGuests" | "isSalesEvent"
+      >
     | undefined,
   attendees: ReadonlyArray<AttendeeRow>,
 ): Sheet => {
@@ -52,6 +57,9 @@ export const attendeesSheet = (
   );
   const streamed = event?.isStreamed === true;
   const guests = event?.allowGuests === true;
+  const consents =
+    event?.isSalesEvent === true ||
+    attendees.some((attendee) => attendee.details?.consent === true);
   const rows = attendees.flatMap(({ details, online }) => {
     if (details === null) return [];
     const answers = new Map(
@@ -66,6 +74,7 @@ export const attendeesSheet = (
         details.email ?? "",
         ...(guests ? [details.phone ?? "", details.company ?? ""] : []),
         ...(streamed ? [online ? m.common_yes() : m.common_no()] : []),
+        ...(consents ? [details.consent ? m.common_yes() : m.common_no()] : []),
         ...sources.map((name) => details.source?.[name] ?? ""),
         ...[...questions.keys()].map((key) => answers.get(key) ?? ""),
       ],
@@ -79,6 +88,7 @@ export const attendeesSheet = (
       m.sheet_email(),
       ...(guests ? [m.sheet_phone(), m.sheet_company()] : []),
       ...(streamed ? [m.sheet_online()] : []),
+      ...(consents ? [m.sheet_consent()] : []),
       ...sources,
       ...questions.values(),
     ],

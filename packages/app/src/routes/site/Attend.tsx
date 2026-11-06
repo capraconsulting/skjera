@@ -8,7 +8,6 @@ import {
 import { m } from "@skjera/i18n/messages";
 import { getLocale } from "@skjera/i18n/runtime";
 import { type FormEvent, type ReactNode, useState } from "react";
-import { Link } from "react-router";
 import { Button } from "../../components/Button.tsx";
 import { currentSite } from "../../i18n.ts";
 import { adSourceFor } from "../../site/adSource.ts";
@@ -31,6 +30,7 @@ import { formatDateTime } from "../../time.ts";
 import styles from "./Attend.module.css";
 import {
   AttendanceInput,
+  ConsentInput,
   DietaryInput,
   type FieldMessages,
   type Given,
@@ -38,6 +38,7 @@ import {
   GuestInput,
   HoneypotInput,
   JobTitleInput,
+  PrivacyLink,
   QuestionInputs,
 } from "./AttendInputs.tsx";
 import { CancelByEmail } from "./CancelByEmail.tsx";
@@ -457,6 +458,7 @@ export function Attend(props: {
             onSubmit={(submitted) => signUp(submitted, false)}
           >
             {asked({}, true)}
+            {sales.askConsent ? <ConsentInput /> : null}
             <div className={styles.row}>
               <Button type="submit" variant="primary">
                 {m.attend_attend()}
@@ -517,6 +519,7 @@ export function Attend(props: {
               <GuestContactInputs given={{}} messages={messages} />
               {sales.askJobTitle ? <JobTitleInput messages={messages} /> : null}
               {asked({}, true)}
+              {sales.askConsent ? <ConsentInput /> : null}
               <div className={styles.row}>
                 <Button type="submit" variant="primary">
                   {m.attend_sign_up()}
@@ -529,7 +532,7 @@ export function Attend(props: {
                 </span>
               </div>
               <p className={styles.privacy}>
-                <PrivacyLink />
+                <PrivacyLink text={m.attend_privacy_link()} />
               </p>
             </form>
           ) : (
@@ -549,16 +552,6 @@ export function Attend(props: {
       )}
       {guest === null ? <CancelByEmail eventId={event.id} /> : null}
     </>
-  );
-}
-
-/** Where guests read how their details are handled. */
-function PrivacyLink() {
-  const { url } = currentSite().privacy;
-  return url === undefined ? (
-    <Link to="/privacy">{m.attend_privacy_link()}</Link>
-  ) : (
-    <a href={url}>{m.attend_privacy_link()}</a>
   );
 }
 

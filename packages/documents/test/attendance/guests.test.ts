@@ -248,6 +248,38 @@ layer(TestLayer, { excludeTestServices: true })("Guests", (it) => {
   );
 
   it.effect(
+    "keeps a guest's and a member's consent, and false when none was sent (AC-2, AC-3)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        yield* attendance.attendAsGuest(
+          id,
+          { name: "Gina", email: "gina@example.org" },
+          { consent: true },
+        );
+        yield* attendance.attendAsGuest(id, {
+          name: "Gary",
+          email: "gary@example.org",
+        });
+        yield* attendance.attend(id, bob, { consent: true });
+        yield* attendance.attend(id, alice);
+        assert.deepStrictEqual(
+          (yield* organizerView(id)).map((each) => [
+            each?.guest,
+            each?.consent,
+          ]),
+          [
+            [true, true],
+            [true, false],
+            [false, true],
+            [false, false],
+          ],
+        );
+      }),
+  );
+
+  it.effect(
     "keeps SQL null for a sign-up with no source, or only blank values (AC-1)",
     () =>
       Effect.gen(function* () {

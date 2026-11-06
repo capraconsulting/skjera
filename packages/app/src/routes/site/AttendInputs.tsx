@@ -1,10 +1,13 @@
 import type { Answers, Question } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { type InputHTMLAttributes, useId } from "react";
+import { Link } from "react-router";
 import { Input } from "../../components/Input.tsx";
+import { currentSite } from "../../i18n.ts";
 import {
   checkboxWords,
   chosenOption,
+  consentField,
   type GuestField,
   questionField,
 } from "../../site/signupForm.ts";
@@ -105,6 +108,32 @@ export const JobTitleInput = (props: { readonly messages: FieldMessages }) => (
       maxLength={100}
     />
   </div>
+);
+
+/** Where people read how their details are handled, under the words given. */
+export function PrivacyLink(props: { readonly text: string }) {
+  const { url } = currentSite().privacy;
+  return url === undefined ? (
+    <Link to="/privacy">{props.text}</Link>
+  ) : (
+    <a href={url}>{props.text}</a>
+  );
+}
+
+/**
+ * The box a sales event's sign-up form asks invitations and the newsletter
+ * with: optional and unticked, with a link to the privacy policy beside it.
+ */
+export const ConsentInput = () => (
+  <>
+    <label className={styles.check}>
+      <input type="checkbox" name={consentField} />
+      {m.attend_consent()}
+    </label>
+    <p className={styles.privacy}>
+      <PrivacyLink text={m.attend_consent_privacy()} />
+    </p>
+  </>
 );
 
 /** Asked, optionally, of everyone signing up when the event serves food. */

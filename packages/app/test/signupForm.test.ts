@@ -4,6 +4,7 @@ import {
   changeFrom,
   checkboxWords,
   chosenOption,
+  consentField,
   fieldOf,
   questionField,
   salesEventForm,
@@ -206,12 +207,42 @@ describe("a sales event's guest form", () => {
   it("asks for a job title and is kept out of HubSpot's collected forms, on a sales event only (AC-8, AC-9)", () => {
     expect(salesEventForm(sales)).toEqual({
       askJobTitle: true,
+      askConsent: true,
       formAttributes: { "data-hs-do-not-collect": "true" },
     });
     expect(salesEventForm(plain)).toEqual({
       askJobTitle: false,
+      askConsent: false,
       formAttributes: {},
     });
+  });
+
+  it("asks for the consent on a sales event only (AC-1)", () => {
+    expect(salesEventForm(sales).askConsent).toBe(true);
+    expect(salesEventForm(plain).askConsent).toBe(false);
+  });
+});
+
+describe("signupFrom's consent", () => {
+  const ticked = { [consentField]: "on" };
+
+  it("carries consent: true on a member's and a guest's signup when the box is ticked (AC-2)", () => {
+    expect(signupFrom(sales, formOf(ticked), false, "en").consent).toBe(true);
+    expect(signupFrom(sales, formOf(ticked), true, "en").consent).toBe(true);
+  });
+
+  it("has no consent key when the box is not ticked (AC-3)", () => {
+    expect("consent" in signupFrom(sales, formOf({}), false, "en")).toBe(false);
+    expect("consent" in signupFrom(sales, formOf({}), true, "en")).toBe(false);
+  });
+
+  it("has no consent key on an event that is not a sales event, whatever the form holds (AC-3)", () => {
+    expect("consent" in signupFrom(plain, formOf(ticked), false, "en")).toBe(
+      false,
+    );
+    expect("consent" in signupFrom(plain, formOf(ticked), true, "en")).toBe(
+      false,
+    );
   });
 });
 

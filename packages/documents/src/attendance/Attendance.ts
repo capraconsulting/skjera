@@ -57,6 +57,8 @@ export interface SignupDetails {
   readonly honeypot?: string;
   /** The ad they came from, from the address of the event's page. */
   readonly source?: AdSource;
+  /** Asked for invitations and the newsletter. */
+  readonly consent?: boolean;
 }
 
 /** A guest form's hidden field: only a bot fills it in, and a filled one is refused. */
@@ -352,11 +354,12 @@ export class Attendance extends Context.Service<
           );
           // Already signed up, or a retry: nothing to do, or tell.
           const inserted = yield* sql<Signup>`
-            INSERT INTO attendees (id, event_id, user_issuer, user_subject, name, email, answers, online, locale, ad_source)
+            INSERT INTO attendees (id, event_id, user_issuer, user_subject, name, email, answers, online, locale, ad_source, marketing_consent)
             VALUES (coalesce(${id ?? null}::uuid, uuidv7()), ${event}, ${user.issuer},
               ${user.subject}, ${user.name ?? user.email ?? user.subject},
               ${user.email ?? null}, ${JSON.stringify(answers)}::jsonb,
-              ${online}, ${details.locale ?? null}, ${storedAdSource(details.source)}::jsonb)
+              ${online}, ${details.locale ?? null}, ${storedAdSource(details.source)}::jsonb,
+              ${details.consent === true})
             ON CONFLICT DO NOTHING
             RETURNING ${signupColumns}
           `;
@@ -422,11 +425,12 @@ export class Attendance extends Context.Service<
         yield* Effect.gen(function* () {
           yield* room(event, online, sql`false`);
           const inserted = yield* sql<Signup>`
-            INSERT INTO attendees (id, event_id, name, email, phone, company, job_title, answers, cancel_token_hash, online, locale, ad_source)
+            INSERT INTO attendees (id, event_id, name, email, phone, company, job_title, answers, cancel_token_hash, online, locale, ad_source, marketing_consent)
             VALUES (${attendee}::uuid, ${event}, ${guest.name.trim()},
               ${guest.email.trim()}, ${storedText(guest.phone)}, ${storedText(guest.company)},
               ${storedText(guest.jobTitle)}, ${JSON.stringify(answers)}::jsonb, ${tokenHash(token)},
-              ${online}, ${details.locale ?? null}, ${storedAdSource(details.source)}::jsonb)
+              ${online}, ${details.locale ?? null}, ${storedAdSource(details.source)}::jsonb,
+              ${details.consent === true})
             RETURNING ${signupColumns}
           `;
           yield* keepDietary(event, dietary);

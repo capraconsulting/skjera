@@ -292,13 +292,14 @@ export class Sync extends Context.Service<
             phone: string | null;
             company: string | null;
             ad_source: AdSource | null;
+            marketing_consent: boolean;
             answers: ReadonlyArray<Answer>;
             guest: boolean;
             mine: boolean;
             online: boolean;
             visible: boolean;
           }>`
-            SELECT a.id, a.event_id, a.created_at, a.changed_at, a.name, a.email, a.phone, a.company, a.ad_source, a.answers,
+            SELECT a.id, a.event_id, a.created_at, a.changed_at, a.name, a.email, a.phone, a.company, a.ad_source, a.marketing_consent, a.answers,
               a.user_issuer IS NULL AS guest, a.online,
               coalesce(a.user_issuer = ${issuer} AND a.user_subject = ${subject}, false)
                 AS mine,
@@ -324,6 +325,7 @@ export class Sync extends Context.Service<
                           phone: row.phone,
                           company: row.company,
                           source: row.ad_source,
+                          consent: row.marketing_consent,
                           answers: row.answers,
                           guest: row.guest,
                         })

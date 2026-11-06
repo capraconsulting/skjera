@@ -1439,4 +1439,8 @@ export const migrations = Migrator.fromRecord({
     // values it had by name. None: null, never a JSON null.
     `ALTER TABLE attendees ADD COLUMN ad_source jsonb`,
   ),
+  "0036_marketing_consent": statements(
+    // Whether they asked for invitations and the newsletter when signing up.
+    `ALTER TABLE attendees ADD COLUMN marketing_consent boolean NOT NULL DEFAULT false`,
+  ),
 });

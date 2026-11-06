@@ -9,7 +9,11 @@ import { Attendance } from "../../src/attendance/Attendance.ts";
 import type { EventContent } from "../../src/events/ContentTypes.ts";
 import { Documents } from "../../src/events/Documents.ts";
 import * as Recurring from "../../src/events/Recurring.ts";
-import type { AdSource, DocumentId } from "../../src/Model.ts";
+import {
+  type AdSource,
+  adSourceKeys,
+  type DocumentId,
+} from "../../src/Model.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
 import * as HubSpotSync from "../../src/notices/HubSpotSync.ts";
 import { Notifications } from "../../src/notices/Notifications.ts";
@@ -176,6 +180,7 @@ const guestSignsUp = (
     readonly jobTitle?: string;
     readonly email?: string;
     readonly source?: AdSource;
+    readonly consent?: boolean;
   } = {},
 ) =>
   Effect.gen(function* () {
@@ -194,6 +199,7 @@ const guestSignsUp = (
       {
         id,
         ...(details.source === undefined ? {} : { source: details.source }),
+        ...(details.consent === true ? { consent: true } : {}),
       },
     );
     return { id, email, token };
@@ -201,7 +207,12 @@ const guestSignsUp = (
 
 let members = 0;
 /** A member signs up; their identity. */
-const memberSignsUp = (event: DocumentId, name: string, source?: AdSource) =>
+const memberSignsUp = (
+  event: DocumentId,
+  name: string,
+  source?: AdSource,
+  consent?: boolean,
+) =>
   Effect.gen(function* () {
     const user = new Identity({
       issuer: "https://idp.example",
@@ -209,11 +220,10 @@ const memberSignsUp = (event: DocumentId, name: string, source?: AdSource) =>
       email: `member${members}-${crypto.randomUUID()}@example.com`,
       name,
     });
-    yield* (yield* Attendance).attend(
-      event,
-      user,
-      source === undefined ? {} : { source },
-    );
+    yield* (yield* Attendance).attend(event, user, {
+      ...(source === undefined ? {} : { source }),
+      ...(consent === true ? { consent: true } : {}),
+    });
     return user;
   }).pipe(Effect.orDie);
 
@@ -542,6 +552,69 @@ layer(syncLayer(portal), { excludeTestServices: true })(
     );
 
     it.effect(
+      "sets invitere_til_arrangementer and sende_nyhetsbrev to Ja on a guest's and a member's contact, and registers them (AC-2)",
+      () =>
+        Effect.gen(function* () {
+          const { id } = yield* publishSales();
+          const guest = yield* guestSignsUp(id, { consent: true });
+          const member = yield* memberSignsUp(
+            id,
+            "Marie Hansen",
+            undefined,
+            true,
+          );
+          yield* participations(portal, id, 2);
+          for (const email of [guest.email, member.email ?? ""]) {
+            const contact = yield* eventually(() =>
+              portal.contact(email)?.sende_nyhetsbrev === undefined
+                ? undefined
+                : portal.contact(email),
+            );
+            assert.strictEqual(contact.invitere_til_arrangementer, "Ja");
+            assert.strictEqual(contact.sende_nyhetsbrev, "Ja");
+          }
+        }),
+    );
+
+    it.effect(
+      "sends no consent for a sign-up without the box ticked, and keeps a consent given before (AC-3)",
+      () =>
+        Effect.gen(function* () {
+          const first = yield* publishSales();
+          const second = yield* publishSales();
+          const email = `consent-${crypto.randomUUID()}@example.org`;
+          yield* guestSignsUp(first.id, { email, consent: true });
+          yield* eventually(() =>
+            portal.contact(email)?.sende_nyhetsbrev === "Ja" ? true : undefined,
+          );
+          yield* guestSignsUp(second.id, { email });
+          yield* participations(portal, second.id, 1);
+          yield* settle;
+          assert.strictEqual(
+            portal.contact(email)?.invitere_til_arrangementer,
+            "Ja",
+          );
+          assert.strictEqual(portal.contact(email)?.sende_nyhetsbrev, "Ja");
+
+          const stranger = yield* guestSignsUp(second.id);
+          const member = yield* memberSignsUp(second.id, "Marie Hansen");
+          yield* participations(portal, second.id, 3);
+          yield* settle;
+          for (const each of [stranger.email, member.email ?? ""]) {
+            const properties = Object.keys(portal.contact(each) ?? {});
+            assert.deepStrictEqual(
+              properties.filter(
+                (name) =>
+                  name === "invitere_til_arrangementer" ||
+                  name === "sende_nyhetsbrev",
+              ),
+              [],
+            );
+          }
+        }),
+    );
+
+    it.effect(
       "sends no arr_ property for a sign-up without a source (AC-4)",
       () =>
         Effect.gen(function* () {
@@ -801,7 +874,63 @@ layer(syncLayer(withoutProperties, settings, withoutPropertiesLog), {
       }),
     30_000,
   );
+
+  it.effect(
+    "records the registration, and logs and drops the refused consent (AC-2)",
+    () =>
+      Effect.gen(function* () {
+        const { id } = yield* publishSales();
+        yield* eventually(() => withoutProperties.event(id));
+        const guest = yield* guestSignsUp(id, { consent: true });
+        const [registered] = yield* participations(withoutProperties, id, 1);
+        assert.strictEqual(registered?.email, guest.email);
+        yield* logged(withoutPropertiesLog, '"kind":"consent"');
+        assert.isUndefined(
+          withoutProperties.contact(guest.email)?.sende_nyhetsbrev,
+        );
+      }),
+    30_000,
+  );
 });
+
+// A portal with the arr_ properties but not the two consent properties.
+const arrOnly = HubSpotTest.make({
+  properties: [
+    ...adSourceKeys.map((key) => `arr_${key}`),
+    "arr_utm_arrangement",
+  ],
+});
+
+layer(syncLayer(arrOnly), { excludeTestServices: true })(
+  "A sales event when HubSpot lacks the consent properties",
+  (it) => {
+    it.effect(
+      "keeps the ad source and the registration when the consent is refused (AC-2)",
+      () =>
+        Effect.gen(function* () {
+          const { id } = yield* publishSales();
+          yield* eventually(() => arrOnly.event(id));
+          const guest = yield* guestSignsUp(id, {
+            source: { utm_source: "linkedin" },
+            consent: true,
+          });
+          const [registered] = yield* participations(arrOnly, id, 1);
+          assert.strictEqual(registered?.email, guest.email);
+          yield* eventually(() =>
+            arrOnly.contact(guest.email)?.arr_utm_source === undefined
+              ? undefined
+              : true,
+          );
+          yield* settle;
+          const contact = arrOnly.contact(guest.email);
+          assert.strictEqual(contact?.arr_utm_source, "linkedin");
+          assert.isUndefined(contact?.invitere_til_arrangementer);
+          assert.isUndefined(contact?.sende_nyhetsbrev);
+        }),
+      30_000,
+    );
+  },
+);
 
 const unconfigured = HubSpotTest.make();
 const unconfiguredLog: Array<string> = [];
