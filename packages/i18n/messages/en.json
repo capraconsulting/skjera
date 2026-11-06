@@ -681,5 +681,19 @@
   "studio_restore_failed": "Restoring failed",
   "preview_version_loading": "Loading the version …",
   "preview_version_notice": "An earlier version – this isn't published.",
-  "studio_organizer_locked": "The organizer can't be changed once the event has been published."
+  "studio_organizer_locked": "The organizer can't be changed once the event has been published.",
+  "studio_email_attendees": "Email those signed up",
+  "studio_email_subject": "Subject",
+  "studio_email_text": "Message",
+  "studio_email_goes_to": "Goes to {count} signed up",
+  "studio_email_send": "Send",
+  "studio_email_confirm": "Send the email to {count} signed up?",
+  "studio_email_sending": "The email is being sent to {count} signed up",
+  "studio_emails_sent": "Sent emails",
+  "studio_emails_sent_count": "Sent emails ({count})",
+  "studio_emails_sent_recipients": "Sent to {count}",
+  "studio_emails_sent_by": "{when}, by {name}",
+  "problem_email_subject_missing": "Write a subject",
+  "problem_email_text_missing": "Write a message",
+  "problem_nobody_to_email": "Nobody signed up has an email address"
 }

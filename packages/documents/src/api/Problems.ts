@@ -58,6 +58,10 @@ export const Problem = Schema.Union([
   // Invitations.
   Schema.TaggedStruct("InvitedEmailInvalid", {}),
   Schema.TaggedStruct("AlreadyInvited", { email: Schema.String }),
+  // Emailing those signed up.
+  Schema.TaggedStruct("EmailSubjectMissing", {}),
+  Schema.TaggedStruct("EmailTextMissing", {}),
+  Schema.TaggedStruct("NobodyToEmail", {}),
   // Moving an event to another team.
   Schema.TaggedStruct("OrganizerLocked", {}),
 ]);
@@ -165,6 +169,12 @@ export const describe = (problem: Problem, locale?: Locale): string => {
       return m.problem_invited_email_invalid({}, options);
     case "AlreadyInvited":
       return m.problem_already_invited(problem, options);
+    case "EmailSubjectMissing":
+      return m.problem_email_subject_missing({}, options);
+    case "EmailTextMissing":
+      return m.problem_email_text_missing({}, options);
+    case "NobodyToEmail":
+      return m.problem_nobody_to_email({}, options);
     case "OrganizerLocked":
       return m.studio_organizer_locked({}, options);
   }

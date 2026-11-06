@@ -19,6 +19,7 @@ import { CancelRequested } from "./emails/CancelRequested.tsx";
 import { EventCancelled } from "./emails/EventCancelled.tsx";
 import { EventChanged } from "./emails/EventChanged.tsx";
 import { formatAt, formatWhen } from "./emails/format.ts";
+import { OrganizerEmail } from "./emails/OrganizerEmail.tsx";
 import type { WrittenText } from "./emails/OrganizerText.tsx";
 import { Reminder } from "./emails/Reminder.tsx";
 import { SignedUp } from "./emails/SignedUp.tsx";
@@ -50,6 +51,7 @@ const Send = Rpc.make("Send", {
       "eventCancelled",
       "reminder",
       "cancelRequested",
+      "organizerEmail",
     ]),
     attendee: Recipient,
     /** When the event was, before it moved. */
@@ -58,6 +60,8 @@ const Send = Rpc.make("Send", {
     previousPlace: Schema.optional(Schema.String),
     /** When the link in an email to confirm cancelling stops working: milliseconds since the epoch. */
     expiresAt: Schema.optional(Schema.Number),
+    /** For an organizer's email: the id of what the organizer wrote. */
+    organizerEmail: Schema.optional(Schema.String),
   },
   primaryKey: ({ key }) => key,
 }).annotate(ClusterSchema.Persisted, true);
@@ -276,6 +280,26 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                 : {};
             };
 
+            // What an organizer wrote, if the person is still signed up: else nothing is sent.
+            const [written] =
+              payload.kind === "organizerEmail"
+                ? yield* sql<{
+                    readonly subject: string;
+                    readonly text: string;
+                    readonly sent_by_name: string | null;
+                    readonly sent_by_email: string | null;
+                  }>`
+                    SELECT o.subject, o.text, o.sent_by_name, o.sent_by_email
+                    FROM organizer_emails o
+                    WHERE o.id = ${payload.organizerEmail ?? null}
+                      AND o.event_id = ${eventId}
+                      AND EXISTS (
+                        SELECT 1 FROM attendees a
+                        WHERE a.id = ${attendee.id} AND a.event_id = ${eventId}
+                      )
+                  `.pipe(Effect.orDie)
+                : [];
+
             const guestLink = attendee.guest
               ? {
                   guestLink: `${url}?guest=${attendee.id}&token=${attendance.guestToken(attendee.id)}`,
@@ -285,8 +309,36 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
               readonly subject: string;
               readonly body: ReactElement;
               readonly calendar?: ReturnType<typeof calendar>;
-            } => {
+              readonly replyTo?: {
+                readonly name: string;
+                readonly address: string;
+              };
+            } | null => {
               switch (payload.kind) {
+                case "organizerEmail": {
+                  // Cancelled or taken off since it was queued, or the record is gone.
+                  if (written === undefined) return null;
+                  return {
+                    subject: written.subject,
+                    body: (
+                      <OrganizerEmail
+                        locale={locale}
+                        siteName={site.name}
+                        title={event.title}
+                        text={written.text}
+                        url={url}
+                      />
+                    ),
+                    ...(written.sent_by_email === null
+                      ? {}
+                      : {
+                          replyTo: {
+                            name: written.sent_by_name ?? written.sent_by_email,
+                            address: written.sent_by_email,
+                          },
+                        }),
+                  };
+                }
                 case "signedUp":
                   return {
                     subject: subjectOf(
@@ -442,6 +494,17 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                   };
               }
             })();
+            if (message === null) {
+              // Left since it was queued: not counted among those it went to.
+              if (payload.kind === "organizerEmail") {
+                yield* sql`
+                  UPDATE organizer_emails SET recipients = recipients - 1
+                  WHERE id = ${payload.organizerEmail ?? null}
+                    AND event_id = ${eventId} AND recipients > 0
+                `.pipe(Effect.orDie);
+              }
+              return;
+            }
             const rendered = yield* renderEmail(message.body);
 
             yield* email
@@ -454,6 +517,9 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                 ...(message.calendar === undefined
                   ? {}
                   : { calendar: message.calendar }),
+                ...(message.replyTo === undefined
+                  ? {}
+                  : { replyTo: message.replyTo }),
               })
               .pipe(
                 retryTransient({ times: 8 }),

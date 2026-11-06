@@ -200,6 +200,25 @@ const invitationsOf = (event: DocumentId) =>
     return row?.n ?? 0;
   }).pipe(Effect.orDie);
 
+const addOrganizerEmails = (event: DocumentId) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`
+      INSERT INTO organizer_emails (event_id, subject, text, sent_by_name,
+        sent_by_email, recipients)
+      VALUES (${event}, 'Nytt rom', 'Vi er i rom 3.', 'Alice', 'alice@example.com', 2)
+    `;
+  }).pipe(Effect.orDie);
+
+const organizerEmailsOf = (event: DocumentId) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const [row] = yield* sql<{ n: number }>`
+      SELECT count(*)::int AS n FROM organizer_emails WHERE event_id = ${event}
+    `;
+    return row?.n ?? 0;
+  }).pipe(Effect.orDie);
+
 /** An event never published, with invitations: its draft starts at 18:00 and ends at `end`, if given. */
 const draftWithInvitations = (end?: string) =>
   Effect.gen(function* () {
@@ -613,6 +632,32 @@ layer(TestLayer, { excludeTestServices: true })("Signup retention", (it) => {
         for (const event of events) {
           assert.strictEqual(yield* invitationsOf(event), 2);
         }
+      }),
+  );
+
+  it.effect(
+    "deletes the emails an organizer sent to an event's attendees 30 days and a second after it ends, and keeps them before (AC-4)",
+    () =>
+      Effect.gen(function* () {
+        const now = new Date("2049-06-01T01:00:00Z");
+        const over = yield* insertEvent({
+          endsAt: new Date(now.getTime() - 30 * day - 1000),
+        });
+        const recent = yield* insertEvent({
+          endsAt: new Date(now.getTime() - 30 * day),
+        });
+        const coming = yield* insertEvent({
+          endsAt: new Date(now.getTime() + 2 * hour),
+        });
+        for (const event of [over, recent, coming]) {
+          yield* addOrganizerEmails(event);
+        }
+
+        yield* SignupRetention.deleteSignups(now);
+
+        assert.strictEqual(yield* organizerEmailsOf(over), 0);
+        assert.strictEqual(yield* organizerEmailsOf(recent), 1);
+        assert.strictEqual(yield* organizerEmailsOf(coming), 1);
       }),
   );
 

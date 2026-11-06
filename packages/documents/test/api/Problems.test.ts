@@ -42,6 +42,9 @@ const problems: ReadonlyArray<Problem> = [
   { _tag: "ImageFormat" },
   { _tag: "InvitedEmailInvalid" },
   { _tag: "AlreadyInvited", email: "gina@example.org" },
+  { _tag: "EmailSubjectMissing" },
+  { _tag: "EmailTextMissing" },
+  { _tag: "NobodyToEmail" },
   { _tag: "OrganizerLocked" },
 ];
 

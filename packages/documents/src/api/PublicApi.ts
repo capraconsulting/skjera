@@ -15,6 +15,7 @@ import {
   DocumentNotFound,
   EventNotFound,
   InvitationRejected,
+  OrganizerEmailRejected,
   SignInRequired,
   SignupNotFound,
   SignupRejected,
@@ -155,6 +156,18 @@ export const Invitation = Schema.Struct({
 });
 export type Invitation = typeof Invitation.Type;
 
+/** An email an organizer sent to everyone signed up to an event. */
+export const SentEmail = Schema.Struct({
+  id: Schema.String,
+  subject: Schema.String,
+  /** The sender's name, else their email; null when the identity had neither. */
+  sentBy: Schema.NullOr(Schema.String),
+  sentAt: Schema.Date,
+  /** How many it was sent to: those signed up with an email address. */
+  recipients: Schema.Number,
+});
+export type SentEmail = typeof SentEmail.Type;
+
 /** For organizers in the studio: signed-in users. */
 export class AttendeesApi extends HttpApiGroup.make("attendees")
   .add(
@@ -187,6 +200,22 @@ export class AttendeesApi extends HttpApiGroup.make("attendees")
       }),
       success: Invitation,
       error: [DocumentNotFound, InvitationRejected],
+    }),
+    /** The emails organizers sent to everyone signed up to an event, newest first. */
+    HttpApiEndpoint.get("organizerEmails", "/api/events/:id/emails", {
+      params: { id: DocumentId },
+      success: Schema.Array(SentEmail),
+    }),
+    /** Sends an email to everyone signed up to an event, as the signed-in user. */
+    HttpApiEndpoint.post("emailAttendees", "/api/events/:id/emails", {
+      params: { id: DocumentId },
+      // Empty ones are refused by the service, so a refusal says why by its field.
+      payload: Schema.Struct({
+        subject: Schema.String.check(Schema.isMaxLength(200)),
+        text: Schema.String.check(Schema.isMaxLength(10_000)),
+      }),
+      success: SentEmail,
+      error: [EventNotFound, OrganizerEmailRejected],
     }),
   )
   .middleware(Authentication) {}

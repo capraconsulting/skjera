@@ -5,6 +5,7 @@
 }
 
 .dietaryPreferences,
+.sentEmails,
 .invitations {
   margin-top: 2rem;
   padding-top: 1.5rem;
@@ -107,4 +108,45 @@
 
 .answers dd {
   margin: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sending {
+  margin: 0 0 0.75rem;
+  font-size: 0.875rem;
+}
+
+.emailForm {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.emailForm .hint,
+.emailForm .error {
+  margin: 0;
+}
+
+.textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.9375rem;
+  resize: vertical;
+}
+
+.textarea:focus {
+  border-color: var(--color-focus);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-focus) 25%, transparent);
 }

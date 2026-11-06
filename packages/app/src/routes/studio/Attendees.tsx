@@ -1,4 +1,4 @@
-import type { DocumentId } from "@skjera/documents/api";
+import type { DocumentId, SentEmail } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { eq, useLiveQuery } from "@tanstack/react-db";
 import { useEffect, useState } from "react";
@@ -20,6 +20,8 @@ import {
   download,
   xlsxFile,
 } from "./attendeesSheet.ts";
+import { EmailAttendees, SentEmails } from "./OrganizerEmails.tsx";
+import { recipientCount } from "./organizerEmails.ts";
 
 /** Who has signed up to attend, for the event's organizers. */
 export function Attendees(props: { readonly id: DocumentId }) {
@@ -41,6 +43,7 @@ export function Attendees(props: { readonly id: DocumentId }) {
   }).data;
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [latest, setLatest] = useState<SentEmail | null>(null);
 
   const remove = (attendee: string, name: string) => {
     if (!window.confirm(m.studio_take_off({ name }))) return;
@@ -70,9 +73,18 @@ export function Attendees(props: { readonly id: DocumentId }) {
               : m.studio_attendees_count({ count: attendees.length })}
           </h3>
           {attendees === null || attendees.length === 0 ? null : (
-            <Button variant="ghost" onClick={exportExcel}>
-              {m.studio_download_excel()}
-            </Button>
+            <div className={styles.actions}>
+              {recipientCount(attendees) === 0 ? null : (
+                <EmailAttendees
+                  id={id}
+                  recipients={recipientCount(attendees)}
+                  onSent={setLatest}
+                />
+              )}
+              <Button variant="ghost" onClick={exportExcel}>
+                {m.studio_download_excel()}
+              </Button>
+            </div>
           )}
         </div>
         {error === null ? null : (
@@ -150,6 +162,7 @@ export function Attendees(props: { readonly id: DocumentId }) {
           </>
         )}
       </section>
+      <SentEmails id={id} latest={latest} />
       <DietaryPreferences id={id} asks={event?.askDietary === true} />
     </>
   );

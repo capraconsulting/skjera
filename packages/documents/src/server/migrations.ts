@@ -1443,4 +1443,19 @@ export const migrations = Migrator.fromRecord({
     // Whether they asked for invitations and the newsletter when signing up.
     `ALTER TABLE attendees ADD COLUMN marketing_consent boolean NOT NULL DEFAULT false`,
   ),
+  "0037_organizer_emails": statements(
+    // What an organizer wrote to everyone signed up to an event, kept for the
+    // event's list of emails sent; the event's mailer reads it when it sends.
+    `CREATE TABLE organizer_emails (
+      id uuid PRIMARY KEY DEFAULT uuidv7(),
+      event_id uuid NOT NULL REFERENCES events (id) ON DELETE CASCADE,
+      subject text NOT NULL CHECK (btrim(subject) <> ''),
+      text text NOT NULL CHECK (btrim(text) <> ''),
+      sent_by_name text,
+      sent_by_email text,
+      recipients integer NOT NULL CHECK (recipients >= 0),
+      sent_at timestamptz NOT NULL DEFAULT now()
+    )`,
+    `CREATE INDEX organizer_emails_event_id_idx ON organizer_emails (event_id)`,
+  ),
 });

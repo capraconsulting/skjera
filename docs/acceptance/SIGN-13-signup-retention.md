@@ -57,3 +57,9 @@ The privacy page shall say, in Norwegian Bokmål, Nynorsk and English, that sign
 When the job deletes an event's sign-up data, the server shall delete that event's list of those invited (SIGN-15), deleted events too. For an event never published, it shall delete the list 30 days after the end its draft has, and keep it while the draft has no end.
 
 **Automated only:** `packages/documents/test/attendance/SignupRetention.test.ts`
+
+## AC-9: The emails an organiser sent go
+
+When the job deletes an event's sign-up data, the server shall delete the emails an organiser sent to that event's attendees (MAIL-08), and keep them for an event that has not ended or ended 30 days ago or less.
+
+**Automated only:** `packages/documents/test/attendance/SignupRetention.test.ts`

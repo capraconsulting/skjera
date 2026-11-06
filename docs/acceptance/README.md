@@ -97,6 +97,7 @@ These files say what to test and how. Which criteria have passed in a round of t
 | MAIL-05 | [Reminder the morning before](MAIL-05-reminder.md) |
 | MAIL-06 | [Each event's own email texts](MAIL-06-email-texts.md) |
 | MAIL-07 | [Emails in the language you signed up in](MAIL-07-email-language.md) |
+| MAIL-08 | [Email to everyone signed up](MAIL-08-organiser-email.md) |
 
 ## EXT: Other websites and services
 

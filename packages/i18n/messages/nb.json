@@ -681,5 +681,19 @@
   "studio_restore_failed": "Gjenopprettingen mislyktes",
   "preview_version_loading": "Henter versjonen …",
   "preview_version_notice": "Forhåndsvisning av en tidligere versjon – dette er ikke publisert.",
-  "studio_organizer_locked": "Arrangøren kan ikke endres etter at arrangementet er publisert."
+  "studio_organizer_locked": "Arrangøren kan ikke endres etter at arrangementet er publisert.",
+  "studio_email_attendees": "Send e-post til påmeldte",
+  "studio_email_subject": "Emne",
+  "studio_email_text": "Tekst",
+  "studio_email_goes_to": "Går til {count} påmeldte",
+  "studio_email_send": "Send",
+  "studio_email_confirm": "Sende e-posten til {count} påmeldte?",
+  "studio_email_sending": "E-posten sendes til {count} påmeldte",
+  "studio_emails_sent": "Sendte e-poster",
+  "studio_emails_sent_count": "Sendte e-poster ({count})",
+  "studio_emails_sent_recipients": "Sendt til {count}",
+  "studio_emails_sent_by": "{when}, av {name}",
+  "problem_email_subject_missing": "Skriv et emne",
+  "problem_email_text_missing": "Skriv en tekst",
+  "problem_nobody_to_email": "Ingen av de påmeldte har e-postadresse"
 }

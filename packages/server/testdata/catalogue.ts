@@ -382,6 +382,14 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
     team("MAIL-07: Emails in the language you signed up in", [
       event("AC-1 to AC-4: Languages", { ...guests, ...week }),
     ]),
+    team("MAIL-08: Email to everyone signed up", [
+      event("AC-1 to AC-5: Signed up", {
+        ...guests,
+        ...week,
+        signups: [bob(), guest("MAIL-08", 1)],
+      }),
+      event("AC-1: Nobody signed up", { ...guests, ...week }),
+    ]),
 
     // ---- SIGN ---------------------------------------------------------------
     team("SIGN-01: Members sign up and cancel", [

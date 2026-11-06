@@ -96,6 +96,13 @@ export class InvitationRejected extends Schema.TaggedError<InvitationRejected>()
   { httpApiStatus: 400 },
 ) {}
 
+/** The organizer's email can't be sent: no subject, no text, or nobody signed up with an email address. */
+export class OrganizerEmailRejected extends Schema.TaggedError<OrganizerEmailRejected>()(
+  "OrganizerEmailRejected",
+  { problem: Problem, message: Schema.String },
+  { httpApiStatus: 400 },
+) {}
+
 /** Too many attempts to sign up or cancel from one visitor: wait, then try again. */
 export class TooManyAttempts extends Schema.TaggedError<TooManyAttempts>()(
   "TooManyAttempts",

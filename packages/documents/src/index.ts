@@ -9,6 +9,7 @@ import { Presence } from "./events/Presence.ts";
 import * as Recurring from "./events/Recurring.ts";
 import * as HubSpotSync from "./notices/HubSpotSync.ts";
 import * as Mail from "./notices/Mail.tsx";
+import { OrganizerEmails } from "./notices/OrganizerEmails.ts";
 import * as SlackChannel from "./notices/SlackChannel.ts";
 import * as Cluster from "./server/Cluster.ts";
 import * as Database from "./server/Database.ts";
@@ -37,6 +38,7 @@ export * from "./notices/Announcements.ts";
 export * as HubSpotSync from "./notices/HubSpotSync.ts";
 export * as Mail from "./notices/Mail.tsx";
 export * from "./notices/Notifications.ts";
+export * from "./notices/OrganizerEmails.ts";
 export * from "./notices/SalesEvents.ts";
 export * as SlackChannel from "./notices/SlackChannel.ts";
 export * as Cluster from "./server/Cluster.ts";
@@ -59,6 +61,7 @@ export const layer = Layer.mergeAll(
   DocumentEvents.layer,
   Teams.layer,
   Invitations.layer,
+  OrganizerEmails.layer,
   Presence.layer,
   Sync.layer,
   // After a restore, clients start over: before serving pulls.

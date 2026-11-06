@@ -275,6 +275,32 @@ export const invite = (
     ),
   );
 
+/** The emails organizers sent to everyone signed up to an event, newest first. */
+export const organizerEmails = (id: DocumentId) =>
+  request((client) =>
+    client.attendees
+      .organizerEmails({ params: { id } })
+      .pipe(Effect.mapError((error) => new Error(failureMessage(error)))),
+  );
+
+/**
+ * Emails everyone signed up to an event, as the signed-in user. A refusal
+ * keeps its problem, for the form to tell which field it belongs to.
+ */
+export const emailAttendees = (
+  id: DocumentId,
+  email: { readonly subject: string; readonly text: string },
+) =>
+  request((client) =>
+    client.attendees.emailAttendees({ params: { id }, payload: email }).pipe(
+      Effect.mapError((error) =>
+        Object.assign(new Error(failureMessage(error)), {
+          problem: "problem" in error ? error.problem : undefined,
+        }),
+      ),
+    ),
+  );
+
 /** Published events: every one for members, the public ones for anyone. */
 export const events = syncedTable({
   id: "events",

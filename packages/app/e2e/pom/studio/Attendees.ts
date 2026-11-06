@@ -98,6 +98,81 @@ export class Attendees {
     };
   }
 
+  private readonly emailButton = () =>
+    this.region().getByRole("button", { name: m.studio_email_attendees() });
+  private readonly emailForm = () =>
+    this.page.getByRole("dialog", { name: m.studio_email_attendees() });
+  private readonly sentEmails = () =>
+    this.page.getByRole("region", { name: m.studio_emails_sent() });
+
+  /** The button that writes to those signed up is there, or is not. */
+  async expectEmailButton(shown: boolean): Promise<void> {
+    await expect(this.emailButton()).toHaveCount(shown ? 1 : 0);
+  }
+
+  /** Opens the form, which says how many the email goes to. */
+  async openEmailForm(goesTo: number): Promise<void> {
+    await this.emailButton().click();
+    await expect(this.emailForm()).toBeVisible();
+    await expect(this.emailForm()).toContainText(
+      m.studio_email_goes_to({ count: goesTo }),
+    );
+    await expect(
+      this.emailForm().getByLabel(m.studio_email_subject()),
+    ).toBeVisible();
+    await expect(
+      this.emailForm().getByLabel(m.studio_email_text()),
+    ).toBeVisible();
+  }
+
+  async fillEmail(subject: string, text: string): Promise<void> {
+    await this.emailForm().getByLabel(m.studio_email_subject()).fill(subject);
+    await this.emailForm().getByLabel(m.studio_email_text()).fill(text);
+  }
+
+  /** Presses Send, answering the question that follows; returns what it asked. */
+  async sendEmailAnswering(answer: "accept" | "dismiss"): Promise<string> {
+    const asked = new Promise<string>((resolve) =>
+      this.page.once("dialog", (dialog) => {
+        resolve(dialog.message());
+        return answer === "accept" ? dialog.accept() : dialog.dismiss();
+      }),
+    );
+    await this.emailForm()
+      .getByRole("button", { name: m.studio_email_send() })
+      .click();
+    return asked;
+  }
+
+  /** The studio says the email is being sent to `count`, and the form is closed. */
+  async expectSending(count: number): Promise<void> {
+    await expect(
+      this.region()
+        .getByRole("status")
+        .filter({
+          hasText: m.studio_email_sending({ count }),
+        }),
+    ).toBeVisible();
+    await expect(this.emailForm()).toHaveCount(0);
+  }
+
+  /** The form is still open: nothing was sent. */
+  async expectEmailFormOpen(): Promise<void> {
+    await expect(this.emailForm()).toBeVisible();
+  }
+
+  /** The list of emails sent has one with `subject`, sent to `count`. */
+  async expectSentEmail(subject: string, count: number): Promise<void> {
+    const row = this.sentEmails().getByRole("listitem").filter({
+      hasText: subject,
+    });
+    await expect(row).toContainText(m.studio_emails_sent_recipients({ count }));
+  }
+
+  async expectSentEmailCount(count: number): Promise<void> {
+    await expect(this.sentEmails().getByRole("listitem")).toHaveCount(count);
+  }
+
   /** Takes the attendee called `name` off, saying yes when asked. */
   async remove(name: string): Promise<void> {
     this.page.once("dialog", (dialog) => dialog.accept());
