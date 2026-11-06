@@ -26,7 +26,7 @@ The image SHALL hold the server and the built app, set to serve them together on
 - **When** you run `docker image inspect skjera --format '{{.Config.ExposedPorts}} {{.Config.Env}}'`
 - **Then** it exposes `3000/tcp` and sets `PORT=3000`
 
-**Automated:** none; every run of `pnpm test:e2e` serves the same built app and server together on one port, as `pnpm test-server` does, but not from the image.
+**Automated:** the «Image builds» job in `.github/workflows/ci.yml`, which starts the image and checks that `/health/ready` answers `ok` and the front page is the built app, both on port 3000.
 
 ## AC-3: Migrations at start
 
@@ -38,7 +38,7 @@ WHEN the server starts, it SHALL bring the database up to date before it serves 
 - **When** you start a test server, `PORT=8801 mise exec -- pnpm test-server`, which starts on a new, empty database
 - **Then** http://localhost:8801 shows the site, and alice can log in and create a team
 
-**Automated:** every run of `pnpm test:e2e`, on a new database each time.
+**Automated:** the «Image builds» job in `.github/workflows/ci.yml`, which starts the image on a new, empty database and fails unless it is ready within 60 seconds; and every run of `pnpm test:e2e`, on a new database each time.
 
 ## AC-4: Stops promptly on SIGTERM
 
