@@ -16,6 +16,7 @@ const details = (
   email: contact.email ?? null,
   phone: contact.phone ?? null,
   company: contact.company ?? null,
+  source: null,
   answers: [],
   guest: false,
 });

@@ -1434,4 +1434,9 @@ export const migrations = Migrator.fromRecord({
       RETURNING e.*
     $$`,
   ),
+  "0035_ad_source": statements(
+    // The ad someone came from, from the address of the event's page: the
+    // values it had by name. None: null, never a JSON null.
+    `ALTER TABLE attendees ADD COLUMN ad_source jsonb`,
+  ),
 });

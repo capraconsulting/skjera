@@ -1,4 +1,5 @@
 import {
+  type AdSource,
   type Answers,
   type Locale,
   Problem,
@@ -112,6 +113,7 @@ export const signupFrom = (
   form: FormData,
   asGuest: boolean,
   locale: Locale,
+  source?: AdSource,
 ): Signup => {
   const dietary = form.get("dietary");
   const online = onlineFrom(event, form);
@@ -121,6 +123,7 @@ export const signupFrom = (
     ...(dietary === null ? {} : { dietary: String(dietary) }),
     answers: answersFrom(event.questions, form),
     ...(online === undefined ? {} : { online }),
+    ...(source === undefined ? {} : { source }),
     ...(asGuest
       ? {
           guest: {

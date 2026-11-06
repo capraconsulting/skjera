@@ -2,6 +2,7 @@ import { Authentication } from "@skjera/oauth/api";
 import { Schema } from "effect";
 import { HttpApi, HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
 import {
+  AdSource,
   Answers,
   DocumentId,
   GuestCompany,
@@ -76,6 +77,8 @@ export class EventsApi extends HttpApiGroup.make("events").add(
       locale: Schema.optionalKey(Locale),
       /** The guest form's hidden field: only a bot fills it in, and is refused. */
       honeypot: Schema.optionalKey(Schema.String),
+      /** The ad they came from, from the address of the event's page. */
+      source: Schema.optionalKey(AdSource),
     }),
     success: Schema.NullOr(GuestSignup),
     error: [EventNotFound, SignInRequired, SignupRejected, TooManyAttempts],

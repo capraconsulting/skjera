@@ -14,6 +14,7 @@ import {
 import styles from "./Attendees.module.css";
 import { searchAttendees } from "./attendeeSearch.ts";
 import {
+  adSourceText,
   answerText,
   attendeesSheet,
   download,
@@ -107,6 +108,11 @@ export function Attendees(props: { readonly id: DocumentId }) {
                       )}
                       {who.company === null ? null : (
                         <span className={styles.email}>{who.company}</span>
+                      )}
+                      {who.source === null ? null : (
+                        <span className={styles.email}>
+                          {adSourceText(who.source)}
+                        </span>
                       )}
                       {who.guest ? (
                         <Badge tone="neutral">{m.studio_guest()}</Badge>

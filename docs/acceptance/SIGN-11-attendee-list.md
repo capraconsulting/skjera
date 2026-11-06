@@ -1,6 +1,6 @@
 # SIGN-11: Attendee list in the studio
 
-The studio lists who has signed up for an event, with their answers, lets an organiser search the list, and lets an organiser take someone off. A guest's phone and company are in SIGN-03, in person or online in SIGN-07, and dietary preferences, kept apart from the list, in SIGN-08. What the site shows of who's coming is in SITE-06.
+The studio lists who has signed up for an event, with their answers, lets an organiser search the list, and lets an organiser take someone off. A guest's phone and company are in SIGN-03, in person or online in SIGN-07, and dietary preferences, kept apart from the list, in SIGN-08. The ad a sign-up came from is in EXT-08. What the site shows of who's coming is in SITE-06.
 
 **Events:** one public event open to guests, with the questions «Towel size», **One of several** with the options «Small» and «Large», and «I bring a friend», a **Checkbox**; and «AC-8: Ended», a public event open to guests, starting in a few minutes and ending a few minutes later, with one guest signed up before it starts.
 

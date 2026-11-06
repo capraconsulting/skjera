@@ -1,8 +1,14 @@
-import type { Answer, AttendeeRow, EventRow } from "@skjera/documents/api";
+import type {
+  AdSource,
+  Answer,
+  AttendeeRow,
+  EventRow,
+} from "@skjera/documents/api";
 import { readSheet } from "read-excel-file/node";
 import { describe, expect, it } from "vitest";
 import writeExcelFile from "write-excel-file/node";
 import {
+  adSourceText,
   attendeesSheet,
   xlsxInput,
 } from "../src/routes/studio/attendeesSheet.ts";
@@ -51,6 +57,7 @@ const attendee = (
     readonly online?: boolean;
     readonly phone?: string;
     readonly company?: string;
+    readonly source?: AdSource;
   } = {},
 ): AttendeeRow => ({
   id: name,
@@ -64,6 +71,7 @@ const attendee = (
     email: `${name.toLowerCase()}@example.com`,
     phone: more.phone ?? null,
     company: more.company ?? null,
+    source: more.source ?? null,
     answers,
     guest: false,
   },
@@ -204,6 +212,40 @@ describe("attendeesSheet", () => {
     expect(rows[0]?.["Towel size?"]).toBe("Large");
     expect(rows[1]?.["Towel size?"]).toBe("");
     expect(rows[0]?.["Towel size"]).toBe("");
+  });
+});
+
+describe("an attendee's ad source", () => {
+  it("has a column for each value any attendee has, after the others and before the questions, filled where there is one (AC-5)", () => {
+    const { columns, rows } = read([
+      attendee("Alice", [answer(towelSize, "Towel size", "Large")], {
+        source: { utm_source: "linkedin", utm_campaign: "spring" },
+      }),
+      attendee("Bob"),
+    ]);
+    expect(columns).toEqual([
+      "Name",
+      "Email",
+      "utm_source",
+      "utm_campaign",
+      "Towel size",
+    ]);
+    expect(rows[0]).toMatchObject({
+      utm_source: "linkedin",
+      utm_campaign: "spring",
+    });
+    expect(rows[1]).toMatchObject({ utm_source: "", utm_campaign: "" });
+  });
+
+  it("has no such column when no attendee has a source (AC-5)", () => {
+    const { columns } = read([attendee("Alice"), attendee("Bob")]);
+    expect(columns).toEqual(["Name", "Email", "Towel size"]);
+  });
+
+  it("reads as the values present, in the order of the names (AC-5)", () => {
+    expect(
+      adSourceText({ utm_campaign: "spring", utm_source: "linkedin" }),
+    ).toBe("utm_source: linkedin, utm_campaign: spring");
   });
 });
 

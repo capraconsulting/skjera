@@ -10,9 +10,12 @@ import {
 import { refused } from "../api/Problems.ts";
 import type { StoredGuestSignup } from "../api/PublicApi.ts";
 import {
+  type AdSource,
+  type AdSourceKey,
   type Answer,
   type Answers,
   type Audience,
+  adSourceKeys,
   type DocumentId,
   type GuestDetails,
   guestProblems,
@@ -52,6 +55,8 @@ export interface SignupDetails {
   readonly locale?: Locale;
   /** A guest form's hidden field: only a bot fills it in, and a filled one is refused. */
   readonly honeypot?: string;
+  /** The ad they came from, from the address of the event's page. */
+  readonly source?: AdSource;
 }
 
 /** A guest form's hidden field: only a bot fills it in, and a filled one is refused. */
@@ -62,6 +67,19 @@ const notByBot = (honeypot: string | undefined) =>
 
 /** What a typed optional text is kept as: trimmed, and nothing when blank. */
 const storedText = (text: string | undefined) => text?.trim() || null;
+
+/**
+ * An ad source as it is kept: each value trimmed, a blank one left out, as
+ * JSON text for a `jsonb` column; null, SQL null, when no value is left.
+ */
+const storedAdSource = (source: AdSource | undefined) => {
+  const kept: Partial<Record<AdSourceKey, string>> = {};
+  for (const key of adSourceKeys) {
+    const value = storedText(source?.[key]);
+    if (value !== null) kept[key] = value;
+  }
+  return Object.keys(kept).length === 0 ? null : JSON.stringify(kept);
+};
 
 const pgCode = (error: SqlError.SqlError) =>
   (error.reason as { cause?: { code?: string } }).cause?.code;
@@ -334,11 +352,11 @@ export class Attendance extends Context.Service<
           );
           // Already signed up, or a retry: nothing to do, or tell.
           const inserted = yield* sql<Signup>`
-            INSERT INTO attendees (id, event_id, user_issuer, user_subject, name, email, answers, online, locale)
+            INSERT INTO attendees (id, event_id, user_issuer, user_subject, name, email, answers, online, locale, ad_source)
             VALUES (coalesce(${id ?? null}::uuid, uuidv7()), ${event}, ${user.issuer},
               ${user.subject}, ${user.name ?? user.email ?? user.subject},
               ${user.email ?? null}, ${JSON.stringify(answers)}::jsonb,
-              ${online}, ${details.locale ?? null})
+              ${online}, ${details.locale ?? null}, ${storedAdSource(details.source)}::jsonb)
             ON CONFLICT DO NOTHING
             RETURNING ${signupColumns}
           `;
@@ -404,11 +422,11 @@ export class Attendance extends Context.Service<
         yield* Effect.gen(function* () {
           yield* room(event, online, sql`false`);
           const inserted = yield* sql<Signup>`
-            INSERT INTO attendees (id, event_id, name, email, phone, company, job_title, answers, cancel_token_hash, online, locale)
+            INSERT INTO attendees (id, event_id, name, email, phone, company, job_title, answers, cancel_token_hash, online, locale, ad_source)
             VALUES (${attendee}::uuid, ${event}, ${guest.name.trim()},
               ${guest.email.trim()}, ${storedText(guest.phone)}, ${storedText(guest.company)},
               ${storedText(guest.jobTitle)}, ${JSON.stringify(answers)}::jsonb, ${tokenHash(token)},
-              ${online}, ${details.locale ?? null})
+              ${online}, ${details.locale ?? null}, ${storedAdSource(details.source)}::jsonb)
             RETURNING ${signupColumns}
           `;
           yield* keepDietary(event, dietary);

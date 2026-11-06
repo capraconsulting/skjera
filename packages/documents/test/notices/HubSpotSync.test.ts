@@ -9,7 +9,7 @@ import { Attendance } from "../../src/attendance/Attendance.ts";
 import type { EventContent } from "../../src/events/ContentTypes.ts";
 import { Documents } from "../../src/events/Documents.ts";
 import * as Recurring from "../../src/events/Recurring.ts";
-import type { DocumentId } from "../../src/Model.ts";
+import type { AdSource, DocumentId } from "../../src/Model.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
 import * as HubSpotSync from "../../src/notices/HubSpotSync.ts";
 import { Notifications } from "../../src/notices/Notifications.ts";
@@ -174,11 +174,13 @@ const guestSignsUp = (
     readonly name?: string;
     readonly company?: string;
     readonly jobTitle?: string;
+    readonly email?: string;
+    readonly source?: AdSource;
   } = {},
 ) =>
   Effect.gen(function* () {
     const id = crypto.randomUUID();
-    const email = `guest${++guests}-${id}@example.org`;
+    const email = details.email ?? `guest${++guests}-${id}@example.org`;
     const token = yield* (yield* Attendance).attendAsGuest(
       event,
       {
@@ -189,14 +191,17 @@ const guestSignsUp = (
           ? {}
           : { jobTitle: details.jobTitle }),
       },
-      { id },
+      {
+        id,
+        ...(details.source === undefined ? {} : { source: details.source }),
+      },
     );
     return { id, email, token };
   }).pipe(Effect.orDie);
 
 let members = 0;
 /** A member signs up; their identity. */
-const memberSignsUp = (event: DocumentId, name: string) =>
+const memberSignsUp = (event: DocumentId, name: string, source?: AdSource) =>
   Effect.gen(function* () {
     const user = new Identity({
       issuer: "https://idp.example",
@@ -204,7 +209,11 @@ const memberSignsUp = (event: DocumentId, name: string) =>
       email: `member${members}-${crypto.randomUUID()}@example.com`,
       name,
     });
-    yield* (yield* Attendance).attend(event, user);
+    yield* (yield* Attendance).attend(
+      event,
+      user,
+      source === undefined ? {} : { source },
+    );
     return user;
   }).pipe(Effect.orDie);
 
@@ -435,11 +444,130 @@ layer(syncLayer(portal), { excludeTestServices: true })(
     );
 
     it.effect(
-      "sends nothing of an event that is not a sales event (AC-5)",
+      "sends a guest's and a member's ad source to the contact as arr_ properties, with the event's title (AC-3)",
+      () =>
+        Effect.gen(function* () {
+          const { id, title } = yield* publishSales();
+          const guest = yield* guestSignsUp(id, {
+            company: "Acme",
+            source: {
+              utm_source: "linkedin",
+              utm_campaign: "spring",
+              li_fat_id: "abc",
+            },
+          });
+          const member = yield* memberSignsUp(id, "Marie Hansen", {
+            fbclid: "F",
+          });
+          yield* participations(portal, id, 2);
+          yield* eventually(() =>
+            portal.contact(guest.email)?.arr_utm_arrangement === undefined ||
+            portal.contact(member.email ?? "")?.arr_utm_arrangement ===
+              undefined
+              ? undefined
+              : true,
+          );
+          assert.deepStrictEqual(portal.contact(guest.email), {
+            email: guest.email,
+            firstname: "Gus",
+            lastname: "Guest",
+            company: "Acme",
+            arr_utm_source: "linkedin",
+            arr_utm_campaign: "spring",
+            arr_li_fat_id: "abc",
+            arr_utm_arrangement: title,
+          });
+          assert.deepStrictEqual(portal.contact(member.email ?? ""), {
+            email: member.email ?? "",
+            firstname: "Marie",
+            lastname: "Hansen",
+            arr_fbclid: "F",
+            arr_utm_arrangement: title,
+          });
+        }),
+    );
+
+    it.effect(
+      "sends the ad source of sign-ups already there when the setting is turned on (AC-3)",
       () =>
         Effect.gen(function* () {
           const { id } = yield* publishNew();
+          const guest = yield* guestSignsUp(id, {
+            source: { utm_source: "linkedin" },
+          });
+          yield* settle;
+          assert.isUndefined(portal.contact(guest.email));
+
+          const title = newTitle();
+          yield* publishDraft(id, { salesEvent: true, title });
+          yield* participations(portal, id, 1);
+          const contact = yield* eventually(() =>
+            portal.contact(guest.email)?.arr_utm_arrangement === undefined
+              ? undefined
+              : portal.contact(guest.email),
+          );
+          assert.strictEqual(contact.arr_utm_source, "linkedin");
+          assert.strictEqual(contact.arr_utm_arrangement, title);
+        }),
+    );
+
+    it.effect(
+      "sends only the values a sign-up has and leaves the contact's other values as they are (AC-4)",
+      () =>
+        Effect.gen(function* () {
+          const first = yield* publishSales();
+          const second = yield* publishSales();
+          const email = `repeat-${crypto.randomUUID()}@example.org`;
+          yield* guestSignsUp(first.id, {
+            email,
+            source: { utm_source: "meta", utm_campaign: "autumn" },
+          });
+          yield* eventually(() =>
+            portal.contact(email)?.arr_utm_campaign === "autumn"
+              ? true
+              : undefined,
+          );
+          yield* guestSignsUp(second.id, {
+            email,
+            source: { utm_source: "linkedin" },
+          });
+          const contact = yield* eventually(() =>
+            portal.contact(email)?.arr_utm_source === "linkedin"
+              ? portal.contact(email)
+              : undefined,
+          );
+          assert.strictEqual(contact.arr_utm_campaign, "autumn");
+          assert.strictEqual(contact.arr_utm_arrangement, second.title);
+        }),
+    );
+
+    it.effect(
+      "sends no arr_ property for a sign-up without a source (AC-4)",
+      () =>
+        Effect.gen(function* () {
+          const { id } = yield* publishSales();
           const guest = yield* guestSignsUp(id);
+          const member = yield* memberSignsUp(id, "Marie Hansen");
+          yield* participations(portal, id, 2);
+          yield* settle;
+          for (const email of [guest.email, member.email ?? ""]) {
+            const properties = Object.keys(portal.contact(email) ?? {});
+            assert.deepStrictEqual(
+              properties.filter((name) => name.startsWith("arr_")),
+              [],
+            );
+          }
+        }),
+    );
+
+    it.effect(
+      "sends nothing of an event that is not a sales event, even for a guest with an ad source (AC-5, AC-3)",
+      () =>
+        Effect.gen(function* () {
+          const { id } = yield* publishNew();
+          const guest = yield* guestSignsUp(id, {
+            source: { utm_source: "linkedin" },
+          });
           yield* memberSignsUp(id, "Marie Hansen");
           yield* (yield* Attendance).leaveAsGuest(id, guest.token);
           yield* settle;
@@ -643,6 +771,33 @@ layer(syncLayer(refusing, settings, refusingLog), {
           [next.email],
         );
         assert.isUndefined(refusing.contact(refused.email));
+      }),
+    30_000,
+  );
+});
+
+// A portal without the arr_ properties, as HubSpot is until marketing makes them.
+const withoutProperties = HubSpotTest.make({ properties: [] });
+const withoutPropertiesLog: Array<string> = [];
+
+layer(syncLayer(withoutProperties, settings, withoutPropertiesLog), {
+  excludeTestServices: true,
+})("A sales event when HubSpot lacks the arr_ properties", (it) => {
+  it.effect(
+    "records the registration, and logs and drops the refused ad source (AC-3)",
+    () =>
+      Effect.gen(function* () {
+        const { id } = yield* publishSales();
+        yield* eventually(() => withoutProperties.event(id));
+        const guest = yield* guestSignsUp(id, {
+          source: { utm_source: "linkedin" },
+        });
+        const [registered] = yield* participations(withoutProperties, id, 1);
+        assert.strictEqual(registered?.email, guest.email);
+        yield* logged(withoutPropertiesLog, "400");
+        assert.isUndefined(
+          withoutProperties.contact(guest.email)?.arr_utm_source,
+        );
       }),
     30_000,
   );

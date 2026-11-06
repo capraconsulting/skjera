@@ -167,6 +167,24 @@ describe("signupFrom", () => {
   });
 });
 
+describe("signupFrom's ad source", () => {
+  const source = { utm_source: "linkedin", li_fat_id: "abc" };
+
+  it("carries the source on a member's and a guest's signup (AC-1)", () => {
+    const form = formOf({ firstname: "Kari", email: "kari@example.com" });
+    expect(signupFrom(plain, form, false, "en", source).source).toEqual(source);
+    expect(signupFrom(plain, form, true, "en", source).source).toEqual(source);
+  });
+
+  it("has no source key when it is given none (AC-1)", () => {
+    const form = formOf({});
+    expect("source" in signupFrom(plain, form, false, "en")).toBe(false);
+    expect("source" in signupFrom(plain, form, true, "en", undefined)).toBe(
+      false,
+    );
+  });
+});
+
 describe("a sales event's guest form", () => {
   it("sends the job title as written, only for a sales event (AC-8)", () => {
     const form = formOf({

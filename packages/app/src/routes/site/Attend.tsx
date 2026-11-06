@@ -11,6 +11,7 @@ import { type FormEvent, type ReactNode, useState } from "react";
 import { Link } from "react-router";
 import { Button } from "../../components/Button.tsx";
 import { currentSite } from "../../i18n.ts";
+import { adSourceFor } from "../../site/adSource.ts";
 import { loginUrl } from "../../site/client.ts";
 import {
   type GuestSignup,
@@ -128,7 +129,13 @@ export function Attend(props: {
   const signUp = (submitted: FormEvent<HTMLFormElement>, asGuest: boolean) => {
     submitted.preventDefault();
     const form = new FormData(submitted.currentTarget);
-    const signup = signupFrom(event, form, asGuest, getLocale());
+    const signup = signupFrom(
+      event,
+      form,
+      asGuest,
+      getLocale(),
+      adSourceFor(event.id),
+    );
     if (signup.guest !== undefined) {
       const problems = guestProblems(signup.guest);
       if (problems.length > 0) return refuse(problems);

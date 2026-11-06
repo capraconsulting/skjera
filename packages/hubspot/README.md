@@ -26,7 +26,9 @@ register.pipe(Effect.provide(HubSpot.layerConfig)); // HUBSPOT_ACCESS_TOKEN
   `externalEventId` is there already, under the account `skjera`.
 - `cancelMarketingEvent`: marks it cancelled.
 - `upsertContact`: creates or updates a contact by email; a property left out
-  keeps what HubSpot has.
+  keeps what HubSpot has. Properties beyond `email`, `firstname`, `lastname`,
+  `company` and `jobtitle` are given by their HubSpot name, and must exist in
+  the account: HubSpot refuses the call otherwise.
 - `recordParticipation`: registers someone for the event, or records that they
   cancelled, by email and at the time given.
 

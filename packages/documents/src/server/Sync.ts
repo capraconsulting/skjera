@@ -13,6 +13,7 @@ import {
 } from "../api/SyncApi.ts";
 import type { ContentTypeName } from "../events/ContentTypes.ts";
 import type {
+  AdSource,
   Answer,
   Audience,
   Cover,
@@ -290,13 +291,14 @@ export class Sync extends Context.Service<
             email: string | null;
             phone: string | null;
             company: string | null;
+            ad_source: AdSource | null;
             answers: ReadonlyArray<Answer>;
             guest: boolean;
             mine: boolean;
             online: boolean;
             visible: boolean;
           }>`
-            SELECT a.id, a.event_id, a.created_at, a.changed_at, a.name, a.email, a.phone, a.company, a.answers,
+            SELECT a.id, a.event_id, a.created_at, a.changed_at, a.name, a.email, a.phone, a.company, a.ad_source, a.answers,
               a.user_issuer IS NULL AS guest, a.online,
               coalesce(a.user_issuer = ${issuer} AND a.user_subject = ${subject}, false)
                 AS mine,
@@ -321,6 +323,7 @@ export class Sync extends Context.Service<
                           email: row.email,
                           phone: row.phone,
                           company: row.company,
+                          source: row.ad_source,
                           answers: row.answers,
                           guest: row.guest,
                         })

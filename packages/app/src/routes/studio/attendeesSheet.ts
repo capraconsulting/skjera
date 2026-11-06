@@ -1,4 +1,10 @@
-import type { Answer, AttendeeRow, EventRow } from "@skjera/documents/api";
+import {
+  type AdSource,
+  type Answer,
+  type AttendeeRow,
+  adSourceKeys,
+  type EventRow,
+} from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 
 /** A column: a question, by its id, in the words its answers were given to. */
@@ -15,8 +21,9 @@ export interface Sheet {
 /**
  * The attendees as a spreadsheet: who they are, a guest's phone number and
  * company where guests can sign up, how each attends when the event is
- * streamed, and a column for each question, headed with the words its
- * answers were given to. Answers given to a question's earlier words, and to
+ * streamed, a column for each value of the ad they came from that any of
+ * them has, headed with its name, and a column for each question, headed
+ * with the words its answers were given to. Answers given to a question's earlier words, and to
  * questions taken off the event since, still show, after the others, each
  * under the words it was asked in.
  */
@@ -38,6 +45,11 @@ export const attendeesSheet = (
       if (!questions.has(key)) questions.set(key, answer.question);
     }
   }
+  const sources = adSourceKeys.filter((name) =>
+    attendees.some(
+      (attendee) => attendee.details?.source?.[name] !== undefined,
+    ),
+  );
   const streamed = event?.isStreamed === true;
   const guests = event?.allowGuests === true;
   const rows = attendees.flatMap(({ details, online }) => {
@@ -54,6 +66,7 @@ export const attendeesSheet = (
         details.email ?? "",
         ...(guests ? [details.phone ?? "", details.company ?? ""] : []),
         ...(streamed ? [online ? m.common_yes() : m.common_no()] : []),
+        ...sources.map((name) => details.source?.[name] ?? ""),
         ...[...questions.keys()].map((key) => answers.get(key) ?? ""),
       ],
     ];
@@ -66,6 +79,7 @@ export const attendeesSheet = (
       m.sheet_email(),
       ...(guests ? [m.sheet_phone(), m.sheet_company()] : []),
       ...(streamed ? [m.sheet_online()] : []),
+      ...sources,
       ...questions.values(),
     ],
     rows,
@@ -90,6 +104,18 @@ export const xlsxFile = async (sheet: Sheet): Promise<Blob> => {
   const input = xlsxInput(sheet);
   return writeExcelFile(input.data, { sheet: input.sheet }).toBlob();
 };
+
+/**
+ * The ad someone came from as it reads: the values it has, in the order of
+ * `adSourceKeys`, each as its name and value.
+ */
+export const adSourceText = (source: AdSource) =>
+  adSourceKeys
+    .flatMap((name) => {
+      const value = source[name];
+      return value === undefined ? [] : [`${name}: ${value}`];
+    })
+    .join(", ");
 
 /** An answer as it reads: a ticked box as yes or no, in the interface's language. */
 export const answerText = (answer: Answer) =>

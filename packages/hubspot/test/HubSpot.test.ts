@@ -186,6 +186,7 @@ describe("The requests", () => {
             lastname: "Nordmann",
             company: "Acme",
             jobtitle: "CTO",
+            arr_utm_source: "linkedin",
           });
           yield* service.upsertContact({
             email: "ola@example.com",
@@ -209,6 +210,7 @@ describe("The requests", () => {
                       lastname: "Nordmann",
                       company: "Acme",
                       jobtitle: "CTO",
+                      arr_utm_source: "linkedin",
                     },
                   },
                 ],

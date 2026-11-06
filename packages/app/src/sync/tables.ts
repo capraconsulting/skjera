@@ -1,4 +1,5 @@
 import {
+  type AdSource,
   type Answers,
   type AttendeeRow,
   AttendeesApi,
@@ -300,7 +301,7 @@ export const attendees = syncedTable({
   write: {
     // Signing up, as the signed-in user or as a guest (see `Signup`).
     insert: (attendee, metadata) => {
-      const { guest, dietary, answers, online, locale, honeypot } =
+      const { guest, dietary, answers, online, locale, honeypot, source } =
         metadata as Signup;
       return sendPublic((client) =>
         client.events
@@ -314,6 +315,7 @@ export const attendees = syncedTable({
               ...(online === undefined ? {} : { online }),
               ...(locale === undefined ? {} : { locale }),
               ...(honeypot === undefined ? {} : { honeypot }),
+              ...(source === undefined ? {} : { source }),
             },
           })
           .pipe(
@@ -413,4 +415,6 @@ export type Signup = {
   readonly locale?: Locale;
   /** What a guest form's hidden field held: filled only by a bot. */
   readonly honeypot?: string;
+  /** The ad they came from, kept from the address of the event's page. */
+  readonly source?: AdSource;
 };

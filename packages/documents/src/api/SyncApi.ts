@@ -4,6 +4,7 @@ import { Schema } from "effect";
 import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
 import { ContentTypeName } from "../events/ContentTypes.ts";
 import {
+  AdSource,
   Answer,
   Cover,
   DocumentId,
@@ -116,6 +117,8 @@ export const AttendeeDetails = Schema.Struct({
   /** A guest's phone number and company, when they gave them. */
   phone: Schema.NullOr(Schema.String),
   company: Schema.NullOr(Schema.String),
+  /** The ad they came from, when the address of the event's page said. */
+  source: Schema.NullOr(AdSource),
   /** Answers to the event's questions, as asked and picked then. */
   answers: Schema.Array(Answer),
   /** Signed up without an account. */

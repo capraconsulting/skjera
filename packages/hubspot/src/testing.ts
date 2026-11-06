@@ -32,7 +32,23 @@ type Method =
   | "upsertContact"
   | "recordParticipation";
 
-export const make = () => {
+/** The properties every HubSpot account has on a contact. */
+const standardProperties = [
+  "email",
+  "firstname",
+  "lastname",
+  "company",
+  "jobtitle",
+];
+
+/**
+ * `properties`, when given, are the custom properties the account has: a
+ * contact with any other property outside HubSpot's own is refused (400), as
+ * HubSpot does. Without it every property is accepted.
+ */
+export const make = (
+  options: { readonly properties?: ReadonlyArray<string> } = {},
+) => {
   const events = new Map<string, StoredEvent>();
   const contacts = new Map<string, Record<string, string>>();
   const participations = new Map<string, Array<StoredParticipation>>();
@@ -82,14 +98,30 @@ export const make = () => {
     upsertContact: (contact: Contact) =>
       Effect.andThen(
         call("upsertContact"),
-        Effect.sync(() => {
+        Effect.suspend(() => {
           const properties = Object.fromEntries(
             Object.entries(contact).filter(([, value]) => value !== undefined),
           ) as Record<string, string>;
+          const missing = Object.keys(properties).find(
+            (name) =>
+              options.properties !== undefined &&
+              !standardProperties.includes(name) &&
+              !options.properties.includes(name),
+          );
+          if (missing !== undefined) {
+            return Effect.fail(
+              new HubSpotApiError({
+                call: "upsertContact",
+                status: 400,
+                message: `Property ${missing} does not exist`,
+              }),
+            );
+          }
           contacts.set(contact.email, {
             ...contacts.get(contact.email),
             ...properties,
           });
+          return Effect.void;
         }),
       ),
     recordParticipation: ({ externalEventId, state, email, at }) =>

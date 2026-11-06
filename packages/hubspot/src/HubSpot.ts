@@ -69,13 +69,18 @@ export interface MarketingEvent {
   readonly eventCancelled: boolean;
 }
 
-/** A contact, by email. A property left out is left as HubSpot has it. */
+/**
+ * A contact, by email. A property left out is left as HubSpot has it. Any
+ * other property is given by its HubSpot name, and must exist in the account:
+ * HubSpot refuses the call when it does not.
+ */
 export interface Contact {
   readonly email: string;
   readonly firstname?: string;
   readonly lastname?: string;
   readonly company?: string;
   readonly jobtitle?: string;
+  readonly [property: string]: string | undefined;
 }
 
 /** Whether someone is registered for an event, or cancelled their registration. */

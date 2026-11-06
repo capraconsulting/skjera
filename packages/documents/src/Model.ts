@@ -347,6 +347,35 @@ export const isEmailAddress = (email: string): boolean =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) && email.trim().length <= 254;
 /** A guest's job title on a sales event's form. */
 export const GuestJobTitle = Schema.String.check(Schema.isMaxLength(100));
+/** The names of the address's values that say which ad someone came from. */
+export const adSourceKeys = [
+  "utm_source",
+  "utm_medium",
+  "utm_campaign",
+  "utm_content",
+  "utm_term",
+  "li_fat_id",
+  "fbclid",
+] as const;
+export type AdSourceKey = (typeof adSourceKeys)[number];
+
+/** The longest value kept: the browser cuts to it, the server refuses more. */
+export const adSourceValueLength = 500;
+const AdSourceValue = Schema.String.check(
+  Schema.isMaxLength(adSourceValueLength),
+);
+/** The ad a sign-up came from: the values the address had, by name. */
+export const AdSource = Schema.Struct({
+  utm_source: Schema.optionalKey(AdSourceValue),
+  utm_medium: Schema.optionalKey(AdSourceValue),
+  utm_campaign: Schema.optionalKey(AdSourceValue),
+  utm_content: Schema.optionalKey(AdSourceValue),
+  utm_term: Schema.optionalKey(AdSourceValue),
+  li_fat_id: Schema.optionalKey(AdSourceValue),
+  fbclid: Schema.optionalKey(AdSourceValue),
+});
+export type AdSource = typeof AdSource.Type;
+
 export const GuestDetails = Schema.Struct({
   name: Schema.String.check(
     Schema.makeFilter(

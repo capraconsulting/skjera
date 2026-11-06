@@ -1,6 +1,7 @@
 import { assert, layer } from "@effect/vitest";
 import { Identity } from "@skjera/oauth/api";
 import { ConfigProvider, Effect, Layer, Option, Ref } from "effect";
+import { SqlClient } from "effect/sql";
 import { Attendance } from "../../src/attendance/Attendance.ts";
 import { Documents } from "../../src/events/Documents.ts";
 import type { DocumentId } from "../../src/Model.ts";
@@ -225,6 +226,52 @@ layer(TestLayer, { excludeTestServices: true })("Guests", (it) => {
         [[null, null]],
       );
     }),
+  );
+
+  it.effect(
+    "keeps the ad a guest and a member came from, trimmed, a blank value left out (AC-1)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        yield* attendance.attendAsGuest(
+          id,
+          { name: "Gina", email: "gina@example.org" },
+          { source: { utm_source: " linkedin ", utm_term: "  " } },
+        );
+        yield* attendance.attend(id, bob, { source: { fbclid: "F" } });
+        assert.deepStrictEqual(
+          (yield* organizerView(id)).map((each) => each?.source),
+          [{ utm_source: "linkedin" }, { fbclid: "F" }],
+        );
+      }),
+  );
+
+  it.effect(
+    "keeps SQL null for a sign-up with no source, or only blank values (AC-1)",
+    () =>
+      Effect.gen(function* () {
+        const attendance = yield* Attendance;
+        const sql = yield* SqlClient.SqlClient;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        yield* attendance.attendAsGuest(
+          id,
+          { name: "Gina", email: "gina@example.org" },
+          { source: { utm_source: "  ", fbclid: "" } },
+        );
+        yield* attendance.attend(id, bob);
+        assert.deepStrictEqual(
+          (yield* organizerView(id)).map((each) => each?.source),
+          [null, null],
+        );
+        const rows = yield* sql<{ readonly missing: boolean }>`
+          SELECT ad_source IS NULL AS missing FROM attendees
+          WHERE event_id = ${id}`;
+        assert.deepStrictEqual(
+          rows.map((row) => row.missing),
+          [true, true],
+        );
+      }),
   );
 
   it.effect(

@@ -35,6 +35,7 @@ import {
 import { Organizer } from "../../components/Organizer.tsx";
 import { RichText } from "../../components/RichText.tsx";
 import { usePageTitle } from "../../pageTitle.ts";
+import { rememberAdSource } from "../../site/adSource.ts";
 import { audience } from "../../site/audience.ts";
 import { runPublic } from "../../site/client.ts";
 import {
@@ -117,6 +118,9 @@ export const eventLoader = async ({ params, request }: LoaderFunctionArgs) => {
     else rememberGuestSignup(id, { id: stored.id, cancelToken: token });
     throw redirect(url.pathname);
   }
+  // Which ad they came from, kept for the sign-up: the loader runs again when
+  // the address changes and after a login.
+  rememberAdSource(id, url.search);
   const linkGone = goneLink === id;
   goneLink = null;
   await Promise.all([

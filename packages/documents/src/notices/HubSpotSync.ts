@@ -8,6 +8,7 @@ import { Config, Effect, Layer, Option, Schema } from "effect";
 import { ClusterSchema, Entity } from "effect/cluster";
 import { Rpc } from "effect/rpc";
 import { SqlClient } from "effect/sql";
+import { type AdSource, adSourceKeys } from "../Model.ts";
 import { SalesEvents } from "./SalesEvents.ts";
 
 // What HubSpot is sent of a sales event and its sign-ups. A publish, a
@@ -47,13 +48,21 @@ const Send = Rpc.make("Send", {
   payload: {
     /** Each message once: what it's about, e.g. "registered/<signup>". */
     key: Schema.String,
-    kind: Schema.Literals(["event", "cancelled", "registered", "left"]),
+    kind: Schema.Literals([
+      "event",
+      "cancelled",
+      "registered",
+      "source",
+      "left",
+    ]),
     /** For `event`: the Marketing Event. */
     event: Schema.optionalKey(MarketingEventFields),
     /** For `registered`: who signed up. */
     contact: Schema.optionalKey(ContactFields),
-    /** For `left`: who cancelled. */
+    /** For `source` and `left`: the contact, by email. */
     email: Schema.optionalKey(Schema.String),
+    /** For `source`: the contact's properties to set, by HubSpot's name. */
+    properties: Schema.optionalKey(Schema.Record(Schema.String, Schema.String)),
     /** For `registered` and `left`: when it happened, an ISO instant. */
     at: Schema.optionalKey(Schema.String),
   },
@@ -115,6 +124,25 @@ export const contactOf = (signup: {
   ...(signup.job_title === null ? {} : { jobtitle: signup.job_title }),
 });
 
+/**
+ * The contact properties for the ad a sign-up came from: `arr_` and the name
+ * of each value it has, and the event's title as `arr_utm_arrangement`;
+ * undefined when it has no value, so a sign-up without a source sends none.
+ */
+const adSourceProperties = (
+  source: AdSource | null,
+  title: string,
+): Record<string, string> | undefined => {
+  const properties: Record<string, string> = {};
+  for (const key of adSourceKeys) {
+    const value = source?.[key];
+    if (value !== undefined) properties[`arr_${key}`] = value;
+  }
+  return Object.keys(properties).length === 0
+    ? undefined
+    : { ...properties, arr_utm_arrangement: title };
+};
+
 /** The private app's token, and where the site is: what sending needs. */
 const HubSpotConfig = Config.all({
   token: Config.Redacted("HUBSPOT_ACCESS_TOKEN"),
@@ -132,6 +160,7 @@ interface SignupRow {
   readonly email: string | null;
   readonly company: string | null;
   readonly job_title: string | null;
+  readonly ad_source: AdSource | null;
   readonly created_at: Date;
 }
 
@@ -157,15 +186,31 @@ export const layerSalesEvents = Layer.effect(
     const send = (event: string, payload: typeof Send.payloadSchema.Type) =>
       sender(event).Send(payload, { discard: true }).pipe(Effect.orDie);
 
-    const registered = (event: string, signup: SignupRow) =>
-      signup.email === null
-        ? Effect.void
-        : send(event, {
-            key: `registered/${signup.id}`,
-            kind: "registered",
-            contact: contactOf({ ...signup, email: signup.email }),
-            at: signup.created_at.toISOString(),
-          });
+    // The registration, then the ad it came from in a message of its own: HubSpot
+    // refuses the properties until they are made, and that must not cost the
+    // registration.
+    const registered = (event: string, signup: SignupRow, title: string) => {
+      const { email } = signup;
+      if (email === null) return Effect.void;
+      const properties = adSourceProperties(signup.ad_source, title);
+      return send(event, {
+        key: `registered/${signup.id}`,
+        kind: "registered",
+        contact: contactOf({ ...signup, email }),
+        at: signup.created_at.toISOString(),
+      }).pipe(
+        Effect.andThen(
+          properties === undefined
+            ? Effect.void
+            : send(event, {
+                key: `source/${signup.id}`,
+                kind: "source",
+                email,
+                properties,
+              }),
+        ),
+      );
+    };
 
     return SalesEvents.of({
       published: (event, { wasSalesEvent }) =>
@@ -187,13 +232,13 @@ export const layerSalesEvents = Layer.effect(
           // Turned on just now: those signed up before are sent, earliest first.
           if (wasSalesEvent) return;
           const signups = yield* sql<SignupRow>`
-            SELECT id, name, email, company, job_title, created_at
+            SELECT id, name, email, company, job_title, ad_source, created_at
             FROM attendees WHERE event_id = ${event}
             ORDER BY created_at, id
           `;
           yield* Effect.forEach(
             signups,
-            (signup) => registered(event, signup),
+            (signup) => registered(event, signup, row.title),
             {
               discard: true,
             },
@@ -213,12 +258,13 @@ export const layerSalesEvents = Layer.effect(
         }).pipe(Effect.orDie),
       signedUp: (event, signup) =>
         Effect.gen(function* () {
-          const [row] = yield* sql<SignupRow>`
-            SELECT a.id, a.name, a.email, a.company, a.job_title, a.created_at
+          const [row] = yield* sql<SignupRow & { title: string }>`
+            SELECT a.id, a.name, a.email, a.company, a.job_title, a.ad_source, a.created_at,
+              e.title
             FROM attendees a JOIN events e ON e.id = a.event_id
             WHERE a.id = ${signup}::uuid AND e.sales_event
           `;
-          if (row !== undefined) yield* registered(event, row);
+          if (row !== undefined) yield* registered(event, row, row.title);
         }).pipe(Effect.orDie),
       signupCancelled: (event, signup) =>
         Effect.gen(function* () {
@@ -285,6 +331,12 @@ export const sender = (
                     }),
                   ),
                 );
+          }
+          case "source": {
+            const { email, properties } = payload;
+            return email === undefined || properties === undefined
+              ? Effect.void
+              : hubspot.upsertContact({ ...properties, email });
           }
           case "left": {
             const { email, at } = payload;
