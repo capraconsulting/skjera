@@ -119,7 +119,6 @@ test("the email texts' editor has no choices for an image (AC-1)", async ({
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true });
 
-  await editor.openEmail("signed up");
   await editor.emailText("signed up").click();
   const dialog = await editor.emailToolbar("signed up").openImageDialog();
   await dialog.expectNoChoices();
@@ -249,7 +248,6 @@ test("the Image dialog of the body and of an email text offers to pick an image 
   await body.expectCanPickExisting();
   await body.cancel();
 
-  await editor.openEmail("signed up");
   await editor.emailText("signed up").click();
   const email = await editor.emailToolbar("signed up").openImageDialog();
   await email.expectCanPickExisting();

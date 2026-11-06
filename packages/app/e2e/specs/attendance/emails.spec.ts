@@ -84,7 +84,7 @@ test("a new place emails who signed up, once the organizer agrees", async ({
   await cleanUp(alice, team, event.id);
 });
 
-test("an organizer writes the signed-up email's own subject and text", async ({
+test("an organizer writes the signed-up email's own subject and text, open from the start (AC-1, AC-2)", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -94,12 +94,22 @@ test("an organizer writes the signed-up email's own subject and text", async ({
   const address = `gina-${crypto.randomUUID()}@example.org`;
   const wording = "Welcome, we saved you a seat";
 
-  // Opening a published event does not make it unpublished: the fields of an
-  // email are not created until it is opened.
+  // Opening a published event does not make it unpublished: the signed-up
+  // email's fields are shown, but not created until the organizer goes into
+  // one. The other emails are closed while nothing is written for them.
   await editor.reload();
+  await editor.emailSubject("signed up").expectVisible();
+  await editor.emailText("signed up").expectVisible();
   await editor.expectPublished();
+  for (const email of [
+    "sign-up cancelled",
+    "event changed",
+    "event cancelled",
+  ] as const) {
+    await editor.emailSubject(email).expectAbsent();
+    await editor.emailText(email).expectAbsent();
+  }
 
-  await editor.openEmail("signed up");
   await editor.emailSubject("signed up").type(wording);
   await editor.emailSubject("signed up").expectText(wording);
   await editor.emailText("signed up").type("Bring a friend");

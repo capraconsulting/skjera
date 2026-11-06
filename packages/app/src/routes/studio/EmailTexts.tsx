@@ -6,6 +6,7 @@ import { Button } from "../../components/Button.tsx";
 import type { DraftPresence } from "../../presence/presence.ts";
 import { DraftText } from "./DraftText.tsx";
 import styles from "./EmailTexts.module.css";
+import { opensFromStart } from "./emailTexts.ts";
 
 // The subject and text an organizer can write for each email the event
 // sends. An empty field sends the standard email.
@@ -41,14 +42,11 @@ const emails = [
   },
 ] as const;
 
-/** Something is written in the draft: not only spaces and block markers. */
-const isWritten = (value: string | undefined) =>
-  value !== undefined && value.replace(/[\s￼]+/g, "") !== "";
-
 /**
- * The emails' fields, each opened on request: a field that is never opened
- * is never created in the draft, so an older published event does not turn
- * into one with unpublished changes.
+ * The emails' fields. A field is created in the draft when the organizer goes
+ * into it, or, for an email that started closed, when it is opened: showing a
+ * field writes nothing, so an older published event does not turn into one
+ * with unpublished changes.
  */
 export function EmailTexts(props: {
   readonly handle: DocHandle<EventContent>;
@@ -69,11 +67,8 @@ function Email(props: {
   readonly presence: DraftPresence | null;
 }) {
   const { email, handle, presence } = props;
-  // Open from the start when something is already written for it.
-  const [open, setOpen] = useState(() => {
-    const doc = handle.doc();
-    return isWritten(doc[email.subject]) || isWritten(doc[email.text]);
-  });
+  const [startedOpen] = useState(() => opensFromStart(handle.doc(), email));
+  const [open, setOpen] = useState(startedOpen);
   return (
     <div className={styles.email}>
       <Button
@@ -90,6 +85,7 @@ function Email(props: {
             presence={presence}
             field={email.subject}
             label={email.subjectLabel()}
+            createOnFocus={startedOpen}
           />
           <DraftText
             handle={handle}
@@ -97,6 +93,7 @@ function Email(props: {
             field={email.text}
             label={email.textLabel()}
             rich
+            createOnFocus={startedOpen}
           />
           <span className={styles.hint}>{m.studio_email_hint()}</span>
         </div>

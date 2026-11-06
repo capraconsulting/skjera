@@ -30,6 +30,55 @@ export interface TextEditorProps {
   readonly label: string;
   /** Share selections with, and show, others in this document. */
   readonly presence?: DraftPresence | null;
+  /** Put the caret in the field as soon as it is made. */
+  readonly autoFocus?: boolean;
+}
+
+/** The wrapper's classes, which the field's look hangs on. */
+const editorClasses = (options: {
+  readonly multiline?: boolean;
+  readonly rich?: boolean;
+  readonly large?: boolean;
+}) =>
+  [
+    styles.editor,
+    options.multiline || options.rich ? styles.multiline : undefined,
+    options.rich ? styles.rich : undefined,
+    options.large ? styles.large : undefined,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+/**
+ * An empty field drawn before there is a text behind it, which looks like
+ * one and creates the text through `onFocus`. The editor itself can only
+ * start on a text that exists.
+ */
+export function EmptyTextEditor(props: {
+  readonly label: string;
+  readonly rich?: boolean;
+  readonly onFocus: () => void;
+}) {
+  const rich = props.rich === true;
+  return (
+    <div className={editorClasses({ rich })}>
+      <div className={rich ? richText.content : undefined}>
+        {/* biome-ignore lint/a11y/useSemanticElements: it stands in for the editor's own textbox, which is a div, until the editor can start. */}
+        <div
+          className="ProseMirror"
+          role="textbox"
+          aria-label={props.label}
+          aria-multiline={rich ? "true" : undefined}
+          tabIndex={0}
+          onFocus={props.onFocus}
+        >
+          <p>
+            <br />
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -46,6 +95,7 @@ export function TextEditor({
   large = false,
   label,
   presence,
+  autoFocus = false,
 }: TextEditorProps) {
   const mount = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<EditorView | null>(null);
@@ -53,6 +103,12 @@ export function TextEditor({
   const [, setVersion] = useState(0);
   // Why the last pasted or dropped image didn't upload.
   const [uploadError, setUploadError] = useState<string | null>(null);
+  // Whether a view was made for this mount yet, and whether the one a new
+  // view replaces had the focus. The first view is focused; a remade one
+  // keeps the focus it had. Effects run twice under `<StrictMode>`, so the
+  // first view alone is not the one that stays.
+  const madeView = useRef(false);
+  const hadFocus = useRef(false);
 
   useEffect(() => {
     const element = mount.current;
@@ -121,24 +177,18 @@ export function TextEditor({
         role: "textbox",
       },
     });
+    if (autoFocus && (!madeView.current || hadFocus.current)) view.focus();
+    madeView.current = true;
     setView(view);
     return () => {
+      hadFocus.current = view.hasFocus();
       setView(null);
       view.destroy();
     };
-  }, [handle, path, multiline, rich, label, presence]);
+  }, [handle, path, multiline, rich, label, presence, autoFocus]);
 
   return (
-    <div
-      className={[
-        styles.editor,
-        multiline || rich ? styles.multiline : undefined,
-        rich ? styles.rich : undefined,
-        large ? styles.large : undefined,
-      ]
-        .filter(Boolean)
-        .join(" ")}
-    >
+    <div className={editorClasses({ multiline, rich, large })}>
       {rich && view !== null ? (
         <RichTextToolbar
           view={view}

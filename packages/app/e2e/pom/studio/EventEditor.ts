@@ -441,8 +441,11 @@ export class EventEditor {
     await this.place.expectText(text);
   }
 
-  /** Opens one of the event's own emails, to write its subject and text. */
-  async openEmail(email: EventEmail): Promise<void> {
+  /**
+   * Opens one of the event's own emails, to write its subject and text. The
+   * signed-up email is open from the start, so it has nothing to open.
+   */
+  async openEmail(email: Exclude<EventEmail, "signed up">): Promise<void> {
     await this.page
       .getByRole("button", { name: `${emailNames[email]} email` })
       .click();

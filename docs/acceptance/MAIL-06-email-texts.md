@@ -15,7 +15,7 @@ The studio shall let an organiser write, for each event, an optional subject and
 **Test**
 
 - **Given** an event open in the studio
-- **When** you open **Signed-up email**, **Sign-up cancelled email**, **Event changed email** and **Event cancelled email** under **Emails**
+- **When** you open **Sign-up cancelled email**, **Event changed email** and **Event cancelled email** under **Emails**, with **Signed-up email** open already
 - **Then** each has a subject and a text, both optional
 
 **Automated:** `packages/app/e2e/specs/attendance/emails.spec.ts`, `packages/documents/test/events/emails.test.ts`
@@ -79,3 +79,15 @@ When an event is changed or cancelled, the email shall use the subject and text 
 - **Then** bob's email has the text that was published, not the new one
 
 **Automated:** `packages/app/e2e/specs/attendance/emails.spec.ts`, `packages/documents/test/notices/texts.test.tsx`
+
+## AC-7: The signed-up email is open from the start
+
+When an event is opened in the studio, the signed-up email's subject and text shall be shown open, and the sign-up cancelled, event changed and event cancelled emails shall be closed while nothing is written for them.
+
+**Test**
+
+- **Given** a published event with nothing written for its emails, the test data's Standard texts event among them
+- **When** you open it in the studio
+- **Then** the signed-up email's subject and text are shown, the other three emails are closed, and the footer still says «Published»; after you type in the signed-up subject, it no longer does
+
+**Automated:** `packages/app/e2e/specs/attendance/emails.spec.ts`, `packages/app/test/emailTexts.test.ts`
