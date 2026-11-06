@@ -15,6 +15,11 @@ import { Identity } from "@skjera/oauth/api";
 import { Effect, Layer } from "effect";
 import type { SqlClient } from "effect/sql";
 import { Temporal } from "temporal-polyfill";
+import {
+  acceptanceDirectory,
+  readFeatures,
+  withSteps,
+} from "./testdata/acceptance.ts";
 import { catalogue } from "./testdata/catalogue.ts";
 import { clear, fill, type People, type Report } from "./testdata/fill.ts";
 
@@ -90,6 +95,14 @@ export const layerOn = <E>(database: Layer.Layer<SqlClient.SqlClient, E>) =>
     Layer.provideMerge(database),
   );
 
+/**
+ * The catalogue as the command fills it: each event with the text that lists
+ * the criteria using it and their manual test steps, read from
+ * docs/acceptance now.
+ */
+export const teamsAt = (now: Temporal.ZonedDateTime) =>
+  withSteps(catalogue(now), readFeatures(acceptanceDirectory));
+
 const say = (report: Report) => {
   for (const team of report.removed) console.log(`Removed «${team}»`);
   for (const team of report.made)
@@ -109,7 +122,7 @@ export const run = async (command: string, env: Env): Promise<void> => {
     throw new Error(
       "OAUTH_ISSUER is not set; run this with mise's environment.",
     );
-  const teams = catalogue(Temporal.Now.zonedDateTimeISO("Europe/Oslo"));
+  const teams = teamsAt(Temporal.Now.zonedDateTimeISO("Europe/Oslo"));
   const command$ =
     command === "fill"
       ? fill(teams, people(issuer)).pipe(Effect.map(say))

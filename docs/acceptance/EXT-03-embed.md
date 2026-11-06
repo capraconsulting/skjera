@@ -6,7 +6,7 @@
 
 | Event | Day | |
 | --- | --- | --- |
-| AC-1 and AC-2: First | first | |
+| AC-2: First | first | |
 | AC-3: Opens in a new tab | second | |
 | AC-1: Not among the first three | third | |
 | AC-1: Members only | first | not public |
@@ -33,7 +33,7 @@ The embed page SHALL show each event's title, when it starts and its organiser, 
 **Test**
 
 - **Given** `/embed` open
-- **When** you look at «AC-1 and AC-2: First»
+- **When** you look at «AC-2: First»
 - **Then** it has its title, its start, and «EXT-03: Embed» as organiser, or the team's logo
 
 **Automated:** `packages/documents/test/site/Embed.test.ts`

@@ -88,8 +88,8 @@ export interface EventSpec {
   readonly title: string;
   /**
    * published (the default); draft, written and never published; titled, a
-   * draft with only its title; empty, nothing written; deleted, published and
-   * then deleted.
+   * draft with only its title and its text; empty, nothing written; deleted,
+   * published and then deleted.
    */
   readonly state?: "published" | "draft" | "titled" | "empty" | "deleted";
   readonly start?: Temporal.ZonedDateTime;
@@ -578,8 +578,10 @@ export const fill = (teams: ReadonlyArray<TeamSpec>, people: People) =>
             : yield* upload(team, spec.cover);
         const snapshot = yield* documents.get(id).pipe(Effect.mapError(refuse));
         const edited = A.change(A.load<EventContent>(snapshot.draft), (doc) => {
-          if (state === "titled") writeTitle(doc, spec);
-          else writeEvent(doc, spec, ids, cover);
+          if (state === "titled") {
+            writeTitle(doc, spec);
+            if (spec.body !== undefined) setRichText(doc, "body", spec.body);
+          } else writeEvent(doc, spec, ids, cover);
         });
         const change = A.getLastLocalChange(edited);
         if (change === undefined) return undefined;

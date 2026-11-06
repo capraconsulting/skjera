@@ -4,7 +4,10 @@
 //
 // Unless a section says otherwise an event is published, in Europe/Oslo, in a
 // place of its own, and public events are not open to guests. An event the
-// section leaves unnamed is titled after the criterion it is for. Signups are
+// section leaves unnamed is titled after the criterion it is for. A title
+// starts with the criteria whose test uses the event, «AC-n: …» or
+// «AC-n to AC-m: …», and the event's text lists them with their test steps
+// from docs/acceptance, unless the event has a text of its own. Signups are
 // made without emails: a criterion that reads the email sent when someone
 // signs up has bob, or the guest, cancel and sign up again first.
 import type { Temporal } from "temporal-polyfill";
@@ -173,13 +176,16 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
   return [
     // ---- ACC, EXT -----------------------------------------------------------
     team("ACC-02: Logging out removes local copies of drafts", [
-      event("AC-1: Kept on the server", {
+      event("AC-1 to AC-2: Kept on the server", {
         state: "draft",
         body: [text("A line of text, written before logging out.")],
       }),
     ]),
     team("ACC-06: Language: English, Bokmål and Nynorsk", [
-      event("AC-2: Written in English", { ...guests, ...nextMonth(now) }),
+      event("AC-2 to AC-4: Written in English", {
+        ...guests,
+        ...nextMonth(now),
+      }),
     ]),
     team("EXT-01: Calendar invitations that calendar apps understand", [
       event("AC-1 to AC-7: Invited", { ...guests, ...week }),
@@ -204,7 +210,7 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
       }),
     ]),
     team("EXT-03: Embed", [
-      event("AC-1 and AC-2: First", { ...members, ...daysAhead(now, 2) }),
+      event("AC-2: First", { ...members, ...daysAhead(now, 2) }),
       event("AC-3: Opens in a new tab", { ...members, ...daysAhead(now, 3) }),
       event("AC-1: Not among the first three", {
         ...members,
@@ -218,7 +224,7 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
       }),
     ]),
     team("EXT-04: API", [
-      event("AC-1, AC-2 and AC-9: With a summary", {
+      event("AC-1 to AC-9: With a summary", {
         ...members,
         ...daysAhead(now, 3),
         summary: "A summary the websites can show",
@@ -311,7 +317,7 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
       }),
     ]),
     team("MAIL-06: Each event's own email texts", [
-      event("AC-2, AC-3 and AC-5: Own texts", {
+      event("AC-2 to AC-5: Own texts", {
         ...guests,
         ...week,
         emails: {
@@ -595,22 +601,22 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
 
     // ---- SITE ---------------------------------------------------------------
     team("SITE-02: Front page: upcoming and past events", [
-      event("AC-1: Coming", { ...members, ...daysAhead(now, 1) }),
-      event("AC-1: Later", { ...members, ...daysAhead(now, 8) }),
+      event("AC-1 to AC-6: Coming", { ...members, ...daysAhead(now, 1) }),
+      event("AC-1 to AC-2: Later", { ...members, ...daysAhead(now, 8) }),
       event("AC-3: Members only", { ...daysAhead(now, 3) }),
-      event("AC-4: Today", {
+      event("AC-3 to AC-4: Today", {
         ...members,
         ...laterToday(now),
         tags: ["Workshop"],
       }),
       event("AC-5: Going on now", { ...members, ...goingOnNow(now) }),
-      event("AC-6: Signed up", {
+      event("AC-3 to AC-6: Signed up", {
         ...guests,
         ...daysAhead(now, 5),
         signups: [bob(), guest("SITE-02", 1)],
       }),
       ...[1, 2, 3, 4, 5, 6, 7].map((n) =>
-        event(`AC-7: Past ${n}`, {
+        event(`AC-1 to AC-7: Past ${n}`, {
           ...members,
           ...over(now, 8 - n),
           cover: "purple",
@@ -619,17 +625,17 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
       ),
     ]),
     team("SITE-03: Filter by tag", [
-      event("AC-1: Coming", {
+      event("AC-1 to AC-5: Coming", {
         ...members,
         ...daysAhead(now, 4),
         tags: ["Pottery 7"],
       }),
-      event("AC-1: Was", {
+      event("AC-1 to AC-5: Was", {
         ...members,
         ...over(now, 4),
         tags: ["Pottery 7", "Weaving 7"],
       }),
-      event("AC-1: Untagged", { ...members, ...daysAhead(now, 5) }),
+      event("AC-1 to AC-2: Untagged", { ...members, ...daysAhead(now, 5) }),
     ]),
     team("SITE-04: Filter on who can sign up", [
       event("AC-1: Open to guests", {
@@ -672,7 +678,7 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
       event("AC-3: An empty list says so", { ...guests, ...week }),
     ]),
     team("SITE-07: Members-only events", [
-      event("AC-1: Members only", {
+      event("AC-1 to AC-4: Members only", {
         ...week,
         summary: "A members-only event, opened from its link.",
         cover: "purple",
@@ -738,7 +744,7 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
     ]),
     team("STU-06: Saving, and editing offline", [
       event("AC-1: Saved", { state: "titled" }),
-      event("AC-2 and AC-3: Offline", { state: "titled" }),
+      event("AC-2 to AC-3: Offline", { state: "titled" }),
     ]),
     team("STU-07: The event text: formatting and links", [
       event("AC-1 to AC-5: Formatting", {
@@ -773,9 +779,9 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
     ]),
     team("STU-12: Who sees the event, and whether guests can sign up", [
       event("AC-1: New", { state: "titled" }),
-      event("AC-2 and AC-3: Members only", { ...week }),
-      event("AC-4 and AC-5: Open to guests", { ...guests, ...week }),
-      event("AC-5: Public, no guests", { ...members, ...week }),
+      event("AC-2 to AC-3: Members only", { ...week }),
+      event("AC-3 to AC-5: Open to guests", { ...guests, ...week }),
+      event("AC-3 to AC-6: Public, no guests", { ...members, ...week }),
     ]),
     team("STU-13: Food, reminders and other event settings", [
       event("AC-1 to AC-3: Food", {
@@ -785,7 +791,7 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
         food: "Pizza",
       }),
       event("AC-3: No food", { ...guests, ...week }),
-      event("AC-5: Standard, open to guests", {
+      event("AC-5 to AC-7: Standard, open to guests", {
         ...guests,
         ...daysAhead(now, 2, "12:00"),
         remind: "default",
@@ -814,8 +820,8 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
       event("AC-1 to AC-7: Questions", { ...guests, ...week, state: "draft" }),
     ]),
     team("STU-15: Tags", [
-      event("AC-1 to AC-3: Tagged", { ...members, ...week, state: "draft" }),
-      event("AC-4 and AC-5: Suggested", {
+      event("AC-1 to AC-6: Tagged", { ...members, ...week, state: "draft" }),
+      event("AC-4 to AC-5: Suggested", {
         ...members,
         ...week,
         state: "draft",
@@ -823,7 +829,7 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
     ]),
     team("STU-16: Recurring events", [
       event("AC-1: Not recurring", { ...members, ...nextMonth(now) }),
-      event("AC-2, AC-3 and AC-5: Every other week", {
+      event("AC-2 to AC-6: Every other week", {
         ...members,
         ...evening(now),
         dietary: true,
@@ -838,7 +844,7 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
       }),
     ]),
     team("STU-17: Publishing", [
-      event("AC-1, AC-4 and AC-5: Published", {
+      event("AC-1 to AC-5: Published", {
         ...members,
         ...week,
         state: "draft",
@@ -884,13 +890,16 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
     ]),
     team("STU-20: Unpublishing", [
       event("AC-1: Not published", { ...guests, ...week, state: "draft" }),
-      event("AC-2 to AC-10: Signed up", {
+      event("AC-3 to AC-14: Signed up", {
         ...guests,
         ...daysAhead(now, 1),
         signups: [bob(), guest("STU-20", 1)],
       }),
-      event("AC-3: Nobody signed up", { ...guests, ...daysAhead(now, 1) }),
-      event("AC-8: Ended", {
+      event("AC-1 to AC-3: Nobody signed up", {
+        ...guests,
+        ...daysAhead(now, 1),
+      }),
+      event("AC-8 to AC-11: Ended", {
         ...guests,
         ...inAFewMinutes(now),
         signups: [guest("STU-20", 2)],
@@ -902,8 +911,8 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
       }),
     ]),
     team("STU-21: Preview", [
-      event("AC-1 to AC-4 and AC-7: Published", { ...guests, ...week }),
-      event("AC-5: Never published", {
+      event("AC-1 to AC-7: Published", { ...guests, ...week }),
+      event("AC-1 to AC-5: Never published", {
         ...guests,
         ...week,
         state: "draft",
@@ -919,13 +928,13 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
       }),
     ]),
     team("STU-23: Discarding changes", [
-      event("AC-1: Not published", { ...guests, ...week, state: "draft" }),
-      event("AC-1 to AC-7: Changed", {
+      event("AC-2: Not published", { ...guests, ...week, state: "draft" }),
+      event("AC-3 to AC-7: Changed", {
         ...guests,
         ...week,
         signups: [bob(), guest("STU-23", 1)],
       }),
-      event("AC-2: Up to date", { ...guests, ...week }),
+      event("AC-1 to AC-2: Up to date", { ...guests, ...week }),
     ]),
     team("STU-24: Making a copy", [
       event("AC-1: Not published", { ...guests, ...week, state: "draft" }),
@@ -951,7 +960,7 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
         ...daysAhead(now, 60),
         state: "draft",
       }),
-      event("AC-1: Julebord", {
+      event("AC-1 to AC-3: Julebord", {
         ...members,
         ...daysAhead(now, 30),
         state: "draft",
@@ -985,7 +994,7 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
       }),
     ]),
     team("STU-27: Moving an event", [
-      event("AC-1 to AC-3 and AC-7: Never published", {
+      event("AC-1 to AC-7: Never published", {
         ...guests,
         ...week,
         state: "draft",

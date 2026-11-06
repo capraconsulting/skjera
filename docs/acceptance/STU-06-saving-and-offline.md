@@ -22,7 +22,7 @@ WHILE an organiser has no connection, the editor SHALL keep their edits and show
 
 **Test**
 
-- **Given** «AC-2 and AC-3: Offline» open as alice, and as bob in Chrome
+- **Given** «AC-2 to AC-3: Offline» open as alice, and as bob in Chrome
 - **When** bob goes offline and adds a sentence to **Body**
 - **Then** bob's footer says «Saving…» and his text stays, while alice doesn't get it
 

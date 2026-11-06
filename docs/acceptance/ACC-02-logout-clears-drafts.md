@@ -2,7 +2,7 @@
 
 The studio keeps a copy of each draft it opens in the browser, so no edit is lost while offline. Logging out deletes those copies, so they don't stay behind on a shared computer.
 
-**Events:** in team «ACC-02: Logging out removes local copies of drafts», one event, «AC-1: Kept on the server», with a line of text in its **Body**.
+**Events:** in team «ACC-02: Logging out removes local copies of drafts», one event, «AC-1 to AC-2: Kept on the server», with a line of text in its **Body**.
 
 The local copies are seen in the browser's developer tools: **Application**, **IndexedDB**, the database whose name starts with `skjera `, and its store `documents`.
 
@@ -12,7 +12,7 @@ WHEN a user logs out, Skjera SHALL delete the local copies of the drafts they op
 
 **Test**
 
-- **Given** alice in the studio, with «AC-1: Kept on the server» open and **Saved** showing
+- **Given** alice in the studio, with «AC-1 to AC-2: Kept on the server» open and **Saved** showing
 - **And** the `documents` store in the developer tools has entries
 - **When** alice clicks **Log out** in the account menu
 - **Then** the `documents` store has no entries
@@ -26,7 +26,7 @@ WHEN a user logs in again after logging out, the studio SHALL show their drafts 
 **Test**
 
 - **Given** alice logged out, as in AC-1
-- **When** she logs in again and opens «AC-1: Kept on the server»
+- **When** she logs in again and opens «AC-1 to AC-2: Kept on the server»
 - **Then** its **Body** has the line of text written before
 
 **Automated:** `packages/app/e2e/specs/typing.spec.ts`

@@ -9,7 +9,7 @@ The server moves recurring events once a day, at 06:30 UTC (08:30 Norwegian summ
 | Event | Set-up |
 | --- | --- |
 | AC-1: Not recurring | public, next month |
-| AC-2, AC-3 and AC-5: Every other week | public, today 20:00, sign-up deadline today 19:00, food served with a food deadline today 18:00, repeating every 2 weeks. Bob signs up with a dietary preference. |
+| AC-2 to AC-6: Every other week | public, today 20:00, sign-up deadline today 19:00, food served with a food deadline today 18:00, repeating every 2 weeks. Bob signs up with a dietary preference. |
 | AC-7: Recurring, not published | today 20:00, repeating every day, not published |
 
 Pick «Every other week» so its next date falls after a change between summer and winter time, if one is near.

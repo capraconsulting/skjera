@@ -4,7 +4,7 @@ An event started in the wrong team can be moved to the right one, with **Organiz
 
 **Events:** in team «STU-27: Moving an event», events open to guests:
 
-- «AC-1 to AC-3 and AC-7: Never published», never published.
+- «AC-1 to AC-7: Never published», never published.
 - «AC-4: Published», published. To try it after unpublishing, unpublish it in the test.
 
 Team «STU-27: The other team» has no events, to move to. Team «STU-27: The wrong team» has the event «AC-5: Made in the wrong team», never published: move it out in the test, and then delete the team.
@@ -15,7 +15,7 @@ The editor SHALL show **Organizer** with the event's team chosen.
 
 **Test**
 
-- **Given** «AC-1 to AC-3 and AC-7: Never published» open in the studio
+- **Given** «AC-1 to AC-7: Never published» open in the studio
 - **Then** the editor has **Organizer** above the title, with «STU-27: Moving an event» chosen
 - **And** the choice lists every team, «STU-27: The other team» among them
 
@@ -27,7 +27,7 @@ WHILE an event has never been published, the studio SHALL let the organiser choo
 
 **Test**
 
-- **Given** «AC-1 to AC-3 and AC-7: Never published» open in the studio
+- **Given** «AC-1 to AC-7: Never published» open in the studio
 - **When** you choose «STU-27: The other team» as **Organizer**
 - **Then** the choice is changed, and no error is shown
 - **Given** the event is a copy of a published event, which has never been published itself
@@ -41,7 +41,7 @@ WHEN another team is chosen, the studio SHALL move the event to that team's list
 
 **Test**
 
-- **Given** «AC-1 to AC-3 and AC-7: Never published» open in the studio, with «STU-27: The other team» chosen as **Organizer**
+- **Given** «AC-1 to AC-7: Never published» open in the studio, with «STU-27: The other team» chosen as **Organizer**
 - **Then** the list of «STU-27: The other team» has the event, and the list of «STU-27: Moving an event» does not
 - **And** the editor stays open on the event, with the same text in it
 - **When** you click **Preview**
@@ -92,7 +92,7 @@ WHEN an event is moved to another team, the studio SHALL keep the editor open on
 
 **Test**
 
-- **Given** «AC-1 to AC-3 and AC-7: Never published» open in the studio in two browsers, signed in as Alice and as Bob
+- **Given** «AC-1 to AC-7: Never published» open in the studio in two browsers, signed in as Alice and as Bob
 - **When** Alice chooses «STU-27: The other team» as **Organizer**
 - **Then** Alice's editor stays open on the event under the new team's address
 - **And** within a few seconds Bob's editor is on the new team's address too, without a reload, with **Organizer** showing the new team and what he had typed still there

@@ -4,7 +4,7 @@ An organiser can write each event's own subject and text for the emails it sends
 
 **Events:**
 
-- «AC-2, AC-3 and AC-5: Own texts», public and open to guests, with a subject and a text written for all four emails.
+- «AC-2 to AC-5: Own texts», public and open to guests, with a subject and a text written for all four emails.
 - «AC-4: Standard texts», with all of them left empty.
 - «AC-6: Cancelled after an unpublished change», with a text for **Event cancelled email**, and bob signed up.
 

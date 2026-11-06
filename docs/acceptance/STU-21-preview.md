@@ -13,9 +13,9 @@ An organiser opens **Preview** («Forhåndsvisning» in Bokmål, «Førehandsvis
 
 **Events:** in team «STU-21: Preview», public events open to guests:
 
-- «AC-1 to AC-4 and AC-7: Published», published, starting in a week.
-- «AC-5: Never published», a draft with times and a place.
-- «AC-5: No times», a draft with only a title.
+- «AC-1 to AC-7: Published», published, starting in a week.
+- «AC-1 to AC-5: Never published», a draft with times and a place.
+- «AC-5: No times», a draft with a title and its test steps, and no times.
 
 ## AC-1: A button opens the preview
 
@@ -23,10 +23,10 @@ The studio SHALL show a button **Preview** for each event that opens a preview o
 
 **Test**
 
-- **Given** «AC-1 to AC-4 and AC-7: Published» open in the studio
+- **Given** «AC-1 to AC-7: Published» open in the studio
 - **When** you click **Preview**
 - **Then** a new tab opens at `/events/<id>/preview` showing the event
-- **When** you open «AC-5: Never published» and click **Preview**
+- **When** you open «AC-1 to AC-5: Never published» and click **Preview**
 - **Then** its preview opens in a new tab too
 
 **Automated:** `packages/app/e2e/specs/preview.spec.ts`
@@ -37,7 +37,7 @@ WHEN an organiser opens the preview, Skjera SHALL show the event's page as it wi
 
 **Test**
 
-- **Given** «AC-1 to AC-4 and AC-7: Published» open in the studio, with a word added to its title and not published
+- **Given** «AC-1 to AC-7: Published» open in the studio, with a word added to its title and not published
 - **When** you open its preview
 - **Then** the preview shows the new title, and the event's page on the site still shows the old one
 - **When** you publish the event and compare the preview with the site's page
@@ -51,7 +51,7 @@ WHEN the draft changes while the preview is open, the preview SHALL show the cha
 
 **Test**
 
-- **Given** the preview of «AC-1 to AC-4 and AC-7: Published» open in one tab and the event open in the studio in another
+- **Given** the preview of «AC-1 to AC-7: Published» open in one tab and the event open in the studio in another
 - **When** you change the title in the studio
 - **Then** the preview shows the new title without being reloaded
 
@@ -63,11 +63,11 @@ WHILE a preview is shown, the page SHALL say in a fixed notice that it is a prev
 
 **Test**
 
-- **Given** the preview of «AC-1 to AC-4 and AC-7: Published»
+- **Given** the preview of «AC-1 to AC-7: Published»
 - **Then** a notice says «Preview – this isn't published.» with a link to the published page
 - **When** you scroll to the bottom of the page
 - **Then** the notice is still in view
-- **When** you open the preview of «AC-5: Never published»
+- **When** you open the preview of «AC-1 to AC-5: Never published»
 - **Then** the notice says the same, with no link
 
 **Automated:** `packages/app/e2e/specs/preview.spec.ts`
@@ -78,7 +78,7 @@ WHEN an organiser opens the preview of an event that has never been published, S
 
 **Test**
 
-- **Given** «AC-5: Never published» open in the studio
+- **Given** «AC-1 to AC-5: Never published» open in the studio
 - **When** you open its preview
 - **Then** the event's title is the page's heading
 - **When** you open the preview of «AC-5: No times»
@@ -110,7 +110,7 @@ WHILE a preview is shown, the page SHALL NOT let anyone sign up, cancel or chang
 
 **Test**
 
-- **Given** the preview of «AC-1 to AC-4 and AC-7: Published»
+- **Given** the preview of «AC-1 to AC-7: Published»
 - **Then** the sign-up box is shown
 - **When** you click it or tab to it
 - **Then** nothing happens, and nobody is added to the event

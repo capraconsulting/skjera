@@ -6,7 +6,7 @@ Publishing also needs a place, as [STU-11](STU-11-place.md) AC-2 says. A publish
 
 **Events:** in team «STU-17: Publishing»:
 
-- «AC-1, AC-4 and AC-5: Published», public, with a time and a place, not yet published.
+- «AC-1 to AC-5: Published», public, with a time and a place, not yet published.
 - A new event with nothing filled in, not even its title. AC-2 has you title it «AC-2 and AC-3: Refused».
 - «AC-6: Unsaved», public, published.
 
@@ -16,7 +16,7 @@ WHEN an organiser clicks **Publish**, Skjera SHALL put the event on the site as 
 
 **Test**
 
-- **Given** «AC-1, AC-4 and AC-5: Published» open in the studio, with the footer saying «Not published»
+- **Given** «AC-1 to AC-5: Published» open in the studio, with the footer saying «Not published»
 - **When** you click **Publish**
 - **Then** the footer says «Published just now» and **View on site**, the button reads **Published** and can't be clicked, and the event is listed «Published» in the team
 - **When** you click **View on site**
@@ -60,7 +60,7 @@ WHILE a published event has edits not yet published, the site SHALL show the eve
 
 **Test**
 
-- **Given** «AC-1, AC-4 and AC-5: Published», published and open on the site
+- **Given** «AC-1 to AC-5: Published», published and open on the site
 - **When** you change its title in the studio, without publishing, and reload the site
 - **Then** the site shows the old title, the event is listed «Changed» in the team, and **Publish** can be clicked again
 - **When** you click **Publish** and reload the site
@@ -74,7 +74,7 @@ WHEN an event is published, the studio SHALL show it as published to other organ
 
 **Test**
 
-- **Given** «AC-1, AC-4 and AC-5: Published» with a change not yet published, open in the studio as alice and as bob
+- **Given** «AC-1 to AC-5: Published» with a change not yet published, open in the studio as alice and as bob
 - **When** bob clicks **Publish**
 - **Then** alice's footer and team list say it is published, without reloading
 

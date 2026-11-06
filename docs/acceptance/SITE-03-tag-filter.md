@@ -4,9 +4,9 @@ Events are tagged in the studio, and the front page filters them by tag. Tags no
 
 **Events:** public events, tagged in the studio under **Tags**:
 
-- «AC-1: Coming», coming up, with the tag «Pottery 7».
-- «AC-1: Was», over, with the tags «Pottery 7» and «Weaving 7».
-- «AC-1: Untagged», coming up, with no tags.
+- «AC-1 to AC-5: Coming», coming up, with the tag «Pottery 7».
+- «AC-1 to AC-5: Was», over, with the tags «Pottery 7» and «Weaving 7».
+- «AC-1 to AC-2: Untagged», coming up, with no tags.
 
 Choosing a tag together with who can sign up is in [SITE-04](SITE-04-guest-filter.md), and the tags on the event page, each leading here, in [STU-15](STU-15-tags.md) AC-6.
 
@@ -30,7 +30,7 @@ WHEN a tag is chosen, the front page SHALL show only the upcoming events with th
 
 - **Given** the front page
 - **When** you click «#Pottery 7»
-- **Then** it is marked as chosen, «AC-1: Coming» shows under «Upcoming events» and «AC-1: Untagged» doesn't, and «AC-1: Was» and every other past event show under «Past events»
+- **Then** it is marked as chosen, «AC-1 to AC-5: Coming» shows under «Upcoming events» and «AC-1 to AC-2: Untagged» doesn't, and «AC-1 to AC-5: Was» and every other past event show under «Past events»
 
 **Automated:** `packages/app/test/frontPage.test.ts`, `packages/app/e2e/specs/tags.spec.ts`
 
@@ -44,7 +44,7 @@ The front page SHALL keep the chosen tag in its address, so that opening that ad
 - **When** you copy the address, ending in `?tag=Pottery+7`, and open it in a new window
 - **Then** the same tag is chosen, with the same lists
 - **When** you open http://localhost:5173/?tag=Weaving%207
-- **Then** «#Weaving 7» is marked as chosen, «Upcoming events» says «No upcoming events found in this category 😭», and «AC-1: Was» shows under «Past events»
+- **Then** «#Weaving 7» is marked as chosen, «Upcoming events» says «No upcoming events found in this category 😭», and «AC-1 to AC-5: Was» shows under «Past events»
 
 **Automated:** `packages/app/e2e/specs/tags.spec.ts`
 
@@ -70,7 +70,7 @@ WHEN a tag is given in the address in other capitals than it is written with, th
 
 - **Given** the events
 - **When** you open http://localhost:5173/?tag=pottery%207
-- **Then** «#Pottery 7» is marked as chosen, and «AC-1: Coming» and «AC-1: Was» show
+- **Then** «#Pottery 7» is marked as chosen, and «AC-1 to AC-5: Coming» and «AC-1 to AC-5: Was» show
 
 **Automated:** `packages/app/test/frontPage.test.ts`
 

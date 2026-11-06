@@ -2,7 +2,7 @@
 
 The site and the studio are in English, Norwegian Bokmål and Nynorsk. Each visitor picks theirs in the header; without a choice, the site's own language is used. What organisers write stays in the language they wrote it in.
 
-**Events:** in team «ACC-06: Language: English, Bokmål and Nynorsk», one public event open to guests, «AC-2: Written in English», with a time next month.
+**Events:** in team «ACC-06: Language: English, Bokmål and Nynorsk», one public event open to guests, «AC-2 to AC-4: Written in English», with a time next month.
 
 ## AC-1: A language picker in the header
 
@@ -22,10 +22,10 @@ WHEN a visitor picks a language, Skjera SHALL show the page again with all its w
 
 **Test**
 
-- **Given** «AC-2: Written in English» open in a private window
+- **Given** «AC-2 to AC-4: Written in English» open in a private window
 - **When** you pick **Bokmål** in the header
 - **Then** the sign-up box says «Ingen har meldt seg på ennå.» and «Påmeldingen stenger …» with the day and month in Bokmål
-- **And** the title is still «AC-2: Written in English»
+- **And** the title is still «AC-2 to AC-4: Written in English»
 
 **Automated:** `packages/app/e2e/specs/language.spec.ts`
 
@@ -35,7 +35,7 @@ WHEN an organiser picks a language in the studio, Skjera SHALL show the studio i
 
 **Test**
 
-- **Given** alice in the studio, with «AC-2: Written in English» open
+- **Given** alice in the studio, with «AC-2 to AC-4: Written in English» open
 - **When** she picks **Nynorsk** in the header
 - **Then** the editor shows **Tittel**, «Lagra» and **Slett**
 - **When** she clicks **Startdato**
@@ -49,7 +49,7 @@ IF Skjera refuses what a visitor sends, THEN it SHALL say why in the language th
 
 **Test**
 
-- **Given** a guest signed up to «AC-2: Written in English» with an email address
+- **Given** a guest signed up to «AC-2 to AC-4: Written in English» with an email address
 - **And** every private window closed, and the event open in a new one, in **Bokmål**
 - **When** you sign up with **Navnet ditt** and the same address in **E-postadressen din**, and click **Meld meg på**
 - **Then** it says «Den e-postadressen er allerede påmeldt dette arrangementet»

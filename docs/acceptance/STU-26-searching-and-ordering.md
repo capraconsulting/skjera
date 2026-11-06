@@ -5,13 +5,13 @@ An organiser who has many events can find one by searching a team's list in the 
 **Events:** in team «STU-26: Searching and ordering», four drafts made in this order:
 
 - «AC-2: Sommerfest», 60 days ahead.
-- «AC-1: Julebord», tagged «Sosialt», 30 days ahead.
+- «AC-1 to AC-3: Julebord», tagged «Sosialt», 30 days ahead.
 - «AC-1: Fagkveld», tagged «Fag», 10 days ahead.
-- «AC-2: No date», with a title only.
+- «AC-2: No date», with a title and its test steps, and no date.
 
 In team «STU-26: Another team», the draft «AC-3: Julebord in another team».
 
-The test data makes and edits each event at once, so «Sist endret» and «Opprettet» list them alike until one is edited. Before you test the order, add a tag to «AC-1: Julebord».
+The test data makes and edits each event at once, so «Sist endret» and «Opprettet» list them alike until one is edited. Before you test the order, add a tag to «AC-1 to AC-3: Julebord».
 
 ## AC-1: Search a team's list
 
@@ -21,12 +21,12 @@ WHEN the organiser types in «Søk» on a team's list, the studio SHALL show onl
 
 - **Given** team «STU-26: Searching and ordering» open in the studio
 - **When** you type «JULE» in «Søk»
-- **Then** «AC-1: Julebord» is listed, and «AC-1: Fagkveld» is not
+- **Then** «AC-1 to AC-3: Julebord» is listed, and «AC-1: Fagkveld» is not
 - **When** you type «sosi»
-- **Then** «AC-1: Julebord» is listed, found by its tag, though it was never published
+- **Then** «AC-1 to AC-3: Julebord» is listed, found by its tag, though it was never published
 - **When** you empty the field, or type only spaces
 - **Then** every event of the team is listed
-- **When** you open «AC-1: Julebord» while «JULE» is typed
+- **When** you open «AC-1 to AC-3: Julebord» while «JULE» is typed
 - **Then** the search and the narrowed list stay
 - **When** you pick another team and come back
 - **Then** the field is empty and the whole list is shown
@@ -39,8 +39,8 @@ The studio SHALL let the organiser order a team's list by «Sist endret», «Opp
 
 **Test**
 
-- **Given** «AC-1: Julebord» edited since the events were made, and the studio opened in a browser that has not chosen an order
-- **Then** the order choice says «Sist endret» and «AC-1: Julebord» is first
+- **Given** «AC-1 to AC-3: Julebord» edited since the events were made, and the studio opened in a browser that has not chosen an order
+- **Then** the order choice says «Sist endret» and «AC-1 to AC-3: Julebord» is first
 - **When** you choose «Opprettet»
 - **Then** «AC-2: No date», the event made last, is first
 - **When** you choose «Dato for arrangementet»
@@ -56,7 +56,7 @@ WHEN the organiser searches on the page that lists the teams, the studio SHALL s
 
 - **Given** the studio open on the page that lists the teams
 - **When** you type «julebord» in «Søk i alle team»
-- **Then** «AC-1: Julebord» and «AC-3: Julebord in another team» are listed in place of the teams, each with its team's name, in the order chosen
+- **Then** «AC-1 to AC-3: Julebord» and «AC-3: Julebord in another team» are listed in place of the teams, each with its team's name, in the order chosen
 - **When** you click «AC-3: Julebord in another team»
 - **Then** it opens in the editor, and its own team is shown in the events column
 - **When** you empty the field

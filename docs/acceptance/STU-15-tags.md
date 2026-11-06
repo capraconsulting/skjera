@@ -4,8 +4,8 @@ An organiser tags an event with what it is about, such as «Workshop». The stud
 
 **Events:** in team «STU-15: Tags», public events:
 
-- «AC-1 to AC-3: Tagged», with no tags yet.
-- «AC-4 and AC-5: Suggested», with no tags.
+- «AC-1 to AC-6: Tagged», with no tags yet.
+- «AC-4 to AC-5: Suggested», with no tags.
 
 For a tag nobody has used before, take a word and today's date, such as «Pottery 20 Oct», and a new one each time a criterion asks for one.
 
@@ -15,7 +15,7 @@ The studio SHALL let an organiser add a tag by typing it and pressing Enter, off
 
 **Test**
 
-- **Given** «AC-1 to AC-3: Tagged» open in the studio
+- **Given** «AC-1 to AC-6: Tagged» open in the studio
 - **When** you type a new tag in **Tags**
 - **Then** the list offers it with a «+» in front, as a new tag; to a screen reader it reads «(new tag)», «(ny emneknagg)» in Bokmål and Nynorsk
 - **When** you press Enter
@@ -29,7 +29,7 @@ The studio SHALL let an organiser take a tag off an event.
 
 **Test**
 
-- **Given** «AC-1 to AC-3: Tagged» with a tag
+- **Given** «AC-1 to AC-6: Tagged» with a tag
 - **When** you click **×** on its pill
 - **Then** the tag is gone
 
@@ -41,7 +41,7 @@ IF an organiser adds a tag the event already has, in the same or other capital l
 
 **Test**
 
-- **Given** «AC-1 to AC-3: Tagged»
+- **Given** «AC-1 to AC-6: Tagged»
 - **When** you add «Workshop» as in AC-1, then type «workshop» in **Tags**
 - **Then** the list offers no new tag for it, and the event keeps one «Workshop»
 
@@ -53,8 +53,8 @@ The studio SHALL suggest the tags of every published event, matching what is typ
 
 **Test**
 
-- **Given** «AC-1 to AC-3: Tagged», published with «Workshop»
-- **When** you open «AC-4 and AC-5: Suggested» and type «shop» in **Tags**
+- **Given** «AC-1 to AC-6: Tagged», published with «Workshop»
+- **When** you open «AC-4 to AC-5: Suggested» and type «shop» in **Tags**
 - **Then** «Workshop» is suggested
 - **When** you pick it
 - **Then** the event gets «Workshop», spelled as on the other event
@@ -67,8 +67,8 @@ IF a tag has only been added to drafts, and never published, THEN the studio SHA
 
 **Test**
 
-- **Given** another new tag, added to «AC-4 and AC-5: Suggested» and taken off again before it is published
-- **When** you type the start of it on «AC-1 to AC-3: Tagged»
+- **Given** another new tag, added to «AC-4 to AC-5: Suggested» and taken off again before it is published
+- **When** you type the start of it on «AC-1 to AC-6: Tagged»
 - **Then** it is offered only with a «+», as a new tag
 
 **Automated:** `packages/documents/test/events/content.test.ts`
@@ -79,7 +79,7 @@ The event page SHALL show the event's published tags, each a link to the front p
 
 **Test**
 
-- **Given** «AC-1 to AC-3: Tagged», published with «Workshop»
+- **Given** «AC-1 to AC-6: Tagged», published with «Workshop»
 - **When** you open it on the site and click «Workshop»
 - **Then** the front page shows only upcoming events tagged «Workshop»
 

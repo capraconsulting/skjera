@@ -6,7 +6,7 @@ An organiser says whether food is served and what, and whether those signed up a
 
 - «AC-1 to AC-3: Food», with **Food is served** ticked and «Pizza» in **What's served**.
 - «AC-3: No food», with **Food is served** unticked.
-- «AC-5: Standard, open to guests», starting the day after tomorrow at 12:00, with **Remind attendees** on **Default**.
+- «AC-5 to AC-7: Standard, open to guests», starting the day after tomorrow at 12:00, with **Remind attendees** on **Default**.
 - «AC-5: Standard, members only», the same, but not open to guests.
 - «AC-6: On, members only», the same, not open to guests, with **Remind attendees** on **On**.
 - «AC-6: Off, open to guests», the same, open to guests, with **Remind attendees** on **Off**.
@@ -75,9 +75,9 @@ WHILE **Remind attendees** is on **Default**, Skjera SHALL remind those signed u
 
 **Test**
 
-- **Given** «AC-5: Standard, open to guests» and «AC-5: Standard, members only», published, each with bob signed up right away
+- **Given** «AC-5 to AC-7: Standard, open to guests» and «AC-5: Standard, members only», published, each with bob signed up right away
 - **When** the 07:05 UTC run on the morning before the events has passed
-- **Then** bob has one «Reminder: AC-5: Standard, open to guests» in Mailpit, saying «A reminder: you're signed up for …»
+- **Then** bob has one «Reminder: AC-5 to AC-7: Standard, open to guests» in Mailpit, saying «A reminder: you're signed up for …»
 - **And** bob has no «Reminder: AC-5: Standard, members only»
 
 **Automated:** `packages/documents/test/events/content.test.ts`, `packages/documents/test/notices/changes.test.tsx`
@@ -103,9 +103,9 @@ The server looks for events to remind about once a day, at 07:05 UTC. Someone wh
 
 **Test**
 
-- **Given** «AC-5: Standard, open to guests», published, with bob signed up right away, and a guest who signs up in a private window the morning before the event, before the run
+- **Given** «AC-5 to AC-7: Standard, open to guests», published, with bob signed up right away, and a guest who signs up in a private window the morning before the event, before the run
 - **When** the 07:05 UTC run on the morning before the event has passed
-- **Then** bob and the guest each have one «Reminder: AC-5: Standard, open to guests» in Mailpit
+- **Then** bob and the guest each have one «Reminder: AC-5 to AC-7: Standard, open to guests» in Mailpit
 - **When** the next day's run passes
 - **Then** neither has a second one
 

@@ -4,12 +4,12 @@ The front page lists the events coming up as rows, with what to know at a glance
 
 **Events:** public, and not open to guests, unless said otherwise:
 
-- «AC-1: Coming», tomorrow, and «AC-1: Later», a week later.
+- «AC-1 to AC-6: Coming», tomorrow, and «AC-1 to AC-2: Later», a week later.
 - «AC-3: Members only», members-only, coming up.
-- «AC-4: Today», later today, with the tag «Workshop».
+- «AC-3 to AC-4: Today», later today, with the tag «Workshop».
 - «AC-5: Going on now», started an hour ago and ending in an hour.
-- «AC-6: Signed up», open to guests, with bob and one guest signed up.
-- «AC-7: Past 1» to «AC-7: Past 7», seven events that are over, a day apart with «AC-7: Past 1» the earliest, each with a cover image and the tag «Past 7».
+- «AC-3 to AC-6: Signed up», open to guests, with bob and one guest signed up.
+- «AC-1 to AC-7: Past 1» to «AC-1 to AC-7: Past 7», seven events that are over, a day apart with «AC-1 to AC-7: Past 1» the earliest, each with a cover image and the tag «Past 7».
 
 Both lists show six events at first, and six more each time **Show more events** is clicked. An event a test looks for may therefore be behind the button: click it until the event shows (this holds for the hand tests in other files that look on the front page, too).
 
@@ -23,7 +23,7 @@ The front page SHALL list under «Upcoming events» every event coming up or goi
 
 - **Given** the events
 - **When** you open the front page, and click **Show more events** under each list until it is gone
-- **Then** «AC-1: Coming» and «AC-1: Later» are under «Upcoming events», and the «AC-7: Past …» events under «Past events»
+- **Then** «AC-1 to AC-6: Coming» and «AC-1 to AC-2: Later» are under «Upcoming events», and the «AC-1 to AC-7: Past …» events under «Past events»
 
 **Automated:** `packages/app/e2e/specs/tags.spec.ts`
 
@@ -35,7 +35,7 @@ The front page SHALL list upcoming events the soonest first, and past events the
 
 - **Given** the events
 - **When** you open http://localhost:5173, and click **Show more events** under each list until it is gone
-- **Then** «AC-1: Coming» is above «AC-1: Later», and among the past events «AC-7: Past 7» is above «AC-7: Past 6», and so on down to «AC-7: Past 1»
+- **Then** «AC-1 to AC-6: Coming» is above «AC-1 to AC-2: Later», and among the past events «AC-1 to AC-7: Past 7» is above «AC-1 to AC-7: Past 6», and so on down to «AC-1 to AC-7: Past 1»
 
 **Automated:** `packages/app/test/frontPage.test.ts`
 
@@ -47,7 +47,7 @@ WHILE guests can sign up for an event, the front page SHALL mark it «For alle»
 
 - **Given** the events
 - **When** bob opens the front page
-- **Then** «AC-6: Signed up» says «Open to all» on its row and on its page, «AC-1: Coming» and «AC-3: Members only» say «Internal only» on theirs, and «AC-4: Today» shows «#Workshop»
+- **Then** «AC-3 to AC-6: Signed up» says «Open to all» on its row and on its page, «AC-1 to AC-6: Coming» and «AC-3: Members only» say «Internal only» on theirs, and «AC-3 to AC-4: Today» shows «#Workshop»
 
 **Automated:** `packages/app/test/frontPage.test.ts`, `packages/app/test/audience.test.ts`, `packages/app/e2e/specs/attendance/members.spec.ts`
 
@@ -59,7 +59,7 @@ The front page SHALL show the day each upcoming event starts, in its own time zo
 
 - **Given** the events
 - **When** you open the front page
-- **Then** «AC-4: Today» says «Today at» and its start time, and «AC-1: Coming» says tomorrow's date
+- **Then** «AC-3 to AC-4: Today» says «Today at» and its start time, and «AC-1 to AC-6: Coming» says tomorrow's date
 
 **Automated:** `packages/app/test/frontPage.test.ts`
 
@@ -71,7 +71,7 @@ WHILE an event is going on, the front page SHALL keep it under «Upcoming events
 
 - **Given** «AC-5: Going on now»
 - **When** you open the front page
-- **Then** it is under «Upcoming events», marked «Happening now», and «AC-1: Coming» isn't
+- **Then** it is under «Upcoming events», marked «Happening now», and «AC-1 to AC-6: Coming» isn't
 
 **Automated:** `packages/app/test/frontPage.test.ts`
 
@@ -81,11 +81,11 @@ WHERE the person reading has signed up for an upcoming event, as a member or as 
 
 **Test**
 
-- **Given** «AC-6: Signed up», with bob signed up, and a guest signed up in a private window
+- **Given** «AC-3 to AC-6: Signed up», with bob signed up, and a guest signed up in a private window
 - **When** bob opens the front page, and the guest opens it in the same private window
-- **Then** both see «You're signed up» on «AC-6: Signed up», and not on «AC-1: Coming»
+- **Then** both see «You're signed up» on «AC-3 to AC-6: Signed up», and not on «AC-1 to AC-6: Coming»
 - **When** you close every private window, and open the front page in a new one
-- **Then** «AC-6: Signed up» isn't marked
+- **Then** «AC-3 to AC-6: Signed up» isn't marked
 
 **Automated:** `packages/app/e2e/specs/attendance/members.spec.ts`
 

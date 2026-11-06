@@ -5,9 +5,9 @@ An organiser takes a published event off the site with **Unpublish** in the stud
 **Events:** in team «STU-20: Unpublishing», public events open to guests:
 
 - «AC-1: Not published», never published.
-- «AC-2 to AC-10: Signed up», published, starting tomorrow, with bob and one guest signed up.
-- «AC-3: Nobody signed up», published, starting tomorrow, with no one signed up.
-- «AC-8: Ended», published, starting in a few minutes and ending a few minutes later, with one guest signed up before it starts.
+- «AC-3 to AC-14: Signed up», published, starting tomorrow, with bob and one guest signed up.
+- «AC-1 to AC-3: Nobody signed up», published, starting tomorrow, with no one signed up.
+- «AC-8 to AC-11: Ended», published, starting in a few minutes and ending a few minutes later, with one guest signed up before it starts.
 - «AC-10: Weekly», published, repeating every week, and ended.
 
 ## AC-1: Unpublish is offered on a published event
@@ -18,7 +18,7 @@ WHILE an event is published, the studio SHALL show an **Unpublish** button to th
 
 - **Given** «AC-1: Not published» open in the studio
 - **Then** there is no **Unpublish** button
-- **When** you open «AC-3: Nobody signed up»
+- **When** you open «AC-1 to AC-3: Nobody signed up»
 - **Then** there is an **Unpublish** button
 
 **Automated:** `packages/app/e2e/specs/unpublishing.spec.ts`
@@ -29,7 +29,7 @@ WHEN an organiser clicks **Unpublish**, the studio SHALL ask first, and SHALL ke
 
 **Test**
 
-- **Given** «AC-3: Nobody signed up» open in the studio
+- **Given** «AC-1 to AC-3: Nobody signed up» open in the studio
 - **When** you click **Unpublish** and then **Cancel**
 - **Then** the event still says it is published, also after you reload the page
 
@@ -41,12 +41,12 @@ WHERE a published event that has not ended has people signed up, the question SH
 
 **Test**
 
-- **Given** «AC-2 to AC-10: Signed up» open in the studio
+- **Given** «AC-3 to AC-14: Signed up» open in the studio
 - **When** you click **Unpublish**
 - **Then** the browser asks «Unpublish this event? It's taken off the site and kept here as a draft, and the 2 people signed up are emailed that it's cancelled.»
 - **When** you click **Cancel**
 - **Then** the event is still published, for AC-4
-- **Given** «AC-3: Nobody signed up» open in the studio
+- **Given** «AC-1 to AC-3: Nobody signed up» open in the studio
 - **When** you click **Unpublish**
 - **Then** the browser asks «Unpublish this event? It's taken off the site and kept here as a draft.»
 
@@ -58,7 +58,7 @@ WHEN an event is unpublished, Skjera SHALL take it off the front page, the event
 
 **Test**
 
-- **Given** «AC-2 to AC-10: Signed up», open on the site in a private window
+- **Given** «AC-3 to AC-14: Signed up», open on the site in a private window
 - **When** alice clicks **Unpublish** and **OK**
 - **Then** the event is gone from the front page, `/embed`, `/api/public/events` and the calendar subscription `/api/subscribe`
 - **And** the event's page, reloaded, no longer shows it, for AC-14
@@ -96,7 +96,7 @@ WHEN an event that has not ended is unpublished, Skjera SHALL email everyone sig
 
 - **Given** the unpublished event of AC-4
 - **When** you open Mailpit
-- **Then** bob and the guest each have one «Cancelled: AC-2 to AC-10: Signed up», with a calendar cancellation attached (`.ics`, `METHOD:CANCEL`)
+- **Then** bob and the guest each have one «Cancelled: AC-3 to AC-14: Signed up», with a calendar cancellation attached (`.ics`, `METHOD:CANCEL`)
 - **And** when the event is open in the studio, its attendee list is empty
 
 **Automated:** `packages/documents/test/events/notices.test.ts`, `packages/app/e2e/specs/unpublishing.spec.ts`
@@ -107,7 +107,7 @@ IF an event has ended when it is unpublished, THEN Skjera SHALL email nobody, ke
 
 **Test**
 
-- **Given** «AC-8: Ended», after it has ended, open in the studio
+- **Given** «AC-8 to AC-11: Ended», after it has ended, open in the studio
 - **When** you click **Unpublish**
 - **Then** the browser asks «Unpublish this event? It's taken off the site and kept here as a draft.»
 - **When** you click **OK**
@@ -121,7 +121,7 @@ WHEN an event is unpublished, the studio SHALL show other organisers with it ope
 
 **Test**
 
-- **Given** «AC-2 to AC-10: Signed up» open in the studio as alice and as bob
+- **Given** «AC-3 to AC-14: Signed up» open in the studio as alice and as bob
 - **When** alice clicks **Unpublish** and **OK**
 - **Then** bob's footer, without reloading, says «Not published» and the **Unpublish** button is gone
 
@@ -150,7 +150,7 @@ WHEN an unpublished event is published again, Skjera SHALL show it on the site w
 - **When** you change its title and click **Publish**
 - **Then** the site shows the event with the new title, and no one is signed up
 - **And** the Slack channel gets no new post about it
-- **Given** «AC-8: Ended», unpublished
+- **Given** «AC-8 to AC-11: Ended», unpublished
 - **When** you publish it again
 - **Then** it comes back with the signup it kept, since its signups were not removed
 
@@ -162,7 +162,7 @@ The studio SHALL show the **Unpublish** button, its question and the event's sta
 
 **Test**
 
-- **Given** «AC-2 to AC-10: Signed up» open in the studio
+- **Given** «AC-3 to AC-14: Signed up» open in the studio
 - **When** you switch the language to Bokmål and then Nynorsk
 - **Then** the button, its question and the status «Ikke publisert» / «Ikkje publisert» are in that language
 

@@ -8,7 +8,7 @@ Use the server directly, http://localhost:3000. The app on port 5173 lets any we
 
 | Event | |
 | --- | --- |
-| AC-1, AC-2 and AC-9: With a summary | |
+| AC-1 to AC-9: With a summary | |
 | AC-4: Without a summary | |
 | AC-4: With the tag Sosialt | tagged «Workshop» and «sosialt» |
 | AC-4: With the tag Fag | tagged «FAG» |

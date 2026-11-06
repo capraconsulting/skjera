@@ -4,9 +4,9 @@ An organiser who has edited a published event and changed their mind can go back
 
 **Events:** in team «STU-23: Discarding changes», public events open to guests:
 
-- «AC-1: Not published», never published.
-- «AC-1 to AC-7: Changed», published, with a title, a summary and a text with a bold word, a link and an image, then edited: another title, summary and text, the image's caption changed, and a tag added. Two people signed up before the edit.
-- «AC-2: Up to date», published and not edited since.
+- «AC-2: Not published», never published.
+- «AC-3 to AC-7: Changed», published, with a title, a summary and a text with a bold word, a link and an image, then edited: another title, summary and text, the image's caption changed, and a tag added. Two people signed up before the edit.
+- «AC-1 to AC-2: Up to date», published and not edited since.
 
 ## AC-1: Discard changes is offered on a changed event
 
@@ -14,7 +14,7 @@ WHILE a published event has changes not yet published, the studio SHALL offer **
 
 **Test**
 
-- **Given** «AC-2: Up to date» open in the studio
+- **Given** «AC-1 to AC-2: Up to date» open in the studio
 - **Then** there is no **Discard changes** button
 - **When** you add an exclamation mark to the title
 - **Then** there is a **Discard changes** button, as soon as the footer says «Saved»
@@ -27,9 +27,9 @@ WHILE an event has never been published, or has no changes since it was, the stu
 
 **Test**
 
-- **Given** «AC-1: Not published» open in the studio
+- **Given** «AC-2: Not published» open in the studio
 - **Then** there is no **Discard changes** button
-- **Given** «AC-2: Up to date» open in the studio
+- **Given** «AC-1 to AC-2: Up to date» open in the studio
 - **Then** there is no **Discard changes** button
 
 **Automated:** `packages/app/test/publishState.test.ts`, `packages/app/e2e/specs/discarding.spec.ts`
@@ -40,7 +40,7 @@ WHEN an organiser clicks **Discard changes**, the studio SHALL ask first, and SH
 
 **Test**
 
-- **Given** «AC-1 to AC-7: Changed» open in the studio
+- **Given** «AC-3 to AC-7: Changed» open in the studio
 - **When** you click **Discard changes**
 - **Then** the browser asks «Discard the changes that aren't published? The event goes back to how it is published, and the changes are lost.»
 - **When** you click **Cancel**
@@ -54,7 +54,7 @@ WHEN the organiser confirms, the studio SHALL make the event's draft equal to it
 
 **Test**
 
-- **Given** «AC-1 to AC-7: Changed» open in the studio
+- **Given** «AC-3 to AC-7: Changed» open in the studio
 - **When** you click **Discard changes** and **OK**
 - **Then** the title, the summary, the tags and the times are as published
 - **And** the text is as published: the bold word, the link and the image with its placement, size and caption
@@ -71,7 +71,7 @@ WHEN changes are discarded, Skjera SHALL send no email to the event's attendees.
 
 **Test**
 
-- **Given** «AC-1 to AC-7: Changed», after you moved it to another day and another place, with Mailpit open
+- **Given** «AC-3 to AC-7: Changed», after you moved it to another day and another place, with Mailpit open
 - **When** you click **Discard changes** and **OK**
 - **Then** Mailpit gets no email about the event, and its two signups are still on the attendee list
 
@@ -89,7 +89,7 @@ WHEN changes are discarded, the editor's footer SHALL say that the event is publ
 
 **Test**
 
-- **Given** «AC-1 to AC-7: Changed» open in the studio
+- **Given** «AC-3 to AC-7: Changed» open in the studio
 - **When** you click **Discard changes** and **OK**
 - **Then** without reloading, the editor shows the published title, the footer says «Published just now», the Publish button reads **Published** and can't be clicked, and **Discard changes** is gone
 - **And** the team's list shows the event as «Published», not «Changed»

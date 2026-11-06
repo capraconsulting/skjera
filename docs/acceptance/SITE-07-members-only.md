@@ -4,7 +4,7 @@ An event without **Public event** ticked is for members only: those logged in se
 
 **Events:**
 
-- «AC-1: Members only», with **Public event** unticked, published.
+- «AC-1 to AC-4: Members only», with **Public event** unticked, published.
 - «AC-3: Made members-only», public, published.
 
 What a shared link to a members-only event shows is in [SITE-08](SITE-08-summary-and-sharing.md), who sees the names of those signed up in [SITE-06](SITE-06-whos-coming.md), and why guests can't sign up for it in [STU-12](STU-12-visibility.md) AC-4.
@@ -15,7 +15,7 @@ WHILE no one is logged in, the site SHALL NOT list a members-only event on the f
 
 **Test**
 
-- **Given** «AC-1: Members only»
+- **Given** «AC-1 to AC-4: Members only»
 - **When** you open the front page in a private window
 - **Then** the event isn't listed
 
@@ -27,7 +27,7 @@ WHILE a member is logged in, the site SHALL list members-only events with the ot
 
 **Test**
 
-- **Given** «AC-1: Members only»
+- **Given** «AC-1 to AC-4: Members only»
 - **When** bob opens the front page, and clicks the event
 - **Then** it is listed, marked «Internal only», and its page opens, saying «Internal only»
 
@@ -53,7 +53,7 @@ WHEN someone not logged in opens the address of a published members-only event, 
 
 **Test**
 
-- **Given** «AC-1: Members only»
+- **Given** «AC-1 to AC-4: Members only»
 - **When** you open the event's address in a private window
 - **Then** the page shows its title, time, place, text and image, and says «Internal only»; in place of a sign-up form it says «You need to log in to sign up for this event» with a **Log in** button, and no names of those signed up
 - **When** you click **All events**
