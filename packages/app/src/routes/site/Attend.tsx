@@ -19,7 +19,12 @@ import {
   storedGuestSignup,
 } from "../../site/guestSignups.ts";
 import { placesLeft } from "../../site/signupCount.ts";
-import { changeFrom, fieldOf, signupFrom } from "../../site/signupForm.ts";
+import {
+  changeFrom,
+  fieldOf,
+  salesEventForm,
+  signupFrom,
+} from "../../site/signupForm.ts";
 import { attendees, type GuestCancel } from "../../sync/tables.ts";
 import { formatDateTime } from "../../time.ts";
 import styles from "./Attend.module.css";
@@ -31,6 +36,7 @@ import {
   GuestContactInputs,
   GuestInput,
   HoneypotInput,
+  JobTitleInput,
   QuestionInputs,
 } from "./AttendInputs.tsx";
 import { CancelByEmail } from "./CancelByEmail.tsx";
@@ -51,6 +57,7 @@ export function Attend(props: {
   readonly linkGone: boolean;
 }) {
   const { event, signups } = props;
+  const sales = salesEventForm(event);
   const [error, setError] = useState<string | null>(null);
   // Why a guest input was refused, shown by the input.
   const [messages, setMessages] = useState<FieldMessages>({});
@@ -478,6 +485,7 @@ export function Attend(props: {
           ) : guest === null ? (
             <form
               className={styles.form}
+              {...sales.formAttributes}
               onSubmit={(submitted) => signUp(submitted, true)}
             >
               <div className={styles.fields}>
@@ -500,6 +508,7 @@ export function Attend(props: {
                 <HoneypotInput />
               </div>
               <GuestContactInputs given={{}} messages={messages} />
+              {sales.askJobTitle ? <JobTitleInput messages={messages} /> : null}
               {asked({}, true)}
               <div className={styles.row}>
                 <Button type="submit" variant="primary">

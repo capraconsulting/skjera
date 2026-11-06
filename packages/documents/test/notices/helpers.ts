@@ -13,6 +13,7 @@ import type { DocumentId, Locale } from "../../src/Model.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
 import * as Mail from "../../src/notices/Mail.tsx";
 import { Notifications } from "../../src/notices/Notifications.ts";
+import { SalesEvents } from "../../src/notices/SalesEvents.ts";
 import { Teams } from "../../src/Teams.ts";
 import { TestDatabase } from "../TestDatabase.ts";
 
@@ -36,6 +37,7 @@ export const TestLayer = Layer.mergeAll(
 ).pipe(
   Layer.provideMerge(Attendance.layer),
   Layer.provideMerge(Announcements.layerTest),
+  Layer.provideMerge(SalesEvents.layerTest),
   Layer.provideMerge(Mail.layerNotifications),
   Layer.provideMerge(Layer.succeed(Email, outbox.email)),
   Layer.provideMerge(cluster),

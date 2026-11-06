@@ -110,6 +110,9 @@ export interface EventSpec {
   readonly hidePlacesLeft?: boolean;
   readonly streamed?: boolean;
   readonly streamLink?: string;
+  /** Sent to HubSpot as a sales event, with the type it is sent as. */
+  readonly salesEvent?: boolean;
+  readonly salesEventType?: string;
   readonly questions?: ReadonlyArray<QuestionSpec>;
   readonly tags?: ReadonlyArray<string>;
   /** Remind attendees: "off" unless the file asks for it. */
@@ -339,6 +342,9 @@ const writeEvent = (
   if (spec.streamed !== undefined) draft.streamed = spec.streamed;
   if (spec.streamLink !== undefined)
     setText(doc, "streamLink", spec.streamLink);
+  if (spec.salesEvent !== undefined) draft.salesEvent = spec.salesEvent;
+  if (spec.salesEventType !== undefined)
+    setText(doc, "salesEventType", spec.salesEventType);
   if (spec.questions !== undefined)
     draft.questions = spec.questions.map((question) => {
       const id = crypto.randomUUID();

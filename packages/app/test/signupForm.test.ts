@@ -6,6 +6,7 @@ import {
   chosenOption,
   fieldOf,
   questionField,
+  salesEventForm,
   signupFrom,
 } from "../src/site/signupForm.ts";
 
@@ -99,9 +100,10 @@ const questions = [
   asked(updates, "checkbox"),
   asked(towels, "choice", question.options),
 ];
-const plain = { questions: [], isStreamed: false };
-const streamed = { questions: [], isStreamed: true };
-const withQuestions = { questions, isStreamed: false };
+const plain = { questions: [], isStreamed: false, isSalesEvent: false };
+const streamed = { questions: [], isStreamed: true, isSalesEvent: false };
+const withQuestions = { questions, isStreamed: false, isSalesEvent: false };
+const sales = { questions: [], isStreamed: false, isSalesEvent: true };
 
 describe("signupFrom", () => {
   it("reads a member's answers by question id (AC-2)", () => {
@@ -162,6 +164,36 @@ describe("signupFrom", () => {
     expect(signupFrom(streamed, online, false, "nb").online).toBe(true);
     expect(signupFrom(streamed, inPerson, false, "nb").online).toBe(false);
     expect("online" in signupFrom(plain, online, false, "nb")).toBe(false);
+  });
+});
+
+describe("a sales event's guest form", () => {
+  it("sends the job title as written, only for a sales event (AC-8)", () => {
+    const form = formOf({
+      firstname: "Kari Nordmann",
+      email: "kari@example.com",
+      jobtitle: "CTO",
+    });
+    expect(signupFrom(sales, form, true, "en")).toMatchObject({
+      guest: { name: "Kari Nordmann", jobTitle: "CTO" },
+    });
+    expect(signupFrom(sales, formOf({}), true, "en")).toMatchObject({
+      guest: { jobTitle: "" },
+    });
+    const other = signupFrom(plain, form, true, "en");
+    expect(other.guest).toBeDefined();
+    expect("jobTitle" in (other.guest ?? {})).toBe(false);
+  });
+
+  it("asks for a job title and is kept out of HubSpot's collected forms, on a sales event only (AC-8, AC-9)", () => {
+    expect(salesEventForm(sales)).toEqual({
+      askJobTitle: true,
+      formAttributes: { "data-hs-do-not-collect": "true" },
+    });
+    expect(salesEventForm(plain)).toEqual({
+      askJobTitle: false,
+      formAttributes: {},
+    });
   });
 });
 

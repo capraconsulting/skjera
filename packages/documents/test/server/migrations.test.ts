@@ -5,6 +5,7 @@ import { Migrator, SqlClient } from "effect/sql";
 import { Documents } from "../../src/events/Documents.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
 import { Notifications } from "../../src/notices/Notifications.ts";
+import { SalesEvents } from "../../src/notices/SalesEvents.ts";
 import { migrations } from "../../src/server/migrations.ts";
 import { Teams } from "../../src/Teams.ts";
 import { addTags, openEditor } from "../helpers.ts";
@@ -15,6 +16,7 @@ const alice = new Identity({ issuer: "https://idp.example", subject: "alice" });
 // Not migrated: the test runs the migrations itself, in two parts.
 const TestLayer = Layer.mergeAll(Teams.layer, Documents.layer).pipe(
   Layer.provideMerge(Announcements.layerTest),
+  Layer.provideMerge(SalesEvents.layerTest),
   Layer.provideMerge(Notifications.layerTest),
   Layer.provideMerge(UnmigratedTestDatabase),
 );

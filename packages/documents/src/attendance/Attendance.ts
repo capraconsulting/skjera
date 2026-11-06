@@ -20,6 +20,7 @@ import {
   type Question,
 } from "../Model.ts";
 import { Notifications, type Signup, tell } from "../notices/Notifications.ts";
+import { SalesEvents } from "../notices/SalesEvents.ts";
 import { answersFor } from "./answers.ts";
 import {
   cancelLinkLife,
@@ -167,6 +168,7 @@ export class Attendance extends Context.Service<
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
       const notifications = yield* Notifications;
+      const salesEvents = yield* SalesEvents;
       const secret = yield* signingSecret;
       // The domains members log in with: an email on one is a member's.
       const memberDomains = yield* AllowedDomains;
@@ -188,6 +190,30 @@ export class Attendance extends Context.Service<
       const signupOpen = sql`coalesce(e.signup_deadline, e.starts_at) > now()`;
       /** What is returned about a signup, for notices: a `Signup`. On `attendees`, unaliased. */
       const signupColumns = sql`id, name, email, user_issuer IS NULL AS guest, locale`;
+
+      /** HubSpot is told of the signups just made. */
+      const tellSignedUp = (
+        event: DocumentId,
+        signups: ReadonlyArray<Signup>,
+      ) =>
+        Effect.forEach(
+          signups,
+          (signup) => salesEvents.signedUp(event, signup.id),
+          {
+            discard: true,
+          },
+        );
+
+      /** HubSpot is told of the signups just deleted. */
+      const tellCancelled = (
+        event: DocumentId,
+        signups: ReadonlyArray<Signup>,
+      ) =>
+        Effect.forEach(
+          signups,
+          ({ id, email }) => salesEvents.signupCancelled(event, { id, email }),
+          { discard: true },
+        );
 
       const closed = new SignupRejected(refused({ _tag: "SignupClosed" }));
       const full = new SignupRejected(refused({ _tag: "EventFull" }));
@@ -320,6 +346,7 @@ export class Attendance extends Context.Service<
           yield* tell(inserted, (attendee) =>
             notifications.signedUp({ event, attendee }),
           );
+          yield* tellSignedUp(event, inserted);
         }).pipe(
           sql.withTransaction,
           Effect.catchIf(SqlError.isSqlError, Effect.die),
@@ -341,6 +368,7 @@ export class Attendance extends Context.Service<
           yield* tell(deleted, (attendee) =>
             notifications.signupCancelled({ event, attendee }),
           );
+          yield* tellCancelled(event, deleted);
         }).pipe(sql.withTransaction, Effect.orDie);
       }, Effect.uninterruptible);
 
@@ -376,10 +404,10 @@ export class Attendance extends Context.Service<
         yield* Effect.gen(function* () {
           yield* room(event, online, sql`false`);
           const inserted = yield* sql<Signup>`
-            INSERT INTO attendees (id, event_id, name, email, phone, company, answers, cancel_token_hash, online, locale)
+            INSERT INTO attendees (id, event_id, name, email, phone, company, job_title, answers, cancel_token_hash, online, locale)
             VALUES (${attendee}::uuid, ${event}, ${guest.name.trim()},
               ${guest.email.trim()}, ${storedText(guest.phone)}, ${storedText(guest.company)},
-              ${JSON.stringify(answers)}::jsonb, ${tokenHash(token)},
+              ${storedText(guest.jobTitle)}, ${JSON.stringify(answers)}::jsonb, ${tokenHash(token)},
               ${online}, ${details.locale ?? null})
             RETURNING ${signupColumns}
           `;
@@ -387,6 +415,7 @@ export class Attendance extends Context.Service<
           yield* tell(inserted, (attendee) =>
             notifications.signedUp({ event, attendee }),
           );
+          yield* tellSignedUp(event, inserted);
         }).pipe(
           sql.withTransaction,
           Effect.catchIf(SqlError.isSqlError, (error) =>
@@ -421,6 +450,7 @@ export class Attendance extends Context.Service<
           yield* tell(deleted, (attendee) =>
             notifications.signupCancelled({ event, attendee }),
           );
+          yield* tellCancelled(event, deleted);
         }).pipe(sql.withTransaction, Effect.orDie);
       }, Effect.uninterruptible);
 
@@ -504,6 +534,7 @@ export class Attendance extends Context.Service<
           yield* tell(deleted, (each) =>
             notifications.signupCancelled({ event, attendee: each }),
           );
+          yield* tellCancelled(event, deleted);
           return deleted.length;
         }).pipe(sql.withTransaction, Effect.orDie);
         // Gone since it was checked: cancelled by another press of the button.
@@ -608,6 +639,8 @@ export class Attendance extends Context.Service<
               a.locale, a.event_id, e.ends_at > now() AS upcoming
           `;
           if (removed === undefined) return false;
+          // HubSpot hears of it whenever it happens, the event over or not.
+          yield* tellCancelled(removed.event_id, [removed]);
           // Taken off what's still to come: told, and out of their calendar.
           if (removed.upcoming) {
             yield* tell([removed], (recipient) =>

@@ -3,8 +3,9 @@ import { NodeCrypto } from "@effect/platform-node";
 import { assert, describe, it, layer } from "@effect/vitest";
 import { Email } from "@skjera/email";
 import * as EmailTest from "@skjera/email/testing";
+import * as HubSpotTest from "@skjera/hubspot/testing";
 import { Identity } from "@skjera/oauth/api";
-import { Cron, Effect, Layer, Schedule } from "effect";
+import { ConfigProvider, Cron, Effect, Layer, Schedule } from "effect";
 import { SingleRunner } from "effect/cluster";
 import { SqlClient } from "effect/sql";
 import { Attendance } from "../../src/attendance/Attendance.ts";
@@ -13,6 +14,7 @@ import type { EventContent } from "../../src/events/ContentTypes.ts";
 import { Documents } from "../../src/events/Documents.ts";
 import type { DocumentId, TeamId } from "../../src/Model.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
+import * as HubSpotSync from "../../src/notices/HubSpotSync.ts";
 import * as Mail from "../../src/notices/Mail.tsx";
 import { Teams } from "../../src/Teams.ts";
 import { TestDatabase } from "../TestDatabase.ts";
@@ -62,12 +64,28 @@ const cluster = SingleRunner.layer({
   },
 }).pipe(Layer.provide(NodeCrypto.layer));
 
+const portal = HubSpotTest.make();
+
 const TestLayer = Layer.mergeAll(
   Documents.layer,
   Teams.layer,
   Mail.layerMailer,
+  HubSpotSync.sender(),
 ).pipe(
   Layer.provideMerge(Attendance.layer),
+  Layer.provideMerge(
+    HubSpotSync.layerSalesEvents.pipe(
+      Layer.provide(
+        ConfigProvider.layer(
+          ConfigProvider.fromUnknown({
+            HUBSPOT_ACCESS_TOKEN: "pat-test",
+            SITE_URL: "https://skjera.example",
+          }),
+        ),
+      ),
+    ),
+  ),
+  Layer.provideMerge(portal.layer),
   Layer.provideMerge(Announcements.layerTest),
   Layer.provideMerge(Mail.layerNotifications),
   Layer.provideMerge(Layer.succeed(Email, outbox.email)),
@@ -217,8 +235,8 @@ const withSignup = (endsAt: Date, deleted = false) =>
     return event;
   });
 
-/** The mailer's stored messages for an event, whatever the case of its id. */
-const storedFor = (event: DocumentId) =>
+/** An entity's stored messages for an event, whatever the case of its id: the mailer's unless told. */
+const storedFor = (event: DocumentId, entityType = "EventMail") =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     return yield* sql<{
@@ -227,7 +245,7 @@ const storedFor = (event: DocumentId) =>
       readonly processed: boolean;
     }>`
       SELECT id, entity_id, processed FROM cluster_messages
-      WHERE entity_type = 'EventMail' AND lower(entity_id) = ${event}
+      WHERE entity_type = ${entityType} AND lower(entity_id) = ${event}
     `;
   }).pipe(Effect.orDie);
 
@@ -503,6 +521,36 @@ layer(TestLayer, { excludeTestServices: true })("Signup retention", (it) => {
           new Date(ended.getTime() + 30 * day),
         );
         assert.lengthOf(yield* storedFor(event), stored.length);
+      }),
+  );
+
+  it.effect(
+    "forgets the HubSpot messages of an event 30 days after it has ended, and keeps them before",
+    () =>
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        const event = yield* comingEvent;
+        yield* sql`UPDATE events SET sales_event = true WHERE id = ${event}`;
+        yield* signGuestUp(event);
+        const stored = yield* storedFor(event, "HubSpotEvent").pipe(
+          Effect.filterOrFail(
+            (rows) => rows.length > 0,
+            () => "not yet",
+          ),
+          Effect.retry({ schedule: Schedule.spaced("50 millis"), times: 100 }),
+          Effect.orDie,
+        );
+        const ended = yield* endOf(event);
+
+        yield* SignupRetention.deleteSignups(
+          new Date(ended.getTime() + 30 * day),
+        );
+        assert.lengthOf(yield* storedFor(event, "HubSpotEvent"), stored.length);
+
+        yield* SignupRetention.deleteSignups(
+          new Date(ended.getTime() + 31 * day),
+        );
+        assert.lengthOf(yield* storedFor(event, "HubSpotEvent"), 0);
       }),
   );
 

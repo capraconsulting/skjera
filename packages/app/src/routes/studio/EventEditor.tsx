@@ -14,8 +14,10 @@ import { EventTimes, FoodDeadline } from "../../editor/DateTimeField.tsx";
 import { QuestionsField } from "../../editor/QuestionsField.tsx";
 import { ReminderField } from "../../editor/ReminderField.tsx";
 import { RepeatField } from "../../editor/RepeatField.tsx";
+import { salesEventOffered } from "../../editor/salesEvent.ts";
 import { TagsField } from "../../editor/TagsField.tsx";
 import { TextEditor } from "../../editor/text/TextEditor.tsx";
+import { currentSite } from "../../i18n.ts";
 import {
   type DraftPresence,
   useDraftPresence,
@@ -172,6 +174,7 @@ function EventSession({ id }: { readonly id: DocumentId }) {
             hint={m.studio_public_hint()}
           />
           <GuestsCheckbox handle={handle} />
+          <SalesEventSetting handle={handle} presence={session.presence} />
         </Field>
         <Field label={m.studio_max_attendees()}>
           <AttendeeLimit handle={handle} />
@@ -298,6 +301,42 @@ function AttendeeLimit(props: { readonly handle: DocHandle<EventContent> }) {
           label={m.studio_hide_places_left()}
         />
       )}
+    </>
+  );
+}
+
+/**
+ * Sending the event to HubSpot, and the type it is sent as: offered only
+ * where `salesEventOffered` says so.
+ */
+function SalesEventSetting(props: {
+  readonly handle: DocHandle<EventContent>;
+  readonly presence: DraftPresence | null;
+}) {
+  const isPublic = useBooleanField(props.handle, "public");
+  const guests = useBooleanField(props.handle, "guests");
+  const salesEvent = useBooleanField(props.handle, "salesEvent");
+  if (!salesEventOffered(currentSite(), { public: isPublic, guests })) {
+    return null;
+  }
+  return (
+    <>
+      <CheckboxField
+        handle={props.handle}
+        field="salesEvent"
+        label={m.studio_sales_event()}
+        hint={m.studio_sales_event_hint()}
+      />
+      {salesEvent ? (
+        <div className={styles.food}>
+          <DraftText
+            handle={props.handle}
+            presence={props.presence}
+            field="salesEventType"
+            label={m.studio_sales_event_type()}
+          />
+        </div>
+      ) : null}
     </>
   );
 }

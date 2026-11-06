@@ -360,15 +360,22 @@ const SiteAssets = Layer.unwrap(
   }),
 );
 
-/** The site's name, language, footer and privacy, and whether it sends email, for the app. */
+/** The site's name, language, footer and privacy, and whether it sends email and sales events, for the app. */
 const site = Layer.unwrap(
   Effect.gen(function* () {
     const config = yield* Documents.SiteConfig;
     const sendsEmail = yield* Documents.Mail.emailsSent;
+    const salesEvents = yield* Documents.HubSpotSync.configured;
     return HttpRouter.add(
       "GET",
       "/api/site",
-      HttpServerResponse.json(Documents.Site.make({ ...config, sendsEmail })),
+      HttpServerResponse.json(
+        Documents.Site.make({
+          ...config,
+          sendsEmail,
+          ...(salesEvents ? { salesEvents } : {}),
+        }),
+      ),
     );
   }),
 );

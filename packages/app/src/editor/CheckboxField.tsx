@@ -9,6 +9,7 @@ type BooleanField =
   | "dietary"
   | "hidePlacesLeft"
   | "streamed"
+  | "salesEvent"
   | "recurring";
 
 /** What a field means when a draft doesn't have it (yet). */
@@ -18,6 +19,7 @@ const unset: Record<BooleanField, boolean> = {
   dietary: false,
   hidePlacesLeft: false,
   streamed: false,
+  salesEvent: false,
   recurring: false,
 };
 

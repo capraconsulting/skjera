@@ -23,6 +23,7 @@ import {
 } from "../Model.ts";
 import { Announcements } from "../notices/Announcements.ts";
 import { Notifications, type Signup, tell } from "../notices/Notifications.ts";
+import { SalesEvents } from "../notices/SalesEvents.ts";
 import {
   type ContentTypeName,
   cantPublish,
@@ -181,6 +182,7 @@ export class Documents extends Context.Service<
       const sql = yield* SqlClient.SqlClient;
       const notifications = yield* Notifications;
       const announcements = yield* Announcements;
+      const salesEvents = yield* SalesEvents;
 
       // Writes run to their end, even if the client that asked goes away.
       const create = Effect.fn("Documents.create")(function* (
@@ -443,8 +445,15 @@ export class Documents extends Context.Service<
       const publishers = {
         event: (id: DocumentId, heads: Heads, user: Identity) =>
           Effect.gen(function* () {
-            const [before] = yield* sql<WhenAndWhere>`
-              SELECT starts_at, ends_at, place FROM events WHERE id = ${id} FOR UPDATE
+            const [before] = yield* sql<
+              WhenAndWhere & {
+                readonly sales_event: boolean;
+                readonly off_site: boolean;
+              }
+            >`
+              SELECT starts_at, ends_at, place, sales_event,
+                deleted_at IS NOT NULL AS off_site
+              FROM events WHERE id = ${id} FOR UPDATE
             `;
             const rows = yield* sql<PublicationRow & WhenAndWhere>`
               SELECT published_heads, published_at, first_published_at,
@@ -508,6 +517,15 @@ export class Documents extends Context.Service<
               WHERE e.id = ${id} AND d.id = e.id
                 AND e.deleted_at IS NOT NULL AND d.deleted_at IS NULL
             `;
+            // HubSpot hears of every publish; only a sales event is sent.
+            if (after !== undefined) {
+              yield* salesEvents.published(id, {
+                wasSalesEvent:
+                  before !== undefined &&
+                  before.sales_event &&
+                  !before.off_site,
+              });
+            }
             return rows;
           }).pipe(sql.withTransaction),
       } satisfies Record<ContentTypeName, unknown>;
@@ -576,6 +594,7 @@ export class Documents extends Context.Service<
             yield* tell(removed, (attendee) =>
               notifications.eventCancelled({ event: id, attendee }),
             );
+            yield* salesEvents.cancelled(id);
           }
           return true;
         }).pipe(sql.withTransaction, Effect.orDie);
@@ -818,6 +837,7 @@ export class Documents extends Context.Service<
             yield* tell(signups, (attendee) =>
               notifications.eventCancelled({ event: id, attendee }),
             );
+            yield* salesEvents.cancelled(id);
           }
           return true;
         }).pipe(sql.withTransaction, Effect.orDie);

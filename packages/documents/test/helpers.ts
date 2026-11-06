@@ -12,6 +12,7 @@ import { Presence } from "../src/events/Presence.ts";
 import type { Audience, DocumentId } from "../src/Model.ts";
 import { Announcements } from "../src/notices/Announcements.ts";
 import { Notifications } from "../src/notices/Notifications.ts";
+import { SalesEvents } from "../src/notices/SalesEvents.ts";
 import { Sync } from "../src/server/Sync.ts";
 import { Teams } from "../src/Teams.ts";
 import { TestDatabase } from "./TestDatabase.ts";
@@ -39,6 +40,7 @@ export const TestLayer = Layer.mergeAll(
   Presence.layer,
 ).pipe(
   Layer.provideMerge(Announcements.layerTest),
+  Layer.provideMerge(SalesEvents.layerTest),
   Layer.provideMerge(Notifications.layerTest),
   Layer.provideMerge(TestDatabase),
 );
@@ -137,6 +139,22 @@ export const setStreamed = (
   if (link === undefined) return;
   if (draft.streamLink === undefined) draft.streamLink = "";
   A.updateText(event, ["streamLink"], link);
+};
+
+/**
+ * Sets the sales event setting the way the editor does: a checkbox, and the
+ * type as text that the draft may not have a key for yet.
+ */
+export const setSalesEvent = (
+  event: EventContent,
+  salesEvent: boolean,
+  type?: string,
+) => {
+  const draft = event as { salesEvent?: boolean; salesEventType?: string };
+  draft.salesEvent = salesEvent;
+  if (type === undefined) return;
+  if (draft.salesEventType === undefined) draft.salesEventType = "";
+  A.updateText(event, ["salesEventType"], type);
 };
 
 /**
@@ -434,4 +452,5 @@ export const fillEveryKindOfField = (event: EventContent) => {
     },
   ]);
   setStreamed(event, true, "https://stream.example.com");
+  setSalesEvent(event, true, "Workshop");
 };

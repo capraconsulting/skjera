@@ -93,6 +93,20 @@ export const GuestContactInputs = (props: {
   </div>
 );
 
+/** A guest's job title, optional; asked on a sales event's form only. */
+export const JobTitleInput = (props: { readonly messages: FieldMessages }) => (
+  <div className={styles.fields}>
+    <GuestInput
+      name="jobtitle"
+      messages={props.messages}
+      autoComplete="organization-title"
+      aria-label={m.attend_your_job_title()}
+      placeholder={`${m.attend_your_job_title()} ${m.attend_optional()}`}
+      maxLength={100}
+    />
+  </div>
+);
+
 /** Asked, optionally, of everyone signing up when the event serves food. */
 export const DietaryInput = () => (
   <Input

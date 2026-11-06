@@ -1,3 +1,5 @@
+import type { Site } from "@skjera/documents/api";
+
 const loader = "hs-script-loader";
 
 /** Loads HubSpot's script for the account from its EU servers, once per page. */
@@ -10,6 +12,16 @@ export const loadHubSpot = (account: string) => {
   script.src = `https://js-eu1.hs-scripts.com/${account}.js`;
   document.head.append(script);
 };
+
+/**
+ * Whether data reaches HubSpot: the site loads its script (an account is
+ * set), or sends the sign-ups to sales events from the server.
+ */
+export const sharesWithHubSpot = (
+  site: Pick<Site, "hubSpot" | "salesEvents">,
+): boolean =>
+  (site.hubSpot !== undefined && site.hubSpot !== "") ||
+  site.salesEvents === true;
 
 /** This page has loaded HubSpot: it runs until the page is left. */
 export const hasHubSpot = () => document.getElementById(loader) !== null;

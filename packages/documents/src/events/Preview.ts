@@ -95,5 +95,7 @@ export const eventPreview = (draft: {
     hidePlacesLeft: content.hidePlacesLeft ?? false,
     isStreamed: streamed,
     streamLink: streamed ? trimmedOrNull(content.streamLink) : null,
+    isSalesEvent:
+      content.public && content.guests && (content.salesEvent ?? false),
   };
 };

@@ -6,6 +6,7 @@ import { Documents } from "../../src/events/Documents.ts";
 import { DocumentId, type TeamId } from "../../src/Model.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
 import { Notifications } from "../../src/notices/Notifications.ts";
+import { SalesEvents } from "../../src/notices/SalesEvents.ts";
 import type { Pull } from "../../src/server/Sync.ts";
 import { Sync } from "../../src/server/Sync.ts";
 import { Teams } from "../../src/Teams.ts";
@@ -15,6 +16,7 @@ const alice = new Identity({ issuer: "https://idp.example", subject: "alice" });
 
 const TestLayer = Layer.mergeAll(Sync.layer, Teams.layer, Documents.layer).pipe(
   Layer.provideMerge(Announcements.layerTest),
+  Layer.provideMerge(SalesEvents.layerTest),
   Layer.provideMerge(Notifications.layerTest),
   Layer.provideMerge(TestDatabase),
 );

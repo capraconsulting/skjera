@@ -5,6 +5,7 @@ import { SqlClient } from "effect/sql";
 import { Temporal } from "temporal-polyfill";
 import type { DocumentId, Heads, ZonedDateTime } from "../Model.ts";
 import { Announcements } from "../notices/Announcements.ts";
+import { SalesEvents } from "../notices/SalesEvents.ts";
 import { EventContent, type RepeatUnit } from "./ContentTypes.ts";
 
 // A recurring event moves on to its next date when it has ended: a daily job
@@ -96,6 +97,7 @@ const moveOn = (id: DocumentId, now: Date) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const announcements = yield* Announcements;
+    const salesEvents = yield* SalesEvents;
 
     // The document first, then the event: the order `Documents.delete` locks
     // them in, so the two cannot wait for each other.
@@ -177,6 +179,9 @@ const moveOn = (id: DocumentId, now: Date) =>
       VALUES (${id}, ${newHeads}::text[])
     `;
     yield* announcements.eventRepeated(id, published.starts_at);
+    // Its Marketing Event takes the new times; those signed up for the
+    // date before are in HubSpot already, and nobody is signed up now.
+    yield* salesEvents.published(id, { wasSalesEvent: true });
   });
 
 /**

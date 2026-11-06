@@ -1314,4 +1314,124 @@ export const migrations = Migrator.fromRecord({
       SELECT id, published_heads, published_at, published_by_issuer, published_by_subject
       FROM events`,
   ),
+  "0034_sales_events": statements(
+    // Sent to HubSpot as a Marketing Event, with its sign-ups: only for a
+    // public event open to guests that has the setting on.
+    `ALTER TABLE events ADD COLUMN sales_event boolean NOT NULL DEFAULT false`,
+    // The Marketing Event's type as written; none: «Frokostseminar».
+    `ALTER TABLE events ADD COLUMN sales_event_type text`,
+    // A guest's job title on a sales event's sign-up form, sent to HubSpot.
+    `ALTER TABLE attendees ADD COLUMN job_title text`,
+    `CREATE OR REPLACE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
+      RETURNS SETOF events LANGUAGE sql AS $$
+      INSERT INTO events AS e
+        (id, title, summary, starts_at, ends_at, signup_deadline, time_zone, body, cover,
+         is_public, allow_guests, ask_dietary, food, food_deadline, questions, tags,
+         send_reminders, place, max_attendees, hide_places_left,
+         is_streamed, stream_link, sales_event, sales_event_type,
+         email_texts, repeat_every, repeat_unit,
+         published_heads, published_by_issuer, published_by_subject)
+      SELECT d.id, c.content->>'title',
+        -- Stored trimmed; blank, or drafts from before, are none.
+        nullif(regexp_replace(c.content->>'summary', '^\\s+|\\s+$', '', 'g'), ''),
+        zoned_instant(c.content->>'start'), zoned_instant(c.content->>'end'),
+        zoned_instant(c.content->>'deadline'), zoned_zone(c.content->>'start'),
+        automerge_spans(d.draft, '{body}', heads), c.content->'cover',
+        (c.content->>'public')::boolean,
+        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
+        (c.content->>'dietary')::boolean,
+        c.content->>'food', zoned_instant(c.content->>'foodDeadline'),
+        c.content->'questions',
+        -- Each once, ignoring case, as first written.
+        ARRAY(
+          SELECT tag FROM (
+            SELECT DISTINCT ON (lower(tag)) tag, n
+            FROM jsonb_array_elements_text(c.content->'tags') WITH ORDINALITY AS t(tag, n)
+            ORDER BY lower(tag), n
+          ) firsts ORDER BY n
+        ),
+        -- «Standard» reminds where guests can sign up. Drafts from before
+        -- there was a choice: false is "off", true or none "default".
+        CASE coalesce(c.content->>'reminders', 'default')
+          WHEN 'on' THEN true
+          WHEN 'off' THEN false
+          WHEN 'false' THEN false
+          ELSE (c.content->>'public')::boolean AND (c.content->>'guests')::boolean
+        END,
+        -- Stored as written. Drafts from before have none: null.
+        c.content->>'place',
+        -- Through numeric: a whole number stored as a float reads "30.0".
+        (c.content->>'maxAttendees')::numeric::integer,
+        -- Shown unless hidden: drafts from before have no such field.
+        coalesce((c.content->>'hidePlacesLeft')::boolean, false),
+        -- Streamed unless missing: drafts from before have no such field.
+        coalesce((c.content->>'streamed')::boolean, false),
+        -- Only while streamed; trimmed as the check trims, blank is none.
+        CASE WHEN coalesce((c.content->>'streamed')::boolean, false)
+          THEN nullif(regexp_replace(c.content->>'streamLink', '^\\s+|\\s+$', '', 'g'), '')
+        END,
+        -- A sales event is sent to HubSpot: only a public event open to guests is one.
+        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean
+          AND coalesce((c.content->>'salesEvent')::boolean, false),
+        -- Its type, trimmed; blank is none.
+        nullif(regexp_replace(c.content->>'salesEventType', '^\\s+|\\s+$', '', 'g'), ''),
+        -- The emails' own subjects and texts; none is left out.
+        (SELECT coalesce(jsonb_object_agg(email.key, email.value), '{}')
+          FROM (VALUES
+            ('signedUpSubject', to_jsonb(email_subject(c.content->>'signedUpSubject'))),
+            ('signedUpText', email_text_spans(d.draft, 'signedUpText', heads, c.content)),
+            ('signupCancelledSubject', to_jsonb(email_subject(c.content->>'signupCancelledSubject'))),
+            ('signupCancelledText', email_text_spans(d.draft, 'signupCancelledText', heads, c.content)),
+            ('eventChangedSubject', to_jsonb(email_subject(c.content->>'eventChangedSubject'))),
+            ('eventChangedText', email_text_spans(d.draft, 'eventChangedText', heads, c.content)),
+            ('eventCancelledSubject', to_jsonb(email_subject(c.content->>'eventCancelledSubject'))),
+            ('eventCancelledText', email_text_spans(d.draft, 'eventCancelledText', heads, c.content))
+          ) AS email(key, value)
+          WHERE email.value IS NOT NULL),
+        -- Only while recurring; nothing chosen is every 1 week. Through
+        -- numeric: a whole number stored as a float reads "2.0".
+        CASE WHEN coalesce((c.content->>'recurring')::boolean, false)
+          THEN coalesce((c.content->>'repeatEvery')::numeric::integer, 1)
+        END,
+        CASE WHEN coalesce((c.content->>'recurring')::boolean, false)
+          THEN coalesce(c.content->>'repeatUnit', 'week')
+        END,
+        -- Sorted like automerge_heads(), so the two can be compared.
+        ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
+      FROM documents d
+      CROSS JOIN LATERAL (SELECT automerge_to_jsonb(d.draft, heads) AS content OFFSET 0) c
+      WHERE d.id = document_id AND d.type = 'event'
+      ON CONFLICT (id) DO UPDATE SET
+        title = EXCLUDED.title,
+        summary = EXCLUDED.summary,
+        starts_at = EXCLUDED.starts_at,
+        ends_at = EXCLUDED.ends_at,
+        signup_deadline = EXCLUDED.signup_deadline,
+        time_zone = EXCLUDED.time_zone,
+        body = EXCLUDED.body,
+        cover = EXCLUDED.cover,
+        is_public = EXCLUDED.is_public,
+        allow_guests = EXCLUDED.allow_guests,
+        ask_dietary = EXCLUDED.ask_dietary,
+        food = EXCLUDED.food,
+        food_deadline = EXCLUDED.food_deadline,
+        questions = EXCLUDED.questions,
+        tags = EXCLUDED.tags,
+        send_reminders = EXCLUDED.send_reminders,
+        place = EXCLUDED.place,
+        max_attendees = EXCLUDED.max_attendees,
+        hide_places_left = EXCLUDED.hide_places_left,
+        is_streamed = EXCLUDED.is_streamed,
+        stream_link = EXCLUDED.stream_link,
+        sales_event = EXCLUDED.sales_event,
+        sales_event_type = EXCLUDED.sales_event_type,
+        email_texts = EXCLUDED.email_texts,
+        repeat_every = EXCLUDED.repeat_every,
+        repeat_unit = EXCLUDED.repeat_unit,
+        published_heads = EXCLUDED.published_heads,
+        published_by_issuer = EXCLUDED.published_by_issuer,
+        published_by_subject = EXCLUDED.published_by_subject
+      RETURNING e.*
+    $$`,
+  ),
 });

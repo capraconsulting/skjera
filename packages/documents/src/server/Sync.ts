@@ -191,6 +191,7 @@ export class Sync extends Context.Service<
           hide_places_left: boolean;
           is_streamed: boolean;
           stream_link: string | null;
+          sales_event: boolean;
           published_heads: Heads;
           published_at: Date;
           first_published_at: Date;
@@ -202,7 +203,7 @@ export class Sync extends Context.Service<
         SELECT e.id, e.title, e.summary, e.starts_at, e.ends_at, e.signup_deadline,
           e.time_zone, e.body, e.cover, e.is_public, e.allow_guests, e.ask_dietary, e.food,
           e.food_deadline, e.questions, e.tags, e.place, e.max_attendees,
-          e.hide_places_left, e.is_streamed, e.stream_link,
+          e.hide_places_left, e.is_streamed, e.stream_link, e.sales_event,
           e.published_heads, e.published_at,
           e.first_published_at,
           t.name AS team_name, t.logo AS team_logo, t.logo_dark AS team_logo_dark,
@@ -243,6 +244,7 @@ export class Sync extends Context.Service<
                   hidePlacesLeft: row.hide_places_left,
                   isStreamed: row.is_streamed,
                   streamLink: row.stream_link,
+                  isSalesEvent: row.sales_event,
                   publishedHeads: row.published_heads,
                   publishedAt: row.published_at,
                   firstPublishedAt: row.first_published_at,

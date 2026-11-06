@@ -267,6 +267,18 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
     team("EXT-06: HubSpot", [
       event("AC-1: Every page loads HubSpot's script", { ...guests, ...week }),
     ]),
+    team("EXT-07: HubSpot sales events", [
+      event("AC-1 to AC-9: Sales event", {
+        ...guests,
+        ...week,
+        salesEvent: true,
+      }),
+      event("AC-7: Not yet a sales event", {
+        ...guests,
+        ...week,
+        signups: [guest("EXT-07", 1), guest("EXT-07", 2)],
+      }),
+    ]),
 
     // ---- MAIL ---------------------------------------------------------------
     team("MAIL-01: Confirmation email when you sign up", [

@@ -16,6 +16,7 @@ import {
   setLimit,
   setPlace,
   setQuestions,
+  setSalesEvent,
   setStreamed,
   setSummary,
   setTimes,
@@ -173,6 +174,27 @@ layer(TestLayer, { excludeTestServices: true })("Event preview", (it) => {
         // Plain strings, as the site reads them.
         assert.strictEqual(typeof preview?.cover?.crop?.src, "string");
         assert.strictEqual(typeof preview?.cover?.crop?.from, "string");
+      }),
+  );
+
+  it.effect(
+    "gives a sales event as publishing does, and none unless open to guests (AC-1)",
+    () =>
+      Effect.gen(function* () {
+        const draftOf = (guests: boolean) => (event: EventContent) => {
+          A.updateText(event, ["title"], "Seminar");
+          setTimes(event);
+          setPlace(event);
+          (event as { public: boolean }).public = true;
+          (event as { guests: boolean }).guests = guests;
+          setSalesEvent(event, true, "Workshop");
+        };
+        const open = yield* publishedAndPreviewed(draftOf(true));
+        assert.isTrue(open.page.isSalesEvent);
+        assert.deepStrictEqual(open.preview, open.page);
+        const closed = yield* publishedAndPreviewed(draftOf(false));
+        assert.isFalse(closed.page.isSalesEvent);
+        assert.deepStrictEqual(closed.preview, closed.page);
       }),
   );
 

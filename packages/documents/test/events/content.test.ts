@@ -17,6 +17,7 @@ import {
   publishedAs,
   publishedEvent,
   setPlace,
+  setSalesEvent,
   setStreamed,
   setSummary,
   setTimes,
@@ -213,6 +214,60 @@ layer(TestLayer, { excludeTestServices: true })("Event content", (it) => {
       assert.isFalse(bare?.isStreamed);
       assert.isNull(bare?.streamLink);
     }),
+  );
+
+  it.effect(
+    "publishes a sales event only when it is public, open to guests and set (AC-1)",
+    () =>
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        const published = (settings: {
+          readonly public: boolean;
+          readonly guests: boolean;
+          readonly set?: boolean;
+          readonly type?: string;
+        }) =>
+          Effect.gen(function* () {
+            const id = yield* publishedEvent({
+              public: settings.public,
+              guests: settings.guests,
+              edit: (event) => {
+                if (settings.set !== undefined) {
+                  setSalesEvent(event, settings.set, settings.type);
+                }
+              },
+            });
+            const row = yield* publishedAs(id, "members");
+            const [stored] = yield* sql<{ sales_event_type: string | null }>`
+              SELECT sales_event_type FROM events WHERE id = ${id}
+            `;
+            return { row, type: stored?.sales_event_type };
+          });
+        const sales = yield* published({
+          public: true,
+          guests: true,
+          set: true,
+          type: "  Workshop ",
+        });
+        assert.isTrue(sales.row?.isSalesEvent);
+        assert.strictEqual(sales.type, "Workshop");
+        for (const settings of [
+          { public: true, guests: true, set: false },
+          { public: true, guests: true },
+          { public: true, guests: false, set: true },
+          { public: false, guests: true, set: true },
+        ]) {
+          const { row } = yield* published(settings);
+          assert.isFalse(row?.isSalesEvent, JSON.stringify(settings));
+        }
+        const blank = yield* published({
+          public: true,
+          guests: true,
+          set: true,
+          type: "   ",
+        });
+        assert.isNull(blank.type);
+      }),
   );
 
   it.effect(

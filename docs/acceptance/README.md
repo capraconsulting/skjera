@@ -108,6 +108,7 @@ These files say what to test and how. Which criteria have passed in a round of t
 | EXT-04 | [The public events API](EXT-04-public-events-api.md) |
 | EXT-05 | [Slack](EXT-05-slack.md) |
 | EXT-06 | [HubSpot](EXT-06-hubspot.md) |
+| EXT-07 | [HubSpot sales events](EXT-07-hubspot-sales-events.md) |
 
 ## OPS: Operations
 

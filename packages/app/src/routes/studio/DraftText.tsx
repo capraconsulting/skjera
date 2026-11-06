@@ -10,6 +10,7 @@ export const textPaths = {
   summary: ["summary"],
   place: ["place"],
   streamLink: ["streamLink"],
+  salesEventType: ["salesEventType"],
   signedUpSubject: ["signedUpSubject"],
   signedUpText: ["signedUpText"],
   signupCancelledSubject: ["signupCancelledSubject"],

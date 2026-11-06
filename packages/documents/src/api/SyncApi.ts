@@ -97,6 +97,11 @@ export const EventRow = Schema.Struct({
   isStreamed: Schema.Boolean,
   /** Where it is streamed; null: no link (yet), and always while not streamed. */
   streamLink: Schema.NullOr(Schema.String),
+  /**
+   * Sent to HubSpot as a Marketing Event, with its sign-ups: its guest form
+   * asks for a job title and is kept out of HubSpot's collected forms.
+   */
+  isSalesEvent: Schema.Boolean,
   /** The version of the draft that was published. */
   publishedHeads: Heads,
   publishedAt: Schema.Date,

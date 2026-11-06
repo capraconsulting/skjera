@@ -108,6 +108,13 @@ export const EventContent = Schema.Struct({
   /** Where it is streamed, as written; published only while streamed. */
   streamLink: Schema.optionalKey(Schema.String),
   /**
+   * Sent to HubSpot as a Marketing Event, with its sign-ups. Only for a
+   * public event open to guests. Missing: no.
+   */
+  salesEvent: Schema.optionalKey(Schema.Boolean),
+  /** The Marketing Event's type, as written. Missing or blank: «Frokostseminar». */
+  salesEventType: Schema.optionalKey(Schema.String),
+  /**
    * The emails' own subject and text, per email: written for every recipient
    * as is. Missing or blank: the standard, in each recipient's language.
    * Texts are rich text, as the body.

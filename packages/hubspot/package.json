@@ -1,0 +1,24 @@
+{
+  "name": "@skjera/hubspot",
+  "version": "0.0.0",
+  "private": true,
+  "description": "HubSpot's Marketing Events and Contacts APIs as an Effect service, with typed errors and a test double.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

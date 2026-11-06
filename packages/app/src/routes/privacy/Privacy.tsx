@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { Button } from "../../components/Button.tsx";
 import { currentSite } from "../../i18n.ts";
 import { usePageTitle } from "../../pageTitle.ts";
-import { showCookieSettings } from "../../site/hubSpot.ts";
+import { sharesWithHubSpot, showCookieSettings } from "../../site/hubSpot.ts";
 import styles from "./Privacy.module.css";
 
 /**
@@ -32,7 +32,8 @@ const rightsPage =
  * the "last updated" date is changed with the text.
  */
 export function Privacy() {
-  const { name, privacy, hubSpot } = currentSite();
+  const site = currentSite();
+  const { name, privacy, hubSpot } = site;
   usePageTitle({ page: "privacy", heading: m.privacy_title() });
   const withHubSpot = hubSpot !== undefined;
   return (
@@ -150,7 +151,15 @@ export function Privacy() {
           <li>{m.privacy_shared_email()}</li>
           <li>{m.privacy_shared_storage()}</li>
           <li>{m.privacy_shared_login()}</li>
-          {withHubSpot ? <li>{m.privacy_shared_hubspot()}</li> : null}
+          {sharesWithHubSpot(site) ? (
+            <li>
+              {withHubSpot
+                ? site.salesEvents === true
+                  ? m.privacy_shared_hubspot_and_sales()
+                  : m.privacy_shared_hubspot()
+                : m.privacy_shared_hubspot_sales()}
+            </li>
+          ) : null}
           <li>{m.privacy_shared_authorities()}</li>
         </ul>
         <p>{m.privacy_sharing_agreements()}</p>

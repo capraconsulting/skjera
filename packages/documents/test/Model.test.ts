@@ -46,6 +46,17 @@ describe("GuestDetails", () => {
   });
 });
 
+describe("GuestDetails job title", () => {
+  it("takes a job title of at most 100 characters, and an empty one (AC-8)", () => {
+    for (const jobTitle of ["", "CTO", "A".repeat(100)]) {
+      assert.isTrue(Option.isSome(decode({ ...gina, jobTitle })), jobTitle);
+    }
+    assert.isTrue(
+      Option.isNone(decode({ ...gina, jobTitle: "A".repeat(101) })),
+    );
+  });
+});
+
 describe("Question", () => {
   const decodeQuestion = Schema.decodeUnknownOption(Question);
   const swim = {

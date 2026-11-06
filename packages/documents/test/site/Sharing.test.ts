@@ -13,6 +13,7 @@ import { Images } from "../../src/events/Images.ts";
 import type { Cover, DocumentId } from "../../src/Model.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
 import { Notifications } from "../../src/notices/Notifications.ts";
+import { SalesEvents } from "../../src/notices/SalesEvents.ts";
 import * as Sharing from "../../src/site/Sharing.ts";
 import { Teams } from "../../src/Teams.ts";
 import { TestDatabase } from "../TestDatabase.ts";
@@ -25,6 +26,7 @@ const alice = new Identity({ issuer: "https://idp.example", subject: "alice" });
 
 const TestLayer = Layer.mergeAll(Teams.layer, Documents.layer).pipe(
   Layer.provideMerge(Announcements.layerTest),
+  Layer.provideMerge(SalesEvents.layerTest),
   Layer.provideMerge(Notifications.layerTest),
   Layer.provideMerge(TestDatabase),
 );

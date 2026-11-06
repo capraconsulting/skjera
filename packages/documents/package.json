@@ -16,6 +16,7 @@
     "@automerge/prosemirror": "catalog:",
     "@effect/sql-pg": "catalog:",
     "@skjera/email": "workspace:*",
+    "@skjera/hubspot": "workspace:*",
     "@skjera/i18n": "workspace:*",
     "@skjera/oauth": "workspace:*",
     "@skjera/slack": "workspace:*",

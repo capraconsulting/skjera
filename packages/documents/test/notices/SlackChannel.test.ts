@@ -13,6 +13,7 @@ import type { DocumentId } from "../../src/Model.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
 import { formatAt } from "../../src/notices/emails/format.ts";
 import { Notifications } from "../../src/notices/Notifications.ts";
+import { SalesEvents } from "../../src/notices/SalesEvents.ts";
 import * as SlackChannel from "../../src/notices/SlackChannel.ts";
 import { Teams } from "../../src/Teams.ts";
 import { TestDatabase } from "../TestDatabase.ts";
@@ -390,6 +391,7 @@ const channelLayer = (workspace: Workspace, log?: Array<string>) =>
     ).pipe(
       Layer.provideMerge(SlackChannel.layerAnnouncements),
       Layer.provideMerge(Notifications.layerTest),
+      Layer.provideMerge(SalesEvents.layerTest),
       Layer.provideMerge(workspace.layer),
       Layer.provideMerge(cluster),
       Layer.provideMerge(TestDatabase),
@@ -645,6 +647,7 @@ const unconfiguredLayer = (env: Record<string, string>, log: Array<string>) =>
     ).pipe(
       Layer.provideMerge(SlackChannel.layerAnnouncements),
       Layer.provideMerge(Notifications.layerTest),
+      Layer.provideMerge(SalesEvents.layerTest),
       Layer.provideMerge(cluster),
       Layer.provideMerge(TestDatabase),
       Layer.provideMerge(keeping(log)),

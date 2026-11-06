@@ -205,6 +205,11 @@ export const Site = Schema.Struct({
   hubSpot: Schema.optionalKey(Schema.String),
   /** Emails are sent; absent, as before `/api/site` answers, reads as sent. */
   sendsEmail: Schema.optionalKey(Schema.Boolean),
+  /**
+   * Sales events are sent to HubSpot: `HUBSPOT_ACCESS_TOKEN` and `SITE_URL`
+   * are set. Absent: not sent, and the studio offers no such setting.
+   */
+  salesEvents: Schema.optionalKey(Schema.Boolean),
 });
 export type Site = typeof Site.Type;
 
@@ -340,6 +345,8 @@ export const GuestCompany = Schema.String.check(Schema.isMaxLength(100));
 /** An address forms take: something@something.something, at most 254 characters, once trimmed. */
 export const isEmailAddress = (email: string): boolean =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) && email.trim().length <= 254;
+/** A guest's job title on a sales event's form. */
+export const GuestJobTitle = Schema.String.check(Schema.isMaxLength(100));
 export const GuestDetails = Schema.Struct({
   name: Schema.String.check(
     Schema.makeFilter(
@@ -355,6 +362,7 @@ export const GuestDetails = Schema.Struct({
   ),
   phone: Schema.optionalKey(GuestPhone),
   company: Schema.optionalKey(GuestCompany),
+  jobTitle: Schema.optionalKey(GuestJobTitle),
 });
 export type GuestDetails = typeof GuestDetails.Type;
 

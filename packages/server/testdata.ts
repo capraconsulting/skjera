@@ -9,6 +9,7 @@ import {
   Documents,
   Images,
   Notifications,
+  SalesEvents,
   Teams,
 } from "@skjera/documents";
 import { Identity } from "@skjera/oauth/api";
@@ -91,6 +92,7 @@ export const layerOn = <E>(database: Layer.Layer<SqlClient.SqlClient, E>) =>
     Images.Images.layer,
   ).pipe(
     Layer.provideMerge(Announcements.layerTest),
+    Layer.provideMerge(SalesEvents.layerTest),
     Layer.provideMerge(Notifications.layerTest),
     Layer.provideMerge(database),
   );

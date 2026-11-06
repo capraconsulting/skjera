@@ -9,7 +9,12 @@ import { Option, Schema } from "effect";
 import type { Signup, SignupChange } from "../sync/tables.ts";
 
 /** A guest's inputs, by the `name` they carry (the names HubSpot reads). */
-export type GuestField = "firstname" | "email" | "telephone" | "company";
+export type GuestField =
+  | "firstname"
+  | "email"
+  | "telephone"
+  | "company"
+  | "jobtitle";
 
 /**
  * The option a choice question starts on: the one answered before, if it is
@@ -85,9 +90,25 @@ const onlineFrom = (event: Pick<ShownEvent, "isStreamed">, form: FormData) =>
 /** A text field of the form as written; empty when it is not there. */
 const textOf = (form: FormData, name: string) => String(form.get(name) ?? "");
 
+/**
+ * What a guest's form carries for the event: whether it asks for a job
+ * title, and its attributes. A sales event's form is kept out of the forms
+ * HubSpot's script collects, as the sign-up is sent to HubSpot with the event.
+ */
+export const salesEventForm = (event: Pick<ShownEvent, "isSalesEvent">) =>
+  event.isSalesEvent
+    ? {
+        askJobTitle: true,
+        formAttributes: { "data-hs-do-not-collect": "true" } as Record<
+          string,
+          string
+        >,
+      }
+    : { askJobTitle: false, formAttributes: {} as Record<string, string> };
+
 /** What a sign-up form sends, each field read once. */
 export const signupFrom = (
-  event: Pick<ShownEvent, "questions" | "isStreamed">,
+  event: Pick<ShownEvent, "questions" | "isStreamed" | "isSalesEvent">,
   form: FormData,
   asGuest: boolean,
   locale: Locale,
@@ -107,6 +128,9 @@ export const signupFrom = (
             email: textOf(form, "email"),
             phone: textOf(form, "telephone"),
             company: textOf(form, "company"),
+            ...(salesEventForm(event).askJobTitle
+              ? { jobTitle: textOf(form, "jobtitle") }
+              : {}),
           },
           honeypot: textOf(form, "subject"),
         }
