@@ -214,7 +214,7 @@ test("the site follows publishing without reloading", async ({ browser }) => {
   await cleanUp(alice, team, event.id);
 });
 
-test("sign-up closes at the deadline, in the event's time zone (AC-2)", async ({
+test("sign-up closes at the deadline or event start, in its time zone (AC-1, AC-2)", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -250,7 +250,18 @@ test("sign-up closes at the deadline, in the event's time zone (AC-2)", async ({
   await attendance.expectNoButtons();
   await new CancelByEmail(reader).expectAbsent();
 
-  await cleanUp(alice, team, event.id);
+  const started = await editor.createPublished({
+    public: true,
+    guests: true,
+    maxAttendees: 2,
+  });
+  await editor.times.pickPastStart();
+  await editor.publish();
+  await page.goto(started.id);
+  await attendance.expectText("Sign-up has closed.");
+  await page.expectNowhere(/places? left/);
+
+  await cleanUp(alice, team, event.id, started.id);
 });
 
 test("the account menu leads to settings, and logs out", async ({

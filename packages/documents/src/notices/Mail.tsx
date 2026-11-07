@@ -13,6 +13,7 @@ import { Rpc } from "effect/rpc";
 import { SqlClient } from "effect/sql";
 import type { ReactElement } from "react";
 import { Attendance } from "../attendance/Attendance.ts";
+import { signupClosesAt } from "../events/ContentTypes.ts";
 import { type RichText, SiteLocale } from "../Model.ts";
 import { invitation, parseAddress } from "../site/Calendar.ts";
 import { CancelRequested } from "./emails/CancelRequested.tsx";
@@ -359,7 +360,10 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                         {...guestLink}
                         closes={formatAt(
                           locale,
-                          event.signup_deadline ?? event.starts_at,
+                          signupClosesAt(
+                            event.signup_deadline,
+                            event.starts_at,
+                          ),
                           event.time_zone,
                         )}
                         food={event.ask_dietary}

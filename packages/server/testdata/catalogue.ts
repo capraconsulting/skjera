@@ -490,7 +490,7 @@ export const catalogue = (moment: Time): ReadonlyArray<TeamSpec> => {
         maxAttendees: 2,
         signups: [bob(), guest("SIGN-06", 4)],
       }),
-      event("AC-10: The number of places left goes at the sign-up deadline", {
+      event("AC-10: The number of places left goes when sign-up closes", {
         ...guests,
         ...week,
         maxAttendees: 2,
