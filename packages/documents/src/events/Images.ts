@@ -1,4 +1,3 @@
-import { Authenticator } from "@skjera/oauth";
 import { AwsClient } from "aws4fetch";
 import {
   Config,
@@ -10,15 +9,8 @@ import {
   Redacted,
   Stream,
 } from "effect";
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import { InvalidImage } from "../api/errors.ts";
-import {
-  type ImagePage,
-  type ImageType,
-  imagePageSize,
-  imagesPath,
-  maxImageBytes,
-} from "../api/ImagesApi.ts";
+import { type ImageType, imagesPath, maxImageBytes } from "../api/ImagesApi.ts";
 import { refused } from "../api/Problems.ts";
 
 // Uploaded images, in an S3-compatible bucket. The bucket stays private:
@@ -46,7 +38,6 @@ export interface ImageSize {
   readonly width: number;
   readonly height: number;
 }
-
 const asciiAt = (view: DataView, from: number, to: number) => {
   let text = "";
   for (let at = from; at < to; at++)
@@ -507,115 +498,3 @@ export class Images extends Context.Service<
     }),
   );
 }
-
-const failure = (status: number, message: string) =>
-  HttpServerResponse.jsonUnsafe({ message }, { status });
-
-/**
- * Uploading images and listing them, for signed-in users, and serving them,
- * to anyone with the link.
- */
-export const layerHttp = Layer.unwrap(
-  Effect.gen(function* () {
-    const images = yield* Images;
-    const authenticator = yield* Authenticator;
-
-    const upload = Effect.gen(function* () {
-      const request = yield* HttpServerRequest.HttpServerRequest;
-      if (request.headers.origin !== authenticator.origin) {
-        return HttpServerResponse.empty({ status: 403 });
-      }
-      const user = yield* authenticator.fromCookieHeader(
-        request.headers.cookie,
-      );
-      if (Option.isNone(user)) {
-        return failure(401, "Log in to upload images");
-      }
-      // Refused before reading any of it.
-      const length = Number(request.headers["content-length"]);
-      if (!Number.isFinite(length)) {
-        return failure(411, "The upload needs a Content-Length");
-      }
-      if (length > maxImageBytes) {
-        return failure(
-          413,
-          `Images can be at most ${maxImageBytes / 1024 / 1024} MB`,
-        );
-      }
-      const bytes = yield* request.arrayBuffer.pipe(Effect.orDie);
-      return yield* images.upload(new Uint8Array(bytes)).pipe(
-        Effect.match({
-          onFailure: (error) => failure(400, error.message),
-          onSuccess: (image) =>
-            HttpServerResponse.jsonUnsafe(image, { status: 201 }),
-        }),
-      );
-    });
-
-    const serve = Effect.gen(function* () {
-      const { id } = yield* HttpRouter.params;
-      const image = yield* images.get(id ?? "");
-      if (Option.isNone(image))
-        return HttpServerResponse.empty({ status: 404 });
-      const { body, contentType, size } = image.value;
-      return HttpServerResponse.stream(
-        Stream.fromReadableStream({
-          evaluate: () => body,
-          onError: (cause) => cause,
-        }),
-        {
-          contentType,
-          ...(size === null ? {} : { contentLength: size }),
-          headers: {
-            // An id is only ever used for one image.
-            "Cache-Control": "public, max-age=31536000, immutable",
-            "X-Content-Type-Options": "nosniff",
-            "Content-Security-Policy": "default-src 'none'",
-          },
-        },
-      );
-    });
-
-    // A page of the images, newest first. It changes nothing, so it needs the
-    // session only: no `Origin`, which a same-origin GET often leaves out.
-    const list = Effect.gen(function* () {
-      const request = yield* HttpServerRequest.HttpServerRequest;
-      const user = yield* authenticator.fromCookieHeader(
-        request.headers.cookie,
-      );
-      if (Option.isNone(user)) {
-        return failure(401, "Log in to see the images");
-      }
-      const after =
-        new URL(request.url, "http://localhost").searchParams.get("after") ??
-        undefined;
-      return yield* images.list().pipe(
-        Effect.match({
-          onFailure: () => failure(500, "Couldn't list the images"),
-          onSuccess: (all) => {
-            const page = pageOf(all, after, imagePageSize);
-            if (page === undefined) {
-              return failure(400, "That is not a place in the list");
-            }
-            const body: ImagePage = {
-              images: page.images.map((image) => ({
-                url: `${imagesPath}/${image.id}`,
-                uploadedAt: image.uploadedAt.toISOString(),
-              })),
-              next: page.next,
-            };
-            return HttpServerResponse.jsonUnsafe(body, {
-              headers: { "Cache-Control": "no-store" },
-            });
-          },
-        }),
-      );
-    });
-
-    return Layer.mergeAll(
-      HttpRouter.add("GET", imagesPath, list),
-      HttpRouter.add("POST", imagesPath, upload),
-      HttpRouter.add("GET", `${imagesPath}/:id`, serve),
-    );
-  }),
-);

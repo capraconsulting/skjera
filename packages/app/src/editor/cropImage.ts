@@ -1,5 +1,6 @@
 import { imageTypeCatalogue, maxImageBytes } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
+import { runRequest } from "../site/client.ts";
 import { type Frame, frameInPixels } from "./cropFrame.ts";
 
 /** The longest side a cut part is given, in pixels. */
@@ -30,11 +31,13 @@ export const cropOutputType = (type: string): "image/png" | "image/jpeg" =>
  * on white. The picture itself is never changed.
  */
 export const cropImage = async (src: string, frame: Frame): Promise<File> => {
-  const response = await fetch(src).catch(() => {
-    throw new Error(m.editor_upload_offline());
+  const id = src.split("/").at(-1) ?? "";
+  const response = await runRequest((client) =>
+    client.publicImages.serve({ params: { id } }),
+  );
+  const picture = new Blob([response.body.slice().buffer as ArrayBuffer], {
+    type: response.headers["content-type"],
   });
-  if (!response.ok) throw new Error(m.editor_upload_failed());
-  const picture = await response.blob();
   // Drawn upright, as the page shows it.
   const bitmap = await createImageBitmap(picture).catch(() => {
     throw new Error(m.editor_upload_failed());

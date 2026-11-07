@@ -49,7 +49,7 @@ layer(TestLayer, { excludeTestServices: true })("Teams", (it) => {
     }),
   );
 
-  it.effect("creates and deletes teams", () =>
+  it.effect("creates and deletes teams with a structured refusal (AC-3)", () =>
     Effect.gen(function* () {
       const teams = yield* Teams;
       const documents = yield* Documents;
@@ -76,6 +76,12 @@ layer(TestLayer, { excludeTestServices: true })("Teams", (it) => {
       assert.strictEqual((yield* teams.get(team.id)).documentCount, 1);
       const notEmpty = yield* Effect.flip(teams.delete(team.id));
       assert.strictEqual(notEmpty._tag, "TeamNotEmpty");
+      if (notEmpty._tag !== "TeamNotEmpty") throw notEmpty;
+      assert.deepStrictEqual(notEmpty.problem, { _tag: "TeamNotEmpty" });
+      assert.strictEqual(
+        notEmpty.message,
+        "Only teams without events can be deleted.",
+      );
       // Deleted, it's kept, but doesn't count: the team goes, and it too.
       yield* documents.delete(event, alice);
       assert.strictEqual((yield* teams.get(team.id)).documentCount, 0);

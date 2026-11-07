@@ -1,11 +1,10 @@
 import {
   type ImagePage,
-  imagesPath,
   imageTypes,
   maxImageBytes,
 } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
-import { sayWhy } from "../problems.ts";
+import { runRequest } from "../site/client.ts";
 
 /** What the file picker offers. */
 export const acceptedImages = imageTypes.join(",");
@@ -21,20 +20,13 @@ export const uploadImage = async (file: File): Promise<string> => {
   if (file.size > maxImageBytes) {
     throw new Error(m.editor_image_size({ mb: maxImageBytes / 1024 / 1024 }));
   }
-  const response = await fetch(imagesPath, {
-    method: "POST",
-    body: file,
-    headers: { "Content-Type": file.type },
-  }).catch(() => {
-    throw new Error(m.editor_upload_offline());
-  });
-  const body = (await response.json().catch(() => ({}))) as {
-    readonly url?: string;
-  };
-  if (!response.ok || body.url === undefined) {
-    throw new Error(sayWhy(body, m.editor_upload_failed()));
-  }
-  return body.url;
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const uploaded = await runRequest((client) =>
+    client.images.upload({
+      payload: bytes,
+    }),
+  );
+  return uploaded.url;
 };
 
 /**
@@ -43,18 +35,11 @@ export const uploadImage = async (file: File): Promise<string> => {
  * it can't be had.
  */
 export const listImages = async (after?: string): Promise<ImagePage> => {
-  const response = await fetch(
-    after === undefined
-      ? imagesPath
-      : `${imagesPath}?after=${encodeURIComponent(after)}`,
-  ).catch(() => {
-    throw new Error(m.editor_existing_failed());
-  });
-  const body = (await response.json().catch(() => ({}))) as Partial<ImagePage>;
-  if (!response.ok || body.images === undefined || body.next === undefined) {
-    throw new Error(sayWhy(body, m.editor_existing_failed()));
-  }
-  return { images: body.images, next: body.next };
+  return runRequest((client) =>
+    client.images.list({
+      query: after === undefined ? {} : { after },
+    }),
+  );
 };
 
 /** The images among pasted or dropped files. */

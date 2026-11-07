@@ -1,14 +1,9 @@
 import { assert, describe, layer, it as plain } from "@effect/vitest";
-import { Authenticator } from "@skjera/oauth";
-import { Identity } from "@skjera/oauth/api";
-import { type Context, Effect, Layer, Logger, Option, Stream } from "effect";
-import { HttpRouter } from "effect/http";
-import { type ImagePage, maxImageBytes } from "../../src/api/ImagesApi.ts";
+import { Effect, Logger, Option, Stream } from "effect";
+import { maxImageBytes } from "../../src/api/ImagesApi.ts";
 import {
-  ImageListFailed,
   Images,
   imageSize,
-  layerHttp,
   listedObjects,
   pageOf,
   readImageSize,
@@ -30,42 +25,6 @@ const read = (body: ReadableStream<Uint8Array>) =>
     Stream.runCollect,
     Effect.map((chunks) => Buffer.concat([...chunks])),
   );
-
-const alice = new Identity({ issuer: "https://idp.example", subject: "alice" });
-const signedIn = "session=alice";
-const authenticator = Authenticator.of({
-  fromCookies: () => Effect.succeedNone,
-  fromCookieHeader: (header) =>
-    Effect.succeed(header === signedIn ? Option.some(alice) : Option.none()),
-  origin: "http://localhost:5173",
-});
-
-/** Asks `layerHttp`, over `store`, for `path`, with the cookie header `cookie`. */
-const withRoutes = <A, E, R>(
-  store: Context.Service.Shape<typeof Images>,
-  use: (
-    get: (path: string, cookie?: string) => Effect.Effect<Response>,
-  ) => Effect.Effect<A, E, R>,
-) =>
-  Effect.gen(function* () {
-    const { handler, dispose } = HttpRouter.toWebHandler(
-      layerHttp.pipe(
-        Layer.provide(Layer.succeed(Images, store)),
-        Layer.provide(Layer.succeed(Authenticator, authenticator)),
-      ),
-      { disableLogger: true },
-    );
-    yield* Effect.addFinalizer(() => Effect.promise(dispose));
-    return yield* use((path, cookie) =>
-      Effect.promise(() =>
-        handler(
-          new Request(`http://localhost${path}`, {
-            headers: cookie === undefined ? {} : { cookie },
-          }),
-        ),
-      ),
-    );
-  }).pipe(Effect.scoped);
 
 // Real clock: these tests talk to the object storage from compose.yml.
 layer(Images.layer, { excludeTestServices: true })("Images", (it) => {
@@ -152,103 +111,6 @@ layer(Images.layer, { excludeTestServices: true })("Images", (it) => {
       assert.isBelow(
         Math.abs(Date.now() - listed.uploadedAt.getTime()),
         60_000,
-      );
-    }),
-  );
-
-  it.effect(
-    "gives a signed-in user the images newest first, page by page (AC-2)",
-    () =>
-      Effect.gen(function* () {
-        const images = yield* Images;
-        const older = yield* images.upload(png);
-        // The bucket dates an object to the second.
-        yield* Effect.sleep("1100 millis");
-        const newer = yield* images.upload(png);
-        yield* withRoutes(images, (get) =>
-          Effect.gen(function* () {
-            const urls: Array<string> = [];
-            let after: string | null = null;
-            do {
-              const response: Response = yield* get(
-                after === null
-                  ? "/api/images"
-                  : `/api/images?after=${encodeURIComponent(after)}`,
-                signedIn,
-              );
-              assert.strictEqual(response.status, 200);
-              const page = (yield* Effect.promise(() =>
-                response.json(),
-              )) as ImagePage;
-              for (const image of page.images) {
-                assert.isTrue(Number.isFinite(Date.parse(image.uploadedAt)));
-                urls.push(image.url);
-              }
-              after = page.next;
-            } while (
-              after !== null &&
-              !(urls.includes(older.url) && urls.includes(newer.url))
-            );
-            assert.isTrue(urls.includes(newer.url));
-            assert.isTrue(urls.includes(older.url));
-            assert.isBelow(urls.indexOf(newer.url), urls.indexOf(older.url));
-          }),
-        );
-      }),
-  );
-
-  it.effect("refuses the list to someone who is not signed in (AC-6)", () =>
-    Effect.gen(function* () {
-      const images = yield* Images;
-      yield* withRoutes(images, (get) =>
-        Effect.gen(function* () {
-          for (const cookie of [undefined, "session=someone-else"]) {
-            const response = yield* get("/api/images", cookie);
-            assert.strictEqual(response.status, 401);
-            const body = (yield* Effect.promise(() => response.json())) as {
-              message?: unknown;
-              images?: unknown;
-            };
-            assert.isString(body.message);
-            assert.isUndefined(body.images);
-          }
-        }),
-      );
-    }),
-  );
-
-  it.effect("answers 400 to a cursor it cannot read (AC-3)", () =>
-    Effect.gen(function* () {
-      const images = yield* Images;
-      yield* withRoutes(images, (get) =>
-        Effect.gen(function* () {
-          const response = yield* get("/api/images?after=nonsense", signedIn);
-          assert.strictEqual(response.status, 400);
-          const body = (yield* Effect.promise(() => response.json())) as {
-            message?: unknown;
-          };
-          assert.isString(body.message);
-        }),
-      );
-    }),
-  );
-
-  it.effect("answers 500 with a message when the listing fails (AC-2)", () =>
-    Effect.gen(function* () {
-      const images = yield* Images;
-      const failing = {
-        ...images,
-        list: () => Effect.fail(new ImageListFailed()),
-      };
-      yield* withRoutes(failing, (get) =>
-        Effect.gen(function* () {
-          const response = yield* get("/api/images", signedIn);
-          assert.strictEqual(response.status, 500);
-          const body = (yield* Effect.promise(() => response.json())) as {
-            message?: unknown;
-          };
-          assert.isString(body.message);
-        }),
       );
     }),
   );

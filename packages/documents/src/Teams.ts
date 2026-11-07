@@ -166,7 +166,12 @@ export class Teams extends Context.Service<
           // foreign_key_violation for a NO ACTION reference).
           Effect.catchIf(SqlError.isSqlError, (error) =>
             pgCode(error) === "23001" || pgCode(error) === "23503"
-              ? Effect.fail(new TeamNotEmpty({ id }))
+              ? Effect.fail(
+                  new TeamNotEmpty({
+                    id,
+                    ...refused({ _tag: "TeamNotEmpty" }),
+                  }),
+                )
               : Effect.die(error),
           ),
         );

@@ -16,22 +16,16 @@ import {
   HttpServerResponse,
   HttpStaticServer,
 } from "effect/http";
-import {
-  HttpApi,
-  HttpApiBuilder,
-  HttpApiEndpoint,
-  HttpApiGroup,
-} from "effect/http-api";
+import { HttpApi, HttpApiBuilder, HttpApiSchema } from "effect/http-api";
 import { KeyValueStore } from "effect/persistence";
 import { Health } from "./health.ts";
 import { SignupLimits } from "./signupLimits.ts";
 
 class Api extends HttpApi.make("skjera")
-  .add(
-    HttpApiGroup.make("session")
-      .add(HttpApiEndpoint.get("me", "/api/me", { success: OAuth.Identity }))
-      .middleware(OAuth.Authentication),
-  )
+  .add(Documents.SessionApi)
+  .add(Documents.SiteApi)
+  .add(Documents.ImagesApi)
+  .add(Documents.PublicImagesApi)
   // Public: no middleware, published content only.
   .add(Documents.EventsApi)
   .add(Documents.AttendeesApi)
@@ -46,6 +40,92 @@ const ApiHandlers = HttpApiBuilder.group(Api, "session", (handlers) =>
       return yield* OAuth.CurrentUser;
     }),
   ),
+);
+
+const SiteHandlers = HttpApiBuilder.group(Api, "site", (handlers) =>
+  handlers.handle("settings", () =>
+    Effect.gen(function* () {
+      const config = yield* Documents.SiteSettings;
+      const sendsEmail = yield* Documents.Mail.emailsSent;
+      const salesEvents = yield* Documents.HubSpotSync.configured;
+      return Documents.Site.make({
+        ...config,
+        sendsEmail,
+        ...(salesEvents ? { salesEvents } : {}),
+      });
+    }).pipe(Effect.orDie),
+  ),
+);
+
+const ImagesHandlers = HttpApiBuilder.group(Api, "images", (handlers) =>
+  Effect.gen(function* () {
+    const images = yield* Documents.Images.Images;
+    return handlers
+      .handle("upload", ({ payload }) => images.upload(payload))
+      .handle("list", ({ query }) =>
+        images.list().pipe(
+          Effect.mapError(
+            () =>
+              new Documents.ImageListUnavailable({
+                message: "Couldn't list the images",
+              }),
+          ),
+          Effect.map((all) => {
+            const page = Documents.Images.pageOf(
+              all,
+              query.after,
+              Documents.imagePageSize,
+            );
+            if (page === undefined) {
+              return new Documents.InvalidImageCursor({
+                message: "That is not a place in the list",
+              });
+            }
+            return {
+              images: page.images.map((image) => ({
+                url: `${Documents.imagesPath}/${image.id}`,
+                uploadedAt: image.uploadedAt.toISOString(),
+              })),
+              next: page.next,
+            };
+          }),
+          Effect.flatMap((page) =>
+            page instanceof Documents.InvalidImageCursor
+              ? Effect.fail(page)
+              : Effect.succeed(page),
+          ),
+        ),
+      );
+  }),
+);
+
+const PublicImagesHandlers = HttpApiBuilder.group(
+  Api,
+  "publicImages",
+  (handlers) =>
+    Effect.gen(function* () {
+      const images = yield* Documents.Images.Images;
+      return handlers.handle("serve", ({ params }) =>
+        Effect.gen(function* () {
+          const found = yield* images.get(params.id);
+          if (Option.isNone(found)) return yield* new Documents.ImageNotFound();
+          const { body, contentType, size } = found.value;
+          const bytes = new Uint8Array(
+            yield* Effect.promise(() => new Response(body).arrayBuffer()),
+          );
+          return HttpApiSchema.withHeaders({
+            body: bytes,
+            headers: {
+              "content-type": contentType,
+              ...(size === null ? {} : { "content-length": String(size) }),
+              "cache-control": "public, max-age=31536000, immutable",
+              "x-content-type-options": "nosniff",
+              "content-security-policy": "default-src 'none'",
+            },
+          });
+        }),
+      );
+    }),
 );
 
 const EventsHandlers = HttpApiBuilder.group(Api, "events", (handlers) =>
@@ -378,30 +458,13 @@ const SiteAssets = Layer.unwrap(
   }),
 );
 
-/** The site's name, language, footer and privacy, and whether it sends email and sales events, for the app. */
-const site = Layer.unwrap(
-  Effect.gen(function* () {
-    const config = yield* Documents.SiteSettings;
-    const sendsEmail = yield* Documents.Mail.emailsSent;
-    const salesEvents = yield* Documents.HubSpotSync.configured;
-    return HttpRouter.add(
-      "GET",
-      "/api/site",
-      HttpServerResponse.json(
-        Documents.Site.make({
-          ...config,
-          sendsEmail,
-          ...(salesEvents ? { salesEvents } : {}),
-        }),
-      ),
-    );
-  }),
-);
-
 const Routes = Layer.mergeAll(
   HttpApiBuilder.layer(Api).pipe(
     Layer.provide([
       ApiHandlers,
+      SiteHandlers,
+      ImagesHandlers,
+      PublicImagesHandlers,
       EventsHandlers,
       AttendeesHandlers,
       SyncHandlers,
@@ -411,7 +474,6 @@ const Routes = Layer.mergeAll(
     ]),
   ),
   Documents.DraftSync.layerHttp({ path: Documents.draftSyncPath }),
-  Documents.Images.layerHttp,
   // The next events, for the websites to show in an iframe.
   Documents.Embed.layerHttp,
   // The coming events as JSON, in Skjer's format, for the websites.
@@ -421,7 +483,6 @@ const Routes = Layer.mergeAll(
   // What a phone is told when the site is added to its home screen.
   Documents.Manifest.layerHttp,
   Health,
-  site,
   SiteAssets,
   App,
 ).pipe(Layer.provideMerge(OAuth.routes.pipe(Layer.provide(LoginFailurePage))));

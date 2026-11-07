@@ -14,6 +14,27 @@ import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
 
 const imagePath = /^\/api\/images\/[A-Za-z0-9_-]{22}$/;
 
+test("an image upload waits for a server that is starting (AC-4)", async ({
+  browser,
+}) => {
+  const page = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(page).create(uniqueTeamName("Starting"));
+  const editor = new EventEditor(page);
+  const event = await editor.createPublished({ public: true });
+  let attempts = 0;
+  await page.route("/api/images", (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    attempts += 1;
+    return attempts === 1 ? route.fulfill({ status: 503 }) : route.continue();
+  });
+
+  await editor.cover.chooseFile();
+  await editor.cover.expect(imagePath);
+  expect(attempts).toBe(2);
+
+  await cleanUp(page, team, event.id);
+});
+
 test("images are uploaded into the body and shown on the site (AC-1, AC-7)", async ({
   browser,
 }) => {

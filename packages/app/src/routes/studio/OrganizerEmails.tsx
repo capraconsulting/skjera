@@ -4,20 +4,17 @@ import {
   organizerEmailMissingField,
   organizerEmailSubjectLength,
   organizerEmailTextLength,
-  Problem,
   type SentEmail,
 } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
-import { Option, Schema } from "effect";
 import { type FormEvent, useEffect, useId, useState } from "react";
 import { Button } from "../../components/Button.tsx";
 import { Dialog, dialogStyles } from "../../components/Dialog.tsx";
 import { Input } from "../../components/Input.tsx";
+import type { AppError } from "../../site/client.ts";
 import { emailAttendees, organizerEmails } from "../../sync/tables.ts";
 import { formatClockIn, formatDateIn, localTimeZone } from "../../time.ts";
 import styles from "./Attendees.module.css";
-
-const decodeProblem = Schema.decodeUnknownOption(Problem);
 
 /**
  * The button that writes to everyone signed up, and the form it opens: a
@@ -78,18 +75,12 @@ export function EmailAttendees(props: {
         setBusy(false);
         close();
       },
-      (failure: Error & { readonly problem?: unknown }) => {
-        const problem = decodeProblem(failure.problem);
-        if (
-          Option.isSome(problem) &&
-          problem.value._tag === "EmailSubjectMissing"
-        ) {
-          setRefusal({ field: "subject", message: describe(problem.value) });
-        } else if (
-          Option.isSome(problem) &&
-          problem.value._tag === "EmailTextMissing"
-        ) {
-          setRefusal({ field: "text", message: describe(problem.value) });
+      (failure: AppError) => {
+        const problem = failure.problem;
+        if (problem?._tag === "EmailSubjectMissing") {
+          setRefusal({ field: "subject", message: describe(problem) });
+        } else if (problem?._tag === "EmailTextMissing") {
+          setRefusal({ field: "text", message: describe(problem) });
         } else {
           setError(failure.message);
         }

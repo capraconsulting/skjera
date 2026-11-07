@@ -46,7 +46,9 @@ test("logging in from the site's header comes back to the page, filter and all (
   await header.expectStudioLink();
 });
 
-test("a page waits for a server that is starting", async ({ browser }) => {
+test("a page waits for a server that is starting and keeps the configured site (AC-1)", async ({
+  browser,
+}) => {
   const page = await signedIn(browser, "alice@example.com");
   const teams = new TeamsColumn(page);
   const name = uniqueTeamName("Starting");
@@ -64,7 +66,10 @@ test("a page waits for a server that is starting", async ({ browser }) => {
   await teams.goto();
   await new Header(page).expectSignedInAs("alice@example.com");
   await teams.expectTeam(name);
+  await expect(page).toHaveTitle("Skjera");
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
   expect(tries.get("/api/me")).toBeGreaterThan(2);
+  expect(tries.get("/api/site")).toBeGreaterThan(2);
   expect(
     [...tries].some(([path, n]) => path.startsWith("/api/sync/") && n > 2),
   ).toBe(true);

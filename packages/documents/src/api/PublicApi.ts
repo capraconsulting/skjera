@@ -1,4 +1,4 @@
-import { Authentication } from "@skjera/oauth/api";
+import { Authentication, Identity } from "@skjera/oauth/api";
 import { Schema } from "effect";
 import { HttpApi, HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
 import {
@@ -10,6 +10,7 @@ import {
   GuestPhone,
   GuestSignup,
   Locale,
+  Site,
 } from "../Model.ts";
 import {
   DocumentNotFound,
@@ -243,3 +244,11 @@ export class AttendeesApi extends HttpApiGroup.make("attendees")
 
 /** For clients of the public API; servers add `EventsApi` to their own `HttpApi`. */
 export class PublicApi extends HttpApi.make("public").add(EventsApi) {}
+
+export class SessionApi extends HttpApiGroup.make("session")
+  .add(HttpApiEndpoint.get("me", "/api/me", { success: Identity }))
+  .middleware(Authentication) {}
+
+export class SiteApi extends HttpApiGroup.make("site").add(
+  HttpApiEndpoint.get("settings", "/api/site", { success: Site }),
+) {}

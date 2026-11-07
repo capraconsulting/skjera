@@ -52,6 +52,7 @@ export const Problem = Schema.Union([
   // Teams.
   Schema.TaggedStruct("TeamNameLength", {}),
   Schema.TaggedStruct("TeamNameTaken", { name: Schema.String }),
+  Schema.TaggedStruct("TeamNotEmpty", {}),
   // Images.
   Schema.TaggedStruct("ImageTooBig", { maxMb: Schema.Number }),
   Schema.TaggedStruct("ImageFormat", {}),
@@ -161,6 +162,8 @@ export const describe = (problem: Problem, locale?: Locale): string => {
       return m.problem_team_name_length({}, options);
     case "TeamNameTaken":
       return m.problem_team_name_taken(problem, options);
+    case "TeamNotEmpty":
+      return m.studio_only_empty_teams({}, options);
     case "ImageTooBig":
       return m.editor_image_size({ mb: problem.maxMb }, options);
     case "ImageFormat":

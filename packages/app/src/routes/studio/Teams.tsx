@@ -6,11 +6,7 @@ import { type FormEvent, useState } from "react";
 import { NavLink, Outlet, useNavigate, useParams } from "react-router";
 import { Button } from "../../components/Button.tsx";
 import { Dialog, dialogStyles } from "../../components/Dialog.tsx";
-import {
-  Dropdown,
-  DropdownItem,
-  DropdownNote,
-} from "../../components/Dropdown.tsx";
+import { Dropdown, DropdownItem } from "../../components/Dropdown.tsx";
 import { Input } from "../../components/Input.tsx";
 import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
 import { documents, events, teams } from "../../sync/tables.ts";
@@ -254,7 +250,6 @@ function TeamRow(props: {
               </DropdownItem>
               <DropdownItem
                 danger
-                disabled={team.documentCount > 0}
                 onClick={() => {
                   close();
                   deleteTeam();
@@ -262,9 +257,6 @@ function TeamRow(props: {
               >
                 {m.studio_delete_team()}
               </DropdownItem>
-              {team.documentCount > 0 ? (
-                <DropdownNote>{m.studio_only_empty_teams()}</DropdownNote>
-              ) : null}
             </>
           )}
         </Dropdown>

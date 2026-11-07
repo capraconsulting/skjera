@@ -7,6 +7,7 @@ import {
   type Locale,
   setLocale,
 } from "@skjera/i18n/runtime";
+import { runRequest } from "./site/client.ts";
 
 // The interface's language: the one picked here (a cookie), else the site's
 // (SITE_LOCALE, from /api/site), else English. Picking one reloads the page
@@ -27,11 +28,8 @@ defineCustomClientStrategy("custom-site", {
 /** Loads the site's name and language: before the first render. */
 export const loadSite = async () => {
   try {
-    const response = await fetch("/api/site");
-    if (response.ok) {
-      const loaded = (await response.json()) as Site;
-      if (isLocale(loaded.locale)) site = loaded;
-    }
+    const loaded = await runRequest((client) => client.site.settings());
+    if (isLocale(loaded.locale)) site = loaded;
   } catch {
     // Offline or failing: English, and the name it was built with.
   }

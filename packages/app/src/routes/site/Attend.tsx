@@ -14,7 +14,7 @@ import { type FormEvent, type ReactNode, useState } from "react";
 import { Button } from "../../components/Button.tsx";
 import { currentSite } from "../../i18n.ts";
 import { adSourceFor } from "../../site/adSource.ts";
-import { loginUrl } from "../../site/client.ts";
+import { type AppError, loginUrl } from "../../site/client.ts";
 import {
   type GuestSignup,
   guestSignup,
@@ -123,7 +123,7 @@ export function Attend(props: {
     setMessages({});
     change.isPersisted.promise.then(
       () => setGuest(guestSignup(event.id)),
-      (failure: Error & { readonly problem?: unknown }) => {
+      (failure: AppError) => {
         onRefused?.();
         // A refusal about one of the guest's inputs shows by it.
         const field = fieldOf(failure.problem);

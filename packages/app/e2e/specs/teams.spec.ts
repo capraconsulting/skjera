@@ -30,7 +30,7 @@ test("a refused event deletion keeps the editor open and shows the failure (AC-1
   await teams.delete(team);
 });
 
-test("events are created in a team and listed under it", async ({
+test("events are created in a team and a refused team deletion shows the server reason (AC-3)", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");

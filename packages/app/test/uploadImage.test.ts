@@ -30,7 +30,9 @@ describe("uploadImage", () => {
 
   it("uploads an image of exactly 10 MB (STU-08 AC-3)", async () => {
     fetchSpy.mockResolvedValue(
-      new Response(JSON.stringify({ url: "/api/images/abc" }), { status: 201 }),
+      new Response(JSON.stringify({ id: "abc", url: "/api/images/abc" }), {
+        status: 201,
+      }),
     );
     await expect(uploadImage(pngOf(maxImageBytes))).resolves.toBe(
       "/api/images/abc",

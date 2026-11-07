@@ -4,18 +4,15 @@ import {
   type Invitation,
   invitationNameLength,
   isEmailAddress,
-  Problem,
 } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
-import { Option, Schema } from "effect";
 import { type FormEvent, useEffect, useId, useState } from "react";
 import { Button } from "../../components/Button.tsx";
 import { Input } from "../../components/Input.tsx";
+import type { AppError } from "../../site/client.ts";
 import { invitations, invite } from "../../sync/tables.ts";
 import styles from "./Attendees.module.css";
 import { invitationsHeading, invitedAs } from "./invitations.ts";
-
-const decodeProblem = Schema.decodeUnknownOption(Problem);
 
 /**
  * Who an organizer noted as invited to the event: a record only, nothing is
@@ -83,14 +80,13 @@ export function Invitations(props: { readonly id: DocumentId }) {
         setEmail("");
         setBusy(false);
       },
-      (failure: Error & { readonly problem?: unknown }) => {
-        const problem = decodeProblem(failure.problem);
+      (failure: AppError) => {
+        const problem = failure.problem;
         if (
-          Option.isSome(problem) &&
-          (problem.value._tag === "InvitedEmailInvalid" ||
-            problem.value._tag === "AlreadyInvited")
+          problem?._tag === "InvitedEmailInvalid" ||
+          problem?._tag === "AlreadyInvited"
         ) {
-          setRefusal(describe(problem.value));
+          setRefusal(describe(problem));
         } else {
           setError(failure.message);
         }

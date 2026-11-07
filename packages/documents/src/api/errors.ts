@@ -71,8 +71,26 @@ export class InvalidTeamName extends Schema.TaggedError<InvalidTeamName>()(
 /** Only teams without events can be deleted. */
 export class TeamNotEmpty extends Schema.TaggedError<TeamNotEmpty>()(
   "TeamNotEmpty",
-  { id: Schema.String },
+  { id: Schema.String, problem: Problem, message: Schema.String },
   { httpApiStatus: 409 },
+) {}
+
+export class ImageNotFound extends Schema.TaggedError<ImageNotFound>()(
+  "ImageNotFound",
+  {},
+  { httpApiStatus: 404 },
+) {}
+
+export class InvalidImageCursor extends Schema.TaggedError<InvalidImageCursor>()(
+  "InvalidImageCursor",
+  { message: Schema.String },
+  { httpApiStatus: 400 },
+) {}
+
+export class ImageListUnavailable extends Schema.TaggedError<ImageListUnavailable>()(
+  "ImageListUnavailable",
+  { message: Schema.String },
+  { httpApiStatus: 500 },
 ) {}
 
 /** Attending as a member needs a login. */

@@ -1,12 +1,11 @@
-import {
-  type AdSource,
-  type Answers,
-  type Locale,
+import type {
+  AdSource,
+  Answers,
+  Locale,
   Problem,
-  type Question,
-  type ShownEvent,
+  Question,
+  ShownEvent,
 } from "@skjera/documents/api";
-import { Option, Schema } from "effect";
 import type { Signup, SignupChange } from "../sync/tables.ts";
 
 /** A guest's inputs, by the `name` they carry (the names HubSpot reads). */
@@ -53,16 +52,14 @@ export const checkboxWords = (
     : { above: question.text, beside: label };
 };
 
-const decodeProblem = Schema.decodeUnknownOption(Problem);
-
 /**
  * The guest input a refusal belongs to; none for a problem that is not
  * about one, or for anything that is not a problem.
  */
 export const fieldOf = (problem: unknown): GuestField | undefined => {
-  const decoded = decodeProblem(problem);
-  if (Option.isNone(decoded)) return undefined;
-  switch (decoded.value._tag) {
+  if (typeof problem !== "object" || problem === null || !("_tag" in problem))
+    return undefined;
+  switch ((problem as Problem)._tag) {
     case "GuestNameTooShort":
       return signupFields.firstname;
     case "MemberEmail":

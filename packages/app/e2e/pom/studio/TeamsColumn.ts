@@ -91,12 +91,16 @@ export class TeamsColumn {
   }
 
   async expectDeleteRefused(): Promise<void> {
-    await expect(
-      this.page.getByRole("button", { name: "Delete team" }),
-    ).toBeDisabled();
+    const done = this.page.waitForResponse(
+      (response) =>
+        response.request().method() === "DELETE" &&
+        new URL(response.url()).pathname.startsWith("/api/teams/"),
+    );
+    await this.page.getByRole("button", { name: "Delete team" }).click();
+    await done;
     await expect(
       this.page
-        .locator(":popover-open")
+        .getByRole("alert")
         .getByText("Only teams without events can be deleted."),
     ).toBeVisible();
   }

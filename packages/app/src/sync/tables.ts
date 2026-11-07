@@ -1,24 +1,22 @@
-import {
-  type AttendeeRow,
-  AttendeesApi,
-  type DocumentId,
-  type DocumentRow,
-  DocumentsApi,
-  type EventRow,
-  PublicSyncApi,
-  SyncApi,
-  type TagRow,
-  type TeamId,
-  type TeamLogosChange,
-  type TeamRow,
-  TeamsApi,
+import type {
+  AttendeeRow,
+  DocumentId,
+  DocumentRow,
+  EventRow,
+  TagRow,
+  TeamId,
+  TeamLogosChange,
+  TeamRow,
 } from "@skjera/documents/api";
-import { m } from "@skjera/i18n/messages";
 import { syncedTable } from "@skjera/snapsync/client";
 import { Effect } from "effect";
-import { HttpApi, HttpApiClient } from "effect/http-api";
-import { sayWhy } from "../problems.ts";
-import { type PublicClient, provideHttp, runPublic } from "../site/client.ts";
+import {
+  type AppClient,
+  type PublicClient,
+  requestEffect,
+  runPublic,
+  runRequest,
+} from "../site/client.ts";
 import { guestSignup, rememberGuestSignup } from "../site/guestSignups.ts";
 import {
   attendPayload,
@@ -28,52 +26,18 @@ import {
 
 export type { Signup, SignupChange } from "./signupPayload.ts";
 
-class Api extends HttpApi.make("studio")
-  .add(SyncApi)
-  .add(PublicSyncApi)
-  .add(TeamsApi)
-  .add(DocumentsApi)
-  .add(AttendeesApi) {}
-
-const makeClient = HttpApiClient.make(Api, {
-  baseUrl: window.location.origin,
-});
-
-const request = <A, E>(
-  f: (client: Effect.Success<typeof makeClient>) => Effect.Effect<A, E>,
-) => Effect.runPromise(provideHttp(makeClient.pipe(Effect.flatMap(f))));
+const request = <A, E>(f: (client: AppClient) => Effect.Effect<A, E>) =>
+  runRequest(f);
 
 /** Runs a write over the studio's API, failing with a message for people. */
 const sendRequest = <E extends { readonly _tag: string }>(
-  f: (client: Effect.Success<typeof makeClient>) => Effect.Effect<unknown, E>,
-) =>
-  request((client) =>
-    f(client).pipe(
-      Effect.asVoid,
-      Effect.mapError((error) => new Error(failureMessage(error))),
-    ),
-  );
+  f: (client: AppClient) => Effect.Effect<unknown, E>,
+) => request((client) => f(client).pipe(Effect.asVoid));
 
 /** Runs a write over the site's API, failing with a message for people. */
 const sendPublic = <E extends { readonly _tag: string }>(
   f: (client: PublicClient) => Effect.Effect<unknown, E>,
-) =>
-  runPublic((client) =>
-    f(client).pipe(
-      Effect.asVoid,
-      // The refusal's problem goes along, for the form to tell which field.
-      Effect.mapError((error) =>
-        Object.assign(new Error(failureMessage(error)), {
-          problem: "problem" in error ? error.problem : undefined,
-        }),
-      ),
-    ),
-  );
-
-const failureMessage = (failure: { readonly _tag: string }) =>
-  failure._tag === "TeamNotEmpty"
-    ? m.studio_only_empty_teams()
-    : sayWhy(failure, m.common_something_wrong());
+) => runPublic((client) => f(client).pipe(Effect.asVoid));
 
 /** Tags published events have had: suggestions when tagging. */
 export const tags = syncedTable({
@@ -155,15 +119,11 @@ export const documents = syncedTable({
  * must have all of it. The published version arrives as a row of `events`.
  */
 export const publishDraft = (id: DocumentId, heads: ReadonlyArray<string>) =>
-  provideHttp(
-    makeClient.pipe(
-      Effect.flatMap((client) =>
-        client.documents.update({
-          params: { id },
-          payload: { published: true, heads: [...heads] },
-        }),
-      ),
-    ),
+  requestEffect((client) =>
+    client.documents.update({
+      params: { id },
+      payload: { published: true, heads: [...heads] },
+    }),
   );
 
 /**
@@ -171,25 +131,15 @@ export const publishDraft = (id: DocumentId, heads: ReadonlyArray<string>) =>
  * `events` leaves with it.
  */
 export const unpublishDocument = (id: DocumentId) =>
-  provideHttp(
-    makeClient.pipe(
-      Effect.flatMap((client) =>
-        client.documents.unpublish({ params: { id } }),
-      ),
-    ),
-  );
+  requestEffect((client) => client.documents.unpublish({ params: { id } }));
 
 /**
  * Makes a published event's draft the published version again. The event's
  * row of `events` follows the draft's new heads.
  */
 export const discardChanges = (id: DocumentId) =>
-  provideHttp(
-    makeClient.pipe(
-      Effect.flatMap((client) =>
-        client.documents.discardChanges({ params: { id } }),
-      ),
-    ),
+  requestEffect((client) =>
+    client.documents.discardChanges({ params: { id } }),
   );
 
 /**
@@ -197,24 +147,16 @@ export const discardChanges = (id: DocumentId) =>
  * publishing. The change reaches the editor through the sync.
  */
 export const restoreVersion = (id: DocumentId, heads: ReadonlyArray<string>) =>
-  provideHttp(
-    makeClient.pipe(
-      Effect.flatMap((client) =>
-        client.documents.restore({
-          params: { id },
-          payload: { heads: [...heads] },
-        }),
-      ),
-    ),
+  requestEffect((client) =>
+    client.documents.restore({
+      params: { id },
+      payload: { heads: [...heads] },
+    }),
   );
 
 /** An event's versions, newest first: who changed it, when, and what it was then. */
 export const eventHistory = (id: DocumentId) =>
-  request((client) =>
-    client.documents
-      .history({ params: { id } })
-      .pipe(Effect.mapError((error) => new Error(failureMessage(error)))),
-  );
+  request((client) => client.documents.history({ params: { id } }));
 
 /**
  * Makes a new, never-published event in the same team with the content of an
@@ -222,12 +164,8 @@ export const eventHistory = (id: DocumentId) =>
  * same id makes no second copy.
  */
 export const copyDocument = (id: DocumentId, copy: DocumentId) =>
-  provideHttp(
-    makeClient.pipe(
-      Effect.flatMap((client) =>
-        client.documents.copy({ params: { id }, payload: { id: copy } }),
-      ),
-    ),
+  requestEffect((client) =>
+    client.documents.copy({ params: { id }, payload: { id: copy } }),
   );
 
 /**
@@ -236,12 +174,8 @@ export const copyDocument = (id: DocumentId, copy: DocumentId) =>
  * shows the event in the other team and back.
  */
 export const moveDocument = (id: DocumentId, teamId: TeamId) =>
-  provideHttp(
-    makeClient.pipe(
-      Effect.flatMap((client) =>
-        client.documents.move({ params: { id }, payload: { teamId } }),
-      ),
-    ),
+  requestEffect((client) =>
+    client.documents.move({ params: { id }, payload: { teamId } }),
   );
 
 /**
@@ -249,19 +183,11 @@ export const moveDocument = (id: DocumentId, teamId: TeamId) =>
  * with nothing that says who gave them.
  */
 export const dietaryPreferences = (id: DocumentId) =>
-  request((client) =>
-    client.attendees
-      .dietaryPreferences({ params: { id } })
-      .pipe(Effect.mapError((error) => new Error(failureMessage(error)))),
-  );
+  request((client) => client.attendees.dietaryPreferences({ params: { id } }));
 
 /** Those an event's organizers noted as invited, in the order they were added. */
 export const invitations = (id: DocumentId) =>
-  request((client) =>
-    client.attendees
-      .invitations({ params: { id } })
-      .pipe(Effect.mapError((error) => new Error(failureMessage(error)))),
-  );
+  request((client) => client.attendees.invitations({ params: { id } }));
 
 /**
  * Notes someone as invited to an event: nothing is sent to them. A refusal
@@ -272,22 +198,12 @@ export const invite = (
   person: { readonly name?: string; readonly email: string },
 ) =>
   request((client) =>
-    client.attendees.invite({ params: { id }, payload: person }).pipe(
-      Effect.mapError((error) =>
-        Object.assign(new Error(failureMessage(error)), {
-          problem: "problem" in error ? error.problem : undefined,
-        }),
-      ),
-    ),
+    client.attendees.invite({ params: { id }, payload: person }),
   );
 
 /** The emails organizers sent to everyone signed up to an event, newest first. */
 export const organizerEmails = (id: DocumentId) =>
-  request((client) =>
-    client.attendees
-      .organizerEmails({ params: { id } })
-      .pipe(Effect.mapError((error) => new Error(failureMessage(error)))),
-  );
+  request((client) => client.attendees.organizerEmails({ params: { id } }));
 
 /**
  * Emails everyone signed up to an event, as the signed-in user. A refusal
@@ -298,13 +214,7 @@ export const emailAttendees = (
   email: { readonly subject: string; readonly text: string },
 ) =>
   request((client) =>
-    client.attendees.emailAttendees({ params: { id }, payload: email }).pipe(
-      Effect.mapError((error) =>
-        Object.assign(new Error(failureMessage(error)), {
-          problem: "problem" in error ? error.problem : undefined,
-        }),
-      ),
-    ),
+    client.attendees.emailAttendees({ params: { id }, payload: email }),
   );
 
 /** Published events: every one for members, the public ones for anyone. */
