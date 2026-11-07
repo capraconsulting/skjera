@@ -14,3 +14,9 @@ export class Identity extends Schema.Class<Identity>("@skjera/oauth/Identity")({
   /** The profile picture's address (https), where the provider gives one. */
   picture: Schema.optional(Schema.String),
 }) {}
+
+/** The first usable login name or email, falling back to the stable subject. */
+export const nameOf = (identity: Identity): string =>
+  [identity.name, identity.email]
+    .map((value) => value?.trim())
+    .find((value) => value !== undefined && value !== "") ?? identity.subject;

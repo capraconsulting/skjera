@@ -1,5 +1,5 @@
 import { m } from "@skjera/i18n/messages";
-import type { Identity } from "@skjera/oauth/api";
+import { type Identity, nameOf } from "@skjera/oauth/api";
 import { appPaths } from "@skjera/paths";
 import { ChevronDown, LogOut, Settings } from "lucide-react";
 import { useState } from "react";
@@ -8,8 +8,8 @@ import { initials } from "./Avatars.tsx";
 import { Dropdown, DropdownItem, DropdownLink } from "./Dropdown.tsx";
 import styles from "./UserMenu.module.css";
 
-/** What to call someone: their name from the login, else their email. */
-export const displayName = (me: Identity) => me.name ?? me.email ?? me.subject;
+/** What to call someone throughout the account UI. */
+export const displayName = (me: Identity) => nameOf(me);
 
 /**
  * Their picture from the login, round; their initials where there is none or

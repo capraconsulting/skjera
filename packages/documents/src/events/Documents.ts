@@ -1,5 +1,5 @@
 import * as A from "@automerge/automerge";
-import type { Identity } from "@skjera/oauth/api";
+import { type Identity, nameOf } from "@skjera/oauth/api";
 import { Context, Effect, Layer, Schema } from "effect";
 import { SqlClient, SqlError } from "effect/sql";
 import {
@@ -216,16 +216,14 @@ export class Documents extends Context.Service<
         return yield* Effect.die("INSERT returned no row");
       }, Effect.uninterruptible);
 
-      // The name a person goes by, for the history: the name, else the email.
-      // A person with neither is left out.
       const rememberName = Effect.fnUntraced(function* (user: Identity) {
-        const name = [user.name, user.email]
-          .map((value) => value?.trim())
-          .find((value) => value !== undefined && value !== "");
-        if (name === undefined) return;
+        const [schema] = yield* sql<{ exists: boolean }>`
+          SELECT to_regclass('people') IS NOT NULL AS "exists"
+        `;
+        if (!schema?.exists) return;
         yield* sql`
           INSERT INTO people (issuer, subject, name)
-          VALUES (${user.issuer}, ${user.subject}, ${name})
+          VALUES (${user.issuer}, ${user.subject}, ${nameOf(user)})
           ON CONFLICT (issuer, subject) DO UPDATE
             SET name = EXCLUDED.name, updated_at = now()
         `;

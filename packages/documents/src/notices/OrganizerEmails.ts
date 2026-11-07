@@ -1,4 +1,4 @@
-import type { Identity } from "@skjera/oauth/api";
+import { type Identity, nameOf } from "@skjera/oauth/api";
 import { Context, Effect, Layer } from "effect";
 import { SqlClient, SqlError } from "effect/sql";
 import { EventNotFound, OrganizerEmailRejected } from "../api/errors.ts";
@@ -12,12 +12,6 @@ import { type Signup, tell } from "./Notifications.ts";
 // kept, and one message per person goes to the event's mailer (see Mail.tsx),
 // in the same transaction: it sends them in the background, once each, to
 // those still signed up.
-
-/** Their name, else their email: how a person is named in a list. */
-const nameOf = (user: Identity) =>
-  [user.name, user.email]
-    .map((value) => value?.trim())
-    .find((value) => value !== undefined && value !== "");
 
 /** What a person has no value for, as the column holds it. */
 const orNull = (value: string | undefined) =>
@@ -86,8 +80,8 @@ export class OrganizerEmails extends Context.Service<
             INSERT INTO organizer_emails (event_id, subject, text, sent_by_name,
               sent_by_email, recipients)
             VALUES (${published.id}, ${subject}, ${email.text},
-              ${orNull(sender.name)}, ${orNull(sender.email)}, ${signups.length})
-            RETURNING id, subject, ${nameOf(sender) ?? null}::text AS "sentBy",
+              ${nameOf(sender)}, ${orNull(sender.email)}, ${signups.length})
+            RETURNING id, subject, ${nameOf(sender)}::text AS "sentBy",
               sent_at AS "sentAt", recipients
           `;
           if (record === undefined) {

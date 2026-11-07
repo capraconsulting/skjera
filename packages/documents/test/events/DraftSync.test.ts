@@ -17,7 +17,12 @@ import { SalesEvents } from "../../src/notices/SalesEvents.ts";
 import { Teams } from "../../src/Teams.ts";
 import { TestDatabase } from "../TestDatabase.ts";
 
-const alice = new Identity({ issuer: "https://idp.example", subject: "alice" });
+const alice = new Identity({
+  issuer: "https://idp.example",
+  subject: "alice",
+  name: "  ",
+  email: "  alice@example.org  ",
+});
 
 const TestLayer = Layer.mergeAll(
   Documents.layer,
@@ -227,7 +232,7 @@ layer(TestLayer, { excludeTestServices: true })("DraftSync", (it) => {
     }).pipe(Effect.timeout("20 seconds")),
   );
 
-  it.effect("relays presence to others on the draft, as its sender", () =>
+  it.effect("relays presence with the canonical sender name (AC-1, AC-2)", () =>
     Effect.gen(function* () {
       const { id, draft } = yield* newDraft;
       const first = yield* connect;
@@ -256,7 +261,7 @@ layer(TestLayer, { excludeTestServices: true })("DraftSync", (it) => {
       const data = relayed[0]?.data;
       const state = (data === undefined ? {} : decode(data)).__presence?.state;
       assert.strictEqual(state?.user?.subject, "alice");
-      assert.strictEqual(state?.user?.name, "alice");
+      assert.strictEqual(state?.user?.name, "alice@example.org");
 
       // Not sent back to its sender.
       yield* first.listen;

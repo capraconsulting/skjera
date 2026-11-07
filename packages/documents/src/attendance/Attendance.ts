@@ -1,5 +1,5 @@
 import { AllowedDomains } from "@skjera/oauth";
-import type { Identity } from "@skjera/oauth/api";
+import { type Identity, nameOf } from "@skjera/oauth/api";
 import { Clock, Context, Effect, Layer } from "effect";
 import { SqlClient, SqlError, type Statement } from "effect/sql";
 import {
@@ -362,11 +362,18 @@ export class Attendance extends Context.Service<
             online,
             sql`user_issuer = ${user.issuer} AND user_subject = ${user.subject}`,
           );
+          yield* sql`
+            UPDATE attendees SET name = ${nameOf(user)}
+            WHERE event_id = ${event}
+              AND user_issuer = ${user.issuer}
+              AND user_subject = ${user.subject}
+              AND name IS DISTINCT FROM ${nameOf(user)}
+          `;
           // Already signed up, or a retry: nothing to do, or tell.
           const inserted = yield* sql<Signup>`
             INSERT INTO attendees (id, event_id, user_issuer, user_subject, name, email, answers, online, locale, ad_source, marketing_consent)
             VALUES (coalesce(${id ?? null}::uuid, uuidv7()), ${event}, ${user.issuer},
-              ${user.subject}, ${user.name ?? user.email ?? user.subject},
+              ${user.subject}, ${nameOf(user)},
               ${user.email ?? null}, ${JSON.stringify(answers)}::jsonb,
               ${online}, ${details.locale ?? null}, ${storedAdSource(details.source)}::jsonb,
               ${details.consent === true})
