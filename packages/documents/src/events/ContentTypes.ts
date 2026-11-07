@@ -139,6 +139,41 @@ export const EventContent = Schema.Struct({
 });
 export type EventContent = typeof EventContent.Type;
 
+/** When signing up and cancelling close: the deadline, or else the start. */
+export function signupClosesAt<Time>(
+  deadline: Time | null,
+  startsAt: Time,
+): Time;
+export function signupClosesAt<Time>(
+  deadline: Time | null,
+  startsAt: Time | null,
+): Time | null;
+export function signupClosesAt<Time>(
+  deadline: Time | null,
+  startsAt: Time | null,
+): Time | null {
+  return deadline ?? startsAt;
+}
+
+/** When dietary questions close: their deadline, or else sign-up close. */
+export function dietaryClosesAt<Time>(
+  foodDeadline: Time | null,
+  signupDeadline: Time | null,
+  startsAt: Time,
+): Time;
+export function dietaryClosesAt<Time>(
+  foodDeadline: Time | null,
+  signupDeadline: Time | null,
+  startsAt: Time | null,
+): Time | null;
+export function dietaryClosesAt<Time>(
+  foodDeadline: Time | null,
+  signupDeadline: Time | null,
+  startsAt: Time | null,
+): Time | null {
+  return foodDeadline ?? signupClosesAt(signupDeadline, startsAt);
+}
+
 /** An http or https address. */
 const isWebAddress = (text: string) => {
   try {
@@ -193,7 +228,7 @@ export const contentTypes = {
           ? { _tag: "DeadlineAfterStart" }
           : null,
       (event) => {
-        const closes = event.deadline ?? event.start;
+        const closes = signupClosesAt(event.deadline, event.start);
         return event.foodDeadline !== null &&
           closes !== null &&
           compare(event.foodDeadline, closes) > 0

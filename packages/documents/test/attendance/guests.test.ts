@@ -27,7 +27,10 @@ const withMemberDomains =
         Layer.fresh(Attendance.layer).pipe(
           Layer.provide(
             ConfigProvider.layer(
-              ConfigProvider.fromUnknown({ OAUTH_ALLOWED_DOMAINS: domains }),
+              ConfigProvider.fromUnknown({
+                NODE_ENV: "test",
+                OAUTH_ALLOWED_DOMAINS: domains,
+              }),
             ),
           ),
         ),

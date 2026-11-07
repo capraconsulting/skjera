@@ -4,6 +4,7 @@ import {
   type EventRow,
   type ShownEvent,
   shownCover,
+  signupClosesAt,
 } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { appPaths, appSearch } from "@skjera/paths";
@@ -185,8 +186,10 @@ export function EventView(props: {
   readonly preview?: boolean;
 }) {
   const { event, signups, signedIn, linkGone } = props;
-  // Turns true at the deadline, as the sign-up box closes; never without one.
-  const deadlinePassed = useHasPassed(event.signupDeadline);
+  // Turns true when sign-up closes, at the deadline or else the event start.
+  const deadlinePassed = useHasPassed(
+    signupClosesAt(event.signupDeadline, event.startsAt),
+  );
   // Visitors not logged in are told the places left, not how many are signed up.
   const places = signedIn
     ? null

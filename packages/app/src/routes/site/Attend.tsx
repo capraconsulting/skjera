@@ -1,9 +1,11 @@
 import {
   type AttendeeRow,
   describe,
+  dietaryClosesAt,
   type GuestProblem,
   guestProblems,
   type ShownEvent,
+  signupClosesAt,
 } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { getLocale } from "@skjera/i18n/runtime";
@@ -88,10 +90,12 @@ export function Attend(props: {
   >(null);
   // What this member last gave, here: their row has it only once synced.
   const [given, setGiven] = useState<Given | null>(null);
-  const closesAt = event.signupDeadline ?? event.startsAt;
+  const closesAt = signupClosesAt(event.signupDeadline, event.startsAt);
   const closed = useHasPassed(closesAt);
   // After the food deadline, people can still come; they're not asked.
-  const foodClosed = useHasPassed(event.foodDeadline ?? closesAt);
+  const foodClosed = useHasPassed(
+    dietaryClosesAt(event.foodDeadline, event.signupDeadline, event.startsAt),
+  );
   const asksDietary = event.askDietary && !foodClosed;
   // The food deadline, said once it has passed too.
   const food =

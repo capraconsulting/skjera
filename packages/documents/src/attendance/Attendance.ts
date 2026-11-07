@@ -9,6 +9,7 @@ import {
 } from "../api/errors.ts";
 import { refused } from "../api/Problems.ts";
 import type { StoredGuestSignup } from "../api/PublicApi.ts";
+import { dietaryClosesAt, signupClosesAt } from "../events/ContentTypes.ts";
 import {
   type AdSource,
   type AdSourceKey,
@@ -284,14 +285,15 @@ export class Attendance extends Context.Service<
         const [row] = yield* sql<{
           allow_guests: boolean;
           ask_dietary: boolean;
+          food_deadline: Date | null;
           questions: ReadonlyArray<Question>;
+          signup_deadline: Date | null;
+          starts_at: Date;
           streamed: boolean;
-          open: boolean;
+          now: Date;
         }>`
-          SELECT allow_guests, questions, is_streamed AS streamed,
-            -- After the food deadline, people can still come; not eat.
-            ask_dietary AND coalesce(food_deadline > now(), true) AS ask_dietary,
-            ${signupOpen} AS open
+          SELECT allow_guests, ask_dietary, food_deadline, questions,
+            signup_deadline, starts_at, is_streamed AS streamed, now() AS now
           FROM events e
           WHERE id = ${event} AND (is_public OR ${audience === "members"})
             AND deleted_at IS NULL
@@ -299,10 +301,18 @@ export class Attendance extends Context.Service<
         if (row === undefined) {
           return yield* new EventNotFound({ id: event });
         }
-        if (!row.open) return yield* closed;
+        if (signupClosesAt(row.signup_deadline, row.starts_at) <= row.now) {
+          return yield* closed;
+        }
         return {
           allowGuests: row.allow_guests,
-          askDietary: row.ask_dietary,
+          askDietary:
+            row.ask_dietary &&
+            dietaryClosesAt(
+              row.food_deadline,
+              row.signup_deadline,
+              row.starts_at,
+            ) > row.now,
           questions: row.questions,
           streamed: row.streamed,
         };
