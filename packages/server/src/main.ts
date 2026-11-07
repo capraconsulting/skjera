@@ -316,12 +316,13 @@ const App = Layer.unwrap(
 );
 
 /** The meta tags that tell the app what failed, every value escaped. */
-const loginFailureTags = (failure: LoginFailure) => {
+const loginFailureTags = (failure: LoginFailure, callbackPath: string) => {
   const tag = (name: string, content: string) =>
     `<meta name="${name}" content="${Documents.Sharing.escapeHtml(content)}">`;
   return [
     tag(loginFailureMeta.kind, failure.kind),
     tag(loginFailureMeta.returnTo, failure.returnTo),
+    tag(loginFailureMeta.callbackPath, callbackPath),
   ].join("\n");
 };
 
@@ -334,6 +335,7 @@ const LoginFailurePage = Layer.unwrap(
   Effect.gen(function* () {
     const root = yield* Documents.optionalSetting("STATIC_DIR", Config.String);
     if (root === undefined) return Layer.empty;
+    const oauth = yield* OAuth.OAuthConfig;
     const fs = yield* FileSystem.FileSystem;
     const page = Documents.Sharing.withSharing(
       yield* fs.readFileString(`${root}/index.html`),
@@ -342,7 +344,10 @@ const LoginFailurePage = Layer.unwrap(
     return Layer.succeed(OAuth.LoginFailurePage, (failure) =>
       Effect.succeed(
         HttpServerResponse.text(
-          Documents.Sharing.withSharing(page, loginFailureTags(failure)),
+          Documents.Sharing.withSharing(
+            page,
+            loginFailureTags(failure, oauth.redirectUri.pathname),
+          ),
           {
             contentType: "text/html; charset=utf-8",
             headers: { "Cache-Control": "no-cache" },

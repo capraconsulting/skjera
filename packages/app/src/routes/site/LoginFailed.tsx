@@ -1,4 +1,5 @@
 import { m } from "@skjera/i18n/messages";
+import { appPaths, appQuery } from "@skjera/paths";
 import { Link, redirect, useSearchParams } from "react-router";
 import { Button } from "../../components/Button.tsx";
 import { loginUrl } from "../../site/client.ts";
@@ -22,8 +23,8 @@ export const loginFailedRedirect = () =>
 export function LoginFailed() {
   const [search] = useSearchParams();
   const { kind, returnTo } = readLoginFailure(
-    search.get("kind"),
-    search.get("returnTo"),
+    search.get(appQuery.kind),
+    search.get(appQuery.returnTo),
   );
   const words = {
     denied: [m.site_login_denied_title(), m.site_login_denied()],
@@ -43,7 +44,7 @@ export function LoginFailed() {
             {m.site_login_again()}
           </Button>
         )}
-        <Link to="/" className={styles.front}>
+        <Link to={appPaths.root} className={styles.front}>
           {m.site_login_front_page()}
         </Link>
       </div>

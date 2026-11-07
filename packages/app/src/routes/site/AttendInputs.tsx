@@ -1,5 +1,6 @@
 import type { Answers, Question } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
+import { appPaths } from "@skjera/paths";
 import { type InputHTMLAttributes, useId } from "react";
 import { Link } from "react-router";
 import { Input } from "../../components/Input.tsx";
@@ -114,7 +115,7 @@ export const JobTitleInput = (props: { readonly messages: FieldMessages }) => (
 export function PrivacyLink(props: { readonly text: string }) {
   const { url } = currentSite().privacy;
   return url === undefined ? (
-    <Link to="/privacy">{props.text}</Link>
+    <Link to={appPaths.privacy}>{props.text}</Link>
   ) : (
     <a href={url}>{props.text}</a>
   );

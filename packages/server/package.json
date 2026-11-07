@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./routes": "./src/routes.ts"
+  },
   "scripts": {
     "dev": "node --import tsx --watch src/main.ts",
     "build": "node build.ts",
@@ -15,6 +18,7 @@
     "@skjera/documents": "workspace:*",
     "@skjera/email": "workspace:*",
     "@skjera/oauth": "workspace:*",
+    "@skjera/paths": "workspace:*",
     "effect": "catalog:",
     "tsx": "catalog:"
   },

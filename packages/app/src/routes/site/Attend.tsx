@@ -9,6 +9,7 @@ import {
 } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { getLocale } from "@skjera/i18n/runtime";
+import { appPaths } from "@skjera/paths";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { Button } from "../../components/Button.tsx";
 import { currentSite } from "../../i18n.ts";
@@ -290,7 +291,7 @@ export function Attend(props: {
   // their signup.
   const logInWhenFull = (
     <p className={styles.row}>
-      <a href={loginUrl(`/events/${event.id}`)}>
+      <a href={loginUrl(appPaths.event(event.id))}>
         {m.attend_log_in_signed_up()}
       </a>
     </p>
@@ -336,7 +337,7 @@ export function Attend(props: {
           <Button
             variant="primary"
             onClick={() =>
-              window.location.assign(loginUrl(`/events/${event.id}`))
+              window.location.assign(loginUrl(appPaths.event(event.id)))
             }
           >
             {m.common_log_in()}
@@ -481,7 +482,7 @@ export function Attend(props: {
         logInWhenFull
       ) : (
         <p className={styles.row}>
-          <a href={loginUrl(`/events/${event.id}`)}>
+          <a href={loginUrl(appPaths.event(event.id))}>
             {m.attend_log_in_to_attend()}
           </a>
         </p>
@@ -530,7 +531,7 @@ export function Attend(props: {
                 </Button>
                 <span>
                   {m.attend_or()}{" "}
-                  <a href={loginUrl(`/events/${event.id}`)}>
+                  <a href={loginUrl(appPaths.event(event.id))}>
                     {m.attend_log_in()}
                   </a>
                 </span>

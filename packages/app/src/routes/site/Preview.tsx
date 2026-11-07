@@ -8,6 +8,7 @@ import {
   type RichText,
 } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
+import { appPaths, appSearch } from "@skjera/paths";
 import { eq, useLiveQuery } from "@tanstack/react-db";
 import { Schema } from "effect";
 import { useMemo } from "react";
@@ -52,7 +53,7 @@ export const previewLoader = async ({
     throw data("Event not found", { status: 404 });
   }
   // An earlier version of the draft, given as its heads joined by commas.
-  const asked = new URL(request.url).searchParams.get("version");
+  const asked = appSearch.version(request.url);
   const heads = asked === null ? null : asked.split(",");
   if (heads !== null && !isVersion(heads)) {
     throw data("Event not found", { status: 404 });
@@ -141,7 +142,7 @@ export function Preview() {
           {heads === null ? m.preview_notice() : m.preview_version_notice()}
         </span>
         {published === undefined ? null : (
-          <Link to={`/events/${id}`}>{m.preview_view_published()}</Link>
+          <Link to={appPaths.event(id)}>{m.preview_view_published()}</Link>
         )}
       </aside>
     </div>

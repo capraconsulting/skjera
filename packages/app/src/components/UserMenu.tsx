@@ -1,5 +1,6 @@
 import { m } from "@skjera/i18n/messages";
 import type { Identity } from "@skjera/oauth/api";
+import { appPaths } from "@skjera/paths";
 import { ChevronDown, LogOut, Settings } from "lucide-react";
 import { useState } from "react";
 import { forgetLocalCopies } from "../documents/repo.ts";
@@ -69,13 +70,13 @@ export function UserMenu({ me }: { readonly me: Identity }) {
               <span className={styles.whoEmail}>{me.email}</span>
             )}
           </div>
-          <DropdownLink to="/account" onClick={close}>
+          <DropdownLink to={appPaths.account} onClick={close}>
             <Settings size={16} strokeWidth={1.5} aria-hidden="true" />
             {m.account_settings()}
           </DropdownLink>
           <form
             method="post"
-            action="/auth/logout"
+            action={appPaths.logout}
             // Deletes the local copies of what they edited first, so they
             // don't stay behind on a shared computer.
             onSubmit={(event) => {

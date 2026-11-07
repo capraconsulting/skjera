@@ -1,3 +1,4 @@
+import { appPaths, appQuery, callbackPath } from "@skjera/paths";
 import { Context, type Duration, Effect, Layer, Option, Result } from "effect";
 import {
   Cookies,
@@ -13,8 +14,8 @@ import { OAuthClient } from "./OAuthClient.ts";
 import { OAuthConfig } from "./OAuthConfig.ts";
 import { loginAttemptTtl, Sessions } from "./Sessions.ts";
 
-export const loginPath = "/auth/login";
-export const logoutPath = "/auth/logout";
+export const loginPath = appPaths.login;
+export const logoutPath = appPaths.logout;
 
 /**
  * Cookie names and attributes. Over https the `__Host-` prefix makes the
@@ -92,7 +93,7 @@ export const AuthRoutes = HttpRouter.use(
       Effect.gen(function* () {
         const request = yield* HttpServerRequest.HttpServerRequest;
         const returnTo = sanitizeReturnTo(
-          requestUrl(request, config).searchParams.get("returnTo"),
+          requestUrl(request, config).searchParams.get(appQuery.returnTo),
         );
         const { url, challenge } = yield* client.startLogin;
         const loginId = yield* sessions.startLogin({ ...challenge, returnTo });
@@ -115,7 +116,7 @@ export const AuthRoutes = HttpRouter.use(
 
     yield* router.add(
       "GET",
-      config.redirectUri.pathname as HttpRouter.PathInput,
+      callbackPath(config.redirectUri) as HttpRouter.PathInput,
       Effect.gen(function* () {
         const request = yield* HttpServerRequest.HttpServerRequest;
         const loginId = request.cookies[cookies.login];

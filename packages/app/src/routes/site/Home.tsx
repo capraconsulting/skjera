@@ -1,6 +1,7 @@
 import { type EventRow, shownCover } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { getLocale } from "@skjera/i18n/runtime";
+import { appPaths } from "@skjera/paths";
 import { useLiveQuery } from "@tanstack/react-db";
 import { ArrowDown, ArrowRight } from "lucide-react";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
@@ -245,7 +246,7 @@ function Row(props: {
   const { event, now } = props;
   const marks = rowMarks(event, now);
   return (
-    <Link to={`/events/${event.id}`} className={styles.row}>
+    <Link to={appPaths.event(event.id)} className={styles.row}>
       <span className={styles.rowTitle}>{event.title}</span>
       <span className={styles.organizer}>
         <Organizer organizer={event.organizer} />
@@ -281,7 +282,7 @@ function Row(props: {
 function Card(props: { readonly event: EventRow }) {
   const { event } = props;
   return (
-    <Link to={`/events/${event.id}`} className={styles.card}>
+    <Link to={appPaths.event(event.id)} className={styles.card}>
       <span className={styles.cardImage}>
         {event.cover === null ? null : (
           // Decorative here: the title under it says what it is.

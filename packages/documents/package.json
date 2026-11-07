@@ -19,6 +19,7 @@
     "@skjera/hubspot": "workspace:*",
     "@skjera/i18n": "workspace:*",
     "@skjera/oauth": "workspace:*",
+    "@skjera/paths": "workspace:*",
     "@skjera/slack": "workspace:*",
     "@skjera/snapsync": "workspace:*",
     "aws4fetch": "catalog:",

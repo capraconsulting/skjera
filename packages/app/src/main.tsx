@@ -1,5 +1,6 @@
 import wasmUrl from "@automerge/automerge/automerge.wasm?url";
 import { initializeWasm } from "@automerge/automerge/slim";
+import { appPaths, appPatterns, appRouteChildren } from "@skjera/paths";
 import { NuqsAdapter } from "nuqs/adapters/react-router/v8";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
@@ -38,6 +39,7 @@ import {
   teamLoader,
 } from "./routes/studio/Team.tsx";
 import { NoTeamSelected, Teams, teamsLoader } from "./routes/studio/Teams.tsx";
+import { loginCallbackPathInHead } from "./site/loginFailure.ts";
 import "@fontsource-variable/inter";
 import "./global.css";
 
@@ -62,37 +64,48 @@ const router = createBrowserRouter([
       // The public site: published content, no login needed.
       {
         id: "site",
-        path: "/",
+        path: appPatterns.root,
         Component: SiteLayout,
         loader: siteLoader,
         HydrateFallback: Loading,
         children: [
           { index: true, Component: Home, loader: homeLoader },
           {
-            path: "events/:id",
+            path: appPatterns.event.slice(1),
             Component: EventPage,
             loader: eventLoader,
             ErrorBoundary: EventError,
           },
           // A guest's link from an email: a button that cancels their signup.
           {
-            path: "events/:id/cancel",
+            path: appPatterns.cancelEvent.slice(1),
             Component: CancelSignup,
             loader: cancelSignupLoader,
           },
           // The signed-in user's own settings.
-          { path: "account", Component: Account, loader: accountLoader },
-          { path: "privacy", Component: Privacy, loader: privacyLoader },
+          {
+            path: appPatterns.account.slice(1),
+            Component: Account,
+            loader: accountLoader,
+          },
+          {
+            path: appPatterns.privacy.slice(1),
+            Component: Privacy,
+            loader: privacyLoader,
+          },
           // A failed login, which the server answers at the address of
           // OAUTH_REDIRECT_URI: the path must be the same.
-          { path: "auth/callback", loader: loginFailedRedirect },
-          { path: "login-failed", Component: LoginFailed },
+          {
+            path: loginCallbackPathInHead(document.head).slice(1),
+            loader: loginFailedRedirect,
+          },
+          { path: appPatterns.loginFailed.slice(1), Component: LoginFailed },
         ],
       },
       // An event's preview, behind login. Beside the site, not under it: it has
       // the site's header, but not the site's loader, which loads HubSpot.
       {
-        path: "/events/:id/preview",
+        path: appPatterns.preview,
         Component: SiteLayout,
         loader: previewSiteLoader,
         HydrateFallback: Loading,
@@ -108,15 +121,15 @@ const router = createBrowserRouter([
       // The studio: everything else, behind login. Its columns nest: teams,
       // then the selected team's events, then the selected event.
       {
-        path: "/studio",
+        path: appPatterns.studio,
         Component: StudioLayout,
         loader: studioLoader,
         shouldRevalidate: () => false,
         HydrateFallback: Loading,
         children: [
-          { index: true, loader: () => redirect("/studio/teams") },
+          { index: true, loader: () => redirect(appPaths.studioTeams) },
           {
-            path: "teams",
+            path: appRouteChildren.studioTeams,
             Component: Teams,
             // Only waits for the synced tables; the list itself is live.
             loader: teamsLoader,
@@ -124,13 +137,16 @@ const router = createBrowserRouter([
             children: [
               { index: true, Component: NoTeamSelected },
               {
-                path: ":teamId",
+                path: appRouteChildren.studioTeam,
                 Component: Team,
                 loader: teamLoader,
                 ErrorBoundary: TeamError,
                 children: [
                   { index: true, Component: NoEventSelected },
-                  { path: "events/:id", Component: EventEditor },
+                  {
+                    path: appRouteChildren.studioEvent,
+                    Component: EventEditor,
+                  },
                 ],
               },
             ],

@@ -1,4 +1,5 @@
 import { m } from "@skjera/i18n/messages";
+import { appPaths } from "@skjera/paths";
 import { LogIn } from "lucide-react";
 import type { MouseEvent } from "react";
 import { NavLink, Outlet, useLoaderData, useLocation } from "react-router";
@@ -28,7 +29,9 @@ export function SiteLayout() {
   return (
     <Shell
       links={
-        me === null ? null : <NavLink to="/studio">{m.common_studio()}</NavLink>
+        me === null ? null : (
+          <NavLink to={appPaths.studio}>{m.common_studio()}</NavLink>
+        )
       }
       actions={
         me === null ? (

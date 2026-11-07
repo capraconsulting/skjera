@@ -1,5 +1,6 @@
 import type { DocumentId, TeamId } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
+import { appPaths } from "@skjera/paths";
 import { eq, useLiveQuery } from "@tanstack/react-db";
 import { useState } from "react";
 import {
@@ -45,7 +46,7 @@ export const teamLoader = async ({ params }: LoaderFunctionArgs) => {
       await documents.refresh();
       const moved = documents.collection.get(event);
       if (moved !== undefined && teams.collection.has(moved.teamId)) {
-        throw redirect(`/studio/teams/${moved.teamId}/events/${event}`);
+        throw redirect(appPaths.studioEvent(moved.teamId, event));
       }
     }
     throw data("Team not found", { status: 404 });
@@ -113,7 +114,7 @@ export function Team() {
         updatedAt: now,
       })
       .isPersisted.promise.then(
-        () => navigate(`/studio/teams/${teamId}/events/${id}`),
+        () => navigate(appPaths.studioEvent(teamId, id)),
         () => {},
       )
       .finally(() => setCreating(false));
@@ -188,7 +189,7 @@ export function EventItem(props: {
   const title = event.title.trim();
   return (
     <NavLink
-      to={`/studio/teams/${teamId}/events/${id}`}
+      to={appPaths.studioEvent(teamId, id)}
       className={({ isActive }) =>
         isActive ? `${styles.item} ${styles.active}` : styles.item
       }

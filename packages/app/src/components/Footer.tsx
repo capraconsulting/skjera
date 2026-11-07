@@ -1,5 +1,6 @@
 import { m } from "@skjera/i18n/messages";
 import { getLocale } from "@skjera/i18n/runtime";
+import { appPaths } from "@skjera/paths";
 import { Fragment } from "react";
 import { Link } from "react-router";
 import { currentSite } from "../i18n.ts";
@@ -61,7 +62,7 @@ export function Footer() {
   const view = footerView(footer, getLocale(), new Date().getFullYear());
   const privacyLink =
     privacy.url === undefined ? (
-      <Link to="/privacy">{m.privacy_title()}</Link>
+      <Link to={appPaths.privacy}>{m.privacy_title()}</Link>
     ) : (
       <a href={privacy.url}>{m.privacy_title()}</a>
     );

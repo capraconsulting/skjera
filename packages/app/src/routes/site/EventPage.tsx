@@ -7,6 +7,7 @@ import {
   signupClosesAt,
 } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
+import { appPaths, appSearch } from "@skjera/paths";
 import { defaultPollEveryMs } from "@skjera/snapsync/client";
 import { eq, useLiveQuery } from "@tanstack/react-db";
 import { Effect, Schema } from "effect";
@@ -111,8 +112,7 @@ export const eventLoader = async ({ params, request }: LoaderFunctionArgs) => {
   // and remembered here, so they can change or cancel it, then out of the
   // address. A link that leads to no signup is not remembered.
   const url = new URL(request.url);
-  const guest = url.searchParams.get("guest");
-  const token = url.searchParams.get("token");
+  const { guest, token } = appSearch.guestEvent(url);
   if (guest !== null && token !== null) {
     const stored = await storedGuestSignup(id, token);
     if (stored === null) goneLink = id;
@@ -196,7 +196,7 @@ export function EventView(props: {
     : placesForVisitor(event, signups, deadlinePassed);
   return (
     <article className={styles.event}>
-      <Link to="/" className={styles.back}>
+      <Link to={appPaths.root} className={styles.back}>
         <ArrowLeft size={18} strokeWidth={2} aria-hidden="true" />
         {m.site_all_events()}
       </Link>
@@ -204,7 +204,7 @@ export function EventView(props: {
         <ul className={styles.tags} aria-label={m.site_tags()}>
           {event.tags.map((tag) => (
             <li key={tag.toLowerCase()}>
-              <Link to={`/?tag=${encodeURIComponent(tag)}`}>{tag}</Link>
+              <Link to={appPaths.tagFilter(tag)}>{tag}</Link>
             </li>
           ))}
         </ul>

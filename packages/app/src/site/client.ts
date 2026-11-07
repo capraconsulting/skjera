@@ -1,5 +1,6 @@
 import { PublicApi } from "@skjera/documents/api";
 import type { Identity } from "@skjera/oauth/api";
+import { appPaths } from "@skjera/paths";
 import { Effect } from "effect";
 import { FetchHttpClient, type HttpClient } from "effect/http";
 import { HttpApiClient } from "effect/http-api";
@@ -55,8 +56,7 @@ export const fetchMe = async (): Promise<Identity | null> => {
   throw new Error(`Could not load the session (${response.status})`);
 };
 
-export const loginUrl = (returnTo: string) =>
-  `/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
+export const loginUrl = appPaths.loginUrl;
 
 /**
  * The signed-in user, for pages that need one: with nobody signed in, the

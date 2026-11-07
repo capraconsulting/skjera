@@ -4,6 +4,7 @@ import {
   type HubSpotError,
   retryTransient,
 } from "@skjera/hubspot";
+import { absoluteAppUrl, appPaths } from "@skjera/paths";
 import { Config, Effect, Layer, Option, Schema } from "effect";
 import { ClusterSchema, Entity } from "effect/cluster";
 import { Rpc } from "effect/rpc";
@@ -108,7 +109,7 @@ export const marketingEvent = (
   ...(row.summary === null ? {} : { eventDescription: row.summary }),
   startDateTime: row.starts_at.toISOString(),
   endDateTime: row.ends_at.toISOString(),
-  eventUrl: new URL(`/events/${id}`, siteUrl).href,
+  eventUrl: absoluteAppUrl(siteUrl, appPaths.event(id)),
   eventType: row.sales_event_type ?? defaultEventType,
 });
 

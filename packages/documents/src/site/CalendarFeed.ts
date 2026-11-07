@@ -1,3 +1,4 @@
+import { absoluteAppUrl, appPaths } from "@skjera/paths";
 import { Clock, Config, Effect, Layer } from "effect";
 import { HttpRouter, HttpServerResponse } from "effect/http";
 import { SqlClient } from "effect/sql";
@@ -36,7 +37,7 @@ export const feedEvents = (now: Date, options: { readonly siteUrl: string }) =>
         title: row.title,
         startsAt: row.starts_at,
         endsAt: row.ends_at,
-        url: new URL(`/events/${row.id}`, options.siteUrl).href,
+        url: absoluteAppUrl(options.siteUrl, appPaths.event(row.id)),
         ...(row.place === null ? {} : { place: row.place }),
         ...(row.summary === null ? {} : { summary: row.summary }),
       }),
@@ -63,7 +64,7 @@ export const layerHttp = Layer.unwrap(
 
     return HttpRouter.add(
       "GET",
-      "/api/subscribe",
+      appPaths.subscribe,
       Effect.gen(function* () {
         const now = new Date(yield* Clock.currentTimeMillis);
         const events = yield* feedEvents(now, { siteUrl }).pipe(

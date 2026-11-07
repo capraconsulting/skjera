@@ -1,3 +1,4 @@
+import { absoluteAppUrl, appPaths } from "@skjera/paths";
 import { Clock, Config, Effect, Layer } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import { SqlClient } from "effect/sql";
@@ -113,7 +114,7 @@ export const publicEvent = (
   organisers: organisers(event.teamName),
   isDigital: event.isStreamed,
   openForExternals: event.allowGuests,
-  url: new URL(`/events/${event.id}`, options.siteUrl).href,
+  url: absoluteAppUrl(options.siteUrl, appPaths.event(event.id)),
 });
 
 /**

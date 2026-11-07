@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  loginCallbackPathInHead,
   loginFailedPath,
   loginReturnFrom,
   offersLogInAgain,
@@ -56,6 +57,18 @@ describe("loginFailedPath", () => {
         ),
       ).toEqual(failure);
     }
+  });
+});
+
+describe("loginCallbackPathInHead", () => {
+  it("reads a configured callback path (AC-4)", () => {
+    const head = {
+      querySelector: (selector: string) =>
+        selector === 'meta[name="skjera-login-callback-path"]'
+          ? { getAttribute: () => "/custom/callback" }
+          : null,
+    } as unknown as ParentNode;
+    expect(loginCallbackPathInHead(head)).toBe("/custom/callback");
   });
 });
 

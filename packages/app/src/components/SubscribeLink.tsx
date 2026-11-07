@@ -1,10 +1,10 @@
 import { m } from "@skjera/i18n/messages";
+import { appPaths } from "@skjera/paths";
 import { CalendarPlus } from "lucide-react";
 import styles from "./SubscribeLink.module.css";
 
 /** Google Calendar, asked to subscribe to the site's calendar of coming events. */
-const subscribeUrl = (host: string) =>
-  `https://www.google.com/calendar/render?cid=webcal://${host}/api/subscribe`;
+const subscribeUrl = appPaths.googleCalendarSubscription;
 
 /**
  * Subscribing to the coming events in Google Calendar, beside the account

@@ -1,3 +1,4 @@
+import { appPaths } from "@skjera/paths";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { currentSite } from "../i18n.ts";
@@ -24,7 +25,7 @@ export function Shell(props: {
       <header className={styles.header}>
         <div className={styles.bar}>
           <nav className={styles.nav}>
-            <Link to="/" className={styles.brand}>
+            <Link to={appPaths.root} className={styles.brand}>
               <Logo site={currentSite()} />
             </Link>
             {props.links}

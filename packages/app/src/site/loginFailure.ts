@@ -3,6 +3,7 @@ import {
   type LoginFailureKind,
   loginFailureMeta,
 } from "@skjera/oauth/api";
+import { appPaths } from "@skjera/paths";
 
 const kinds: ReadonlyArray<LoginFailureKind> = ["denied", "expired", "failed"];
 
@@ -25,15 +26,11 @@ export const offersLogInAgain = (kind: LoginFailureKind): boolean =>
   kind !== "denied";
 
 /** The app's own address for a failed login, a page only for visitors. */
-const failedPath = "/login-failed";
+const failedPath = appPaths.loginFailed;
 
 /** The app's own address for a failure, which `readLoginFailure` reads back. */
 export const loginFailedPath = (failure: LoginFailure): string => {
-  const search = new URLSearchParams({
-    kind: failure.kind,
-    returnTo: failure.returnTo,
-  });
-  return `${failedPath}?${search}`;
+  return appPaths.loginFailure(failure.kind, failure.returnTo);
 };
 
 /**
@@ -55,4 +52,14 @@ export const loginFailureInHead = (head: ParentNode): LoginFailure => {
     content(loginFailureMeta.kind),
     content(loginFailureMeta.returnTo),
   );
+};
+
+/** The configured callback path written into the failed-login page. */
+export const loginCallbackPathInHead = (head: ParentNode): string => {
+  const path = head
+    .querySelector(`meta[name="${loginFailureMeta.callbackPath}"]`)
+    ?.getAttribute("content");
+  return path?.startsWith("/") && !path.startsWith("//")
+    ? path
+    : "/auth/callback";
 };
