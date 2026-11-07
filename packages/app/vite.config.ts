@@ -1,4 +1,5 @@
 import dns from "node:dns";
+import { serverRoutePrefixesFor } from "@skjera/server/routes";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
@@ -10,17 +11,19 @@ dns.setDefaultResultOrder("verbatim");
 // The backend (packages/server). Same origin for the browser, so the session
 // cookie and the login redirect just work. The port stays 5173 for `vite
 // preview` too, because the OAuth callback URL points there.
+export const backendProxy = Object.fromEntries(
+  serverRoutePrefixesFor(process.env.OAUTH_REDIRECT_URI).map((path) => [
+    path,
+    path === "/automerge"
+      ? { target: "ws://localhost:3000", ws: true }
+      : "http://localhost:3000",
+  ]),
+);
+
 const backend = {
   port: 5173,
   strictPort: true,
-  proxy: {
-    "/auth": "http://localhost:3000",
-    "/api": "http://localhost:3000",
-    "/embed": "http://localhost:3000",
-    "/site-assets": "http://localhost:3000",
-    "/manifest.webmanifest": "http://localhost:3000",
-    "/automerge": { target: "ws://localhost:3000", ws: true },
-  },
+  proxy: backendProxy,
 };
 
 /**

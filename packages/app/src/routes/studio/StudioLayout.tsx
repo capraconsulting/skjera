@@ -1,4 +1,5 @@
 import { m } from "@skjera/i18n/messages";
+import { appPaths } from "@skjera/paths";
 import { NavLink, Outlet, useLoaderData } from "react-router";
 import { Shell } from "../../components/Shell.tsx";
 import { SubscribeLink } from "../../components/SubscribeLink.tsx";
@@ -23,7 +24,7 @@ export function StudioLayout() {
   return (
     <Shell
       fill
-      links={<NavLink to="/studio">{m.common_studio()}</NavLink>}
+      links={<NavLink to={appPaths.studio}>{m.common_studio()}</NavLink>}
       actions={
         <>
           <SubscribeLink />

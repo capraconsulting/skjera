@@ -1,6 +1,7 @@
 import type { DocHandle } from "@automerge/automerge-repo/slim";
 import type { DocumentId, EventContent } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
+import { appPaths } from "@skjera/paths";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Avatars } from "../../components/Avatars.tsx";
@@ -43,7 +44,7 @@ export function EventEditor() {
 
 function EventSession({ id }: { readonly id: DocumentId }) {
   const session = useDocumentSession(id);
-  const { teamId } = useParams();
+  const teamId = useParams().teamId as string;
   const navigate = useNavigate();
   const { handle } = session;
   const owner = session.teamId;
@@ -52,7 +53,7 @@ function EventSession({ id }: { readonly id: DocumentId }) {
   // A link with the wrong team: go to where the event actually is.
   useEffect(() => {
     if (owner !== null && owner !== teamId) {
-      navigate(`/studio/teams/${owner}/events/${id}`, { replace: true });
+      navigate(appPaths.studioEvent(owner, id), { replace: true });
     }
   }, [owner, teamId, id, navigate]);
 
@@ -73,7 +74,7 @@ function EventSession({ id }: { readonly id: DocumentId }) {
   // Asked first, by the footer.
   const remove = () => {
     documents.collection.delete(id);
-    navigate(`/studio/teams/${teamId}`);
+    navigate(appPaths.studioTeam(teamId));
   };
 
   return (
@@ -97,7 +98,7 @@ function EventSession({ id }: { readonly id: DocumentId }) {
           onRestore={session.restore}
           onCopy={() =>
             session.copy((copy) =>
-              navigate(`/studio/teams/${owner ?? teamId}/events/${copy}`),
+              navigate(appPaths.studioEvent(owner ?? teamId, copy)),
             )
           }
           onDelete={remove}

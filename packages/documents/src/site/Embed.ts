@@ -1,4 +1,5 @@
 import { m } from "@skjera/i18n/messages";
+import { appPaths } from "@skjera/paths";
 import { Clock, Config, Effect, Layer, Schema } from "effect";
 import { HttpRouter, HttpServerResponse } from "effect/http";
 import { SqlClient } from "effect/sql";
@@ -171,7 +172,7 @@ export const embedItem = (
           timeZone,
         });
   return {
-    href: `/events/${event.id}`,
+    href: appPaths.event(event.id),
     title: event.title,
     when,
     startsAt: startsAt.toISOString(),

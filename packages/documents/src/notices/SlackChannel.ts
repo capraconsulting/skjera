@@ -1,4 +1,5 @@
 import { m } from "@skjera/i18n/messages";
+import { absoluteAppUrl, appPaths } from "@skjera/paths";
 import {
   type Blocks,
   retryTransient,
@@ -115,7 +116,7 @@ export const announcement = (
   const { locale } = site;
   const mark = options.repeated === true ? ":repeat:" : ":loudspeaker:";
   const heading = `*${escapeSlack(event.title)} | <!here> ${mark}*`;
-  const page = new URL(`/events/${event.id}`, site.url).href;
+  const page = absoluteAppUrl(site.url, appPaths.event(event.id));
   const when = `*${m.slack_when({}, { locale })}:*\n${formatAt(locale, event.startsAt, channelTimeZone)}`;
   const where =
     event.place === null
@@ -171,7 +172,7 @@ export const deadlineMessage = (
       section(heading),
       ...deadlines.map(({ id, title, deadline }) =>
         section(
-          `<${new URL(`/events/${id}`, site.url).href}|${escapeSlack(title)}> – ${formatAt(locale, deadline, channelTimeZone)}`,
+          `<${absoluteAppUrl(site.url, appPaths.event(id))}|${escapeSlack(title)}> – ${formatAt(locale, deadline, channelTimeZone)}`,
         ),
       ),
     ],

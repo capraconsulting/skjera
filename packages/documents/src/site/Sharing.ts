@@ -1,3 +1,4 @@
+import { appPaths, appPatterns } from "@skjera/paths";
 import { Config, Effect, FileSystem, Layer, Option, Schema } from "effect";
 import {
   HttpRouter,
@@ -151,7 +152,7 @@ export const sharingTags = (options: {
     return tags.join("\n");
   }
   const { id, title, summary, cover, publishedAt } = event.value;
-  const url = at(`/events/${id}`);
+  const url = at(appPaths.event(id));
   const image = cover === null ? undefined : at(shownCover(cover).src);
   tags.push(meta("property", "og:type", "website"));
   tags.push(meta("property", "og:title", title));
@@ -266,7 +267,7 @@ export const layerHttp = (options: { readonly root: string }) =>
       return Layer.mergeAll(
         HttpRouter.add(
           "GET",
-          "/events/:id",
+          appPatterns.event,
           Effect.gen(function* () {
             const { id } = yield* HttpRouter.params;
             const event = yield* sharedEvent(id ?? "").pipe(

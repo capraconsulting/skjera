@@ -14,4 +14,5 @@ export interface LoginFailure {
 export const loginFailureMeta = {
   kind: "skjera-login-failure",
   returnTo: "skjera-login-return-to",
+  callbackPath: "skjera-login-callback-path",
 } as const;

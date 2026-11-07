@@ -2,6 +2,7 @@ import type { DocHandle } from "@automerge/automerge-repo/slim";
 import type { DocumentId, EventContent } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { getLocale } from "@skjera/i18n/runtime";
+import { appPaths } from "@skjera/paths";
 import { eq, useLiveQuery } from "@tanstack/react-db";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -141,14 +142,16 @@ export function EditorFooter(props: {
               <span className={styles.separator} aria-hidden="true">
                 ·
               </span>
-              <Link to={`/events/${props.id}`}>{m.studio_view_on_site()}</Link>
+              <Link to={appPaths.event(props.id)}>
+                {m.studio_view_on_site()}
+              </Link>
             </>
           )}
         </p>
         <div className={styles.actions}>
           <a
             className={`${buttonStyles.button} ${styles.preview}`}
-            href={`/events/${props.id}/preview`}
+            href={appPaths.preview(props.id)}
             target="_blank"
             rel="noopener noreferrer"
           >

@@ -23,6 +23,8 @@
     "@skjera/documents": "workspace:*",
     "@skjera/i18n": "workspace:*",
     "@skjera/oauth": "workspace:*",
+    "@skjera/paths": "workspace:*",
+    "@skjera/server": "workspace:*",
     "@skjera/snapsync": "workspace:*",
     "@tanstack/react-db": "catalog:",
     "downshift": "catalog:",

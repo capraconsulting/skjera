@@ -1,6 +1,7 @@
 import type { DocumentId, HistoryEntry } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { getLocale } from "@skjera/i18n/runtime";
+import { appPaths } from "@skjera/paths";
 import { useEffect, useState } from "react";
 import buttonStyles from "../../components/Button.module.css";
 import { Button } from "../../components/Button.tsx";
@@ -100,7 +101,7 @@ export function History(props: {
                 <div className={styles.actions}>
                   <a
                     className={`${buttonStyles.button} ${styles.view}`}
-                    href={`/events/${id}/preview?version=${entry.heads.join(",")}`}
+                    href={appPaths.preview(id, entry.heads.join(","))}
                     target="_blank"
                     rel="noopener noreferrer"
                   >

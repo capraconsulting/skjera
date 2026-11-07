@@ -1,5 +1,6 @@
 import type { DocumentId } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
+import { appPaths, appSearch } from "@skjera/paths";
 import { useState } from "react";
 import { Link, type LoaderFunctionArgs, useLoaderData } from "react-router";
 import { Button } from "../../components/Button.tsx";
@@ -23,7 +24,7 @@ export const cancelSignupLoader = async ({
   request,
 }: LoaderFunctionArgs) => {
   const id = params.id as DocumentId;
-  const token = new URL(request.url).searchParams.get("token") ?? "";
+  const token = appSearch.token(request.url) ?? "";
   // Without a token there is nothing to ask the server about.
   const found: Awaited<ReturnType<typeof cancelLinkFor>> =
     token === ""
@@ -60,7 +61,7 @@ export function CancelSignup() {
   };
 
   const toEvent = (
-    <Link to={`/events/${id}`} className={styles.toEvent}>
+    <Link to={appPaths.event(id)} className={styles.toEvent}>
       {m.cancel_to_event()}
     </Link>
   );

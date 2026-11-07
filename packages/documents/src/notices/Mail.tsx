@@ -7,6 +7,7 @@ import {
 } from "@skjera/email";
 import { renderEmail } from "@skjera/email/react";
 import { m } from "@skjera/i18n/messages";
+import { absoluteAppUrl, appPaths } from "@skjera/paths";
 import { Clock, Config, Cron, Effect, Layer, Option, Schema } from "effect";
 import { ClusterCron, ClusterSchema, Entity } from "effect/cluster";
 import { Rpc } from "effect/rpc";
@@ -216,7 +217,7 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
               return;
             }
 
-            const url = new URL(`/events/${eventId}`, site.url).href;
+            const url = absoluteAppUrl(site.url, appPaths.event(eventId));
             const { attendee } = payload;
             // In the language they signed up in.
             const locale = attendee.locale ?? site.locale;
@@ -302,7 +303,14 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
 
             const guestLink = attendee.guest
               ? {
-                  guestLink: `${url}?guest=${attendee.id}&token=${attendance.guestToken(attendee.id)}`,
+                  guestLink: absoluteAppUrl(
+                    site.url,
+                    appPaths.guestEvent(
+                      eventId,
+                      attendee.id,
+                      attendance.guestToken(attendee.id),
+                    ),
+                  ),
                 }
               : {};
             const message = ((): {
@@ -402,7 +410,17 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                         name={attendee.name}
                         title={event.title}
                         when={when}
-                        url={`${url}/cancel?token=${attendance.cancelLinkToken(eventId, attendee.id, payload.expiresAt ?? 0)}`}
+                        url={absoluteAppUrl(
+                          site.url,
+                          appPaths.cancelEvent(
+                            eventId,
+                            attendance.cancelLinkToken(
+                              eventId,
+                              attendee.id,
+                              payload.expiresAt ?? 0,
+                            ),
+                          ),
+                        )}
                       />
                     ),
                   };

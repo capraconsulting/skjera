@@ -14,6 +14,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@skjera/paths": "workspace:*",
     "effect": "catalog:",
     "oauth4webapi": "catalog:"
   },

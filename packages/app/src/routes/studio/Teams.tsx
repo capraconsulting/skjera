@@ -1,5 +1,6 @@
 import type { TeamId } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
+import { appPaths } from "@skjera/paths";
 import { count, eq, lower, useLiveQuery } from "@tanstack/react-db";
 import { type FormEvent, useState } from "react";
 import { NavLink, Outlet, useNavigate, useParams } from "react-router";
@@ -215,7 +216,7 @@ function TeamRow(props: {
 
   const deleteTeam = () => {
     const deleted = teams.collection.delete(team.id);
-    if (teamId === team.id) navigate("/studio/teams");
+    if (teamId === team.id) navigate(appPaths.studioTeams);
     deleted.isPersisted.promise.catch((error: Error) =>
       onFailure(error.message),
     );
@@ -224,7 +225,7 @@ function TeamRow(props: {
   return (
     <li className={styles.row}>
       <NavLink
-        to={`/studio/teams/${team.id}`}
+        to={appPaths.studioTeam(team.id)}
         className={({ isActive }) =>
           isActive ? `${styles.item} ${styles.active}` : styles.item
         }
@@ -315,7 +316,7 @@ function TeamDialog(props: {
       () => {
         setSaving(false);
         close();
-        if (renaming === null) navigate(`/studio/teams/${id}`);
+        if (renaming === null) navigate(appPaths.studioTeam(id));
       },
       (failure: Error) => {
         setSaving(false);
