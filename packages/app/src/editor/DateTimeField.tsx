@@ -5,7 +5,7 @@ import { enUS } from "@daypicker/react/locale/en-US";
 import { nb } from "@daypicker/react/locale/nb";
 import { nn } from "@daypicker/react/locale/nn";
 import dayPicker from "@daypicker/react/style.module.css";
-import type { EventContent } from "@skjera/documents/api";
+import { type EventContent, signupClosesAt } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { getLocale } from "@skjera/i18n/runtime";
 import { useId, useMemo, useRef, useSyncExternalStore } from "react";
@@ -156,7 +156,7 @@ export function FoodDeadline(props: {
   readonly handle: DocHandle<EventContent>;
 }) {
   const { times, timeZone, set } = useEventTimes(props.handle);
-  const closes = (times.deadline ?? times.start)?.toPlainDate();
+  const closes = signupClosesAt(times.deadline, times.start)?.toPlainDate();
   return (
     <>
       <DateTimeField

@@ -119,16 +119,16 @@ IF an organiser sets the limit below the number already signed up, THEN Skjera S
 
 **Automated:** `packages/app/e2e/specs/attendance/limit.spec.ts`, `packages/documents/test/attendance/limit.test.ts`
 
-## AC-10: The number of places left goes at the sign-up deadline
+## AC-10: The number of places left goes when sign-up closes
 
-WHILE an event's sign-up deadline has passed, the event page SHALL NOT show how many places are left to a visitor who is not logged in, and SHALL still say «No places left» when none is left. An event without a deadline is shown as in AC-7.
+WHILE sign-up has closed, at the sign-up deadline or otherwise at the event start, the event page SHALL NOT show how many places are left to a visitor who is not logged in, and SHALL still say «No places left» when none is left.
 
 **Test**
 
 - **Given** an event with places for 2 and no deadline
-- **When** you open it in a private window
+- **When** you open it in a private window before the event starts
 - **Then** the info list says «2 places left»
-- **When** you set the sign-up deadline to a time that has passed in the studio, **Publish**, and reload the site
+- **When** the sign-up deadline or, without one, the event start has passed, and you reload the site
 - **Then** the sign-up box says «Sign-up has closed.» and the page says nothing of how many places are left
 
 **Automated:** `packages/app/test/signupCount.test.ts`, `packages/app/e2e/specs/site.spec.ts`

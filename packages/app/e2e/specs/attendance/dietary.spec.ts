@@ -69,7 +69,7 @@ test("dietary preferences are optional, and organizers see them without names", 
   await cleanUp(alice, team, event.id);
 });
 
-test("the food deadline is set and cleared in the studio, and the event page says by when (AC-8, AC-9)", async ({
+test("the food deadline is set and cleared in the studio, and the event page says by when (AC-3, AC-8, AC-9)", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -121,6 +121,7 @@ test("the food deadline is set and cleared in the studio, and the event page say
   await editor.publish();
   await page.reload();
   await attendance.expectDietaryDeadline(true);
+  await attendance.expectNoField("Dietary preferences");
 
   // Food not served: no one is asked, whatever the deadline.
   await editor.times.pickFoodDeadline(day, "next");
@@ -133,7 +134,7 @@ test("the food deadline is set and cleared in the studio, and the event page say
   await cleanUp(alice, team, event.id);
 });
 
-test("the food deadline is still shown, marked as passed, once sign-up has closed (AC-4)", async ({
+test("the food deadline is still shown, marked as passed, once sign-up has closed (AC-3, AC-4)", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -154,6 +155,7 @@ test("the food deadline is still shown, marked as passed, once sign-up has close
   const attendance = new Attendance(reader);
   await attendance.expectText("Sign-up has closed.");
   await attendance.expectDietaryDeadline(true);
+  await attendance.expectNoField("Dietary preferences");
 
   await cleanUp(alice, team, event.id);
 });
