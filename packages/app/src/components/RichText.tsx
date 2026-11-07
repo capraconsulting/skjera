@@ -1,6 +1,11 @@
 import { type next as A, ImmutableString } from "@automerge/automerge/slim";
 import { pmDocFromSpans } from "@automerge/prosemirror";
-import type { RichText as Spans } from "@skjera/documents/api";
+import {
+  imageProtocols,
+  linkProtocols,
+  type RichText as Spans,
+  safeLink,
+} from "@skjera/documents/api";
 import type { Mark, Node } from "prosemirror-model";
 import { Fragment, type ReactNode, useMemo } from "react";
 import {
@@ -35,12 +40,7 @@ const toDoc = (spans: Spans) => pmDocFromSpans(richTextAdapter, revive(spans));
 
 /** Only web and mail links, and images from the web. */
 const safeUrl = (url: unknown, protocols: ReadonlyArray<string>) => {
-  try {
-    const parsed = new URL(String(url), window.location.href);
-    return protocols.includes(parsed.protocol) ? parsed.href : undefined;
-  } catch {
-    return undefined;
-  }
+  return safeLink(url, window.location.href, protocols) ?? undefined;
 };
 
 const withMark = (mark: Mark, children: ReactNode, key: number) => {
@@ -55,7 +55,7 @@ const withMark = (mark: Mark, children: ReactNode, key: number) => {
       return (
         <a
           key={key}
-          href={safeUrl(mark.attrs["href"], ["http:", "https:", "mailto:"])}
+          href={safeUrl(mark.attrs["href"], linkProtocols)}
           rel="noopener noreferrer"
         >
           {children}
@@ -73,7 +73,7 @@ const holdsFigure = (paragraph: Node) => {
     if (
       child.type.name === "image" &&
       imageChoices(child.attrs) !== null &&
-      safeUrl(child.attrs["src"], ["http:", "https:"]) !== undefined
+      safeUrl(child.attrs["src"], imageProtocols) !== undefined
     ) {
       found = true;
     }
@@ -133,7 +133,7 @@ const render = (node: Node, key: number): ReactNode => {
     case "hard_break":
       return <br key={key} />;
     case "image": {
-      const src = safeUrl(node.attrs["src"], ["http:", "https:"]);
+      const src = safeUrl(node.attrs["src"], imageProtocols);
       if (src === undefined) return null;
       const { alt, choices } = shownImage(node.attrs);
       const img = <img src={src} alt={alt} loading="lazy" />;

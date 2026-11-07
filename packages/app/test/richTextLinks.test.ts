@@ -1,3 +1,4 @@
+import { linkProtocols, safeLink } from "@skjera/documents/api";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { safeHref } from "../src/editor/text/richText.ts";
 
@@ -28,5 +29,13 @@ describe("safeHref", () => {
     expect(safeHref("javascript:alert(1)")).toBeNull();
     expect(safeHref("data:text/html,<p>hi</p>")).toBeNull();
     expect(safeHref("tel:+4790000000")).toBeNull();
+  });
+
+  it("uses the published page's protocol rule (AC-4)", () => {
+    expect(linkProtocols).toEqual(["http:", "https:", "mailto:"]);
+    for (const href of ["https://example.com", "mailto:a@example.com"])
+      expect(safeHref(href)).toBe(safeLink(href, window.location.href));
+    for (const href of ["ftp://example.com", "javascript:alert(1)"])
+      expect(safeHref(href)).toBe(safeLink(href, window.location.href));
   });
 });

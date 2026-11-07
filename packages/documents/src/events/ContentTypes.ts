@@ -17,15 +17,31 @@ const AttendeeLimit = Schema.Int.check(
   ),
 );
 
+export const repeatEveryChoices = [1, 2, 3, 4, 5, 6, 7] as const;
+export const repeatUnitChoices = ["day", "week", "month", "year"] as const;
+export const repeatDefaults = { every: 1, unit: "week" } as const;
+
 /** How often a recurring event comes back: 1 to 7 of its unit. */
 const RepeatEvery = Schema.Int.check(
   Schema.makeFilter(
     (every: number) =>
-      (every >= 1 && every <= 7) || "Expected a whole number from 1 to 7",
+      repeatEveryChoices.includes(
+        every as (typeof repeatEveryChoices)[number],
+      ) || "Expected a whole number from 1 to 7",
   ),
 );
-export const RepeatUnit = Schema.Literals(["day", "week", "month", "year"]);
+export const RepeatUnit = Schema.Literals(repeatUnitChoices);
 export type RepeatUnit = typeof RepeatUnit.Type;
+
+export const salesEventFields = ["public", "guests", "salesEvent"] as const;
+export const isSalesEvent = (
+  event: Pick<EventContent, (typeof salesEventFields)[number]>,
+): boolean => salesEventFields.every((field) => event[field] === true);
+
+export const signupTakesPlace = (streamed: boolean, online: boolean): boolean =>
+  !streamed || !online;
+
+export const choiceQuestionMinimum = 2;
 
 /** Whether those signed up are reminded: by guests, always or never. */
 export const ReminderChoice = Schema.Literals(["default", "on", "off"]);
@@ -183,6 +199,14 @@ export const EventContent = Schema.Struct({
   repeatUnit: Schema.optionalKey(RepeatUnit),
 });
 export type EventContent = typeof EventContent.Type;
+export type BooleanEventField = {
+  [Field in keyof EventContent]-?: Exclude<
+    EventContent[Field],
+    undefined
+  > extends boolean
+    ? Field
+    : never;
+}[keyof EventContent];
 
 /** When signing up and cancelling close: the deadline, or else the start. */
 export function signupClosesAt<Time>(
@@ -288,7 +312,7 @@ export const contentTypes = {
         event.questions.some(
           (question) =>
             question.type === "choice" &&
-            (question.options.length < 2 ||
+            (question.options.length < choiceQuestionMinimum ||
               question.options.some((option) => option.text.trim() === "")),
         )
           ? { _tag: "ChoiceWithoutOptions" }

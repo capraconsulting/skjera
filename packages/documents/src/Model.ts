@@ -454,15 +454,17 @@ export const writtenAnswerLength = 1000;
 export const teamNameLength = 100;
 export type Tag = typeof Tag.Type;
 
+export const sameTag = (a: string, b: string): boolean =>
+  a.toLowerCase() === b.toLowerCase();
+
 /** Tags without repeats, ignoring case: each as first written. */
 export const uniqueTags = (
   tags: ReadonlyArray<string>,
 ): ReadonlyArray<string> => {
   const seen = new Set<string>();
   return tags.filter((tag) => {
-    const key = tag.toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
+    if ([...seen].some((kept) => sameTag(kept, tag))) return false;
+    seen.add(tag);
     return true;
   });
 };
@@ -545,6 +547,34 @@ export const RichText = Schema.Array(
 );
 export type RichText = typeof RichText.Type;
 
+export const imagePlacements = ["full", "left", "right", "center"] as const;
+export const imageSizes = ["small", "medium", "large"] as const;
+export interface ImageChoices {
+  readonly placement: (typeof imagePlacements)[number];
+  readonly size: (typeof imageSizes)[number];
+  readonly caption: string;
+}
+export const defaultImageChoices: ImageChoices = {
+  placement: "full",
+  size: "medium",
+  caption: "",
+};
+
+export const linkProtocols = ["http:", "https:", "mailto:"] as const;
+export const imageProtocols = ["http:", "https:"] as const;
+export const safeLink = (
+  value: unknown,
+  base: string,
+  protocols: ReadonlyArray<string> = linkProtocols,
+): string | null => {
+  try {
+    const url = new URL(String(value), base);
+    return protocols.includes(url.protocol) ? url.href : null;
+  } catch {
+    return null;
+  }
+};
+
 /** A share of the picture's width or height, from 0 to 1. */
 const Share = Schema.Number.check(
   Schema.makeFilter(
@@ -596,6 +626,18 @@ export const Cover = Schema.Struct({
 });
 export type Cover = typeof Cover.Type;
 
+export const shownCoverData = (cover: Cover): Cover => {
+  const { crop, focus, ...plain } = cover;
+  return {
+    ...plain,
+    ...(crop?.from === cover.src ? { crop } : {}),
+    ...(focus !== undefined &&
+    (focus.from === undefined || focus.from === cover.src)
+      ? { focus }
+      : {}),
+  };
+};
+
 /** A share as a CSS percentage, to two decimals and without trailing zeros. */
 const percent = (share: number) => `${Math.round(share * 10000) / 100}%`;
 
@@ -610,12 +652,7 @@ const within = (n: number) => Math.min(1, Math.max(0, n));
 export const shownCover = (
   cover: Cover,
 ): { readonly src: string; readonly position: string } => {
-  const crop = cover.crop?.from === cover.src ? cover.crop : undefined;
-  const focus =
-    cover.focus === undefined ||
-    (cover.focus.from !== undefined && cover.focus.from !== cover.src)
-      ? undefined
-      : cover.focus;
+  const { crop, focus } = shownCoverData(cover);
   // No focal point: the centre of the part shown.
   const position = (share: number | undefined, start = 0, length = 1) =>
     percent(share === undefined ? 0.5 : within((share - start) / length));

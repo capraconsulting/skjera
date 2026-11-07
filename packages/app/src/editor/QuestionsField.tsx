@@ -1,6 +1,7 @@
 import * as A from "@automerge/automerge/slim";
 import type { DocHandle } from "@automerge/automerge-repo/slim";
 import type { EventContent, Question } from "@skjera/documents/api";
+import { choiceQuestionMinimum } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { useMemo, useSyncExternalStore } from "react";
 import { Button } from "../components/Button.tsx";
@@ -82,7 +83,10 @@ export function QuestionsField(props: {
       if (question === undefined) return;
       question.type = new A.ImmutableString(type);
       if (type !== "choice") question.options.splice(0);
-      while (type === "choice" && question.options.length < 2) {
+      while (
+        type === "choice" &&
+        question.options.length < choiceQuestionMinimum
+      ) {
         question.options.push(newOption());
       }
     });
@@ -293,7 +297,7 @@ function Options(props: {
           <Button
             variant="ghost"
             aria-label={m.editor_q_option_remove({ n, option: index + 1 })}
-            disabled={question.options.length <= 2}
+            disabled={question.options.length <= choiceQuestionMinimum}
             onClick={() =>
               changeOption(option.id, (options, at) => options.splice(at, 1))
             }

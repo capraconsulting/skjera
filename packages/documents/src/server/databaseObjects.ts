@@ -1,6 +1,10 @@
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
-import { organizerEmails } from "../events/ContentTypes.ts";
+import {
+  organizerEmails,
+  repeatDefaults,
+  salesEventFields,
+} from "../events/ContentTypes.ts";
 import { channel } from "../events/DocumentEvents.ts";
 
 const publishedOrganizerEmailFields = organizerEmails.flatMap(
@@ -12,6 +16,13 @@ const publishedOrganizerEmailValues = organizerEmails
     `('${text}', email_text_spans(d.draft, '${text}', heads, c.content))`,
   ])
   .join(",\n            ");
+const salesEventSql = salesEventFields
+  .map((field) =>
+    field === "salesEvent"
+      ? `coalesce((c.content->>'${field}')::boolean, false)`
+      : `(c.content->>'${field}')::boolean`,
+  )
+  .join(" AND ");
 
 export const publishedDraftFields = [
   "title",
@@ -170,8 +181,7 @@ export const currentDatabaseObjectStatements = [
           THEN nullif(regexp_replace(c.content->>'streamLink', '^\\s+|\\s+$', '', 'g'), '')
         END,
         -- A sales event is sent to HubSpot: only a public event open to guests is one.
-        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean
-          AND coalesce((c.content->>'salesEvent')::boolean, false),
+        ${salesEventSql},
         -- Its type, trimmed; blank is none.
         nullif(regexp_replace(c.content->>'salesEventType', '^\\s+|\\s+$', '', 'g'), ''),
         -- The emails' own subjects and texts; none is left out.
@@ -183,10 +193,10 @@ export const currentDatabaseObjectStatements = [
         -- Only while recurring; nothing chosen is every 1 week. Through
         -- numeric: a whole number stored as a float reads "2.0".
         CASE WHEN coalesce((c.content->>'recurring')::boolean, false)
-          THEN coalesce((c.content->>'repeatEvery')::numeric::integer, 1)
+          THEN coalesce((c.content->>'repeatEvery')::numeric::integer, ${repeatDefaults.every})
         END,
         CASE WHEN coalesce((c.content->>'recurring')::boolean, false)
-          THEN coalesce(c.content->>'repeatUnit', 'week')
+          THEN coalesce(c.content->>'repeatUnit', '${repeatDefaults.unit}')
         END,
         -- Sorted like automerge_heads(), so the two can be compared.
         ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject

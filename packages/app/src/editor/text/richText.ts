@@ -1,5 +1,12 @@
 import { ImmutableString } from "@automerge/automerge/slim";
 import { basicSchemaAdapter } from "@automerge/prosemirror";
+import {
+  defaultImageChoices,
+  type ImageChoices,
+  imagePlacements,
+  imageSizes,
+  safeLink,
+} from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { setBlockType, toggleMark } from "prosemirror-commands";
 import {
@@ -114,22 +121,8 @@ const selectedImage = (state: EditorState) => {
     : null;
 };
 
-export const imagePlacements = ["full", "left", "right", "center"] as const;
-export const imageSizes = ["small", "medium", "large"] as const;
-
-/** How an image in the text is placed, how big it is, and what it says. */
-export interface ImageChoices {
-  readonly placement: (typeof imagePlacements)[number];
-  readonly size: (typeof imageSizes)[number];
-  /** Empty when there is none. */
-  readonly caption: string;
-}
-
-export const defaultChoices: ImageChoices = {
-  placement: "full",
-  size: "medium",
-  caption: "",
-};
+export { type ImageChoices, imagePlacements, imageSizes };
+export const defaultChoices = defaultImageChoices;
 
 /**
  * The choices are block attributes the schema doesn't declare, which
@@ -160,9 +153,13 @@ export const imageChoices = (attrs: Attrs): ImageChoices | null => {
     return null;
   }
   return {
-    placement: oneOf(imagePlacements, stored["placement"], "full"),
-    size: oneOf(imageSizes, stored["size"], "medium"),
-    caption: String(stored["caption"] ?? "").trim(),
+    placement: oneOf(
+      imagePlacements,
+      stored["placement"],
+      defaultImageChoices.placement,
+    ),
+    size: oneOf(imageSizes, stored["size"], defaultImageChoices.size),
+    caption: String(stored["caption"] ?? defaultImageChoices.caption).trim(),
   };
 };
 
@@ -339,12 +336,5 @@ export const setImage =
 
 /** Only web and mail links. */
 export const safeHref = (href: string) => {
-  try {
-    const url = new URL(href, window.location.href);
-    return ["http:", "https:", "mailto:"].includes(url.protocol)
-      ? url.href
-      : null;
-  } catch {
-    return null;
-  }
+  return safeLink(href, window.location.href);
 };

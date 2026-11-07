@@ -2,6 +2,11 @@ import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import * as A from "@automerge/automerge/slim";
 import { init, pmDocFromSpans, pmNodeToSpans } from "@automerge/prosemirror";
+import {
+  defaultImageChoices,
+  imagePlacements,
+  imageSizes,
+} from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { baseLocale, overwriteGetLocale } from "@skjera/i18n/runtime";
 import { Fragment, type Node, type Schema } from "prosemirror-model";
@@ -91,6 +96,11 @@ const withStored = (stored: Record<string, string>) =>
   }) as Node;
 
 describe("an image's choices", () => {
+  it("uses the document model's choices and defaults (AC-1)", () => {
+    expect(imagePlacements).toEqual(["full", "left", "right", "center"]);
+    expect(imageSizes).toEqual(["small", "medium", "large"]);
+    expect(defaultChoices).toBe(defaultImageChoices);
+  });
   it("are 'Full bredde' and 'Medium' for an image made with nothing chosen (AC-2)", () => {
     const made = newImage(schema, src, "A cat");
     expect(imageChoices(made.attrs)).toEqual(defaultChoices);
@@ -116,6 +126,20 @@ describe("an image's choices", () => {
       size: "medium",
       caption: "Hi",
     });
+  });
+
+  it("reads a missing size from the document model's current default (AC-1)", () => {
+    const defaults = defaultImageChoices as { size: "medium" | "large" };
+    defaults.size = "large";
+    try {
+      expect(imageChoices(withStored({ placement: "left" }).attrs)).toEqual({
+        placement: "left",
+        size: "large",
+        caption: "",
+      });
+    } finally {
+      defaults.size = "medium";
+    }
   });
 
   it("read the stored placement, size and caption, as strings or immutable strings (AC-3, AC-4, AC-6)", () => {

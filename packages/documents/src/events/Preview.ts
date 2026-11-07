@@ -7,7 +7,7 @@ import {
   type RichText,
   uniqueTags,
 } from "../Model.ts";
-import type { EventContent } from "./ContentTypes.ts";
+import { type EventContent, isSalesEvent } from "./ContentTypes.ts";
 
 /** What the event page shows: an event's published row without its publication. */
 export type ShownEvent = Omit<
@@ -95,7 +95,6 @@ export const eventPreview = (draft: {
     hidePlacesLeft: content.hidePlacesLeft ?? false,
     isStreamed: streamed,
     streamLink: streamed ? trimmedOrNull(content.streamLink) : null,
-    isSalesEvent:
-      content.public && content.guests && (content.salesEvent ?? false),
+    isSalesEvent: isSalesEvent(content),
   };
 };

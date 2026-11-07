@@ -1,39 +1,19 @@
 import type { DocHandle } from "@automerge/automerge-repo/slim";
-import type { EventContent } from "@skjera/documents/api";
+import type { BooleanEventField, EventContent } from "@skjera/documents/api";
 import { useSyncExternalStore } from "react";
 import styles from "./CheckboxField.module.css";
-
-type BooleanField =
-  | "public"
-  | "guests"
-  | "dietary"
-  | "hidePlacesLeft"
-  | "streamed"
-  | "salesEvent"
-  | "recurring";
-
-/** What a field means when a draft doesn't have it (yet). */
-const unset: Record<BooleanField, boolean> = {
-  public: false,
-  guests: false,
-  dietary: false,
-  hidePlacesLeft: false,
-  streamed: false,
-  salesEvent: false,
-  recurring: false,
-};
 
 /** The current value of a true/false field, following changes from anyone. */
 export const useBooleanField = (
   handle: DocHandle<EventContent>,
-  field: BooleanField,
+  field: BooleanEventField,
 ) =>
   useSyncExternalStore(
     (onChange) => {
       handle.on("change", onChange);
       return () => handle.off("change", onChange);
     },
-    () => (handle.doc()[field] ?? unset[field]) === true,
+    () => handle.doc()[field] === true,
   );
 
 /**
@@ -42,7 +22,7 @@ export const useBooleanField = (
  */
 export function CheckboxField(props: {
   readonly handle: DocHandle<EventContent>;
-  readonly field: BooleanField;
+  readonly field: BooleanEventField;
   readonly label: string;
   readonly hint?: string;
   /** Can't be changed, and shows off: the draft keeps its value for later. */
@@ -62,7 +42,7 @@ export function CheckboxField(props: {
         onChange={(event) => {
           const value = event.target.checked;
           props.handle.change((doc) => {
-            (doc as Record<BooleanField, boolean>)[props.field] = value;
+            (doc as Record<BooleanEventField, boolean>)[props.field] = value;
           });
         }}
       />

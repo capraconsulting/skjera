@@ -9,7 +9,11 @@ import {
 } from "../api/errors.ts";
 import { refused } from "../api/Problems.ts";
 import type { StoredGuestSignup } from "../api/PublicApi.ts";
-import { dietaryClosesAt, signupClosesAt } from "../events/ContentTypes.ts";
+import {
+  dietaryClosesAt,
+  signupClosesAt,
+  signupTakesPlace,
+} from "../events/ContentTypes.ts";
 import {
   type AdSource,
   type AdSourceKey,
@@ -256,7 +260,7 @@ export class Attendance extends Context.Service<
           SELECT max_attendees, is_streamed FROM events WHERE id = ${event} FOR UPDATE
         `;
         if (limit === undefined || limit.max_attendees === null) return;
-        if (limit.is_streamed && online) return;
+        if (!signupTakesPlace(limit.is_streamed, online)) return;
         const [taken] = yield* sql<{ count: number; mine: boolean }>`
           SELECT count(*)::int AS count, coalesce(bool_or(${own}), false) AS mine
           FROM attendees

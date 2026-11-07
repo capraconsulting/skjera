@@ -20,7 +20,9 @@ import {
   organizerLogos,
   Question,
   SiteSettings,
+  sameTag,
   shownCover,
+  shownCoverData,
   TeamLogosChange,
 } from "../src/Model.ts";
 
@@ -659,6 +661,26 @@ describe("shownCover", () => {
       src: picture,
       position: "50% 50%",
     });
+  });
+});
+
+describe("shared editor model rules", () => {
+  it("compares tags without case (AC-1)", () => {
+    assert.isTrue(sameTag("Workshop", "workshop"));
+    assert.isFalse(sameTag("Workshop", "Seminar"));
+  });
+
+  it("drops a crop and focus that belong to another picture (AC-1)", () => {
+    const stale = "/api/images/CCCCCCCCCCCCCCCCCCCCCC";
+    assert.deepStrictEqual(
+      shownCoverData({
+        src: picture,
+        alt: "",
+        crop: cropOf({ from: stale }),
+        focus: { x: 0.8, y: 0.3, from: stale },
+      }),
+      { src: picture, alt: "" },
+    );
   });
 });
 
