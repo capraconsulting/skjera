@@ -8,6 +8,7 @@ import {
   fieldOf,
   questionField,
   salesEventForm,
+  signupFields,
   signupFrom,
 } from "../src/site/signupForm.ts";
 
@@ -126,11 +127,11 @@ describe("signupFrom", () => {
 
   it("reads a guest's details as written, the email untrimmed, and the hidden field (AC-3)", () => {
     const form = formOf({
-      firstname: "Kari Nordmann",
-      email: "  kari@example.com ",
-      telephone: "91234567",
-      company: "Acme",
-      subject: "spam",
+      [signupFields.firstname]: "Kari Nordmann",
+      [signupFields.email]: "  kari@example.com ",
+      [signupFields.telephone]: "91234567",
+      [signupFields.company]: "Acme",
+      [signupFields.subject]: "spam",
     });
     expect(signupFrom(plain, form, true, "en")).toEqual({
       locale: "en",
@@ -153,15 +154,20 @@ describe("signupFrom", () => {
   });
 
   it("has dietary only when the form has the field (AC-4)", () => {
-    const asked = signupFrom(plain, formOf({ dietary: "Vegan" }), false, "nb");
+    const asked = signupFrom(
+      plain,
+      formOf({ [signupFields.dietary]: "Vegan" }),
+      false,
+      "nb",
+    );
     expect(asked.dietary).toBe("Vegan");
     const notAsked = signupFrom(plain, formOf({}), false, "nb");
     expect("dietary" in notAsked).toBe(false);
   });
 
   it("has online only when the event is streamed (AC-5)", () => {
-    const online = formOf({ attendance: "online" });
-    const inPerson = formOf({ attendance: "in-person" });
+    const online = formOf({ [signupFields.attendance]: "online" });
+    const inPerson = formOf({ [signupFields.attendance]: "in-person" });
     expect(signupFrom(streamed, online, false, "nb").online).toBe(true);
     expect(signupFrom(streamed, inPerson, false, "nb").online).toBe(false);
     expect("online" in signupFrom(plain, online, false, "nb")).toBe(false);

@@ -3,7 +3,10 @@ import { Context, Effect, Layer } from "effect";
 import { SqlClient, SqlError } from "effect/sql";
 import { EventNotFound, OrganizerEmailRejected } from "../api/errors.ts";
 import { refused } from "../api/Problems.ts";
-import type { SentEmail } from "../api/PublicApi.ts";
+import {
+  organizerEmailMissingField,
+  type SentEmail,
+} from "../api/PublicApi.ts";
 import type { DocumentId } from "../Model.ts";
 import { EventMail } from "./Mail.tsx";
 import { type Signup, tell } from "./Notifications.ts";
@@ -47,17 +50,18 @@ export class OrganizerEmails extends Context.Service<
         sender: Identity,
         email: { readonly subject: string; readonly text: string },
       ) {
+        const missing = organizerEmailMissingField(email);
+        if (missing !== null) {
+          return yield* new OrganizerEmailRejected(
+            refused({
+              _tag:
+                missing === "subject"
+                  ? "EmailSubjectMissing"
+                  : "EmailTextMissing",
+            }),
+          );
+        }
         const subject = email.subject.trim();
-        if (subject === "") {
-          return yield* new OrganizerEmailRejected(
-            refused({ _tag: "EmailSubjectMissing" }),
-          );
-        }
-        if (email.text.trim() === "") {
-          return yield* new OrganizerEmailRejected(
-            refused({ _tag: "EmailTextMissing" }),
-          );
-        }
         return yield* Effect.gen(function* () {
           const [published] = yield* sql<{ readonly id: DocumentId }>`
             SELECT id FROM events WHERE id = ${event} AND deleted_at IS NULL

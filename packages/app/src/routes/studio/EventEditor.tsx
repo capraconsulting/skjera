@@ -1,5 +1,9 @@
 import type { DocHandle } from "@automerge/automerge-repo/slim";
-import type { DocumentId, EventContent } from "@skjera/documents/api";
+import {
+  type DocumentId,
+  type EventContent,
+  isAttendeeLimit,
+} from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { appPaths } from "@skjera/paths";
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -252,10 +256,6 @@ function FoodDetails(props: {
   );
 }
 
-/** A limit: a whole number of at least one that fits a Postgres integer. */
-const isLimit = (number: number) =>
-  Number.isInteger(number) && number >= 1 && number <= 2_147_483_647;
-
 /** The most who can sign up, and whether the site says how many places are left. */
 function AttendeeLimit(props: { readonly handle: DocHandle<EventContent> }) {
   const { handle } = props;
@@ -271,7 +271,10 @@ function AttendeeLimit(props: { readonly handle: DocHandle<EventContent> }) {
   const [typed, setTyped] = useState<string | null>(null);
   const write = (input: HTMLInputElement) => {
     const number = Number(input.value);
-    if (input.validity.badInput || (input.value !== "" && !isLimit(number))) {
+    if (
+      input.validity.badInput ||
+      (input.value !== "" && !isAttendeeLimit(number))
+    ) {
       setTyped(input.value);
       return;
     }

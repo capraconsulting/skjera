@@ -26,6 +26,7 @@ import {
   changeFrom,
   fieldOf,
   salesEventForm,
+  signupFields,
   signupFrom,
 } from "../../site/signupForm.ts";
 import { attendees, type GuestCancel } from "../../sync/tables.ts";
@@ -411,7 +412,7 @@ export function Attend(props: {
         onSubmit={(submitted) => {
           submitted.preventDefault();
           const form = new FormData(submitted.currentTarget);
-          cancel(id, String(form.get("subject") ?? ""));
+          cancel(id, String(form.get(signupFields.subject) ?? ""));
         }}
       >
         <p className={styles.status}>{status}</p>
@@ -504,7 +505,7 @@ export function Attend(props: {
             >
               <div className={styles.fields}>
                 <GuestInput
-                  name="firstname"
+                  name={signupFields.firstname}
                   messages={messages}
                   autoComplete="name"
                   aria-label={m.attend_your_name()}
@@ -512,7 +513,7 @@ export function Attend(props: {
                   required
                 />
                 <GuestInput
-                  name="email"
+                  name={signupFields.email}
                   messages={messages}
                   type="email"
                   aria-label={m.attend_your_email()}

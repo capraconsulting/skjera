@@ -8,11 +8,12 @@ import { Cover, Question, Tag, ZonedDateTime } from "../Model.ts";
 // a field's type are rejected before they are stored.
 
 /** A whole number of attendees, at least one; it fits a Postgres integer. */
+export const isAttendeeLimit = (limit: number): boolean =>
+  Number.isInteger(limit) && limit >= 1 && limit <= 2_147_483_647;
 const AttendeeLimit = Schema.Int.check(
   Schema.makeFilter(
     (limit: number) =>
-      (limit >= 1 && limit <= 2_147_483_647) ||
-      "Expected a whole number of at least 1",
+      isAttendeeLimit(limit) || "Expected a whole number of at least 1",
   ),
 );
 

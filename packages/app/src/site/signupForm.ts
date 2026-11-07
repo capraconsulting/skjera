@@ -10,12 +10,22 @@ import { Option, Schema } from "effect";
 import type { Signup, SignupChange } from "../sync/tables.ts";
 
 /** A guest's inputs, by the `name` they carry (the names HubSpot reads). */
-export type GuestField =
+export const signupFields = {
+  firstname: "firstname",
+  email: "email",
+  telephone: "telephone",
+  company: "company",
+  jobtitle: "jobtitle",
+  subject: "subject",
+  dietary: "dietary",
+  attendance: "attendance",
+} as const;
+export type GuestField = (typeof signupFields)[
   | "firstname"
   | "email"
   | "telephone"
   | "company"
-  | "jobtitle";
+  | "jobtitle"];
 
 /**
  * The option a choice question starts on: the one answered before, if it is
@@ -54,13 +64,13 @@ export const fieldOf = (problem: unknown): GuestField | undefined => {
   if (Option.isNone(decoded)) return undefined;
   switch (decoded.value._tag) {
     case "GuestNameTooShort":
-      return "firstname";
+      return signupFields.firstname;
     case "MemberEmail":
-      return "email";
+      return signupFields.email;
     case "GuestPhoneInvalid":
-      return "telephone";
+      return signupFields.telephone;
     case "GuestCompanyTooShort":
-      return "company";
+      return signupFields.company;
     default:
       return undefined;
   }
@@ -86,7 +96,7 @@ const answersFrom = (
 
 /** Online or in person; undefined while the event is not streamed. */
 const onlineFrom = (event: Pick<ShownEvent, "isStreamed">, form: FormData) =>
-  event.isStreamed ? form.get("attendance") === "online" : undefined;
+  event.isStreamed ? form.get(signupFields.attendance) === "online" : undefined;
 
 /** The name of the box that asks for invitations and the newsletter. */
 export const consentField = "consent";
@@ -124,7 +134,7 @@ export const signupFrom = (
   locale: Locale,
   source?: AdSource,
 ): Signup => {
-  const dietary = form.get("dietary");
+  const dietary = form.get(signupFields.dietary);
   const online = onlineFrom(event, form);
   return {
     // Emails to them are in it.
@@ -139,15 +149,15 @@ export const signupFrom = (
     ...(asGuest
       ? {
           guest: {
-            name: textOf(form, "firstname"),
-            email: textOf(form, "email"),
-            phone: textOf(form, "telephone"),
-            company: textOf(form, "company"),
+            name: textOf(form, signupFields.firstname),
+            email: textOf(form, signupFields.email),
+            phone: textOf(form, signupFields.telephone),
+            company: textOf(form, signupFields.company),
             ...(salesEventForm(event).askJobTitle
-              ? { jobTitle: textOf(form, "jobtitle") }
+              ? { jobTitle: textOf(form, signupFields.jobtitle) }
               : {}),
           },
-          honeypot: textOf(form, "subject"),
+          honeypot: textOf(form, signupFields.subject),
         }
       : {}),
   };
@@ -168,8 +178,8 @@ export const changeFrom = (
     ...(online === undefined ? {} : { online }),
     ...(asGuest
       ? {
-          phone: textOf(form, "telephone"),
-          company: textOf(form, "company"),
+          phone: textOf(form, signupFields.telephone),
+          company: textOf(form, signupFields.company),
         }
       : {}),
   };

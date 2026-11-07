@@ -1,6 +1,6 @@
 import * as A from "@automerge/automerge/slim";
 import type { DocHandle } from "@automerge/automerge-repo/slim";
-import type { EventContent } from "@skjera/documents/api";
+import { type EventContent, tagLength } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { useLiveQuery } from "@tanstack/react-db";
 import { useCombobox } from "downshift";
@@ -152,7 +152,7 @@ export function TagsField(props: { readonly handle: DocHandle<EventContent> }) {
         <input
           className={inputStyles.input}
           placeholder={m.editor_tag_placeholder()}
-          maxLength={40}
+          maxLength={tagLength}
           {...getInputProps({ onFocus: () => openMenu() })}
         />
         <ul

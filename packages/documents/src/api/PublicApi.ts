@@ -23,6 +23,19 @@ import {
 } from "./errors.ts";
 import { EventRow } from "./SyncApi.ts";
 
+export const invitationNameLength = 100;
+export const organizerEmailSubjectLength = 200;
+export const organizerEmailTextLength = 10_000;
+export const organizerEmailMissingField = (email: {
+  readonly subject: string;
+  readonly text: string;
+}): "subject" | "text" | null =>
+  email.subject.trim() === ""
+    ? "subject"
+    : email.text.trim() === ""
+      ? "text"
+      : null;
+
 // The site's API for signing up to published events. Public events are
 // there for anyone; with a session, members-only events too. The events
 // themselves are synced (see SyncApi.ts), and read by their address for
@@ -195,7 +208,9 @@ export class AttendeesApi extends HttpApiGroup.make("attendees")
       params: { id: DocumentId },
       // The email is checked by the service, so a refusal says why by its field.
       payload: Schema.Struct({
-        name: Schema.optionalKey(Schema.String.check(Schema.isMaxLength(100))),
+        name: Schema.optionalKey(
+          Schema.String.check(Schema.isMaxLength(invitationNameLength)),
+        ),
         email: Schema.String,
       }),
       success: Invitation,
@@ -211,8 +226,10 @@ export class AttendeesApi extends HttpApiGroup.make("attendees")
       params: { id: DocumentId },
       // Empty ones are refused by the service, so a refusal says why by its field.
       payload: Schema.Struct({
-        subject: Schema.String.check(Schema.isMaxLength(200)),
-        text: Schema.String.check(Schema.isMaxLength(10_000)),
+        subject: Schema.String.check(
+          Schema.isMaxLength(organizerEmailSubjectLength),
+        ),
+        text: Schema.String.check(Schema.isMaxLength(organizerEmailTextLength)),
       }),
       success: SentEmail,
       error: [EventNotFound, OrganizerEmailRejected],

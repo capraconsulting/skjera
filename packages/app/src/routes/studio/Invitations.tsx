@@ -2,6 +2,7 @@ import {
   type DocumentId,
   describe,
   type Invitation,
+  invitationNameLength,
   isEmailAddress,
   Problem,
 } from "@skjera/documents/api";
@@ -111,7 +112,7 @@ export function Invitations(props: { readonly id: DocumentId }) {
           name="name"
           aria-label={m.studio_invitation_name()}
           placeholder={m.studio_invitation_name()}
-          maxLength={100}
+          maxLength={invitationNameLength}
           value={name}
           onChange={(event) => setName(event.target.value)}
         />
