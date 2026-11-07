@@ -1,21 +1,21 @@
-import type { EventContent } from "@skjera/documents/api";
+import {
+  type EmailField,
+  type EventContent,
+  organizerEmails,
+} from "@skjera/documents/api";
+import { m } from "@skjera/i18n/messages";
 
-/** The draft's keys for the emails' own subjects and texts. */
-export type EmailField =
-  | "signedUpSubject"
-  | "signedUpText"
-  | "signupCancelledSubject"
-  | "signupCancelledText"
-  | "eventChangedSubject"
-  | "eventChangedText"
-  | "eventCancelledSubject"
-  | "eventCancelledText";
+export const emails = organizerEmails.map((email) => ({
+  ...email,
+  name: m[email.name],
+  subjectLabel: m[email.subjectLabel],
+  textLabel: m[email.textLabel],
+}));
 
-/** The keys one email keeps its subject and text under. */
-export interface EmailKeys {
-  readonly subject: EmailField;
-  readonly text: EmailField;
-}
+type EmailOpening = Pick<
+  (typeof organizerEmails)[number],
+  "subject" | "text" | "openFromStart"
+>;
 
 /** Something is written in the draft: not only spaces and block markers. */
 export const isWritten = (value: string | undefined) =>
@@ -27,8 +27,8 @@ export const isWritten = (value: string | undefined) =>
  */
 export const opensFromStart = (
   content: Partial<Pick<EventContent, EmailField>>,
-  email: EmailKeys,
+  email: EmailOpening,
 ) =>
-  email.subject === "signedUpSubject" ||
+  email.openFromStart ||
   isWritten(content[email.subject]) ||
   isWritten(content[email.text]);

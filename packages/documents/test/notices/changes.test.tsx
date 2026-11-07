@@ -4,10 +4,17 @@ import { Identity } from "@skjera/oauth/api";
 import { Cron, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { Attendance } from "../../src/attendance/Attendance.ts";
+import { organizerEmails } from "../../src/events/ContentTypes.ts";
 import type { DocumentId } from "../../src/Model.ts";
 import * as Mail from "../../src/notices/Mail.tsx";
 import { Notifications } from "../../src/notices/Notifications.ts";
-import { emailsTo, outbox, publishedEvent, TestLayer } from "./helpers.ts";
+import {
+  emailsTo,
+  outbox,
+  publishedEvent,
+  TestLayer,
+  writtenText,
+} from "./helpers.ts";
 
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Mail: changes", (it) => {
@@ -270,6 +277,51 @@ layer(TestLayer, { excludeTestServices: true })("Mail: changes", (it) => {
       yield* Effect.sleep("300 millis");
       assert.deepStrictEqual(outbox.to(`late-${run}@example.org`), []);
     }),
+  );
+
+  it.effect(
+    "uses organiser text when a reminder is added to the catalogue (AC-1)",
+    () =>
+      Effect.gen(function* () {
+        const catalogue = organizerEmails as unknown as Array<{
+          kind: string;
+          subject: string;
+          text: string;
+        }>;
+        catalogue.push({
+          kind: "reminder",
+          subject: "reminderSubject",
+          text: "reminderText",
+        });
+        try {
+          const attendance = yield* Attendance;
+          const now = new Date("2045-03-25T07:05:00Z");
+          const event = yield* publishedEvent({
+            startsAt: new Date("2045-03-26T12:00+02:00"),
+            emailTexts: {
+              reminderSubject: "Written reminder",
+              reminderText: writtenText,
+            },
+          });
+          const address = `reminder-text-${crypto.randomUUID()}@example.org`;
+          yield* attendance.attendAsGuest(event, {
+            name: "Gina",
+            email: address,
+          });
+          yield* Mail.sendReminders(now);
+          const messages = yield* emailsTo(address, 2);
+          const reminder = messages.find(({ message }) =>
+            message.subject.startsWith("Written reminder"),
+          );
+          assert.strictEqual(
+            reminder?.message.subject,
+            "Written reminder Launch",
+          );
+          assert.include(reminder?.message.text ?? "", "BIG NEWS");
+        } finally {
+          catalogue.pop();
+        }
+      }),
   );
 
   it.effect(

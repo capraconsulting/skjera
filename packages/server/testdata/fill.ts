@@ -6,8 +6,10 @@ import {
   Attendance,
   type DocumentId,
   Documents,
+  type EmailKind,
   type EventContent,
   Images,
+  organizerEmails,
   type ReminderChoice,
   type SignupDetails,
   type TeamId,
@@ -27,7 +29,8 @@ export type Colour =
   | "purple"
   | "orange"
   | "teal"
-  | "pink";
+  | "pink"
+  | "gray";
 
 const rgb: Record<Colour, readonly [number, number, number]> = {
   red: [220, 53, 69],
@@ -38,6 +41,7 @@ const rgb: Record<Colour, readonly [number, number, number]> = {
   orange: [253, 126, 20],
   teal: [32, 201, 151],
   pink: [214, 51, 132],
+  gray: [108, 117, 125],
 };
 
 export interface QuestionSpec {
@@ -77,12 +81,6 @@ export interface SignupSpec {
   /** Follows online rather than in person. */
   readonly online?: boolean;
 }
-
-export type EmailKind =
-  | "signedUp"
-  | "signupCancelled"
-  | "eventChanged"
-  | "eventCancelled";
 
 export interface EventSpec {
   readonly title: string;
@@ -297,13 +295,6 @@ const setRichText = (
     );
 };
 
-const emailKeys = {
-  signedUp: ["signedUpSubject", "signedUpText"],
-  signupCancelled: ["signupCancelledSubject", "signupCancelledText"],
-  eventChanged: ["eventChangedSubject", "eventChangedText"],
-  eventCancelled: ["eventCancelledSubject", "eventCancelledText"],
-} as const;
-
 /** The ids the draft's questions and their options were given. */
 interface Ids {
   readonly questions: Map<string, string>;
@@ -365,7 +356,9 @@ const writeEvent = (
   for (const [kind, email] of Object.entries(spec.emails ?? {}) as Array<
     [EmailKind, { subject?: string; text?: string }]
   >) {
-    const [subject, text] = emailKeys[kind];
+    const { subject, text } = organizerEmails.find(
+      (candidate) => candidate.kind === kind,
+    ) as (typeof organizerEmails)[number];
     if (email.subject !== undefined) setText(doc, subject, email.subject);
     if (email.text !== undefined)
       setRichText(doc, text, [{ kind: "paragraph", text: email.text }]);
@@ -488,10 +481,10 @@ export const clear = (teams: ReadonlyArray<TeamSpec>) =>
             WHERE d.type = 'event' AND strpos(concat_ws(' ',
               h.content::text,
               automerge_spans(d.draft, '{body}', h.heads)::text,
-              email_text_spans(d.draft, 'signedUpText', h.heads, h.content)::text,
-              email_text_spans(d.draft, 'signupCancelledText', h.heads, h.content)::text,
-              email_text_spans(d.draft, 'eventChangedText', h.heads, h.content)::text,
-              email_text_spans(d.draft, 'eventCancelledText', h.heads, h.content)::text
+              (SELECT string_agg(
+                email_text_spans(d.draft, field, h.heads, h.content)::text,
+                ' '
+              ) FROM unnest(${organizerEmails.map(({ text }) => text)}::text[]) AS field)
             ), src) > 0)`;
       return free.map(({ src }) => src);
     }).pipe(sql.withTransaction, Effect.orDie);

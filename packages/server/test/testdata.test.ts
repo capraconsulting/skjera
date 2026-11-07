@@ -9,6 +9,7 @@ import {
   Documents,
   type EventContent,
   Images,
+  organizerEmails,
   type TeamId,
   Teams,
   ZonedDateTime as ZonedDateTimeSchema,
@@ -1070,7 +1071,7 @@ describe("clear and the images in use", () => {
     });
   };
 
-  it("keeps the images a team, a published event or a draft still shows, and deletes the rest (AC-5)", async () => {
+  it("keeps images in every organiser email text (AC-1)", async () => {
     const url = database.url;
     const catalogueTeams: ReadonlyArray<TeamSpec> = [
       {
@@ -1082,6 +1083,9 @@ describe("clear and the images in use", () => {
           open("AC-3: Yellow", "yellow"),
           open("AC-4: Purple", "purple"),
           open("AC-5: Orange", "orange"),
+          open("AC-6: Teal", "teal"),
+          open("AC-7: Pink", "pink"),
+          open("AC-8: Gray", "gray"),
         ],
       },
     ];
@@ -1101,7 +1105,7 @@ describe("clear and the images in use", () => {
             }>`SELECT cover->>'src' AS src FROM events WHERE title = ${title}`,
         )
       )[0]?.src ?? "";
-    const [red, green, blue, yellow, purple, orange] = [
+    const [red, green, blue, yellow, purple, orange, teal, pink, gray] = [
       (
         await query(
           url,
@@ -1116,6 +1120,9 @@ describe("clear and the images in use", () => {
       await cover("AC-3: Yellow"),
       await cover("AC-4: Purple"),
       await cover("AC-5: Orange"),
+      await cover("AC-6: Teal"),
+      await cover("AC-7: Pink"),
+      await cover("AC-8: Gray"),
     ];
 
     // What the catalogue's images are shown by, outside the catalogue.
@@ -1137,9 +1144,11 @@ describe("clear and the images in use", () => {
         yield* handMadeDraft(team.id, "Draft body", (doc) =>
           imageBlock(doc, "body", yellow),
         );
-        yield* handMadeDraft(team.id, "Draft email text", (doc) =>
-          imageBlock(doc, "signedUpText", purple),
-        );
+        const emailImages = [purple, orange, teal, pink];
+        for (const [index, { kind, text }] of organizerEmails.entries())
+          yield* handMadeDraft(team.id, `Draft ${kind} text`, (doc) =>
+            imageBlock(doc, text, emailImages[index] ?? ""),
+          );
       }),
     );
     await query(
@@ -1154,7 +1163,7 @@ describe("clear and the images in use", () => {
       Effect.gen(function* () {
         const images = yield* Images.Images;
         return yield* Effect.forEach(
-          [red, green, blue, yellow, purple, orange],
+          [red, green, blue, yellow, purple, orange, teal, pink, gray],
           (src) => images.get(src.split("/").pop() ?? ""),
         );
       }),
@@ -1164,7 +1173,10 @@ describe("clear and the images in use", () => {
       "Some", // a published event's cover
       "Some", // a draft's cover
       "Some", // an image in a draft's body
-      "Some", // an image in a draft's email text
+      "Some", // an image in a draft's signed-up email text
+      "Some", // an image in a draft's signup-cancelled email text
+      "Some", // an image in a draft's event-changed email text
+      "Some", // an image in a draft's event-cancelled email text
       "None", // nothing shows it
     ]);
     expect(await teamNames(url)).toEqual(["Hand-made", "Kept team"]);

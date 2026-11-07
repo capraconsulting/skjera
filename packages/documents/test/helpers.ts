@@ -5,7 +5,10 @@ import { Deferred, Effect, Fiber, Layer, Option } from "effect";
 import { SqlClient } from "effect/sql";
 import { Attendance } from "../src/attendance/Attendance.ts";
 import { Invitations } from "../src/attendance/Invitations.ts";
-import type { EventContent } from "../src/events/ContentTypes.ts";
+import {
+  type EventContent,
+  organizerEmails,
+} from "../src/events/ContentTypes.ts";
 import { DocumentEvents } from "../src/events/DocumentEvents.ts";
 import { Documents } from "../src/events/Documents.ts";
 import { Presence } from "../src/events/Presence.ts";
@@ -209,12 +212,7 @@ export const setEmailRichText = (event: EventContent, key: string) => {
   A.mark(event, [key], { start: 27, end: 31, expand: "none" }, "strong", true);
 };
 
-export const emailKinds = [
-  "signedUp",
-  "signupCancelled",
-  "eventChanged",
-  "eventCancelled",
-] as const;
+export const emailKinds = organizerEmails.map(({ kind }) => kind);
 
 /** Creates and publishes an event, with the given visibility settings. */
 export const publishedEvent = Effect.fn(function* (settings: {

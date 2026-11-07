@@ -1,55 +1,25 @@
+import { organizerEmails } from "@skjera/documents/api";
 import { describe, expect, it } from "vitest";
-import {
-  type EmailKeys,
-  opensFromStart,
-} from "../src/routes/studio/emailTexts.ts";
-
-const signedUp: EmailKeys = {
-  subject: "signedUpSubject",
-  text: "signedUpText",
-};
-const others: ReadonlyArray<EmailKeys> = [
-  { subject: "signupCancelledSubject", text: "signupCancelledText" },
-  { subject: "eventChangedSubject", text: "eventChangedText" },
-  { subject: "eventCancelledSubject", text: "eventCancelledText" },
-];
+import { emails, opensFromStart } from "../src/routes/studio/emailTexts.ts";
 
 describe("opensFromStart", () => {
-  it("opens the sign-up email when nothing is written for it (AC-1)", () => {
-    expect(opensFromStart({}, signedUp)).toBe(true);
+  it("projects every organiser email into the studio (AC-1)", () => {
     expect(
-      opensFromStart({ signedUpSubject: "", signedUpText: "" }, signedUp),
-    ).toBe(true);
+      emails.map(({ kind, subject, text }) => ({ kind, subject, text })),
+    ).toEqual(
+      organizerEmails.map(({ kind, subject, text }) => ({
+        kind,
+        subject,
+        text,
+      })),
+    );
   });
 
-  it("keeps the other emails closed while nothing is written for them (AC-2)", () => {
-    for (const email of others) {
-      expect(opensFromStart({}, email)).toBe(false);
-      expect(
-        opensFromStart(
-          {
-            signupCancelledSubject: "",
-            signupCancelledText: "  ",
-            eventChangedSubject: "\n",
-            eventChangedText: "￼ ￼",
-            eventCancelledSubject: " ",
-            eventCancelledText: "",
-          },
-          email,
-        ),
-      ).toBe(false);
-    }
-  });
-
-  it("opens another email when its subject or its text is written (AC-2)", () => {
-    expect(
-      opensFromStart({ eventChangedSubject: "Moved" }, others[1] as EmailKeys),
-    ).toBe(true);
-    expect(
-      opensFromStart({ eventCancelledText: "Off" }, others[2] as EmailKeys),
-    ).toBe(true);
-    expect(
-      opensFromStart({ signupCancelledSubject: "Bye" }, others[0] as EmailKeys),
-    ).toBe(true);
+  it("opens the sign-up email from its catalogue metadata (AC-2)", () => {
+    const signedUp = emails.find(({ kind }) => kind === "signedUp");
+    expect(signedUp?.openFromStart).toBe(true);
+    expect(signedUp === undefined ? false : opensFromStart({}, signedUp)).toBe(
+      true,
+    );
   });
 });

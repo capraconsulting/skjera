@@ -7,7 +7,10 @@ import { Effect, Layer, Schedule } from "effect";
 import { SingleRunner } from "effect/cluster";
 import { SqlClient } from "effect/sql";
 import { Attendance } from "../../src/attendance/Attendance.ts";
-import type { EventContent } from "../../src/events/ContentTypes.ts";
+import {
+  type EventContent,
+  organizerEmails,
+} from "../../src/events/ContentTypes.ts";
 import { Documents } from "../../src/events/Documents.ts";
 import type { DocumentId, Locale } from "../../src/Model.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
@@ -148,18 +151,13 @@ export const writtenText = [
   { type: "text", value: "Bring a friend" },
 ];
 
-export const kinds = [
-  "signedUp",
-  "signupCancelled",
-  "eventChanged",
-  "eventCancelled",
-] as const;
+export const kinds = organizerEmails.map(({ kind }) => kind);
 
 /** A subject and a text written for each of the four emails. */
 export const writtenEverywhere = Object.fromEntries(
-  kinds.flatMap((kind) => [
-    [`${kind}Subject`, `Written for ${kind}`],
-    [`${kind}Text`, writtenText],
+  organizerEmails.flatMap(({ kind, subject, text }) => [
+    [subject, `Written for ${kind}`],
+    [text, writtenText],
   ]),
 );
 

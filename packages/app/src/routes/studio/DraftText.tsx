@@ -1,6 +1,6 @@
 import * as A from "@automerge/automerge/slim";
 import type { DocHandle } from "@automerge/automerge-repo/slim";
-import type { EventContent } from "@skjera/documents/api";
+import type { EmailField, EventContent } from "@skjera/documents/api";
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { EmptyTextEditor, TextEditor } from "../../editor/text/TextEditor.tsx";
 import type { DraftPresence } from "../../presence/presence.ts";
@@ -11,15 +11,9 @@ export const textPaths = {
   place: ["place"],
   streamLink: ["streamLink"],
   salesEventType: ["salesEventType"],
-  signedUpSubject: ["signedUpSubject"],
-  signedUpText: ["signedUpText"],
-  signupCancelledSubject: ["signupCancelledSubject"],
-  signupCancelledText: ["signupCancelledText"],
-  eventChangedSubject: ["eventChangedSubject"],
-  eventChangedText: ["eventChangedText"],
-  eventCancelledSubject: ["eventCancelledSubject"],
-  eventCancelledText: ["eventCancelledText"],
 } as const;
+
+type DraftTextField = keyof typeof textPaths | EmailField;
 
 /**
  * Collaborative text kept under `field`, which a draft from before it
@@ -28,7 +22,7 @@ export const textPaths = {
 export function DraftText(props: {
   readonly handle: DocHandle<EventContent>;
   readonly presence: DraftPresence | null;
-  readonly field: keyof typeof textPaths;
+  readonly field: DraftTextField;
   readonly label: string;
   /** Rich text, as the body, rather than one line. */
   readonly rich?: boolean;
@@ -82,7 +76,11 @@ export function DraftText(props: {
     <TextEditor
       key={text}
       handle={handle}
-      path={textPaths[field]}
+      path={
+        field in textPaths
+          ? textPaths[field as keyof typeof textPaths]
+          : [field]
+      }
       label={props.label}
       {...(props.rich === true ? { rich: true } : {})}
       presence={props.presence}

@@ -38,6 +38,57 @@ export const reminderChoice = (value: unknown): ReminderChoice =>
       ? "off"
       : (String(value) as ReminderChoice); // the studio holds an ImmutableString
 
+export const organizerEmails = [
+  {
+    kind: "signedUp",
+    subject: "signedUpSubject",
+    text: "signedUpText",
+    name: "studio_email_signed_up",
+    subjectLabel: "studio_email_signed_up_subject",
+    textLabel: "studio_email_signed_up_text",
+    openFromStart: true,
+  },
+  {
+    kind: "signupCancelled",
+    subject: "signupCancelledSubject",
+    text: "signupCancelledText",
+    name: "studio_email_signup_cancelled",
+    subjectLabel: "studio_email_signup_cancelled_subject",
+    textLabel: "studio_email_signup_cancelled_text",
+    openFromStart: false,
+  },
+  {
+    kind: "eventChanged",
+    subject: "eventChangedSubject",
+    text: "eventChangedText",
+    name: "studio_email_event_changed",
+    subjectLabel: "studio_email_event_changed_subject",
+    textLabel: "studio_email_event_changed_text",
+    openFromStart: false,
+  },
+  {
+    kind: "eventCancelled",
+    subject: "eventCancelledSubject",
+    text: "eventCancelledText",
+    name: "studio_email_event_cancelled",
+    subjectLabel: "studio_email_event_cancelled_subject",
+    textLabel: "studio_email_event_cancelled_text",
+    openFromStart: false,
+  },
+] as const;
+export type EmailKind = (typeof organizerEmails)[number]["kind"];
+export type EmailField =
+  | (typeof organizerEmails)[number]["subject"]
+  | (typeof organizerEmails)[number]["text"];
+
+const optionalEmailText = Schema.optionalKey(Schema.String);
+const organizerEmailFields = Object.fromEntries(
+  organizerEmails.flatMap(({ subject, text }) => [
+    [subject, optionalEmailText],
+    [text, optionalEmailText],
+  ]),
+) as { readonly [Field in EmailField]: typeof optionalEmailText };
+
 export const EventContent = Schema.Struct({
   title: Schema.String,
   /**
@@ -119,14 +170,7 @@ export const EventContent = Schema.Struct({
    * as is. Missing or blank: the standard, in each recipient's language.
    * Texts are rich text, as the body.
    */
-  signedUpSubject: Schema.optionalKey(Schema.String),
-  signedUpText: Schema.optionalKey(Schema.String),
-  signupCancelledSubject: Schema.optionalKey(Schema.String),
-  signupCancelledText: Schema.optionalKey(Schema.String),
-  eventChangedSubject: Schema.optionalKey(Schema.String),
-  eventChangedText: Schema.optionalKey(Schema.String),
-  eventCancelledSubject: Schema.optionalKey(Schema.String),
-  eventCancelledText: Schema.optionalKey(Schema.String),
+  ...organizerEmailFields,
   /**
    * When it has ended, it moves on to its next date and is published again,
    * without those signed up (see Recurring.ts). Missing: no.

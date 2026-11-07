@@ -6,41 +6,10 @@ import { Button } from "../../components/Button.tsx";
 import type { DraftPresence } from "../../presence/presence.ts";
 import { DraftText } from "./DraftText.tsx";
 import styles from "./EmailTexts.module.css";
-import { opensFromStart } from "./emailTexts.ts";
+import { emails, opensFromStart } from "./emailTexts.ts";
 
 // The subject and text an organizer can write for each email the event
 // sends. An empty field sends the standard email.
-
-const emails = [
-  {
-    subject: "signedUpSubject",
-    text: "signedUpText",
-    name: m.studio_email_signed_up,
-    subjectLabel: m.studio_email_signed_up_subject,
-    textLabel: m.studio_email_signed_up_text,
-  },
-  {
-    subject: "signupCancelledSubject",
-    text: "signupCancelledText",
-    name: m.studio_email_signup_cancelled,
-    subjectLabel: m.studio_email_signup_cancelled_subject,
-    textLabel: m.studio_email_signup_cancelled_text,
-  },
-  {
-    subject: "eventChangedSubject",
-    text: "eventChangedText",
-    name: m.studio_email_event_changed,
-    subjectLabel: m.studio_email_event_changed_subject,
-    textLabel: m.studio_email_event_changed_text,
-  },
-  {
-    subject: "eventCancelledSubject",
-    text: "eventCancelledText",
-    name: m.studio_email_event_cancelled,
-    subjectLabel: m.studio_email_event_cancelled_subject,
-    textLabel: m.studio_email_event_cancelled_text,
-  },
-] as const;
 
 /**
  * The emails' fields. A field is created in the draft when the organizer goes

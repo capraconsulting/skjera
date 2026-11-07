@@ -14,7 +14,7 @@ import { Rpc } from "effect/rpc";
 import { SqlClient } from "effect/sql";
 import type { ReactElement } from "react";
 import { Attendance } from "../attendance/Attendance.ts";
-import { signupClosesAt } from "../events/ContentTypes.ts";
+import { organizerEmails, signupClosesAt } from "../events/ContentTypes.ts";
 import { type RichText, SiteLocale } from "../Model.ts";
 import { invitation, parseAddress } from "../site/Calendar.ts";
 import { CancelRequested } from "./emails/CancelRequested.tsx";
@@ -261,8 +261,16 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
 
             // The organiser's own subject, followed by the event's title, and
             // text in place of the opening.
+            const fieldsFor = (kind: string) =>
+              organizerEmails.find((email) => email.kind === kind) as
+                | { readonly subject: string; readonly text: string }
+                | undefined;
             const subjectOf = (kind: string, standard: string) => {
-              const written = event.email_texts[`${kind}Subject`];
+              const fields = fieldsFor(kind);
+              const written =
+                fields === undefined
+                  ? undefined
+                  : event.email_texts[fields.subject];
               return typeof written === "string"
                 ? `${written} ${event.title}`
                 : standard;
@@ -270,7 +278,11 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
             const textOf = (
               kind: string,
             ): { readonly text: WrittenText } | Record<string, never> => {
-              const written = event.email_texts[`${kind}Text`];
+              const fields = fieldsFor(kind);
+              const written =
+                fields === undefined
+                  ? undefined
+                  : event.email_texts[fields.text];
               return Array.isArray(written)
                 ? {
                     text: {
@@ -498,9 +510,12 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                 case "reminder":
                   // Already in their calendar: no invitation.
                   return {
-                    subject: m.email_reminder_subject(
-                      { title: event.title },
-                      { locale },
+                    subject: subjectOf(
+                      "reminder",
+                      m.email_reminder_subject(
+                        { title: event.title },
+                        { locale },
+                      ),
                     ),
                     body: (
                       <Reminder
@@ -511,6 +526,7 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
                         when={when}
                         url={url}
                         {...guestLink}
+                        {...textOf("reminder")}
                       />
                     ),
                   };

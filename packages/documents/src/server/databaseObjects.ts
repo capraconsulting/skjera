@@ -1,6 +1,17 @@
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
+import { organizerEmails } from "../events/ContentTypes.ts";
 import { channel } from "../events/DocumentEvents.ts";
+
+const publishedOrganizerEmailFields = organizerEmails.flatMap(
+  ({ subject, text }) => [subject, text],
+);
+const publishedOrganizerEmailValues = organizerEmails
+  .flatMap(({ subject, text }) => [
+    `('${subject}', to_jsonb(email_subject(c.content->>'${subject}')))`,
+    `('${text}', email_text_spans(d.draft, '${text}', heads, c.content))`,
+  ])
+  .join(",\n            ");
 
 export const publishedDraftFields = [
   "title",
@@ -25,14 +36,7 @@ export const publishedDraftFields = [
   "streamLink",
   "salesEvent",
   "salesEventType",
-  "signedUpSubject",
-  "signedUpText",
-  "signupCancelledSubject",
-  "signupCancelledText",
-  "eventChangedSubject",
-  "eventChangedText",
-  "eventCancelledSubject",
-  "eventCancelledText",
+  ...publishedOrganizerEmailFields,
   "recurring",
   "repeatEvery",
   "repeatUnit",
@@ -173,14 +177,7 @@ export const currentDatabaseObjectStatements = [
         -- The emails' own subjects and texts; none is left out.
         (SELECT coalesce(jsonb_object_agg(email.key, email.value), '{}')
           FROM (VALUES
-            ('signedUpSubject', to_jsonb(email_subject(c.content->>'signedUpSubject'))),
-            ('signedUpText', email_text_spans(d.draft, 'signedUpText', heads, c.content)),
-            ('signupCancelledSubject', to_jsonb(email_subject(c.content->>'signupCancelledSubject'))),
-            ('signupCancelledText', email_text_spans(d.draft, 'signupCancelledText', heads, c.content)),
-            ('eventChangedSubject', to_jsonb(email_subject(c.content->>'eventChangedSubject'))),
-            ('eventChangedText', email_text_spans(d.draft, 'eventChangedText', heads, c.content)),
-            ('eventCancelledSubject', to_jsonb(email_subject(c.content->>'eventCancelledSubject'))),
-            ('eventCancelledText', email_text_spans(d.draft, 'eventCancelledText', heads, c.content))
+            ${publishedOrganizerEmailValues}
           ) AS email(key, value)
           WHERE email.value IS NOT NULL),
         -- Only while recurring; nothing chosen is every 1 week. Through
