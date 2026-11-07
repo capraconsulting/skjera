@@ -14,7 +14,7 @@ const announce = Effect.gen(function* () {
   // Later: slack.updateMessage({ ...posted, text, blocks }), deleteMessage(posted)
 });
 
-announce.pipe(Effect.provide(Slack.layerConfig)); // SLACK_BOT_TOKEN
+announce.pipe(Effect.provide(Slack.layer({ token })));
 ```
 
 - `postMessage`, `updateMessage`, `deleteMessage`: messages, by channel and

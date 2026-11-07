@@ -8,14 +8,19 @@ import {
 import { renderEmail } from "@skjera/email/react";
 import { m } from "@skjera/i18n/messages";
 import { absoluteAppUrl, appPaths } from "@skjera/paths";
-import { Clock, Config, Cron, Effect, Layer, Option, Schema } from "effect";
+import { Clock, Config, Cron, Effect, Layer, Schema } from "effect";
 import { ClusterCron, ClusterSchema, Entity } from "effect/cluster";
 import { Rpc } from "effect/rpc";
 import { SqlClient } from "effect/sql";
 import type { ReactElement } from "react";
 import { Attendance } from "../attendance/Attendance.ts";
 import { organizerEmails, signupClosesAt } from "../events/ContentTypes.ts";
-import { type RichText, SiteLocale } from "../Model.ts";
+import {
+  type Locale,
+  optionalSetting,
+  type RichText,
+  SiteSettings,
+} from "../Model.ts";
 import { invitation, parseAddress } from "../site/Calendar.ts";
 import { CancelRequested } from "./emails/CancelRequested.tsx";
 import { EventCancelled } from "./emails/EventCancelled.tsx";
@@ -126,18 +131,13 @@ export const layerNotifications = Layer.effect(
  * Where the site is, what it's called, who emails come from, and the
  * language they're in for those who didn't say (`SITE_LOCALE`).
  */
-const SiteConfig = Config.all({
-  url: Config.String("SITE_URL"),
-  name: Config.String("SITE_NAME").pipe(Config.withDefault("Skjera")),
-  from: Config.String("EMAIL_FROM"),
-  locale: SiteLocale,
-});
-
 /** Emails to attendees are sent: a transport, and the settings the mailer needs. */
-export const emailsSent = Config.all({
-  transport: sendsEmail,
-  site: Config.option(SiteConfig),
-}).pipe(Config.map(({ transport, site }) => transport && Option.isSome(site)));
+export const emailsSent = Effect.gen(function* () {
+  const transport = yield* sendsEmail;
+  const { url } = yield* SiteSettings;
+  const from = yield* optionalSetting("EMAIL_FROM", Config.String);
+  return transport && url !== undefined && from !== undefined;
+});
 
 interface EventRow {
   readonly title: string;
@@ -170,8 +170,11 @@ interface EventRow {
  */
 export const layerMailer = Layer.unwrap(
   Effect.gen(function* () {
-    const site = yield* Config.option(SiteConfig);
-    if (Option.isSome(site)) return mailer(site.value);
+    const site = yield* SiteSettings;
+    const from = yield* optionalSetting("EMAIL_FROM", Config.String);
+    if (site.url !== undefined && from !== undefined) {
+      return mailer({ ...site, url: site.url, from });
+    }
     yield* Effect.logWarning(
       "SITE_URL or EMAIL_FROM not set: attendees aren't emailed",
     );
@@ -186,7 +189,12 @@ export const layerMailer = Layer.unwrap(
   }),
 );
 
-const mailer = (site: Config.Success<typeof SiteConfig>) =>
+const mailer = (site: {
+  readonly url: string;
+  readonly name: string;
+  readonly from: string;
+  readonly locale: Locale;
+}) =>
   EventMail.toLayer(
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
@@ -582,9 +590,6 @@ const mailer = (site: Config.Success<typeof SiteConfig>) =>
 /** Every day at 07:05 UTC; the zone is given, else `Cron` reads the process's. */
 export const reminderSchedule = Cron.parseUnsafe("5 7 * * *", "UTC");
 
-/** The calendar the "next day" is counted in. */
-const reminderTimeZone = "Europe/Oslo";
-
 /**
  * Reminds everyone signed up for events starting on the next calendar day
  * in Norway, through each event's mailer: once for each time the event
@@ -594,6 +599,7 @@ export const sendReminders = (now: Date) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const mailer = yield* EventMail.client;
+    const { timeZone } = yield* SiteSettings;
     const due = yield* sql<
       Signup & { readonly event_id: string; readonly starts_at: Date }
     >`
@@ -601,10 +607,10 @@ export const sendReminders = (now: Date) =>
         e.id AS event_id, e.starts_at
       FROM events e JOIN attendees a ON a.event_id = e.id
       WHERE e.send_reminders AND e.deleted_at IS NULL AND a.email IS NOT NULL
-        AND e.starts_at >= ((${now}::timestamptz AT TIME ZONE ${reminderTimeZone})::date + 1)::timestamp
-          AT TIME ZONE ${reminderTimeZone}
-        AND e.starts_at < ((${now}::timestamptz AT TIME ZONE ${reminderTimeZone})::date + 2)::timestamp
-          AT TIME ZONE ${reminderTimeZone}
+        AND e.starts_at >= ((${now}::timestamptz AT TIME ZONE ${timeZone})::date + 1)::timestamp
+          AT TIME ZONE ${timeZone}
+        AND e.starts_at < ((${now}::timestamptz AT TIME ZONE ${timeZone})::date + 2)::timestamp
+          AT TIME ZONE ${timeZone}
     `;
     yield* Effect.forEach(
       due,

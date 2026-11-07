@@ -1,6 +1,6 @@
 import { Effect, Layer } from "effect";
 import { HttpRouter, HttpServerResponse } from "effect/http";
-import { SiteConfig } from "../Model.ts";
+import { SiteSettings } from "../Model.ts";
 
 // The web app manifest (`GET /manifest.webmanifest`), as Skjer serves it: what
 // a phone is told when the site is added to its home screen.
@@ -30,7 +30,7 @@ export const manifest = (name: string) => ({
  */
 export const layerHttp = Layer.unwrap(
   Effect.gen(function* () {
-    const { name } = yield* SiteConfig;
+    const { name } = yield* SiteSettings;
     const body = JSON.stringify(manifest(name));
     return HttpRouter.add(
       "GET",

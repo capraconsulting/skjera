@@ -16,7 +16,7 @@ import {
   type Cover,
   eventCategory,
   type Locale,
-  SiteLocale,
+  SiteSettings,
   shownCover,
 } from "../Model.ts";
 import { Announcements } from "./Announcements.ts";
@@ -30,9 +30,6 @@ import { formatAt } from "./emails/format.ts";
 // messages are posted one at a time, in order), kept in the database and
 // deduplicated, so each is posted once it's committed, and once only. The
 // deadlines are sent the same way, by a daily job.
-
-/** Every time in a message is written in this zone, whatever the event's. */
-export const channelTimeZone = "Europe/Oslo";
 
 const Deadline = Schema.Struct({
   id: Schema.String,
@@ -63,6 +60,7 @@ const channelId = "channel";
 export interface Site {
   readonly url: string;
   readonly locale: Locale;
+  readonly timeZone: string;
 }
 
 /** A message for Slack: its text, where blocks can't be shown, and blocks. */
@@ -117,7 +115,7 @@ export const announcement = (
   const mark = options.repeated === true ? ":repeat:" : ":loudspeaker:";
   const heading = `*${escapeSlack(event.title)} | <!here> ${mark}*`;
   const page = absoluteAppUrl(site.url, appPaths.event(event.id));
-  const when = `*${m.slack_when({}, { locale })}:*\n${formatAt(locale, event.startsAt, channelTimeZone)}`;
+  const when = `*${m.slack_when({}, { locale })}:*\n${formatAt(locale, event.startsAt, site.timeZone)}`;
   const where =
     event.place === null
       ? []
@@ -172,7 +170,7 @@ export const deadlineMessage = (
       section(heading),
       ...deadlines.map(({ id, title, deadline }) =>
         section(
-          `<${absoluteAppUrl(site.url, appPaths.event(id))}|${escapeSlack(title)}> – ${formatAt(locale, deadline, channelTimeZone)}`,
+          `<${absoluteAppUrl(site.url, appPaths.event(id))}|${escapeSlack(title)}> – ${formatAt(locale, deadline, site.timeZone)}`,
         ),
       ),
     ],
@@ -401,8 +399,6 @@ export const poster = (options: {
 const SlackConfig = Config.all({
   token: Config.Redacted("SLACK_BOT_TOKEN"),
   channel: Config.String("SLACK_CHANNEL"),
-  url: Config.String("SITE_URL"),
-  locale: SiteLocale,
 });
 
 /**
@@ -413,9 +409,10 @@ const SlackConfig = Config.all({
 export const layer = Layer.unwrap(
   Effect.gen(function* () {
     const settings = yield* Config.option(SlackConfig);
-    if (Option.isSome(settings)) {
-      const { token, channel, url, locale } = settings.value;
-      return poster({ channel, site: { url, locale } }).pipe(
+    const site = yield* SiteSettings;
+    if (Option.isSome(settings) && site.url !== undefined) {
+      const { token, channel } = settings.value;
+      return poster({ channel, site: { ...site, url: site.url } }).pipe(
         Layer.provide(Slack.layer({ token })),
       );
     }

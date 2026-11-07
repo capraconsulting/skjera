@@ -19,7 +19,7 @@ import {
   optionalSetting,
   organizerLogos,
   Question,
-  SiteConfig,
+  SiteSettings,
   shownCover,
   TeamLogosChange,
 } from "../src/Model.ts";
@@ -218,11 +218,59 @@ describe("organizerLogos", () => {
 const readSite = (env: Record<string, string>) =>
   Effect.exit(
     Effect.gen(function* () {
-      return yield* SiteConfig;
+      return yield* SiteSettings.config;
     }),
   ).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(env))));
 
-describe("SiteConfig", () => {
+describe("SiteSettings", () => {
+  it.effect(
+    "reads the site address once and treats a blank address as absent (AC-1, AC-6)",
+    () =>
+      Effect.gen(function* () {
+        for (const env of [{}, { SITE_URL: "" }, { SITE_URL: "  " }]) {
+          const site = yield* readSite(env);
+          assert.isTrue(Exit.isSuccess(site));
+          if (Exit.isSuccess(site)) assert.notProperty(site.value, "url");
+        }
+        const site = yield* readSite({ SITE_URL: "https://example.org" });
+        assert.isTrue(Exit.isSuccess(site));
+        if (Exit.isSuccess(site)) {
+          assert.strictEqual(site.value.url, "https://example.org");
+        }
+      }),
+  );
+
+  it.effect(
+    "has one default name, the configured description and one time zone (AC-2, AC-3, AC-5)",
+    () =>
+      Effect.gen(function* () {
+        const site = yield* readSite({
+          SITE_DESCRIPTION: "Events together",
+          SITE_TIME_ZONE: "Europe/Stockholm",
+        });
+        assert.isTrue(Exit.isSuccess(site));
+        if (Exit.isSuccess(site)) {
+          assert.strictEqual(site.value.name, "Skjera");
+          assert.strictEqual(site.value.description, "Events together");
+          assert.strictEqual(site.value.timeZone, "Europe/Stockholm");
+        }
+      }),
+  );
+
+  it.effect(
+    "uses the default time zone when SITE_TIME_ZONE is blank (AC-5)",
+    () =>
+      Effect.gen(function* () {
+        for (const SITE_TIME_ZONE of ["", "  "]) {
+          const site = yield* readSite({ SITE_TIME_ZONE });
+          assert.isTrue(Exit.isSuccess(site));
+          if (Exit.isSuccess(site)) {
+            assert.strictEqual(site.value.timeZone, "Europe/Oslo");
+          }
+        }
+      }),
+  );
+
   it.effect("gives the app the HubSpot account id", () =>
     Effect.gen(function* () {
       const site = yield* readSite({ HUBSPOT_ACCOUNT_ID: "146072525" });

@@ -4,7 +4,7 @@ import { ConfigProvider, Effect, Layer, Option, Ref } from "effect";
 import { SqlClient } from "effect/sql";
 import { Attendance } from "../../src/attendance/Attendance.ts";
 import { Documents } from "../../src/events/Documents.ts";
-import type { DocumentId } from "../../src/Model.ts";
+import { type DocumentId, SiteSettings } from "../../src/Model.ts";
 import { type Kept, NoticesKept } from "../../src/notices/Notifications.ts";
 import {
   alice,
@@ -25,6 +25,7 @@ const withMemberDomains =
       Effect.provide(
         // Fresh: the layer the test file shares is built from the environment.
         Layer.fresh(Attendance.layer).pipe(
+          Layer.provide(SiteSettings.layer),
           Layer.provide(
             ConfigProvider.layer(
               ConfigProvider.fromUnknown({
@@ -556,16 +557,19 @@ layer(TestLayer, { excludeTestServices: true })("Guests", (it) => {
   );
 
   it.effect(
-    "refuses no email address when no member domains are set (AC-1)",
+    "treats every email as a member when login allows every domain (AC-4)",
     () =>
       Effect.gen(function* () {
         const attendance = yield* Attendance;
         const id = yield* publishedEvent({ public: true, guests: true });
-        yield* attendance.attendAsGuest(id, {
-          name: "Bob",
-          email: "bob@example.com",
-        });
-        assert.strictEqual((yield* signups(id, Option.none())).length, 1);
+        const error = yield* Effect.flip(
+          attendance.attendAsGuest(id, {
+            name: "Bob",
+            email: "bob@example.com",
+          }),
+        );
+        assert.deepStrictEqual(problemOf(error), { _tag: "MemberEmail" });
+        assert.strictEqual((yield* signups(id, Option.none())).length, 0);
       }).pipe(withMemberDomains("")),
   );
 

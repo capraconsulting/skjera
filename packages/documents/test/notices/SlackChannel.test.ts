@@ -9,7 +9,7 @@ import { SingleRunner } from "effect/cluster";
 import { SqlClient } from "effect/sql";
 import type { EventContent } from "../../src/events/ContentTypes.ts";
 import { Documents } from "../../src/events/Documents.ts";
-import type { DocumentId } from "../../src/Model.ts";
+import { type DocumentId, SiteSettings } from "../../src/Model.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
 import { formatAt } from "../../src/notices/emails/format.ts";
 import { Notifications } from "../../src/notices/Notifications.ts";
@@ -24,7 +24,11 @@ import { TestDatabase } from "../TestDatabase.ts";
 // `now` on a date of its own, and counts only messages naming its own events.
 
 const alice = new Identity({ issuer: "https://idp.example", subject: "alice" });
-const site = { url: "https://skjera.example", locale: "en" } as const;
+const site = {
+  url: "https://skjera.example",
+  locale: "en",
+  timeZone: "Europe/Oslo",
+} as const;
 const oslo = "Europe/Oslo";
 
 /** Every string in a message, however deep. */
@@ -296,8 +300,13 @@ const keeping = (log: Array<string>) =>
   ]);
 
 /** The channel's server layer, given its settings as environment variables. */
-const configured = (env: Record<string, string>) =>
-  ConfigProvider.layer(ConfigProvider.fromUnknown(env));
+const configured = (env: Record<string, string>) => {
+  const provider = ConfigProvider.layer(ConfigProvider.fromUnknown(env));
+  return Layer.merge(
+    provider,
+    SiteSettings.layer.pipe(Layer.provide(provider)),
+  );
+};
 
 let teams = 0;
 let titles = 0;

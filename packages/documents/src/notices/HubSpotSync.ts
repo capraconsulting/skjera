@@ -9,7 +9,7 @@ import { Config, Effect, Layer, Option, Schema } from "effect";
 import { ClusterSchema, Entity } from "effect/cluster";
 import { Rpc } from "effect/rpc";
 import { SqlClient } from "effect/sql";
-import { type AdSource, adSourceKeys } from "../Model.ts";
+import { type AdSource, adSourceKeys, SiteSettings } from "../Model.ts";
 import { SalesEvents } from "./SalesEvents.ts";
 
 // What HubSpot is sent of a sales event and its sign-ups. A publish, a
@@ -154,13 +154,14 @@ const consentProperties = {
 /** The private app's token, and where the site is: what sending needs. */
 const HubSpotConfig = Config.all({
   token: Config.Redacted("HUBSPOT_ACCESS_TOKEN"),
-  url: Config.String("SITE_URL"),
 });
 
 /** Sales events are sent to HubSpot: the token and the site's address are set. */
-export const configured = Config.option(HubSpotConfig).pipe(
-  Config.map(Option.isSome),
-);
+export const configured = Effect.gen(function* () {
+  const settings = yield* Config.option(HubSpotConfig);
+  const { url } = yield* SiteSettings;
+  return Option.isSome(settings) && url !== undefined;
+});
 
 interface SignupRow {
   readonly id: string;
@@ -181,7 +182,8 @@ export const layerSalesEvents = Layer.effect(
   SalesEvents,
   Effect.gen(function* () {
     const settings = yield* Config.option(HubSpotConfig);
-    if (Option.isNone(settings)) {
+    const { url } = yield* SiteSettings;
+    if (Option.isNone(settings) || url === undefined) {
       return SalesEvents.of({
         published: () => Effect.void,
         cancelled: () => Effect.void,
@@ -189,7 +191,7 @@ export const layerSalesEvents = Layer.effect(
         signupCancelled: () => Effect.void,
       });
     }
-    const siteUrl = settings.value.url;
+    const siteUrl = url;
     const sql = yield* SqlClient.SqlClient;
     const sender = yield* HubSpotEvent.client;
     const send = (event: string, payload: typeof Send.payloadSchema.Type) =>
@@ -411,7 +413,8 @@ export const sender = (
 export const layer = Layer.unwrap(
   Effect.gen(function* () {
     const settings = yield* Config.option(HubSpotConfig);
-    if (Option.isSome(settings)) {
+    const { url } = yield* SiteSettings;
+    if (Option.isSome(settings) && url !== undefined) {
       return sender().pipe(
         Layer.provide(HubSpot.layerFetch({ token: settings.value.token })),
       );

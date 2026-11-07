@@ -13,6 +13,7 @@ import {
   type AdSource,
   adSourceKeys,
   type DocumentId,
+  SiteSettings,
 } from "../../src/Model.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
 import * as HubSpotSync from "../../src/notices/HubSpotSync.ts";
@@ -37,7 +38,12 @@ const settings = {
 } as const;
 
 const provider = (env: Record<string, string>) =>
-  ConfigProvider.layer(ConfigProvider.fromUnknown(env));
+  ConfigProvider.layer(
+    ConfigProvider.fromUnknown({
+      OAUTH_ALLOWED_DOMAINS: "members.example",
+      ...env,
+    }),
+  );
 
 /** A logger that keeps what is logged, in `log`. */
 const keeping = (log: Array<string>) =>
@@ -69,6 +75,7 @@ const syncLayer = (
       Layer.provideMerge(Announcements.layerTest),
       Layer.provideMerge(Notifications.layerTest),
       Layer.provideMerge(portal.layer),
+      Layer.provideMerge(SiteSettings.layer.pipe(Layer.provide(provider(env)))),
       Layer.provideMerge(cluster),
       Layer.provideMerge(TestDatabase),
       Layer.provideMerge(keeping(log)),
@@ -270,7 +277,10 @@ describe("splitName", () => {
 
 describe("configured", () => {
   const configuredWith = (env: Record<string, string>) =>
-    HubSpotSync.configured.pipe(Effect.provide(provider(env)));
+    HubSpotSync.configured.pipe(
+      Effect.provide(SiteSettings.layer),
+      Effect.provide(provider(env)),
+    );
 
   it.effect(
     "is true with the token and the site's address, and false without either (AC-11)",
@@ -957,6 +967,7 @@ describe("The server's layer", () => {
     return {
       log,
       layer: HubSpotSync.layer.pipe(
+        Layer.provide(SiteSettings.layer),
         Layer.provide(provider(env)),
         Layer.provideMerge(cluster),
         Layer.provideMerge(TestDatabase),

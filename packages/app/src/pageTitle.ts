@@ -12,10 +12,14 @@ export type TitledPage =
  * and its companies, an event's page is the event's title, and the privacy
  * page is named before the site.
  */
-export const pageTitle = (page: TitledPage, siteName: string) => {
+export const pageTitle = (
+  page: TitledPage,
+  siteName: string,
+  siteDescription?: string,
+) => {
   switch (page.page) {
     case "front":
-      return `${siteName} | Capra Liflig`;
+      return siteDescription ?? siteName;
     case "event":
       return page.title.trim() === "" ? siteName : page.title;
     case "privacy":
@@ -25,7 +29,8 @@ export const pageTitle = (page: TitledPage, siteName: string) => {
 
 /** Shows the page's title in the tab while it's open, then the site's name. */
 export function usePageTitle(page: TitledPage) {
-  const title = pageTitle(page, currentSite().name);
+  const site = currentSite();
+  const title = pageTitle(page, site.name, site.description);
   useEffect(() => {
     document.title = title;
     return () => {

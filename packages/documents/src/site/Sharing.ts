@@ -14,7 +14,7 @@ import {
   type Cover,
   DocumentId,
   optionalSetting,
-  SiteConfig,
+  SiteSettings,
   shownCover,
 } from "../Model.ts";
 
@@ -60,9 +60,7 @@ export interface Site {
 
 /** The site, as the pages' heads name it: `SITE_NAME` and the settings of `Site`. */
 export const SharingSite = Effect.gen(function* () {
-  const { name } = yield* SiteConfig;
-  const url = yield* optionalSetting("SITE_URL", Config.String);
-  const description = yield* optionalSetting("SITE_DESCRIPTION", Config.String);
+  const { name, url, description } = yield* SiteSettings;
   const twitter = yield* optionalSetting("SITE_TWITTER", Config.String);
   const author = yield* optionalSetting("SITE_AUTHOR", Config.String);
   const publisher = yield* optionalSetting("SITE_PUBLISHER", Config.String);

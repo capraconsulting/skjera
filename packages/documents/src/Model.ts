@@ -1,5 +1,6 @@
 import { baseLocale, locales } from "@skjera/i18n/runtime";
-import { Config, Option, Schema } from "effect";
+import { AllowedDomains } from "@skjera/oauth/api";
+import { Config, Context, Effect, Layer, Option, Schema } from "effect";
 import { Temporal } from "temporal-polyfill";
 import type { Problem } from "./api/Problems.ts";
 
@@ -198,6 +199,7 @@ export const SitePrivacy = Schema.Struct({
  */
 export const Site = Schema.Struct({
   name: Schema.String,
+  description: Schema.optionalKey(Schema.String),
   locale: Locale,
   footer: Schema.optionalKey(SiteFooter),
   privacy: SitePrivacy,
@@ -258,8 +260,23 @@ const defined = <A extends object>(fields: A) =>
     Object.entries(fields).filter(([, value]) => value !== undefined),
   ) as { [K in keyof A]: Exclude<A[K], undefined> };
 
-export const SiteConfig = Config.all({
-  name: Config.String("SITE_NAME").pipe(Config.withDefault("Skjera")),
+export const defaultSiteName = "Skjera";
+export const defaultSiteTimeZone = "Europe/Oslo";
+
+export interface SiteSettingsValue extends Site {
+  readonly url?: string;
+  readonly timeZone: string;
+  readonly memberDomains: ReadonlyArray<string>;
+}
+
+const SiteConfig = Config.all({
+  url: optionalSetting("SITE_URL", Config.String),
+  name: Config.String("SITE_NAME").pipe(Config.withDefault(defaultSiteName)),
+  description: optionalSetting("SITE_DESCRIPTION", Config.String),
+  timeZone: optionalSetting("SITE_TIME_ZONE", Config.String).pipe(
+    Config.map((timeZone) => timeZone ?? defaultSiteTimeZone),
+  ),
+  memberDomains: AllowedDomains,
   locale: SiteLocale,
   footer: optionalSetting("SITE_FOOTER", (name) =>
     Config.schema(Schema.fromJsonString(SiteFooter), name),
@@ -274,8 +291,14 @@ export const SiteConfig = Config.all({
   ),
 }).pipe(
   Config.map(
-    (config): Site => ({
+    (config): SiteSettingsValue => ({
+      ...(config.url === undefined ? {} : { url: config.url }),
       name: config.name,
+      ...(config.description === undefined
+        ? {}
+        : { description: config.description }),
+      timeZone: config.timeZone,
+      memberDomains: config.memberDomains,
       locale: config.locale,
       ...(config.footer === undefined ? {} : { footer: config.footer }),
       privacy: defined({
@@ -291,6 +314,19 @@ export const SiteConfig = Config.all({
     }),
   ),
 );
+
+export class SiteSettings extends Context.Service<
+  SiteSettings,
+  SiteSettingsValue
+>()("@skjera/documents/SiteSettings") {
+  static readonly config = SiteConfig;
+  static readonly layer = Layer.effect(
+    SiteSettings,
+    Effect.gen(function* () {
+      return SiteSettings.of(yield* SiteConfig);
+    }),
+  );
+}
 /** A guest's phone number, as typed, at most 50 characters; `guestProblems` checks the rest. */
 export const GuestPhone = Schema.String.check(Schema.isMaxLength(50));
 

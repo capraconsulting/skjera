@@ -1,4 +1,4 @@
-import type { Site } from "@skjera/documents/api";
+import { defaultSiteName, type Site } from "@skjera/documents/api";
 import {
   baseLocale,
   defineCustomClientStrategy,
@@ -13,9 +13,9 @@ import {
 // in it. Event content is in whatever language it was written in.
 
 let site: Site = {
-  name: "Skjera",
+  name: defaultSiteName,
   locale: baseLocale,
-  privacy: { operator: "Skjera" },
+  privacy: { operator: defaultSiteName },
 };
 
 defineCustomClientStrategy("custom-site", {

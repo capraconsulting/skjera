@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import { ConfigProvider, Effect } from "effect";
+import { SiteSettings } from "../../src/Model.ts";
 import { emailsSent } from "../../src/notices/Mail.tsx";
 
 /** Whether emails are sent with these environment variables set. */
@@ -7,6 +8,7 @@ const sentWith = (env: Record<string, string>) =>
   Effect.gen(function* () {
     return yield* emailsSent;
   }).pipe(
+    Effect.provide(SiteSettings.layer),
     Effect.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(env))),
   );
 

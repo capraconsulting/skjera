@@ -1,8 +1,8 @@
 import { absoluteAppUrl, appPaths } from "@skjera/paths";
-import { Clock, Config, Effect, Layer } from "effect";
+import { Clock, Effect, Layer } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import { SqlClient } from "effect/sql";
-import { type Category, eventCategory, optionalSetting } from "../Model.ts";
+import { type Category, eventCategory, SiteSettings } from "../Model.ts";
 import { WebsiteOrigins } from "./Embed.ts";
 
 // The coming events as JSON (`GET /api/public/events`), in the format of
@@ -151,7 +151,7 @@ export const layerHttp = Layer.unwrap(
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const websites = yield* WebsiteOrigins;
-    const siteUrl = yield* optionalSetting("SITE_URL", Config.String);
+    const { url: siteUrl } = yield* SiteSettings;
     if (siteUrl === undefined) {
       yield* Effect.logWarning(
         "SITE_URL not set: /api/public/events isn't served",

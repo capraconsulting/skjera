@@ -1,3 +1,16 @@
+import { Config } from "effect";
+
+/** The configured member domains, lower-cased. An empty list allows everyone. */
+export const AllowedDomains = Config.String("OAUTH_ALLOWED_DOMAINS").pipe(
+  Config.withDefault(""),
+  Config.map((domains) =>
+    domains
+      .split(/[\s,]+/)
+      .map((domain) => domain.trim().toLowerCase())
+      .filter((domain) => domain.length > 0),
+  ),
+);
+
 export const googleIssuer = "https://accounts.google.com";
 
 /**
@@ -34,3 +47,10 @@ export const isDomainAllowed = (
 ): boolean =>
   allowedDomains.length === 0 ||
   (domain !== undefined && allowedDomains.includes(domain));
+
+/** The lower-cased domain of a plain email address. */
+export const emailDomain = (email: string): string | undefined => {
+  const trimmed = email.trim();
+  const at = trimmed.lastIndexOf("@");
+  return at > 0 ? trimmed.slice(at + 1).toLowerCase() : undefined;
+};

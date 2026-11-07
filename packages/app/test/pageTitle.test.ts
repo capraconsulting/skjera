@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { pageTitle } from "../src/pageTitle.ts";
 
 describe("pageTitle", () => {
-  it("names the site and its companies on the front page", () => {
-    expect(pageTitle({ page: "front" }, "Skjer")).toBe("Skjer | Capra Liflig");
+  it("uses the configured site description on the front page (AC-3)", () => {
+    expect(pageTitle({ page: "front" }, "Skjer", "Events together")).toBe(
+      "Events together",
+    );
   });
 
   it("is the event's title on its page", () => {

@@ -1,7 +1,6 @@
 import type { Block, KnownBlock } from "@slack/types";
 import { ErrorCode, LogLevel, WebClient } from "@slack/web-api";
 import {
-  Config,
   Context,
   Duration,
   Effect,
@@ -117,14 +116,6 @@ export class Slack extends Context.Service<
 
   static readonly layer = (options: Parameters<typeof Slack.make>[0]) =>
     Layer.succeed(Slack, Slack.make(options));
-
-  /** With the bot token in `SLACK_BOT_TOKEN`. */
-  static readonly layerConfig = Layer.unwrap(
-    Effect.gen(function* () {
-      const token = yield* Config.Redacted("SLACK_BOT_TOKEN");
-      return Slack.layer({ token });
-    }),
-  );
 }
 
 /** Slack's errors as ours. */

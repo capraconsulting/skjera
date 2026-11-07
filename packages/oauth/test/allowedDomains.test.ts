@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@effect/vitest";
 import {
   accountDomain,
+  emailDomain,
   googleIssuer,
   isDomainAllowed,
 } from "../src/internal/allowedDomains.ts";
@@ -52,6 +53,13 @@ describe("accountDomain", () => {
     expect(
       accountDomain("https://idp.example", claims, "email"),
     ).toBeUndefined();
+  });
+});
+
+describe("emailDomain", () => {
+  it("extracts a normalized domain from a plain email address (AC-4)", () => {
+    expect(emailDomain(" Bob@EXAMPLE.com ")).toBe("example.com");
+    expect(emailDomain("no-at-sign")).toBeUndefined();
   });
 });
 

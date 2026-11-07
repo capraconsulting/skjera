@@ -3,7 +3,7 @@ import { appPaths } from "@skjera/paths";
 import { Clock, Config, Effect, Layer, Schema } from "effect";
 import { HttpRouter, HttpServerResponse } from "effect/http";
 import { SqlClient } from "effect/sql";
-import { type Locale, organizerLogos, SiteConfig } from "../Model.ts";
+import { type Locale, organizerLogos, SiteSettings } from "../Model.ts";
 import { escapeHtml } from "./Sharing.ts";
 
 // The next events as a small page of its own, for the company's websites to
@@ -250,7 +250,7 @@ ${items.map(itemHtml).join("\n")}
 export const layerHttp = Layer.unwrap(
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    const site = yield* SiteConfig;
+    const site = yield* SiteSettings;
     const policy = frameAncestors(yield* WebsiteOrigins);
 
     return HttpRouter.add(

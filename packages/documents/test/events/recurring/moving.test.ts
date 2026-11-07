@@ -10,7 +10,7 @@ import { Attendance } from "../../../src/attendance/Attendance.ts";
 import type { EventContent } from "../../../src/events/ContentTypes.ts";
 import { Documents } from "../../../src/events/Documents.ts";
 import * as Recurring from "../../../src/events/Recurring.ts";
-import type { DocumentId } from "../../../src/Model.ts";
+import { type DocumentId, SiteSettings } from "../../../src/Model.ts";
 import { formatAt } from "../../../src/notices/emails/format.ts";
 import {
   NoticesKept,
@@ -27,7 +27,11 @@ import { TestDatabase } from "../../TestDatabase.ts";
 // after its own events' end, and counts only the messages naming its title.
 
 const alice = new Identity({ issuer: "https://idp.example", subject: "alice" });
-const site = { url: "https://skjera.example", locale: "en" } as const;
+const site = {
+  url: "https://skjera.example",
+  locale: "en",
+  timeZone: "Europe/Oslo",
+} as const;
 const oslo = "Europe/Oslo";
 const day = 24 * 60 * 60 * 1000;
 
@@ -240,6 +244,7 @@ const TestLayer = Layer.mergeAll(
   Layer.provideMerge(SlackChannel.layerAnnouncements),
   Layer.provideMerge(Notifications.layerTest),
   Layer.provideMerge(SalesEvents.layerTest),
+  Layer.provideMerge(SiteSettings.layer),
   Layer.provideMerge(workspace.layer),
   Layer.provideMerge(cluster),
   Layer.provideMerge(TestDatabase),

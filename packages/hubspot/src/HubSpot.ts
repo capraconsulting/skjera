@@ -1,5 +1,4 @@
 import {
-  Config,
   Context,
   Duration,
   Effect,
@@ -132,14 +131,6 @@ export class HubSpot extends Context.Service<
   /** The same, over `fetch`. */
   static readonly layerFetch = (options: Parameters<typeof HubSpot.layer>[0]) =>
     HubSpot.layer(options).pipe(Layer.provide(FetchHttpClient.layer));
-
-  /** With the token in `HUBSPOT_ACCESS_TOKEN`. */
-  static readonly layerConfig = Layer.unwrap(
-    Effect.gen(function* () {
-      const token = yield* Config.Redacted("HUBSPOT_ACCESS_TOKEN");
-      return HubSpot.layerFetch({ token });
-    }),
-  );
 }
 
 const defaultApiUrl = "https://api.hubapi.com";

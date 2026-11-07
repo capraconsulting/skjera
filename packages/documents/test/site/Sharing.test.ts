@@ -10,7 +10,7 @@ import { HttpRouter } from "effect/http";
 import { SqlClient } from "effect/sql";
 import { Documents } from "../../src/events/Documents.ts";
 import { Images } from "../../src/events/Images.ts";
-import type { Cover, DocumentId } from "../../src/Model.ts";
+import { type Cover, type DocumentId, SiteSettings } from "../../src/Model.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
 import { Notifications } from "../../src/notices/Notifications.ts";
 import { SalesEvents } from "../../src/notices/SalesEvents.ts";
@@ -146,6 +146,7 @@ const withPages = <A, E, R>(
     const sql = yield* SqlClient.SqlClient;
     const app = Sharing.layerHttp({ root }).pipe(
       Layer.provide(Layer.succeed(SqlClient.SqlClient, sql)),
+      Layer.provide(SiteSettings.layer),
       Layer.provide(
         // The environment with the settings over it: a blank one is not set.
         ConfigProvider.layer(

@@ -1,4 +1,4 @@
-import { AllowedDomains } from "@skjera/oauth";
+import { emailDomain, isDomainAllowed } from "@skjera/oauth";
 import { type Identity, nameOf } from "@skjera/oauth/api";
 import { Clock, Context, Effect, Layer } from "effect";
 import { SqlClient, SqlError, type Statement } from "effect/sql";
@@ -22,6 +22,7 @@ import {
   guestProblems,
   type Locale,
   type Question,
+  SiteSettings,
 } from "../Model.ts";
 import { Notifications, type Signup, tell } from "../notices/Notifications.ts";
 import { SalesEvents } from "../notices/SalesEvents.ts";
@@ -192,14 +193,9 @@ export class Attendance extends Context.Service<
       const salesEvents = yield* SalesEvents;
       const secret = yield* signingSecret;
       // The domains members log in with: an email on one is a member's.
-      const memberDomains = yield* AllowedDomains;
+      const { memberDomains } = yield* SiteSettings;
       const isMemberEmail = (email: string) =>
-        memberDomains.includes(
-          email
-            .trim()
-            .slice(email.trim().lastIndexOf("@") + 1)
-            .toLowerCase(),
-        );
+        isDomainAllowed(memberDomains, emailDomain(email));
       const guestTokenFor = (attendee: string) => guestToken(secret, attendee);
       const cancelLinkTokenFor = (
         event: string,

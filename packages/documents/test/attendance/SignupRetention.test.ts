@@ -12,7 +12,7 @@ import { Attendance } from "../../src/attendance/Attendance.ts";
 import * as SignupRetention from "../../src/attendance/SignupRetention.ts";
 import type { EventContent } from "../../src/events/ContentTypes.ts";
 import { Documents } from "../../src/events/Documents.ts";
-import type { DocumentId, TeamId } from "../../src/Model.ts";
+import { type DocumentId, SiteSettings, type TeamId } from "../../src/Model.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
 import * as HubSpotSync from "../../src/notices/HubSpotSync.ts";
 import * as Mail from "../../src/notices/Mail.tsx";
@@ -88,6 +88,7 @@ const TestLayer = Layer.mergeAll(
   Layer.provideMerge(portal.layer),
   Layer.provideMerge(Announcements.layerTest),
   Layer.provideMerge(Mail.layerNotifications),
+  Layer.provideMerge(SiteSettings.layer),
   Layer.provideMerge(Layer.succeed(Email, outbox.email)),
   Layer.provideMerge(cluster),
   Layer.provideMerge(TestDatabase),

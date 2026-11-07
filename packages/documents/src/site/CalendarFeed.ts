@@ -1,8 +1,8 @@
 import { absoluteAppUrl, appPaths } from "@skjera/paths";
-import { Clock, Config, Effect, Layer } from "effect";
+import { Clock, Effect, Layer } from "effect";
 import { HttpRouter, HttpServerResponse } from "effect/http";
 import { SqlClient } from "effect/sql";
-import { optionalSetting, SiteConfig } from "../Model.ts";
+import { SiteSettings } from "../Model.ts";
 import { type FeedEvent, feed } from "./Calendar.ts";
 
 // The coming events as a calendar to subscribe to (`GET /api/subscribe`), as
@@ -54,8 +54,7 @@ export const feedEvents = (now: Date, options: { readonly siteUrl: string }) =>
 export const layerHttp = Layer.unwrap(
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    const { name, locale } = yield* SiteConfig;
-    const siteUrl = yield* optionalSetting("SITE_URL", Config.String);
+    const { name, locale, url: siteUrl } = yield* SiteSettings;
     if (siteUrl === undefined) {
       yield* Effect.logWarning("SITE_URL not set: /api/subscribe isn't served");
       return Layer.empty;

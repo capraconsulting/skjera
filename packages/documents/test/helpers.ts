@@ -12,7 +12,7 @@ import {
 import { DocumentEvents } from "../src/events/DocumentEvents.ts";
 import { Documents } from "../src/events/Documents.ts";
 import { Presence } from "../src/events/Presence.ts";
-import type { Audience, DocumentId } from "../src/Model.ts";
+import { type Audience, type DocumentId, SiteSettings } from "../src/Model.ts";
 import { Announcements } from "../src/notices/Announcements.ts";
 import { Notifications } from "../src/notices/Notifications.ts";
 import { SalesEvents } from "../src/notices/SalesEvents.ts";
@@ -45,6 +45,7 @@ export const TestLayer = Layer.mergeAll(
   Layer.provideMerge(Announcements.layerTest),
   Layer.provideMerge(SalesEvents.layerTest),
   Layer.provideMerge(Notifications.layerTest),
+  Layer.provideMerge(SiteSettings.layer),
   Layer.provideMerge(TestDatabase),
 );
 

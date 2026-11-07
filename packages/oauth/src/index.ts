@@ -7,6 +7,7 @@ import { Sessions } from "./Sessions.ts";
 export * from "./Authentication.ts";
 export * from "./AuthRoutes.ts";
 export * from "./Identity.ts";
+export { emailDomain, isDomainAllowed } from "./internal/allowedDomains.ts";
 export * from "./OAuthClient.ts";
 export * from "./OAuthConfig.ts";
 export * from "./Sessions.ts";

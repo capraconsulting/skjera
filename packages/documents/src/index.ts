@@ -7,6 +7,7 @@ import { DocumentEvents } from "./events/DocumentEvents.ts";
 import { Documents } from "./events/Documents.ts";
 import { Presence } from "./events/Presence.ts";
 import * as Recurring from "./events/Recurring.ts";
+import { SiteSettings } from "./Model.ts";
 import * as HubSpotSync from "./notices/HubSpotSync.ts";
 import * as Mail from "./notices/Mail.tsx";
 import { OrganizerEmails } from "./notices/OrganizerEmails.ts";
@@ -80,5 +81,6 @@ export const layer = Layer.mergeAll(
   Layer.provideMerge(Mail.layerNotifications),
   Layer.provideMerge(SlackChannel.layerAnnouncements),
   Layer.provideMerge(Cluster.layer),
+  Layer.provideMerge(SiteSettings.layer),
   Layer.provideMerge(Database.layer),
 );

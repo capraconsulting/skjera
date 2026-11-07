@@ -1,6 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import { ConfigProvider, Effect, Layer } from "effect";
 import { HttpRouter } from "effect/http";
+import { SiteSettings } from "../../src/Model.ts";
 import * as Manifest from "../../src/site/Manifest.ts";
 
 // The web app manifest: what a phone is told when the site is added to its
@@ -23,6 +24,7 @@ interface Served {
 const fetched = (env: Record<string, string>, path: string) =>
   Effect.gen(function* () {
     const app = Manifest.layerHttp.pipe(
+      Layer.provide(SiteSettings.layer),
       Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(env))),
     );
     const { handler, dispose } = HttpRouter.toWebHandler(app, {

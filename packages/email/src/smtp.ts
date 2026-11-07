@@ -1,4 +1,4 @@
-import { Config, Effect, Layer, Redacted } from "effect";
+import { Effect, Layer, Redacted } from "effect";
 import { createTransport } from "nodemailer";
 import {
   Email,
@@ -43,8 +43,3 @@ export const makeSmtp = (url: Redacted.Redacted<string>) => {
 
 export const layerSmtp = (url: Redacted.Redacted<string>) =>
   Layer.succeed(Email, makeSmtp(url));
-
-/** On the server at `EMAIL_SMTP_URL`. */
-export const layerSmtpConfig = Layer.unwrap(
-  Effect.map(Config.Redacted("EMAIL_SMTP_URL"), layerSmtp),
-);

@@ -7,6 +7,7 @@ import {
   type Option,
   type Redacted,
 } from "effect";
+import { AllowedDomains } from "./internal/allowedDomains.ts";
 
 export type TokenEndpointAuthMethod =
   | "client_secret_basic"
@@ -16,16 +17,6 @@ export type TokenEndpointAuthMethod =
  * The email domains members log in with (`OAUTH_ALLOWED_DOMAINS`, separated
  * by spaces or commas), lower-cased. None means everyone may log in.
  */
-export const AllowedDomains = Config.String("OAUTH_ALLOWED_DOMAINS").pipe(
-  Config.withDefault(""),
-  Config.map((domains) =>
-    domains
-      .split(/[\s,]+/)
-      .map((domain) => domain.trim().toLowerCase())
-      .filter((domain) => domain.length > 0),
-  ),
-);
-
 export class OAuthConfig extends Context.Service<
   OAuthConfig,
   {

@@ -381,7 +381,7 @@ const SiteAssets = Layer.unwrap(
 /** The site's name, language, footer and privacy, and whether it sends email and sales events, for the app. */
 const site = Layer.unwrap(
   Effect.gen(function* () {
-    const config = yield* Documents.SiteConfig;
+    const config = yield* Documents.SiteSettings;
     const sendsEmail = yield* Documents.Mail.emailsSent;
     const salesEvents = yield* Documents.HubSpotSync.configured;
     return HttpRouter.add(

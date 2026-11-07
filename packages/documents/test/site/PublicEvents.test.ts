@@ -9,7 +9,7 @@ import { ConfigProvider, Effect, FileSystem, Layer } from "effect";
 import { HttpRouter, HttpStaticServer } from "effect/http";
 import { SqlClient } from "effect/sql";
 import { Documents } from "../../src/events/Documents.ts";
-import type { DocumentId } from "../../src/Model.ts";
+import { type DocumentId, SiteSettings } from "../../src/Model.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
 import { Notifications } from "../../src/notices/Notifications.ts";
 import { SalesEvents } from "../../src/notices/SalesEvents.ts";
@@ -362,8 +362,13 @@ const index =
   '<!doctype html>\n<html>\n<head>\n<title>Skjera</title>\n</head>\n<body><div id="root"></div></body>\n</html>\n';
 
 /** The configuration a test gives the route, as environment variables. */
-const configured = (env: Record<string, string>) =>
-  ConfigProvider.layer(ConfigProvider.fromUnknown(env));
+const configured = (env: Record<string, string>) => {
+  const provider = ConfigProvider.layer(ConfigProvider.fromUnknown(env));
+  return Layer.merge(
+    provider,
+    SiteSettings.layer.pipe(Layer.provide(provider)),
+  );
+};
 
 /**
  * Serves `/api/public/events` beside the built app: the route, and a static

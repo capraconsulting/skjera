@@ -19,7 +19,7 @@ const register = Effect.gen(function* () {
     .pipe(retryTransient());
 });
 
-register.pipe(Effect.provide(HubSpot.layerConfig)); // HUBSPOT_ACCESS_TOKEN
+register.pipe(Effect.provide(HubSpot.layerFetch({ token })));
 ```
 
 - `upsertMarketingEvent`: creates the Marketing Event, or updates it when its

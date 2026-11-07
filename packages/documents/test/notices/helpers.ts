@@ -12,7 +12,7 @@ import {
   organizerEmails,
 } from "../../src/events/ContentTypes.ts";
 import { Documents } from "../../src/events/Documents.ts";
-import type { DocumentId, Locale } from "../../src/Model.ts";
+import { type DocumentId, type Locale, SiteSettings } from "../../src/Model.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
 import * as Mail from "../../src/notices/Mail.tsx";
 import { Notifications } from "../../src/notices/Notifications.ts";
@@ -42,6 +42,7 @@ export const TestLayer = Layer.mergeAll(
   Layer.provideMerge(Announcements.layerTest),
   Layer.provideMerge(SalesEvents.layerTest),
   Layer.provideMerge(Mail.layerNotifications),
+  Layer.provideMerge(SiteSettings.layer),
   Layer.provideMerge(Layer.succeed(Email, outbox.email)),
   Layer.provideMerge(cluster),
   Layer.provideMerge(TestDatabase),
