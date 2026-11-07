@@ -8,7 +8,7 @@ import {
 } from "../../src/events/DiscardChanges.ts";
 import { Documents } from "../../src/events/Documents.ts";
 import { historyOf } from "../../src/events/History.ts";
-import { addTags, alice, newTeam, openEditor, TestLayer } from "../helpers.ts";
+import { alice, newTeam, openEditor, TestLayer } from "../helpers.ts";
 
 // The grouping, ordering and naming of the history, on changes made up for
 // the purpose; then the history as the database gives it.
@@ -287,44 +287,42 @@ const named = (subject: string, fields: { name?: string; email?: string }) =>
 
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Documents.history", (it) => {
-  it.effect(
-    "names each person after their name, else their email, and none who has neither (AC-1)",
-    () =>
-      Effect.gen(function* () {
-        const documents = yield* Documents;
-        const maker = named("maker", { name: "Mia Maker" });
-        const mailer = named("mailer", { email: "mailer@example.org" });
-        const nameless = named("nameless", { name: "  " });
-        const both = named("both", {
-          name: "Bea Both",
-          email: "bea@example.org",
+  it.effect("uses the canonical name for history entries (AC-1, AC-2)", () =>
+    Effect.gen(function* () {
+      const documents = yield* Documents;
+      const maker = named("maker", { name: "Mia Maker" });
+      const mailer = named("mailer", { email: "mailer@example.org" });
+      const nameless = named("nameless", { name: "  " });
+      const both = named("both", {
+        name: "Bea Both",
+        email: "bea@example.org",
+      });
+      const id = yield* documents.create("event", yield* newTeam, maker);
+      const edit = (who: Identity, title: string) =>
+        Effect.gen(function* () {
+          const editor = yield* openEditor(id);
+          yield* documents.applyChanges(
+            id,
+            [editor.edit((event) => A.updateText(event, ["title"], title))],
+            who,
+          );
         });
-        const id = yield* documents.create("event", yield* newTeam, maker);
-        const edit = (who: Identity, title: string) =>
-          Effect.gen(function* () {
-            const editor = yield* openEditor(id);
-            yield* documents.applyChanges(
-              id,
-              [editor.edit((event) => A.updateText(event, ["title"], title))],
-              who,
-            );
-          });
-        yield* edit(maker, "One");
-        yield* edit(mailer, "Two");
-        yield* edit(nameless, "Three");
-        yield* edit(both, "Four");
+      yield* edit(maker, "One");
+      yield* edit(mailer, "Two");
+      yield* edit(nameless, "Three");
+      yield* edit(both, "Four");
 
-        const entries = yield* documents.history(id);
-        assert.deepStrictEqual(
-          entries.map((entry) => [entry.kind, entry.by, entry.automatic]),
-          [
-            ["edited", "Bea Both", false],
-            ["edited", null, false],
-            ["edited", "mailer@example.org", false],
-            ["edited", "Mia Maker", false],
-          ],
-        );
-      }),
+      const entries = yield* documents.history(id);
+      assert.deepStrictEqual(
+        entries.map((entry) => [entry.kind, entry.by, entry.automatic]),
+        [
+          ["edited", "Bea Both", false],
+          ["edited", nameless.subject, false],
+          ["edited", "mailer@example.org", false],
+          ["edited", "Mia Maker", false],
+        ],
+      );
+    }),
   );
 
   it.effect(
@@ -380,25 +378,6 @@ layer(TestLayer, { excludeTestServices: true })("Documents.history", (it) => {
       );
       assert.strictEqual(error._tag, "DocumentNotFound");
     }),
-  );
-
-  it.effect(
-    "keeps an edit made by someone whose name the table cannot hold (AC-1)",
-    () =>
-      Effect.gen(function* () {
-        const documents = yield* Documents;
-        const blank = named("blank", { name: "   ", email: " " });
-        const id = yield* documents.create("event", yield* newTeam, alice);
-        const editor = yield* openEditor(id);
-        yield* documents.applyChanges(
-          id,
-          [editor.edit((event) => addTags(event, "kept"))],
-          blank,
-        );
-        const [newest] = yield* documents.history(id);
-        assert.strictEqual(newest?.by, null);
-        assert.isFalse(newest?.automatic);
-      }),
   );
 
   it.effect(

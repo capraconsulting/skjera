@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import * as A from "@automerge/automerge";
 import { Authenticator } from "@skjera/oauth";
-import type { Identity } from "@skjera/oauth/api";
+import { type Identity, nameOf } from "@skjera/oauth/api";
 import bs58check from "bs58check";
 import { decode, encode } from "cbor-x";
 import { Effect, Layer, Option, Queue, Result, Stream } from "effect";
@@ -143,7 +143,7 @@ export const serve = (
     const who: PresenceUser = {
       issuer: user.issuer,
       subject: user.subject,
-      name: user.name ?? user.email ?? user.subject,
+      name: nameOf(user),
     };
 
     const drop = (synced: Synced) => {

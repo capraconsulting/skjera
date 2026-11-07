@@ -171,7 +171,7 @@ layer(OrganizerTestLayer, { excludeTestServices: true })(
     );
 
     it.effect(
-      "lists the emails sent for the event, newest first, with when, by whom, the subject and how many (AC-4)",
+      "lists emails with the canonical sender name, newest first (AC-1, AC-2, AC-4)",
       () =>
         Effect.gen(function* () {
           const attendance = yield* Attendance;
@@ -196,9 +196,18 @@ layer(OrganizerTestLayer, { excludeTestServices: true })(
             new Identity({
               issuer: "https://idp.example",
               subject: "no-name",
-              email: "nameless@example.com",
+              name: "  ",
+              email: "  nameless@example.com  ",
             }),
             { subject: "Second", text: "Two." },
+          );
+          yield* organizerEmails.send(
+            event,
+            new Identity({
+              issuer: "https://idp.example",
+              subject: "subject-only",
+            }),
+            { subject: "Third", text: "Three." },
           );
 
           const listed = yield* organizerEmails.sent(event);
@@ -209,6 +218,11 @@ layer(OrganizerTestLayer, { excludeTestServices: true })(
               recipients,
             })),
             [
+              {
+                subject: "Third",
+                sentBy: "subject-only",
+                recipients: 2,
+              },
               {
                 subject: "Second",
                 sentBy: "nameless@example.com",

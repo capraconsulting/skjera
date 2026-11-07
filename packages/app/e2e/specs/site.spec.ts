@@ -264,7 +264,7 @@ test("sign-up closes at the deadline or event start, in its time zone (AC-1, AC-
   await cleanUp(alice, team, event.id, started.id);
 });
 
-test("the account menu leads to settings, and logs out", async ({
+test("the account menu uses the canonical login name and leads to settings (AC-1, AC-2)", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, "alice@example.com");
@@ -276,6 +276,22 @@ test("the account menu leads to settings, and logs out", async ({
   await header.openAccountMenu();
   await header.expectAccountMenuShows("alice");
   await header.expectAccountMenuShows("alice@example.com");
+
+  await alice.context().route("/api/me", async (route) => {
+    const response = await route.fetch();
+    const me = (await response.json()) as Record<string, unknown>;
+    await route.fulfill({
+      response,
+      json: { ...me, subject: "account-subject", name: "  ", email: "  " },
+    });
+  });
+  await alice.reload();
+  await header.openAccountMenu();
+  await header.expectAccountMenuShows("account-subject");
+  await alice.context().unroute("/api/me");
+  await alice.reload();
+
+  await header.openAccountMenu();
   await header.clickAccountSettings();
   const account = new AccountPage(alice);
   await account.expectAt();

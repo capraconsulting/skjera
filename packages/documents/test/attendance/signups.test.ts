@@ -1,4 +1,5 @@
 import { assert, layer } from "@effect/vitest";
+import { Identity } from "@skjera/oauth/api";
 import { Effect, Option, Ref } from "effect";
 import { SqlClient } from "effect/sql";
 import { Attendance } from "../../src/attendance/Attendance.ts";
@@ -33,6 +34,37 @@ const removalsOf = (event: DocumentId, signup: string) =>
 
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Attendance", (it) => {
+  it.effect("stores the canonical member name (AC-1, AC-2)", () =>
+    Effect.gen(function* () {
+      const attendance = yield* Attendance;
+      const sql = yield* SqlClient.SqlClient;
+      const id = yield* publishedEvent({ public: false, guests: false });
+      const byEmail = new Identity({
+        issuer: "https://idp.example",
+        subject: `email-${crypto.randomUUID()}`,
+        name: "  ",
+        email: "  member@example.org  ",
+      });
+      const bySubject = new Identity({
+        issuer: "https://idp.example",
+        subject: `subject-${crypto.randomUUID()}`,
+      });
+
+      yield* attendance.attend(id, byEmail);
+      yield* attendance.attend(id, bySubject);
+      yield* sql`
+        UPDATE attendees SET name = ''
+        WHERE event_id = ${id} AND user_subject = ${byEmail.subject}
+      `;
+      yield* attendance.attend(id, byEmail);
+
+      assert.deepStrictEqual(
+        (yield* organizerView(id)).map((signup) => signup?.name),
+        ["member@example.org", bySubject.subject],
+      );
+    }),
+  );
+
   it.effect("shows members-only events to signed-in users only", () =>
     Effect.gen(function* () {
       const membersOnly = yield* publishedEvent({
