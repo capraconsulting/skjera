@@ -35,6 +35,7 @@ import {
   Notifications,
   Recipient,
   type Signup,
+  signupColumns,
   Times,
   tell,
 } from "./Notifications.ts";
@@ -603,7 +604,7 @@ export const sendReminders = (now: Date) =>
     const due = yield* sql<
       Signup & { readonly event_id: string; readonly starts_at: Date }
     >`
-      SELECT a.id, a.name, a.email, a.user_issuer IS NULL AS guest, a.locale,
+      SELECT ${signupColumns(sql, "a")},
         e.id AS event_id, e.starts_at
       FROM events e JOIN attendees a ON a.event_id = e.id
       WHERE e.send_reminders AND e.deleted_at IS NULL AND a.email IS NOT NULL

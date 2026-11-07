@@ -18,6 +18,16 @@ export interface Sheet {
   readonly rows: ReadonlyArray<ReadonlyArray<string>>;
 }
 
+export interface AttendeeColumn {
+  readonly heading: string;
+  readonly value: (attendee: AttendeeRow) => string;
+}
+
+export const attendeeColumn = (
+  heading: string,
+  value: (attendee: AttendeeRow) => string,
+): AttendeeColumn => ({ heading, value });
+
 /**
  * The attendees as a spreadsheet: who they are, a guest's phone number and
  * company where guests can sign up, how each attends when the event is
@@ -60,38 +70,57 @@ export const attendeesSheet = (
   const consents =
     event?.isSalesEvent === true ||
     attendees.some((attendee) => attendee.details?.consent === true);
-  const rows = attendees.flatMap(({ details, online }) => {
-    if (details === null) return [];
-    const answers = new Map(
-      details.answers.map((answer) => [
-        column(answer.id, answer.question),
-        answerText(answer),
-      ]),
-    );
-    return [
-      [
-        details.name,
-        details.email ?? "",
-        ...(guests ? [details.phone ?? "", details.company ?? ""] : []),
-        ...(streamed ? [online ? m.common_yes() : m.common_no()] : []),
-        ...(consents ? [details.consent ? m.common_yes() : m.common_no()] : []),
-        ...sources.map((name) => details.source?.[name] ?? ""),
-        ...[...questions.keys()].map((key) => answers.get(key) ?? ""),
-      ],
-    ];
-  });
+  const entries = [
+    attendeeColumn(m.sheet_name(), ({ details }) => details?.name ?? ""),
+    attendeeColumn(m.sheet_email(), ({ details }) => details?.email ?? ""),
+    ...(guests
+      ? [
+          attendeeColumn(
+            m.sheet_phone(),
+            ({ details }) => details?.phone ?? "",
+          ),
+          attendeeColumn(
+            m.sheet_company(),
+            ({ details }) => details?.company ?? "",
+          ),
+        ]
+      : []),
+    ...(streamed
+      ? [
+          attendeeColumn(m.sheet_online(), ({ online }) =>
+            online ? m.common_yes() : m.common_no(),
+          ),
+        ]
+      : []),
+    ...(consents
+      ? [
+          attendeeColumn(m.sheet_consent(), ({ details }) =>
+            details?.consent ? m.common_yes() : m.common_no(),
+          ),
+        ]
+      : []),
+    ...sources.map((name) =>
+      attendeeColumn(name, ({ details }) => details?.source?.[name] ?? ""),
+    ),
+    ...[...questions].map(([key, heading]) =>
+      attendeeColumn(
+        heading,
+        ({ details }) =>
+          details?.answers
+            .filter((answer) => column(answer.id, answer.question) === key)
+            .map(answerText)[0] ?? "",
+      ),
+    ),
+  ];
+  const rows = attendees.flatMap((attendee) =>
+    attendee.details === null
+      ? []
+      : [entries.map(({ value }) => value(attendee))],
+  );
   return {
     name: m.studio_attendees_sheet(),
     fileName: `${event?.title.trim() || m.studio_event()}.xlsx`,
-    columns: [
-      m.sheet_name(),
-      m.sheet_email(),
-      ...(guests ? [m.sheet_phone(), m.sheet_company()] : []),
-      ...(streamed ? [m.sheet_online()] : []),
-      ...(consents ? [m.sheet_consent()] : []),
-      ...sources,
-      ...questions.values(),
-    ],
+    columns: entries.map(({ heading }) => heading),
     rows,
   };
 };
