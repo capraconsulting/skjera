@@ -12,16 +12,6 @@ const statements = (...queries: ReadonlyArray<string>) =>
     }
   });
 
-/** Makes a table syncable: see the 0004_sync migration. */
-const syncTable = (table: string) => [
-  `ALTER TABLE ${table} ADD COLUMN xid xid8 NOT NULL DEFAULT pg_current_xact_id()`,
-  `CREATE INDEX ${table}_xid_idx ON ${table} (xid)`,
-  `CREATE TRIGGER ${table}_sync_touch BEFORE UPDATE ON ${table}
-    FOR EACH ROW EXECUTE FUNCTION sync_touch()`,
-  `CREATE TRIGGER ${table}_sync_tombstone AFTER DELETE ON ${table}
-    FOR EACH ROW EXECUTE FUNCTION sync_tombstone()`,
-];
-
 export const migrations = Migrator.fromRecord({
   "0001_documents": statements(
     `CREATE EXTENSION IF NOT EXISTS pg_automerge`,
@@ -49,8 +39,6 @@ export const migrations = Migrator.fromRecord({
     )`,
     `CREATE INDEX documents_team_id_idx ON documents (team_id, updated_at DESC)`,
     // Tells every backend when a draft changed, with its new heads.
-    `CREATE TRIGGER documents_notify AFTER INSERT OR UPDATE OR DELETE ON documents
-      FOR EACH ROW EXECUTE FUNCTION automerge_notify('documents_changed', 'id')`,
     // The user behind each Automerge actor id. Every editor session gets a
     // fresh actor id; changes are only accepted from the actor ids of the
     // user sending them, which also attributes the document's history.
@@ -63,13 +51,6 @@ export const migrations = Migrator.fromRecord({
       PRIMARY KEY (document_id, actor)
     )`,
     // Publish times are set by the database, never by the caller.
-    `CREATE FUNCTION set_publish_times() RETURNS trigger LANGUAGE plpgsql AS $$
-    BEGIN
-      NEW.published_at := now();
-      NEW.first_published_at := CASE WHEN TG_OP = 'UPDATE' THEN OLD.first_published_at ELSE now() END;
-      RETURN NEW;
-    END
-    $$`,
   ),
   "0002_events": statements(
     // The published version of each event: what the public site shows.
@@ -93,36 +74,8 @@ export const migrations = Migrator.fromRecord({
       published_at timestamptz NOT NULL
     )`,
     `CREATE INDEX events_event_date_idx ON events (event_date)`,
-    `CREATE TRIGGER events_publish_times BEFORE INSERT OR UPDATE ON events
-      FOR EACH ROW EXECUTE FUNCTION set_publish_times()`,
     // Materializes the draft as of the given heads (the version the user saw
     // when they clicked publish) into events.
-    `CREATE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
-      RETURNS SETOF events LANGUAGE sql AS $$
-      INSERT INTO events AS e
-        (id, title, event_date, body, is_public, allow_guests, ask_dietary,
-         published_heads, published_by_issuer, published_by_subject)
-      SELECT d.id, c.content->>'title', (c.content->>'date')::date, c.content->>'body',
-        (c.content->>'public')::boolean,
-        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
-        (c.content->>'dietary')::boolean,
-        -- Sorted like automerge_heads(), so the two can be compared.
-        ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
-      FROM documents d
-      CROSS JOIN LATERAL (SELECT automerge_to_jsonb(d.draft, heads) AS content OFFSET 0) c
-      WHERE d.id = document_id AND d.type = 'event'
-      ON CONFLICT (id) DO UPDATE SET
-        title = EXCLUDED.title,
-        event_date = EXCLUDED.event_date,
-        body = EXCLUDED.body,
-        is_public = EXCLUDED.is_public,
-        allow_guests = EXCLUDED.allow_guests,
-        ask_dietary = EXCLUDED.ask_dietary,
-        published_heads = EXCLUDED.published_heads,
-        published_by_issuer = EXCLUDED.published_by_issuer,
-        published_by_subject = EXCLUDED.published_by_subject
-      RETURNING e.*
-    $$`,
   ),
   "0003_attendance": statements(
     // Who is coming to a published event: members by their account, guests
@@ -153,12 +106,6 @@ export const migrations = Migrator.fromRecord({
     // Clients keep copies of tables and pull what changed since a snapshot
     // (see Sync.ts). Each synced row carries the id of the transaction that
     // last wrote it; a snapshot tells which transactions a pull has seen.
-    `CREATE FUNCTION sync_touch() RETURNS trigger LANGUAGE plpgsql AS $$
-    BEGIN
-      NEW.xid := pg_current_xact_id();
-      RETURN NEW;
-    END
-    $$`,
     // Deleted rows leave a tombstone, so pulls can tell clients about them.
     `CREATE TABLE sync_deletes (
       table_name text NOT NULL,
@@ -167,17 +114,9 @@ export const migrations = Migrator.fromRecord({
       deleted_at timestamptz NOT NULL DEFAULT now()
     )`,
     `CREATE INDEX sync_deletes_xid_idx ON sync_deletes (table_name, xid)`,
-    `CREATE FUNCTION sync_tombstone() RETURNS trigger LANGUAGE plpgsql AS $$
-    BEGIN
-      INSERT INTO sync_deletes (table_name, id) VALUES (TG_TABLE_NAME, OLD.id);
-      RETURN OLD;
-    END
-    $$`,
-    ...syncTable("teams"),
-    ...syncTable("documents"),
   ),
-  "0005_sync_events": statements(...syncTable("events")),
-  "0006_sync_attendees": statements(...syncTable("attendees")),
+  "0005_sync_events": statements(),
+  "0006_sync_attendees": statements(),
   "0007_document_summaries": statements(
     // What lists of documents show, copied out of the draft so they sync as
     // plain columns. Kept by the database whenever the draft is written.
@@ -185,20 +124,10 @@ export const migrations = Migrator.fromRecord({
       ADD COLUMN title text NOT NULL DEFAULT '',
       ADD COLUMN event_date date,
       ADD COLUMN draft_heads text[] NOT NULL DEFAULT '{}'`,
-    `CREATE FUNCTION documents_summarize() RETURNS trigger LANGUAGE plpgsql AS $$
-    DECLARE
-      content jsonb := NEW.draft::jsonb;
-    BEGIN
-      NEW.title := coalesce(content->>'title', '');
-      NEW.event_date := (content->>'date')::date;
-      -- Sorted, like published_heads, so the two can be compared.
-      NEW.draft_heads := automerge_heads(NEW.draft);
-      RETURN NEW;
-    END
-    $$`,
-    `CREATE TRIGGER documents_summarize BEFORE INSERT OR UPDATE OF draft ON documents
-      FOR EACH ROW EXECUTE FUNCTION documents_summarize()`,
-    `UPDATE documents SET draft = draft`,
+    `UPDATE documents SET
+      title = coalesce(draft::jsonb->>'title', ''),
+      event_date = (draft::jsonb->>'date')::date,
+      draft_heads = automerge_heads(draft)`,
   ),
   "0008_pg_automerge_0_2": statements(`ALTER EXTENSION pg_automerge UPDATE`),
   "0009_rich_body": statements(
@@ -208,72 +137,14 @@ export const migrations = Migrator.fromRecord({
     `ALTER TABLE events ALTER COLUMN body TYPE jsonb USING
       CASE WHEN body = '' THEN '[]'::jsonb
       ELSE jsonb_build_array(jsonb_build_object('type', 'text', 'value', body)) END`,
-    `CREATE OR REPLACE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
-      RETURNS SETOF events LANGUAGE sql AS $$
-      INSERT INTO events AS e
-        (id, title, event_date, body, is_public, allow_guests, ask_dietary,
-         published_heads, published_by_issuer, published_by_subject)
-      SELECT d.id, c.content->>'title', (c.content->>'date')::date, automerge_spans(d.draft, '{body}', heads),
-        (c.content->>'public')::boolean,
-        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
-        (c.content->>'dietary')::boolean,
-        -- Sorted like automerge_heads(), so the two can be compared.
-        ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
-      FROM documents d
-      CROSS JOIN LATERAL (SELECT automerge_to_jsonb(d.draft, heads) AS content OFFSET 0) c
-      WHERE d.id = document_id AND d.type = 'event'
-      ON CONFLICT (id) DO UPDATE SET
-        title = EXCLUDED.title,
-        event_date = EXCLUDED.event_date,
-        body = EXCLUDED.body,
-        is_public = EXCLUDED.is_public,
-        allow_guests = EXCLUDED.allow_guests,
-        ask_dietary = EXCLUDED.ask_dietary,
-        published_heads = EXCLUDED.published_heads,
-        published_by_issuer = EXCLUDED.published_by_issuer,
-        published_by_subject = EXCLUDED.published_by_subject
-      RETURNING e.*
-    $$`,
   ),
   "0010_cover": statements(
     // The cover image: { src, alt }, or null.
     `ALTER TABLE events ADD COLUMN cover jsonb`,
-    `CREATE OR REPLACE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
-      RETURNS SETOF events LANGUAGE sql AS $$
-      INSERT INTO events AS e
-        (id, title, event_date, body, cover, is_public, allow_guests, ask_dietary,
-         published_heads, published_by_issuer, published_by_subject)
-      SELECT d.id, c.content->>'title', (c.content->>'date')::date, automerge_spans(d.draft, '{body}', heads),
-        c.content->'cover',
-        (c.content->>'public')::boolean,
-        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
-        (c.content->>'dietary')::boolean,
-        -- Sorted like automerge_heads(), so the two can be compared.
-        ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
-      FROM documents d
-      CROSS JOIN LATERAL (SELECT automerge_to_jsonb(d.draft, heads) AS content OFFSET 0) c
-      WHERE d.id = document_id AND d.type = 'event'
-      ON CONFLICT (id) DO UPDATE SET
-        title = EXCLUDED.title,
-        event_date = EXCLUDED.event_date,
-        body = EXCLUDED.body,
-        cover = EXCLUDED.cover,
-        is_public = EXCLUDED.is_public,
-        allow_guests = EXCLUDED.allow_guests,
-        ask_dietary = EXCLUDED.ask_dietary,
-        published_heads = EXCLUDED.published_heads,
-        published_by_issuer = EXCLUDED.published_by_issuer,
-        published_by_subject = EXCLUDED.published_by_subject
-      RETURNING e.*
-    $$`,
   ),
   "0011_event_times": statements(
     // Times are stored in drafts as "2026-10-15T18:00+02:00[Europe/Oslo]":
     // the instant (with its offset), and the zone it was set in.
-    `CREATE FUNCTION zoned_instant(value text) RETURNS timestamptz
-      LANGUAGE sql STABLE RETURN regexp_replace(value, '\\[[^]]*\\]$', '')::timestamptz`,
-    `CREATE FUNCTION zoned_zone(value text) RETURNS text
-      LANGUAGE sql IMMUTABLE RETURN substring(value from '\\[([^]]*)\\]$')`,
     // Events had a date only. Nothing published with one is kept.
     `DELETE FROM events`,
     `ALTER TABLE events
@@ -289,52 +160,6 @@ export const migrations = Migrator.fromRecord({
       DROP COLUMN event_date,
       ADD COLUMN starts_at timestamptz,
       ADD COLUMN time_zone text`,
-    `CREATE OR REPLACE FUNCTION documents_summarize() RETURNS trigger LANGUAGE plpgsql AS $$
-    DECLARE
-      content jsonb := NEW.draft::jsonb;
-    BEGIN
-      NEW.title := coalesce(content->>'title', '');
-      NEW.starts_at := zoned_instant(content->>'start');
-      NEW.time_zone := zoned_zone(content->>'start');
-      -- Sorted, like published_heads, so the two can be compared.
-      NEW.draft_heads := automerge_heads(NEW.draft);
-      RETURN NEW;
-    END
-    $$`,
-    `CREATE OR REPLACE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
-      RETURNS SETOF events LANGUAGE sql AS $$
-      INSERT INTO events AS e
-        (id, title, starts_at, ends_at, signup_deadline, time_zone, body, cover,
-         is_public, allow_guests, ask_dietary,
-         published_heads, published_by_issuer, published_by_subject)
-      SELECT d.id, c.content->>'title',
-        zoned_instant(c.content->>'start'), zoned_instant(c.content->>'end'),
-        zoned_instant(c.content->>'deadline'), zoned_zone(c.content->>'start'),
-        automerge_spans(d.draft, '{body}', heads), c.content->'cover',
-        (c.content->>'public')::boolean,
-        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
-        (c.content->>'dietary')::boolean,
-        -- Sorted like automerge_heads(), so the two can be compared.
-        ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
-      FROM documents d
-      CROSS JOIN LATERAL (SELECT automerge_to_jsonb(d.draft, heads) AS content OFFSET 0) c
-      WHERE d.id = document_id AND d.type = 'event'
-      ON CONFLICT (id) DO UPDATE SET
-        title = EXCLUDED.title,
-        starts_at = EXCLUDED.starts_at,
-        ends_at = EXCLUDED.ends_at,
-        signup_deadline = EXCLUDED.signup_deadline,
-        time_zone = EXCLUDED.time_zone,
-        body = EXCLUDED.body,
-        cover = EXCLUDED.cover,
-        is_public = EXCLUDED.is_public,
-        allow_guests = EXCLUDED.allow_guests,
-        ask_dietary = EXCLUDED.ask_dietary,
-        published_heads = EXCLUDED.published_heads,
-        published_by_issuer = EXCLUDED.published_by_issuer,
-        published_by_subject = EXCLUDED.published_by_subject
-      RETURNING e.*
-    $$`,
   ),
   "0012_food_and_questions": statements(
     `ALTER TABLE events
@@ -347,45 +172,6 @@ export const migrations = Migrator.fromRecord({
       ADD COLUMN questions jsonb NOT NULL DEFAULT '[]'`,
     // In the words asked and picked: [{ question, answer }].
     `ALTER TABLE attendees ADD COLUMN answers jsonb NOT NULL DEFAULT '[]'`,
-    `CREATE OR REPLACE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
-      RETURNS SETOF events LANGUAGE sql AS $$
-      INSERT INTO events AS e
-        (id, title, starts_at, ends_at, signup_deadline, time_zone, body, cover,
-         is_public, allow_guests, ask_dietary, food, food_deadline, questions,
-         published_heads, published_by_issuer, published_by_subject)
-      SELECT d.id, c.content->>'title',
-        zoned_instant(c.content->>'start'), zoned_instant(c.content->>'end'),
-        zoned_instant(c.content->>'deadline'), zoned_zone(c.content->>'start'),
-        automerge_spans(d.draft, '{body}', heads), c.content->'cover',
-        (c.content->>'public')::boolean,
-        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
-        (c.content->>'dietary')::boolean,
-        c.content->>'food', zoned_instant(c.content->>'foodDeadline'),
-        c.content->'questions',
-        -- Sorted like automerge_heads(), so the two can be compared.
-        ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
-      FROM documents d
-      CROSS JOIN LATERAL (SELECT automerge_to_jsonb(d.draft, heads) AS content OFFSET 0) c
-      WHERE d.id = document_id AND d.type = 'event'
-      ON CONFLICT (id) DO UPDATE SET
-        title = EXCLUDED.title,
-        starts_at = EXCLUDED.starts_at,
-        ends_at = EXCLUDED.ends_at,
-        signup_deadline = EXCLUDED.signup_deadline,
-        time_zone = EXCLUDED.time_zone,
-        body = EXCLUDED.body,
-        cover = EXCLUDED.cover,
-        is_public = EXCLUDED.is_public,
-        allow_guests = EXCLUDED.allow_guests,
-        ask_dietary = EXCLUDED.ask_dietary,
-        food = EXCLUDED.food,
-        food_deadline = EXCLUDED.food_deadline,
-        questions = EXCLUDED.questions,
-        published_heads = EXCLUDED.published_heads,
-        published_by_issuer = EXCLUDED.published_by_issuer,
-        published_by_subject = EXCLUDED.published_by_subject
-      RETURNING e.*
-    $$`,
   ),
   "0013_attendee_changes": statements(
     // When the signup's answers or dietary preferences last changed.
@@ -401,65 +187,6 @@ export const migrations = Migrator.fromRecord({
       created_at timestamptz NOT NULL DEFAULT now()
     )`,
     `CREATE UNIQUE INDEX tags_name_key ON tags (lower(name))`,
-    ...syncTable("tags"),
-    `CREATE FUNCTION events_collect_tags() RETURNS trigger LANGUAGE plpgsql AS $$
-    BEGIN
-      INSERT INTO tags (name)
-        SELECT DISTINCT ON (lower(tag)) tag FROM unnest(NEW.tags) AS tag
-        ON CONFLICT (lower(name)) DO NOTHING;
-      RETURN NULL;
-    END
-    $$`,
-    `CREATE TRIGGER events_collect_tags AFTER INSERT OR UPDATE OF tags ON events
-      FOR EACH ROW EXECUTE FUNCTION events_collect_tags()`,
-    `CREATE OR REPLACE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
-      RETURNS SETOF events LANGUAGE sql AS $$
-      INSERT INTO events AS e
-        (id, title, starts_at, ends_at, signup_deadline, time_zone, body, cover,
-         is_public, allow_guests, ask_dietary, food, food_deadline, questions, tags,
-         published_heads, published_by_issuer, published_by_subject)
-      SELECT d.id, c.content->>'title',
-        zoned_instant(c.content->>'start'), zoned_instant(c.content->>'end'),
-        zoned_instant(c.content->>'deadline'), zoned_zone(c.content->>'start'),
-        automerge_spans(d.draft, '{body}', heads), c.content->'cover',
-        (c.content->>'public')::boolean,
-        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
-        (c.content->>'dietary')::boolean,
-        c.content->>'food', zoned_instant(c.content->>'foodDeadline'),
-        c.content->'questions',
-        -- Each once, ignoring case, as first written.
-        ARRAY(
-          SELECT tag FROM (
-            SELECT DISTINCT ON (lower(tag)) tag, n
-            FROM jsonb_array_elements_text(c.content->'tags') WITH ORDINALITY AS t(tag, n)
-            ORDER BY lower(tag), n
-          ) firsts ORDER BY n
-        ),
-        -- Sorted like automerge_heads(), so the two can be compared.
-        ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
-      FROM documents d
-      CROSS JOIN LATERAL (SELECT automerge_to_jsonb(d.draft, heads) AS content OFFSET 0) c
-      WHERE d.id = document_id AND d.type = 'event'
-      ON CONFLICT (id) DO UPDATE SET
-        title = EXCLUDED.title,
-        starts_at = EXCLUDED.starts_at,
-        ends_at = EXCLUDED.ends_at,
-        signup_deadline = EXCLUDED.signup_deadline,
-        time_zone = EXCLUDED.time_zone,
-        body = EXCLUDED.body,
-        cover = EXCLUDED.cover,
-        is_public = EXCLUDED.is_public,
-        allow_guests = EXCLUDED.allow_guests,
-        ask_dietary = EXCLUDED.ask_dietary,
-        food = EXCLUDED.food,
-        food_deadline = EXCLUDED.food_deadline,
-        questions = EXCLUDED.questions,
-        tags = EXCLUDED.tags,
-        published_heads = EXCLUDED.published_heads,
-        published_by_issuer = EXCLUDED.published_by_issuer,
-        published_by_subject = EXCLUDED.published_by_subject
-      RETURNING e.*
-    $$`,
   ),
   "0015_snapsync": Effect.andThen(
     // Syncing moves to snapsync (packages/snapsync), which also prunes
@@ -470,86 +197,26 @@ export const migrations = Migrator.fromRecord({
     statements(
       ...["teams", "documents", "events", "attendees", "tags"].flatMap(
         (table) => [
-          `DROP TRIGGER ${table}_sync_touch ON ${table}`,
-          `DROP TRIGGER ${table}_sync_tombstone ON ${table}`,
-          `ALTER TABLE ${table} DROP COLUMN xid`,
+          `DROP TRIGGER IF EXISTS ${table}_sync_touch ON ${table}`,
+          `DROP TRIGGER IF EXISTS ${table}_sync_tombstone ON ${table}`,
+          `ALTER TABLE ${table} DROP COLUMN IF EXISTS xid`,
           `SELECT snapsync.track('${table}')`,
         ],
       ),
-      `DROP TABLE sync_deletes`,
-      `DROP FUNCTION sync_touch()`,
-      `DROP FUNCTION sync_tombstone()`,
+      `DROP TABLE IF EXISTS sync_deletes`,
+      `DROP FUNCTION IF EXISTS sync_touch()`,
+      `DROP FUNCTION IF EXISTS sync_tombstone()`,
     ),
   ),
-  "0016_attendees_follow_events": statements(
-    // Pulls page by each table's own transaction ids, so attendees change
-    // when whether visitors may see them does: when their event's public
-    // flag does. (Deleted events take their attendees, leaving tombstones.)
-    `CREATE FUNCTION events_touch_attendees() RETURNS trigger LANGUAGE plpgsql AS $$
-    BEGIN
-      UPDATE attendees SET id = id WHERE event_id = NEW.id;
-      RETURN NULL;
-    END
-    $$`,
-    `CREATE TRIGGER events_touch_attendees AFTER UPDATE OF is_public ON events
-      FOR EACH ROW WHEN (OLD.is_public IS DISTINCT FROM NEW.is_public)
-      EXECUTE FUNCTION events_touch_attendees()`,
-  ),
+  "0016_attendees_follow_events":
+    statements(
+      // Pulls page by each table's own transaction ids, so attendees change
+      // when whether visitors may see them does: when their event's public
+      // flag does. (Deleted events take their attendees, leaving tombstones.)
+    ),
   "0017_reminders": statements(
     // Attendees are emailed the day before, unless the event says not to.
     `ALTER TABLE events ADD COLUMN send_reminders boolean NOT NULL DEFAULT true`,
-    `CREATE OR REPLACE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
-      RETURNS SETOF events LANGUAGE sql AS $$
-      INSERT INTO events AS e
-        (id, title, starts_at, ends_at, signup_deadline, time_zone, body, cover,
-         is_public, allow_guests, ask_dietary, food, food_deadline, questions, tags,
-         send_reminders,
-         published_heads, published_by_issuer, published_by_subject)
-      SELECT d.id, c.content->>'title',
-        zoned_instant(c.content->>'start'), zoned_instant(c.content->>'end'),
-        zoned_instant(c.content->>'deadline'), zoned_zone(c.content->>'start'),
-        automerge_spans(d.draft, '{body}', heads), c.content->'cover',
-        (c.content->>'public')::boolean,
-        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
-        (c.content->>'dietary')::boolean,
-        c.content->>'food', zoned_instant(c.content->>'foodDeadline'),
-        c.content->'questions',
-        -- Each once, ignoring case, as first written.
-        ARRAY(
-          SELECT tag FROM (
-            SELECT DISTINCT ON (lower(tag)) tag, n
-            FROM jsonb_array_elements_text(c.content->'tags') WITH ORDINALITY AS t(tag, n)
-            ORDER BY lower(tag), n
-          ) firsts ORDER BY n
-        ),
-        -- On unless turned off: drafts from before have no such field.
-        coalesce((c.content->>'reminders')::boolean, true),
-        -- Sorted like automerge_heads(), so the two can be compared.
-        ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
-      FROM documents d
-      CROSS JOIN LATERAL (SELECT automerge_to_jsonb(d.draft, heads) AS content OFFSET 0) c
-      WHERE d.id = document_id AND d.type = 'event'
-      ON CONFLICT (id) DO UPDATE SET
-        title = EXCLUDED.title,
-        starts_at = EXCLUDED.starts_at,
-        ends_at = EXCLUDED.ends_at,
-        signup_deadline = EXCLUDED.signup_deadline,
-        time_zone = EXCLUDED.time_zone,
-        body = EXCLUDED.body,
-        cover = EXCLUDED.cover,
-        is_public = EXCLUDED.is_public,
-        allow_guests = EXCLUDED.allow_guests,
-        ask_dietary = EXCLUDED.ask_dietary,
-        food = EXCLUDED.food,
-        food_deadline = EXCLUDED.food_deadline,
-        questions = EXCLUDED.questions,
-        tags = EXCLUDED.tags,
-        send_reminders = EXCLUDED.send_reminders,
-        published_heads = EXCLUDED.published_heads,
-        published_by_issuer = EXCLUDED.published_by_issuer,
-        published_by_subject = EXCLUDED.published_by_subject
-      RETURNING e.*
-    $$`,
   ),
   "0018_soft_delete": statements(
     // Deleting a document keeps it, and its published version and signups,
@@ -561,15 +228,8 @@ export const migrations = Migrator.fromRecord({
       ADD COLUMN deleted_by_subject text`,
     `ALTER TABLE events ADD COLUMN deleted_at timestamptz`,
     // Publishing sets the publish times, not other changes to the row.
-    `DROP TRIGGER events_publish_times ON events`,
-    `CREATE TRIGGER events_publish_times BEFORE INSERT OR UPDATE OF published_heads ON events
-      FOR EACH ROW EXECUTE FUNCTION set_publish_times()`,
+    `DROP TRIGGER IF EXISTS events_publish_times ON events`,
     // Signups leave readers' copies with their event.
-    `DROP TRIGGER events_touch_attendees ON events`,
-    `CREATE TRIGGER events_touch_attendees AFTER UPDATE OF is_public, deleted_at ON events
-      FOR EACH ROW WHEN (OLD.is_public IS DISTINCT FROM NEW.is_public
-        OR OLD.deleted_at IS DISTINCT FROM NEW.deleted_at)
-      EXECUTE FUNCTION events_touch_attendees()`,
   ),
   "0019_attendee_locale": statements(
     // The language each signed up in ("en", "nb", "nn"): emails to them are
@@ -581,61 +241,6 @@ export const migrations = Migrator.fromRecord({
     // A blank place is refused; null is let through, and so are updates of
     // such rows (soft delete).
     `ALTER TABLE events ADD COLUMN place text CHECK (btrim(place) <> '')`,
-    `CREATE OR REPLACE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
-      RETURNS SETOF events LANGUAGE sql AS $$
-      INSERT INTO events AS e
-        (id, title, starts_at, ends_at, signup_deadline, time_zone, body, cover,
-         is_public, allow_guests, ask_dietary, food, food_deadline, questions, tags,
-         send_reminders, place,
-         published_heads, published_by_issuer, published_by_subject)
-      SELECT d.id, c.content->>'title',
-        zoned_instant(c.content->>'start'), zoned_instant(c.content->>'end'),
-        zoned_instant(c.content->>'deadline'), zoned_zone(c.content->>'start'),
-        automerge_spans(d.draft, '{body}', heads), c.content->'cover',
-        (c.content->>'public')::boolean,
-        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
-        (c.content->>'dietary')::boolean,
-        c.content->>'food', zoned_instant(c.content->>'foodDeadline'),
-        c.content->'questions',
-        -- Each once, ignoring case, as first written.
-        ARRAY(
-          SELECT tag FROM (
-            SELECT DISTINCT ON (lower(tag)) tag, n
-            FROM jsonb_array_elements_text(c.content->'tags') WITH ORDINALITY AS t(tag, n)
-            ORDER BY lower(tag), n
-          ) firsts ORDER BY n
-        ),
-        -- On unless turned off: drafts from before have no such field.
-        coalesce((c.content->>'reminders')::boolean, true),
-        -- Stored as written. Drafts from before have none: null.
-        c.content->>'place',
-        -- Sorted like automerge_heads(), so the two can be compared.
-        ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
-      FROM documents d
-      CROSS JOIN LATERAL (SELECT automerge_to_jsonb(d.draft, heads) AS content OFFSET 0) c
-      WHERE d.id = document_id AND d.type = 'event'
-      ON CONFLICT (id) DO UPDATE SET
-        title = EXCLUDED.title,
-        starts_at = EXCLUDED.starts_at,
-        ends_at = EXCLUDED.ends_at,
-        signup_deadline = EXCLUDED.signup_deadline,
-        time_zone = EXCLUDED.time_zone,
-        body = EXCLUDED.body,
-        cover = EXCLUDED.cover,
-        is_public = EXCLUDED.is_public,
-        allow_guests = EXCLUDED.allow_guests,
-        ask_dietary = EXCLUDED.ask_dietary,
-        food = EXCLUDED.food,
-        food_deadline = EXCLUDED.food_deadline,
-        questions = EXCLUDED.questions,
-        tags = EXCLUDED.tags,
-        send_reminders = EXCLUDED.send_reminders,
-        place = EXCLUDED.place,
-        published_heads = EXCLUDED.published_heads,
-        published_by_issuer = EXCLUDED.published_by_issuer,
-        published_by_subject = EXCLUDED.published_by_subject
-      RETURNING e.*
-    $$`,
   ),
   "0021_attendee_limit": statements(
     // The most who can sign up; null: no limit. Signups are not touched
@@ -643,67 +248,6 @@ export const migrations = Migrator.fromRecord({
     `ALTER TABLE events
       ADD COLUMN max_attendees integer CHECK (max_attendees > 0),
       ADD COLUMN hide_places_left boolean NOT NULL DEFAULT false`,
-    `CREATE OR REPLACE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
-      RETURNS SETOF events LANGUAGE sql AS $$
-      INSERT INTO events AS e
-        (id, title, starts_at, ends_at, signup_deadline, time_zone, body, cover,
-         is_public, allow_guests, ask_dietary, food, food_deadline, questions, tags,
-         send_reminders, place, max_attendees, hide_places_left,
-         published_heads, published_by_issuer, published_by_subject)
-      SELECT d.id, c.content->>'title',
-        zoned_instant(c.content->>'start'), zoned_instant(c.content->>'end'),
-        zoned_instant(c.content->>'deadline'), zoned_zone(c.content->>'start'),
-        automerge_spans(d.draft, '{body}', heads), c.content->'cover',
-        (c.content->>'public')::boolean,
-        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
-        (c.content->>'dietary')::boolean,
-        c.content->>'food', zoned_instant(c.content->>'foodDeadline'),
-        c.content->'questions',
-        -- Each once, ignoring case, as first written.
-        ARRAY(
-          SELECT tag FROM (
-            SELECT DISTINCT ON (lower(tag)) tag, n
-            FROM jsonb_array_elements_text(c.content->'tags') WITH ORDINALITY AS t(tag, n)
-            ORDER BY lower(tag), n
-          ) firsts ORDER BY n
-        ),
-        -- On unless turned off: drafts from before have no such field.
-        coalesce((c.content->>'reminders')::boolean, true),
-        -- Stored as written. Drafts from before have none: null.
-        c.content->>'place',
-        -- Through numeric: a whole number stored as a float reads "30.0".
-        (c.content->>'maxAttendees')::numeric::integer,
-        -- Shown unless hidden: drafts from before have no such field.
-        coalesce((c.content->>'hidePlacesLeft')::boolean, false),
-        -- Sorted like automerge_heads(), so the two can be compared.
-        ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
-      FROM documents d
-      CROSS JOIN LATERAL (SELECT automerge_to_jsonb(d.draft, heads) AS content OFFSET 0) c
-      WHERE d.id = document_id AND d.type = 'event'
-      ON CONFLICT (id) DO UPDATE SET
-        title = EXCLUDED.title,
-        starts_at = EXCLUDED.starts_at,
-        ends_at = EXCLUDED.ends_at,
-        signup_deadline = EXCLUDED.signup_deadline,
-        time_zone = EXCLUDED.time_zone,
-        body = EXCLUDED.body,
-        cover = EXCLUDED.cover,
-        is_public = EXCLUDED.is_public,
-        allow_guests = EXCLUDED.allow_guests,
-        ask_dietary = EXCLUDED.ask_dietary,
-        food = EXCLUDED.food,
-        food_deadline = EXCLUDED.food_deadline,
-        questions = EXCLUDED.questions,
-        tags = EXCLUDED.tags,
-        send_reminders = EXCLUDED.send_reminders,
-        place = EXCLUDED.place,
-        max_attendees = EXCLUDED.max_attendees,
-        hide_places_left = EXCLUDED.hide_places_left,
-        published_heads = EXCLUDED.published_heads,
-        published_by_issuer = EXCLUDED.published_by_issuer,
-        published_by_subject = EXCLUDED.published_by_subject
-      RETURNING e.*
-    $$`,
   ),
   "0022_streaming": statements(
     // Streamed events: where to follow, and whether each signup follows
@@ -713,76 +257,6 @@ export const migrations = Migrator.fromRecord({
       ADD COLUMN is_streamed boolean NOT NULL DEFAULT false,
       ADD COLUMN stream_link text`,
     `ALTER TABLE attendees ADD COLUMN online boolean NOT NULL DEFAULT false`,
-    `CREATE OR REPLACE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
-      RETURNS SETOF events LANGUAGE sql AS $$
-      INSERT INTO events AS e
-        (id, title, starts_at, ends_at, signup_deadline, time_zone, body, cover,
-         is_public, allow_guests, ask_dietary, food, food_deadline, questions, tags,
-         send_reminders, place, max_attendees, hide_places_left,
-         is_streamed, stream_link,
-         published_heads, published_by_issuer, published_by_subject)
-      SELECT d.id, c.content->>'title',
-        zoned_instant(c.content->>'start'), zoned_instant(c.content->>'end'),
-        zoned_instant(c.content->>'deadline'), zoned_zone(c.content->>'start'),
-        automerge_spans(d.draft, '{body}', heads), c.content->'cover',
-        (c.content->>'public')::boolean,
-        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
-        (c.content->>'dietary')::boolean,
-        c.content->>'food', zoned_instant(c.content->>'foodDeadline'),
-        c.content->'questions',
-        -- Each once, ignoring case, as first written.
-        ARRAY(
-          SELECT tag FROM (
-            SELECT DISTINCT ON (lower(tag)) tag, n
-            FROM jsonb_array_elements_text(c.content->'tags') WITH ORDINALITY AS t(tag, n)
-            ORDER BY lower(tag), n
-          ) firsts ORDER BY n
-        ),
-        -- On unless turned off: drafts from before have no such field.
-        coalesce((c.content->>'reminders')::boolean, true),
-        -- Stored as written. Drafts from before have none: null.
-        c.content->>'place',
-        -- Through numeric: a whole number stored as a float reads "30.0".
-        (c.content->>'maxAttendees')::numeric::integer,
-        -- Shown unless hidden: drafts from before have no such field.
-        coalesce((c.content->>'hidePlacesLeft')::boolean, false),
-        -- Streamed unless missing: drafts from before have no such field.
-        coalesce((c.content->>'streamed')::boolean, false),
-        -- Only while streamed; trimmed as the check trims, blank is none.
-        CASE WHEN coalesce((c.content->>'streamed')::boolean, false)
-          THEN nullif(regexp_replace(c.content->>'streamLink', '^\\s+|\\s+$', '', 'g'), '')
-        END,
-        -- Sorted like automerge_heads(), so the two can be compared.
-        ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
-      FROM documents d
-      CROSS JOIN LATERAL (SELECT automerge_to_jsonb(d.draft, heads) AS content OFFSET 0) c
-      WHERE d.id = document_id AND d.type = 'event'
-      ON CONFLICT (id) DO UPDATE SET
-        title = EXCLUDED.title,
-        starts_at = EXCLUDED.starts_at,
-        ends_at = EXCLUDED.ends_at,
-        signup_deadline = EXCLUDED.signup_deadline,
-        time_zone = EXCLUDED.time_zone,
-        body = EXCLUDED.body,
-        cover = EXCLUDED.cover,
-        is_public = EXCLUDED.is_public,
-        allow_guests = EXCLUDED.allow_guests,
-        ask_dietary = EXCLUDED.ask_dietary,
-        food = EXCLUDED.food,
-        food_deadline = EXCLUDED.food_deadline,
-        questions = EXCLUDED.questions,
-        tags = EXCLUDED.tags,
-        send_reminders = EXCLUDED.send_reminders,
-        place = EXCLUDED.place,
-        max_attendees = EXCLUDED.max_attendees,
-        hide_places_left = EXCLUDED.hide_places_left,
-        is_streamed = EXCLUDED.is_streamed,
-        stream_link = EXCLUDED.stream_link,
-        published_heads = EXCLUDED.published_heads,
-        published_by_issuer = EXCLUDED.published_by_issuer,
-        published_by_subject = EXCLUDED.published_by_subject
-      RETURNING e.*
-    $$`,
   ),
   "0023_guest_contact": statements(
     // A guest's phone number and company, both optional: members aren't
@@ -796,96 +270,11 @@ export const migrations = Migrator.fromRecord({
     `ALTER TABLE teams ADD COLUMN logo text, ADD COLUMN logo_dark text`,
     // Events are pulled with their team's name and logos (see Sync.ts): a
     // change to those touches the team's events, so readers pull them again.
-    `CREATE FUNCTION teams_touch_events() RETURNS trigger LANGUAGE plpgsql AS $$
-    BEGIN
-      UPDATE events SET id = id
-        WHERE id IN (SELECT id FROM documents WHERE team_id = NEW.id);
-      RETURN NULL;
-    END
-    $$`,
-    `CREATE TRIGGER teams_touch_events AFTER UPDATE OF name, logo, logo_dark ON teams
-      FOR EACH ROW WHEN (OLD.name IS DISTINCT FROM NEW.name
-        OR OLD.logo IS DISTINCT FROM NEW.logo
-        OR OLD.logo_dark IS DISTINCT FROM NEW.logo_dark)
-      EXECUTE FUNCTION teams_touch_events()`,
   ),
   "0025_summary": statements(
     // What an event is, in a sentence or two: shown under its title, in
     // invitations, and when a link to the event is shared.
     `ALTER TABLE events ADD COLUMN summary text`,
-    `CREATE OR REPLACE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
-      RETURNS SETOF events LANGUAGE sql AS $$
-      INSERT INTO events AS e
-        (id, title, summary, starts_at, ends_at, signup_deadline, time_zone, body, cover,
-         is_public, allow_guests, ask_dietary, food, food_deadline, questions, tags,
-         send_reminders, place, max_attendees, hide_places_left,
-         is_streamed, stream_link,
-         published_heads, published_by_issuer, published_by_subject)
-      SELECT d.id, c.content->>'title',
-        -- Stored trimmed; blank, or drafts from before, are none.
-        nullif(regexp_replace(c.content->>'summary', '^\\s+|\\s+$', '', 'g'), ''),
-        zoned_instant(c.content->>'start'), zoned_instant(c.content->>'end'),
-        zoned_instant(c.content->>'deadline'), zoned_zone(c.content->>'start'),
-        automerge_spans(d.draft, '{body}', heads), c.content->'cover',
-        (c.content->>'public')::boolean,
-        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
-        (c.content->>'dietary')::boolean,
-        c.content->>'food', zoned_instant(c.content->>'foodDeadline'),
-        c.content->'questions',
-        -- Each once, ignoring case, as first written.
-        ARRAY(
-          SELECT tag FROM (
-            SELECT DISTINCT ON (lower(tag)) tag, n
-            FROM jsonb_array_elements_text(c.content->'tags') WITH ORDINALITY AS t(tag, n)
-            ORDER BY lower(tag), n
-          ) firsts ORDER BY n
-        ),
-        -- On unless turned off: drafts from before have no such field.
-        coalesce((c.content->>'reminders')::boolean, true),
-        -- Stored as written. Drafts from before have none: null.
-        c.content->>'place',
-        -- Through numeric: a whole number stored as a float reads "30.0".
-        (c.content->>'maxAttendees')::numeric::integer,
-        -- Shown unless hidden: drafts from before have no such field.
-        coalesce((c.content->>'hidePlacesLeft')::boolean, false),
-        -- Streamed unless missing: drafts from before have no such field.
-        coalesce((c.content->>'streamed')::boolean, false),
-        -- Only while streamed; trimmed as the check trims, blank is none.
-        CASE WHEN coalesce((c.content->>'streamed')::boolean, false)
-          THEN nullif(regexp_replace(c.content->>'streamLink', '^\\s+|\\s+$', '', 'g'), '')
-        END,
-        -- Sorted like automerge_heads(), so the two can be compared.
-        ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
-      FROM documents d
-      CROSS JOIN LATERAL (SELECT automerge_to_jsonb(d.draft, heads) AS content OFFSET 0) c
-      WHERE d.id = document_id AND d.type = 'event'
-      ON CONFLICT (id) DO UPDATE SET
-        title = EXCLUDED.title,
-        summary = EXCLUDED.summary,
-        starts_at = EXCLUDED.starts_at,
-        ends_at = EXCLUDED.ends_at,
-        signup_deadline = EXCLUDED.signup_deadline,
-        time_zone = EXCLUDED.time_zone,
-        body = EXCLUDED.body,
-        cover = EXCLUDED.cover,
-        is_public = EXCLUDED.is_public,
-        allow_guests = EXCLUDED.allow_guests,
-        ask_dietary = EXCLUDED.ask_dietary,
-        food = EXCLUDED.food,
-        food_deadline = EXCLUDED.food_deadline,
-        questions = EXCLUDED.questions,
-        tags = EXCLUDED.tags,
-        send_reminders = EXCLUDED.send_reminders,
-        place = EXCLUDED.place,
-        max_attendees = EXCLUDED.max_attendees,
-        hide_places_left = EXCLUDED.hide_places_left,
-        is_streamed = EXCLUDED.is_streamed,
-        stream_link = EXCLUDED.stream_link,
-        published_heads = EXCLUDED.published_heads,
-        published_by_issuer = EXCLUDED.published_by_issuer,
-        published_by_subject = EXCLUDED.published_by_subject
-      RETURNING e.*
-    $$`,
   ),
   "0026_dietary_preferences": statements(
     // What people can't eat, for the event, with nothing that says who wrote
@@ -911,89 +300,6 @@ export const migrations = Migrator.fromRecord({
       ADD COLUMN repeat_every integer CHECK (repeat_every BETWEEN 1 AND 7),
       ADD COLUMN repeat_unit text CHECK (repeat_unit IN ('day', 'week', 'month', 'year')),
       ADD CHECK ((repeat_every IS NULL) = (repeat_unit IS NULL))`,
-    `CREATE OR REPLACE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
-      RETURNS SETOF events LANGUAGE sql AS $$
-      INSERT INTO events AS e
-        (id, title, summary, starts_at, ends_at, signup_deadline, time_zone, body, cover,
-         is_public, allow_guests, ask_dietary, food, food_deadline, questions, tags,
-         send_reminders, place, max_attendees, hide_places_left,
-         is_streamed, stream_link, repeat_every, repeat_unit,
-         published_heads, published_by_issuer, published_by_subject)
-      SELECT d.id, c.content->>'title',
-        -- Stored trimmed; blank, or drafts from before, are none.
-        nullif(regexp_replace(c.content->>'summary', '^\\s+|\\s+$', '', 'g'), ''),
-        zoned_instant(c.content->>'start'), zoned_instant(c.content->>'end'),
-        zoned_instant(c.content->>'deadline'), zoned_zone(c.content->>'start'),
-        automerge_spans(d.draft, '{body}', heads), c.content->'cover',
-        (c.content->>'public')::boolean,
-        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
-        (c.content->>'dietary')::boolean,
-        c.content->>'food', zoned_instant(c.content->>'foodDeadline'),
-        c.content->'questions',
-        -- Each once, ignoring case, as first written.
-        ARRAY(
-          SELECT tag FROM (
-            SELECT DISTINCT ON (lower(tag)) tag, n
-            FROM jsonb_array_elements_text(c.content->'tags') WITH ORDINALITY AS t(tag, n)
-            ORDER BY lower(tag), n
-          ) firsts ORDER BY n
-        ),
-        -- On unless turned off: drafts from before have no such field.
-        coalesce((c.content->>'reminders')::boolean, true),
-        -- Stored as written. Drafts from before have none: null.
-        c.content->>'place',
-        -- Through numeric: a whole number stored as a float reads "30.0".
-        (c.content->>'maxAttendees')::numeric::integer,
-        -- Shown unless hidden: drafts from before have no such field.
-        coalesce((c.content->>'hidePlacesLeft')::boolean, false),
-        -- Streamed unless missing: drafts from before have no such field.
-        coalesce((c.content->>'streamed')::boolean, false),
-        -- Only while streamed; trimmed as the check trims, blank is none.
-        CASE WHEN coalesce((c.content->>'streamed')::boolean, false)
-          THEN nullif(regexp_replace(c.content->>'streamLink', '^\\s+|\\s+$', '', 'g'), '')
-        END,
-        -- Only while recurring; nothing chosen is every 1 week. Through
-        -- numeric: a whole number stored as a float reads "2.0".
-        CASE WHEN coalesce((c.content->>'recurring')::boolean, false)
-          THEN coalesce((c.content->>'repeatEvery')::numeric::integer, 1)
-        END,
-        CASE WHEN coalesce((c.content->>'recurring')::boolean, false)
-          THEN coalesce(c.content->>'repeatUnit', 'week')
-        END,
-        -- Sorted like automerge_heads(), so the two can be compared.
-        ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
-      FROM documents d
-      CROSS JOIN LATERAL (SELECT automerge_to_jsonb(d.draft, heads) AS content OFFSET 0) c
-      WHERE d.id = document_id AND d.type = 'event'
-      ON CONFLICT (id) DO UPDATE SET
-        title = EXCLUDED.title,
-        summary = EXCLUDED.summary,
-        starts_at = EXCLUDED.starts_at,
-        ends_at = EXCLUDED.ends_at,
-        signup_deadline = EXCLUDED.signup_deadline,
-        time_zone = EXCLUDED.time_zone,
-        body = EXCLUDED.body,
-        cover = EXCLUDED.cover,
-        is_public = EXCLUDED.is_public,
-        allow_guests = EXCLUDED.allow_guests,
-        ask_dietary = EXCLUDED.ask_dietary,
-        food = EXCLUDED.food,
-        food_deadline = EXCLUDED.food_deadline,
-        questions = EXCLUDED.questions,
-        tags = EXCLUDED.tags,
-        send_reminders = EXCLUDED.send_reminders,
-        place = EXCLUDED.place,
-        max_attendees = EXCLUDED.max_attendees,
-        hide_places_left = EXCLUDED.hide_places_left,
-        is_streamed = EXCLUDED.is_streamed,
-        stream_link = EXCLUDED.stream_link,
-        repeat_every = EXCLUDED.repeat_every,
-        repeat_unit = EXCLUDED.repeat_unit,
-        published_heads = EXCLUDED.published_heads,
-        published_by_issuer = EXCLUDED.published_by_issuer,
-        published_by_subject = EXCLUDED.published_by_subject
-      RETURNING e.*
-    $$`,
   ),
   "0028_email_texts": statements(
     // The emails' own subjects and texts, as of the published version: by
@@ -1002,237 +308,15 @@ export const migrations = Migrator.fromRecord({
     `ALTER TABLE events ADD COLUMN email_texts jsonb NOT NULL DEFAULT '{}'`,
     // A subject is one line: line breaks and other control characters
     // become a space, then it is trimmed. Blank is none.
-    `CREATE FUNCTION email_subject(subject text) RETURNS text
-      LANGUAGE sql IMMUTABLE AS $$
-      SELECT nullif(btrim(regexp_replace(subject, '[[:cntrl:]]+', ' ', 'g')), '')
-    $$`,
     // A text's spans, if the draft has the key and something is written:
     // some text that is not whitespace, or an image. Drafts from before have
     // no key, and automerge_spans is not asked for one.
-    `CREATE FUNCTION email_text_spans(doc automerge, field text, heads text[], content jsonb)
-      RETURNS jsonb LANGUAGE plpgsql STABLE AS $$
-      DECLARE spans jsonb;
-      BEGIN
-        IF NOT content ? field THEN
-          RETURN NULL;
-        END IF;
-        spans := automerge_spans(doc, ARRAY[field], heads);
-        IF EXISTS (
-          SELECT 1 FROM jsonb_array_elements(spans) AS span
-          WHERE (span->>'type' = 'text' AND span->>'value' ~ '[^[:space:]]')
-            OR (span->>'type' = 'block' AND span->'value'->>'type' = 'image')
-        ) THEN
-          RETURN spans;
-        END IF;
-        RETURN NULL;
-      END
-    $$`,
-    `CREATE OR REPLACE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
-      RETURNS SETOF events LANGUAGE sql AS $$
-      INSERT INTO events AS e
-        (id, title, summary, starts_at, ends_at, signup_deadline, time_zone, body, cover,
-         is_public, allow_guests, ask_dietary, food, food_deadline, questions, tags,
-         send_reminders, place, max_attendees, hide_places_left,
-         is_streamed, stream_link, email_texts, repeat_every, repeat_unit,
-         published_heads, published_by_issuer, published_by_subject)
-      SELECT d.id, c.content->>'title',
-        -- Stored trimmed; blank, or drafts from before, are none.
-        nullif(regexp_replace(c.content->>'summary', '^\\s+|\\s+$', '', 'g'), ''),
-        zoned_instant(c.content->>'start'), zoned_instant(c.content->>'end'),
-        zoned_instant(c.content->>'deadline'), zoned_zone(c.content->>'start'),
-        automerge_spans(d.draft, '{body}', heads), c.content->'cover',
-        (c.content->>'public')::boolean,
-        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
-        (c.content->>'dietary')::boolean,
-        c.content->>'food', zoned_instant(c.content->>'foodDeadline'),
-        c.content->'questions',
-        -- Each once, ignoring case, as first written.
-        ARRAY(
-          SELECT tag FROM (
-            SELECT DISTINCT ON (lower(tag)) tag, n
-            FROM jsonb_array_elements_text(c.content->'tags') WITH ORDINALITY AS t(tag, n)
-            ORDER BY lower(tag), n
-          ) firsts ORDER BY n
-        ),
-        -- On unless turned off: drafts from before have no such field.
-        coalesce((c.content->>'reminders')::boolean, true),
-        -- Stored as written. Drafts from before have none: null.
-        c.content->>'place',
-        -- Through numeric: a whole number stored as a float reads "30.0".
-        (c.content->>'maxAttendees')::numeric::integer,
-        -- Shown unless hidden: drafts from before have no such field.
-        coalesce((c.content->>'hidePlacesLeft')::boolean, false),
-        -- Streamed unless missing: drafts from before have no such field.
-        coalesce((c.content->>'streamed')::boolean, false),
-        -- Only while streamed; trimmed as the check trims, blank is none.
-        CASE WHEN coalesce((c.content->>'streamed')::boolean, false)
-          THEN nullif(regexp_replace(c.content->>'streamLink', '^\\s+|\\s+$', '', 'g'), '')
-        END,
-        -- The emails' own subjects and texts; none is left out.
-        (SELECT coalesce(jsonb_object_agg(email.key, email.value), '{}')
-          FROM (VALUES
-            ('signedUpSubject', to_jsonb(email_subject(c.content->>'signedUpSubject'))),
-            ('signedUpText', email_text_spans(d.draft, 'signedUpText', heads, c.content)),
-            ('signupCancelledSubject', to_jsonb(email_subject(c.content->>'signupCancelledSubject'))),
-            ('signupCancelledText', email_text_spans(d.draft, 'signupCancelledText', heads, c.content)),
-            ('eventChangedSubject', to_jsonb(email_subject(c.content->>'eventChangedSubject'))),
-            ('eventChangedText', email_text_spans(d.draft, 'eventChangedText', heads, c.content)),
-            ('eventCancelledSubject', to_jsonb(email_subject(c.content->>'eventCancelledSubject'))),
-            ('eventCancelledText', email_text_spans(d.draft, 'eventCancelledText', heads, c.content))
-          ) AS email(key, value)
-          WHERE email.value IS NOT NULL),
-        -- Only while recurring; nothing chosen is every 1 week. Through
-        -- numeric: a whole number stored as a float reads "2.0".
-        CASE WHEN coalesce((c.content->>'recurring')::boolean, false)
-          THEN coalesce((c.content->>'repeatEvery')::numeric::integer, 1)
-        END,
-        CASE WHEN coalesce((c.content->>'recurring')::boolean, false)
-          THEN coalesce(c.content->>'repeatUnit', 'week')
-        END,
-        -- Sorted like automerge_heads(), so the two can be compared.
-        ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
-      FROM documents d
-      CROSS JOIN LATERAL (SELECT automerge_to_jsonb(d.draft, heads) AS content OFFSET 0) c
-      WHERE d.id = document_id AND d.type = 'event'
-      ON CONFLICT (id) DO UPDATE SET
-        title = EXCLUDED.title,
-        summary = EXCLUDED.summary,
-        starts_at = EXCLUDED.starts_at,
-        ends_at = EXCLUDED.ends_at,
-        signup_deadline = EXCLUDED.signup_deadline,
-        time_zone = EXCLUDED.time_zone,
-        body = EXCLUDED.body,
-        cover = EXCLUDED.cover,
-        is_public = EXCLUDED.is_public,
-        allow_guests = EXCLUDED.allow_guests,
-        ask_dietary = EXCLUDED.ask_dietary,
-        food = EXCLUDED.food,
-        food_deadline = EXCLUDED.food_deadline,
-        questions = EXCLUDED.questions,
-        tags = EXCLUDED.tags,
-        send_reminders = EXCLUDED.send_reminders,
-        place = EXCLUDED.place,
-        max_attendees = EXCLUDED.max_attendees,
-        hide_places_left = EXCLUDED.hide_places_left,
-        is_streamed = EXCLUDED.is_streamed,
-        stream_link = EXCLUDED.stream_link,
-        email_texts = EXCLUDED.email_texts,
-        repeat_every = EXCLUDED.repeat_every,
-        repeat_unit = EXCLUDED.repeat_unit,
-        published_heads = EXCLUDED.published_heads,
-        published_by_issuer = EXCLUDED.published_by_issuer,
-        published_by_subject = EXCLUDED.published_by_subject
-      RETURNING e.*
-    $$`,
   ),
   "0029_reminder_choice": statements(
     // Ticked reminders become «Standard», on only where guests can sign up;
     // unticked become «Av». Only the rows that change are written: every row
     // updated is pulled again by every client.
     `UPDATE events SET send_reminders = false WHERE send_reminders AND NOT allow_guests`,
-    `CREATE OR REPLACE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
-      RETURNS SETOF events LANGUAGE sql AS $$
-      INSERT INTO events AS e
-        (id, title, summary, starts_at, ends_at, signup_deadline, time_zone, body, cover,
-         is_public, allow_guests, ask_dietary, food, food_deadline, questions, tags,
-         send_reminders, place, max_attendees, hide_places_left,
-         is_streamed, stream_link, email_texts, repeat_every, repeat_unit,
-         published_heads, published_by_issuer, published_by_subject)
-      SELECT d.id, c.content->>'title',
-        -- Stored trimmed; blank, or drafts from before, are none.
-        nullif(regexp_replace(c.content->>'summary', '^\\s+|\\s+$', '', 'g'), ''),
-        zoned_instant(c.content->>'start'), zoned_instant(c.content->>'end'),
-        zoned_instant(c.content->>'deadline'), zoned_zone(c.content->>'start'),
-        automerge_spans(d.draft, '{body}', heads), c.content->'cover',
-        (c.content->>'public')::boolean,
-        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
-        (c.content->>'dietary')::boolean,
-        c.content->>'food', zoned_instant(c.content->>'foodDeadline'),
-        c.content->'questions',
-        -- Each once, ignoring case, as first written.
-        ARRAY(
-          SELECT tag FROM (
-            SELECT DISTINCT ON (lower(tag)) tag, n
-            FROM jsonb_array_elements_text(c.content->'tags') WITH ORDINALITY AS t(tag, n)
-            ORDER BY lower(tag), n
-          ) firsts ORDER BY n
-        ),
-        -- «Standard» reminds where guests can sign up. Drafts from before
-        -- there was a choice: false is "off", true or none "default".
-        CASE coalesce(c.content->>'reminders', 'default')
-          WHEN 'on' THEN true
-          WHEN 'off' THEN false
-          WHEN 'false' THEN false
-          ELSE (c.content->>'public')::boolean AND (c.content->>'guests')::boolean
-        END,
-        -- Stored as written. Drafts from before have none: null.
-        c.content->>'place',
-        -- Through numeric: a whole number stored as a float reads "30.0".
-        (c.content->>'maxAttendees')::numeric::integer,
-        -- Shown unless hidden: drafts from before have no such field.
-        coalesce((c.content->>'hidePlacesLeft')::boolean, false),
-        -- Streamed unless missing: drafts from before have no such field.
-        coalesce((c.content->>'streamed')::boolean, false),
-        -- Only while streamed; trimmed as the check trims, blank is none.
-        CASE WHEN coalesce((c.content->>'streamed')::boolean, false)
-          THEN nullif(regexp_replace(c.content->>'streamLink', '^\\s+|\\s+$', '', 'g'), '')
-        END,
-        -- The emails' own subjects and texts; none is left out.
-        (SELECT coalesce(jsonb_object_agg(email.key, email.value), '{}')
-          FROM (VALUES
-            ('signedUpSubject', to_jsonb(email_subject(c.content->>'signedUpSubject'))),
-            ('signedUpText', email_text_spans(d.draft, 'signedUpText', heads, c.content)),
-            ('signupCancelledSubject', to_jsonb(email_subject(c.content->>'signupCancelledSubject'))),
-            ('signupCancelledText', email_text_spans(d.draft, 'signupCancelledText', heads, c.content)),
-            ('eventChangedSubject', to_jsonb(email_subject(c.content->>'eventChangedSubject'))),
-            ('eventChangedText', email_text_spans(d.draft, 'eventChangedText', heads, c.content)),
-            ('eventCancelledSubject', to_jsonb(email_subject(c.content->>'eventCancelledSubject'))),
-            ('eventCancelledText', email_text_spans(d.draft, 'eventCancelledText', heads, c.content))
-          ) AS email(key, value)
-          WHERE email.value IS NOT NULL),
-        -- Only while recurring; nothing chosen is every 1 week. Through
-        -- numeric: a whole number stored as a float reads "2.0".
-        CASE WHEN coalesce((c.content->>'recurring')::boolean, false)
-          THEN coalesce((c.content->>'repeatEvery')::numeric::integer, 1)
-        END,
-        CASE WHEN coalesce((c.content->>'recurring')::boolean, false)
-          THEN coalesce(c.content->>'repeatUnit', 'week')
-        END,
-        -- Sorted like automerge_heads(), so the two can be compared.
-        ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
-      FROM documents d
-      CROSS JOIN LATERAL (SELECT automerge_to_jsonb(d.draft, heads) AS content OFFSET 0) c
-      WHERE d.id = document_id AND d.type = 'event'
-      ON CONFLICT (id) DO UPDATE SET
-        title = EXCLUDED.title,
-        summary = EXCLUDED.summary,
-        starts_at = EXCLUDED.starts_at,
-        ends_at = EXCLUDED.ends_at,
-        signup_deadline = EXCLUDED.signup_deadline,
-        time_zone = EXCLUDED.time_zone,
-        body = EXCLUDED.body,
-        cover = EXCLUDED.cover,
-        is_public = EXCLUDED.is_public,
-        allow_guests = EXCLUDED.allow_guests,
-        ask_dietary = EXCLUDED.ask_dietary,
-        food = EXCLUDED.food,
-        food_deadline = EXCLUDED.food_deadline,
-        questions = EXCLUDED.questions,
-        tags = EXCLUDED.tags,
-        send_reminders = EXCLUDED.send_reminders,
-        place = EXCLUDED.place,
-        max_attendees = EXCLUDED.max_attendees,
-        hide_places_left = EXCLUDED.hide_places_left,
-        is_streamed = EXCLUDED.is_streamed,
-        stream_link = EXCLUDED.stream_link,
-        email_texts = EXCLUDED.email_texts,
-        repeat_every = EXCLUDED.repeat_every,
-        repeat_unit = EXCLUDED.repeat_unit,
-        published_heads = EXCLUDED.published_heads,
-        published_by_issuer = EXCLUDED.published_by_issuer,
-        published_by_subject = EXCLUDED.published_by_subject
-      RETURNING e.*
-    $$`,
   ),
   "0030_invitations": statements(
     // Who an organizer noted as invited to an event: a record only, nothing is
@@ -1250,40 +334,20 @@ export const migrations = Migrator.fromRecord({
   "0031_document_tags": statements(
     // The draft's tags, as written, so the studio can search its lists by them.
     `ALTER TABLE documents ADD COLUMN tags text[] NOT NULL DEFAULT '{}'`,
-    `CREATE OR REPLACE FUNCTION documents_summarize() RETURNS trigger LANGUAGE plpgsql AS $$
-    DECLARE
-      content jsonb := NEW.draft::jsonb;
-    BEGIN
-      NEW.title := coalesce(content->>'title', '');
-      NEW.starts_at := zoned_instant(content->>'start');
-      NEW.time_zone := zoned_zone(content->>'start');
-      NEW.tags := CASE jsonb_typeof(content->'tags')
-        WHEN 'array' THEN ARRAY(
-          SELECT tag FROM jsonb_array_elements_text(content->'tags') WITH ORDINALITY AS t (tag, n)
-          ORDER BY n)
-        ELSE '{}'::text[] END;
-      -- Sorted, like published_heads, so the two can be compared.
-      NEW.draft_heads := automerge_heads(NEW.draft);
-      RETURN NEW;
-    END
-    $$`,
     // Fills the column for the drafts already there; updated_at is left as it is.
-    `UPDATE documents SET draft = draft`,
+    `UPDATE documents SET
+      tags = CASE jsonb_typeof(draft::jsonb->'tags')
+        WHEN 'array' THEN ARRAY(
+          SELECT tag FROM jsonb_array_elements_text(draft::jsonb->'tags')
+            WITH ORDINALITY AS t (tag, n) ORDER BY n)
+        ELSE '{}'::text[] END,
+      draft_heads = automerge_heads(draft)`,
   ),
   "0032_first_published": statements(
     // When the event was first published, kept after it is unpublished: an
     // event can change team only until then.
     `ALTER TABLE documents ADD COLUMN first_published_at timestamptz`,
     // When an event is first published, its document says so, and is pulled again.
-    `CREATE FUNCTION events_mark_first_published() RETURNS trigger LANGUAGE plpgsql AS $$
-    BEGIN
-      UPDATE documents SET first_published_at = NEW.first_published_at
-        WHERE id = NEW.id AND first_published_at IS NULL;
-      RETURN NULL;
-    END
-    $$`,
-    `CREATE TRIGGER events_mark_first_published AFTER INSERT ON events
-      FOR EACH ROW EXECUTE FUNCTION events_mark_first_published()`,
     // Events published before, unpublished ones too: their events row is kept.
     `UPDATE documents d SET first_published_at = e.first_published_at
       FROM events e WHERE e.id = d.id`,
@@ -1322,117 +386,6 @@ export const migrations = Migrator.fromRecord({
     `ALTER TABLE events ADD COLUMN sales_event_type text`,
     // A guest's job title on a sales event's sign-up form, sent to HubSpot.
     `ALTER TABLE attendees ADD COLUMN job_title text`,
-    `CREATE OR REPLACE FUNCTION publish_event(document_id uuid, heads text[], issuer text, subject text)
-      RETURNS SETOF events LANGUAGE sql AS $$
-      INSERT INTO events AS e
-        (id, title, summary, starts_at, ends_at, signup_deadline, time_zone, body, cover,
-         is_public, allow_guests, ask_dietary, food, food_deadline, questions, tags,
-         send_reminders, place, max_attendees, hide_places_left,
-         is_streamed, stream_link, sales_event, sales_event_type,
-         email_texts, repeat_every, repeat_unit,
-         published_heads, published_by_issuer, published_by_subject)
-      SELECT d.id, c.content->>'title',
-        -- Stored trimmed; blank, or drafts from before, are none.
-        nullif(regexp_replace(c.content->>'summary', '^\\s+|\\s+$', '', 'g'), ''),
-        zoned_instant(c.content->>'start'), zoned_instant(c.content->>'end'),
-        zoned_instant(c.content->>'deadline'), zoned_zone(c.content->>'start'),
-        automerge_spans(d.draft, '{body}', heads), c.content->'cover',
-        (c.content->>'public')::boolean,
-        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean,
-        (c.content->>'dietary')::boolean,
-        c.content->>'food', zoned_instant(c.content->>'foodDeadline'),
-        c.content->'questions',
-        -- Each once, ignoring case, as first written.
-        ARRAY(
-          SELECT tag FROM (
-            SELECT DISTINCT ON (lower(tag)) tag, n
-            FROM jsonb_array_elements_text(c.content->'tags') WITH ORDINALITY AS t(tag, n)
-            ORDER BY lower(tag), n
-          ) firsts ORDER BY n
-        ),
-        -- «Standard» reminds where guests can sign up. Drafts from before
-        -- there was a choice: false is "off", true or none "default".
-        CASE coalesce(c.content->>'reminders', 'default')
-          WHEN 'on' THEN true
-          WHEN 'off' THEN false
-          WHEN 'false' THEN false
-          ELSE (c.content->>'public')::boolean AND (c.content->>'guests')::boolean
-        END,
-        -- Stored as written. Drafts from before have none: null.
-        c.content->>'place',
-        -- Through numeric: a whole number stored as a float reads "30.0".
-        (c.content->>'maxAttendees')::numeric::integer,
-        -- Shown unless hidden: drafts from before have no such field.
-        coalesce((c.content->>'hidePlacesLeft')::boolean, false),
-        -- Streamed unless missing: drafts from before have no such field.
-        coalesce((c.content->>'streamed')::boolean, false),
-        -- Only while streamed; trimmed as the check trims, blank is none.
-        CASE WHEN coalesce((c.content->>'streamed')::boolean, false)
-          THEN nullif(regexp_replace(c.content->>'streamLink', '^\\s+|\\s+$', '', 'g'), '')
-        END,
-        -- A sales event is sent to HubSpot: only a public event open to guests is one.
-        (c.content->>'public')::boolean AND (c.content->>'guests')::boolean
-          AND coalesce((c.content->>'salesEvent')::boolean, false),
-        -- Its type, trimmed; blank is none.
-        nullif(regexp_replace(c.content->>'salesEventType', '^\\s+|\\s+$', '', 'g'), ''),
-        -- The emails' own subjects and texts; none is left out.
-        (SELECT coalesce(jsonb_object_agg(email.key, email.value), '{}')
-          FROM (VALUES
-            ('signedUpSubject', to_jsonb(email_subject(c.content->>'signedUpSubject'))),
-            ('signedUpText', email_text_spans(d.draft, 'signedUpText', heads, c.content)),
-            ('signupCancelledSubject', to_jsonb(email_subject(c.content->>'signupCancelledSubject'))),
-            ('signupCancelledText', email_text_spans(d.draft, 'signupCancelledText', heads, c.content)),
-            ('eventChangedSubject', to_jsonb(email_subject(c.content->>'eventChangedSubject'))),
-            ('eventChangedText', email_text_spans(d.draft, 'eventChangedText', heads, c.content)),
-            ('eventCancelledSubject', to_jsonb(email_subject(c.content->>'eventCancelledSubject'))),
-            ('eventCancelledText', email_text_spans(d.draft, 'eventCancelledText', heads, c.content))
-          ) AS email(key, value)
-          WHERE email.value IS NOT NULL),
-        -- Only while recurring; nothing chosen is every 1 week. Through
-        -- numeric: a whole number stored as a float reads "2.0".
-        CASE WHEN coalesce((c.content->>'recurring')::boolean, false)
-          THEN coalesce((c.content->>'repeatEvery')::numeric::integer, 1)
-        END,
-        CASE WHEN coalesce((c.content->>'recurring')::boolean, false)
-          THEN coalesce(c.content->>'repeatUnit', 'week')
-        END,
-        -- Sorted like automerge_heads(), so the two can be compared.
-        ARRAY(SELECT h FROM unnest(heads) AS h ORDER BY h), issuer, subject
-      FROM documents d
-      CROSS JOIN LATERAL (SELECT automerge_to_jsonb(d.draft, heads) AS content OFFSET 0) c
-      WHERE d.id = document_id AND d.type = 'event'
-      ON CONFLICT (id) DO UPDATE SET
-        title = EXCLUDED.title,
-        summary = EXCLUDED.summary,
-        starts_at = EXCLUDED.starts_at,
-        ends_at = EXCLUDED.ends_at,
-        signup_deadline = EXCLUDED.signup_deadline,
-        time_zone = EXCLUDED.time_zone,
-        body = EXCLUDED.body,
-        cover = EXCLUDED.cover,
-        is_public = EXCLUDED.is_public,
-        allow_guests = EXCLUDED.allow_guests,
-        ask_dietary = EXCLUDED.ask_dietary,
-        food = EXCLUDED.food,
-        food_deadline = EXCLUDED.food_deadline,
-        questions = EXCLUDED.questions,
-        tags = EXCLUDED.tags,
-        send_reminders = EXCLUDED.send_reminders,
-        place = EXCLUDED.place,
-        max_attendees = EXCLUDED.max_attendees,
-        hide_places_left = EXCLUDED.hide_places_left,
-        is_streamed = EXCLUDED.is_streamed,
-        stream_link = EXCLUDED.stream_link,
-        sales_event = EXCLUDED.sales_event,
-        sales_event_type = EXCLUDED.sales_event_type,
-        email_texts = EXCLUDED.email_texts,
-        repeat_every = EXCLUDED.repeat_every,
-        repeat_unit = EXCLUDED.repeat_unit,
-        published_heads = EXCLUDED.published_heads,
-        published_by_issuer = EXCLUDED.published_by_issuer,
-        published_by_subject = EXCLUDED.published_by_subject
-      RETURNING e.*
-    $$`,
   ),
   "0035_ad_source": statements(
     // The ad someone came from, from the address of the event's page: the
