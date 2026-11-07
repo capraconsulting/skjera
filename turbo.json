@@ -13,7 +13,7 @@
     "SIGNING_SECRET",
     "SKJERA_TEST_SERVER_URL",
     "WEBSITE_ORIGINS",
-    "MAILPIT_UI_ADDRESS",
+    "SERVICES_ADDRESS",
     "CI"
   ],
   "tasks": {
@@ -30,6 +30,10 @@
     },
     "test": {
       "dependsOn": ["compile", "^compile"]
+    },
+    "@skjera/app#test": {
+      "dependsOn": ["compile", "^compile"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/compose.yml"]
     },
     "@skjera/server#test": {
       "dependsOn": ["compile", "^compile"],
