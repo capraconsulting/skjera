@@ -68,8 +68,9 @@ export const previewLoader = async ({
   if (!documents.collection.has(id)) {
     throw data("Event not found", { status: 404 });
   }
-  const handle = await openDraft<EventContent>(id).catch(() => null);
-  if (handle === null) throw data("Event not found", { status: 404 });
+  const handle = await openDraft<EventContent>(id).catch(() => {
+    throw data(m.preview_open_failed(), { status: 500 });
+  });
   return { id, handle, me, heads };
 };
 

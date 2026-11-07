@@ -27,7 +27,7 @@ import {
   type DraftPresence,
   useDraftPresence,
 } from "../../presence/presence.ts";
-import { documents } from "../../sync/tables.ts";
+import { deleteDocument, documents } from "../../sync/tables.ts";
 import { Attendees } from "./Attendees.tsx";
 import { DraftText } from "./DraftText.tsx";
 import { EditorFooter } from "./EditorFooter.tsx";
@@ -53,6 +53,7 @@ function EventSession({ id }: { readonly id: DocumentId }) {
   const { handle } = session;
   const owner = session.teamId;
   const here = useDraftPresence(session.presence);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // A link with the wrong team: go to where the event actually is.
   useEffect(() => {
@@ -77,8 +78,14 @@ function EventSession({ id }: { readonly id: DocumentId }) {
 
   // Asked first, by the footer.
   const remove = () => {
-    documents.collection.delete(id);
-    navigate(appPaths.studioTeam(teamId));
+    setDeleteError(null);
+    void deleteDocument(id).then(
+      () => {
+        navigate(appPaths.studioTeam(teamId));
+        void documents.refresh();
+      },
+      () => setDeleteError(m.studio_delete_failed()),
+    );
   };
 
   return (
@@ -110,9 +117,9 @@ function EventSession({ id }: { readonly id: DocumentId }) {
       }
     >
       <div className={styles.content}>
-        {session.error === null ? null : (
+        {session.error === null && deleteError === null ? null : (
           <p role="alert" className={styles.error}>
-            {session.error}
+            {session.error ?? deleteError}
           </p>
         )}
         {owner === null ? null : (

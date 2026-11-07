@@ -80,6 +80,22 @@ const names = (synced: ReturnType<typeof table>) =>
   );
 
 describe("syncedTable", () => {
+  it("warns with the original error when the initial pull fails (AC-5)", async () => {
+    const offline = new Error("Initially offline");
+    const server = scripted([{ since: undefined, reply: offline }]);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const synced = table(server);
+    await expect(synced.collection.preload()).rejects.toThrow(
+      "Initially offline",
+    );
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("items-"),
+      offline,
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
   it("loads every page before showing the table", async () => {
     const held = gate();
     const server = scripted([
@@ -131,6 +147,11 @@ describe("syncedTable", () => {
     await synced.collection.preload();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     await synced.refresh();
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("items-"),
+      expect.objectContaining({ message: "Offline" }),
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
     warn.mockRestore();
     // The page before the failure stays applied.
     expect(names(synced)).toEqual({

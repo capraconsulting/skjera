@@ -1,7 +1,7 @@
 import { assert, describe, layer, it as plain } from "@effect/vitest";
 import { Authenticator } from "@skjera/oauth";
 import { Identity } from "@skjera/oauth/api";
-import { type Context, Effect, Layer, Option, Stream } from "effect";
+import { type Context, Effect, Layer, Logger, Option, Stream } from "effect";
 import { HttpRouter } from "effect/http";
 import { type ImagePage, maxImageBytes } from "../../src/api/ImagesApi.ts";
 import {
@@ -588,6 +588,31 @@ describe("readImageSize", () => {
     );
     return { stream, seen };
   };
+
+  plain.effect(
+    "logs the cause and gives no size when the body fails (AC-4)",
+    () =>
+      Effect.gen(function* () {
+        const failure = new Error("Body failed");
+        const stream = new ReadableStream<Uint8Array>({
+          pull(controller) {
+            controller.error(failure);
+          },
+        });
+        const log: Array<{ message: unknown; cause: unknown }> = [];
+        const size = yield* readImageSize(stream).pipe(
+          Effect.provide(
+            Logger.layer([
+              Logger.make(({ message, cause }) => log.push({ message, cause })),
+            ]),
+          ),
+        );
+        assert.isUndefined(size);
+        assert.lengthOf(log, 1);
+        assert.include(String(log[0]?.message), "image size");
+        assert.include(String(log[0]?.cause), "Body failed");
+      }),
+  );
 
   plain.effect(
     "gives the size without reading on, and cancels the stream (AC-5)",

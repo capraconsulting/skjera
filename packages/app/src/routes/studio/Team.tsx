@@ -93,12 +93,14 @@ export function Team() {
   const { teamId } = useLoaderData<typeof teamLoader>();
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   // Opens the new event once the server has it.
   const newEvent = () => {
     const id = crypto.randomUUID() as DocumentId;
     const now = new Date();
     setCreating(true);
+    setCreateError(null);
     documents.collection
       .insert({
         id,
@@ -115,7 +117,7 @@ export function Team() {
       })
       .isPersisted.promise.then(
         () => navigate(appPaths.studioEvent(teamId, id)),
-        () => {},
+        () => setCreateError(m.studio_create_failed()),
       )
       .finally(() => setCreating(false));
   };
@@ -138,6 +140,7 @@ export function Team() {
           </Button>
         }
       >
+        {createError === null ? null : <p role="alert">{createError}</p>}
         <div className={styles.tools}>
           <Input
             type="search"

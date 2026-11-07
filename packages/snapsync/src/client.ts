@@ -131,6 +131,7 @@ export const syncedTable = <Row extends object>(options: {
             }
           } catch (error) {
             cancel();
+            console.warn(`Couldn't refresh ${options.id}`, error);
             throw error;
           }
           if (fresh !== null) {
@@ -149,9 +150,7 @@ export const syncedTable = <Row extends object>(options: {
             .catch(() => undefined)
             .then(pull)
             .finally(() => inFlight--);
-          return pulls.catch((error: unknown) => {
-            console.warn(`Couldn't refresh ${options.id}`, error);
-          });
+          return pulls.catch(() => undefined);
         };
 
         // A poll skips while a pull is running rather than queue up, and

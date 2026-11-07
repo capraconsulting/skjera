@@ -116,6 +116,14 @@ export const teams = syncedTable({
 /** Pass as a team update's metadata to change its logos rather than its name. */
 export type TeamChange = { readonly logos: TeamLogosChange };
 
+/** Deletes a document on the server without first removing its local row. */
+export const deleteDocument = (id: DocumentId) =>
+  sendRequest((client) =>
+    client.documents
+      .delete({ params: { id } })
+      .pipe(Effect.catchTag("DocumentNotFound", () => Effect.void)),
+  );
+
 export const documents = syncedTable({
   id: "documents",
   getKey: (document: DocumentRow) => document.id,
@@ -135,12 +143,7 @@ export const documents = syncedTable({
         }),
       ),
     // Gone already is as good as deleted.
-    delete: (document) =>
-      sendRequest((client) =>
-        client.documents
-          .delete({ params: { id: document.id } })
-          .pipe(Effect.catchTag("DocumentNotFound", () => Effect.void)),
-      ),
+    delete: (document) => deleteDocument(document.id),
   },
 });
 

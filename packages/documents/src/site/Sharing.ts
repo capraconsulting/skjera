@@ -259,7 +259,11 @@ export const layerHttp = (options: { readonly root: string }) =>
         }).pipe(
           Effect.timeoutOption(2000),
           Effect.map(Option.getOrUndefined),
-          Effect.catchCause(() => Effect.succeed(undefined)),
+          Effect.catchCause((cause) =>
+            Effect.logWarning("Reading cover size failed", cause).pipe(
+              Effect.as(undefined),
+            ),
+          ),
         );
 
       return Layer.mergeAll(

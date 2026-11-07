@@ -83,7 +83,7 @@ export function UserMenu({ me }: { readonly me: Identity }) {
               event.preventDefault();
               const form = event.currentTarget;
               void forgetLocalCopies(me)
-                .catch(() => undefined)
+                .catch(() => window.alert(m.account_local_cleanup_failed()))
                 .then(() => form.submit());
             }}
           >

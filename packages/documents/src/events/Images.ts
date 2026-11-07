@@ -258,7 +258,11 @@ export const readImageSize = (
     Effect.map((read) =>
       Option.isSome(read) ? imageSize(read.value) : undefined,
     ),
-    Effect.orElseSucceed(() => undefined),
+    Effect.catchCause((cause) =>
+      Effect.logWarning("Reading image size failed", cause).pipe(
+        Effect.as(undefined),
+      ),
+    ),
   );
 
 /** 128 random bits, URL safe. */

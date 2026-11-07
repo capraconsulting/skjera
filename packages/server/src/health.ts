@@ -15,8 +15,10 @@ const ready = HttpRouter.add(
     return HttpServerResponse.text("ok");
   }).pipe(
     Effect.timeout("2 seconds"),
-    Effect.catch(() =>
-      Effect.succeed(HttpServerResponse.text("unavailable", { status: 503 })),
+    Effect.catchCause((cause) =>
+      Effect.logWarning("Readiness check failed", cause).pipe(
+        Effect.as(HttpServerResponse.text("unavailable", { status: 503 })),
+      ),
     ),
   ),
 );

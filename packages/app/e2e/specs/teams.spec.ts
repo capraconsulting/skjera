@@ -4,6 +4,32 @@ import { EventEditor } from "../pom/studio/EventEditor.ts";
 import { EventsColumn } from "../pom/studio/EventsColumn.ts";
 import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
 
+test("a refused event deletion keeps the editor open and shows the failure (AC-1)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const teams = new TeamsColumn(alice);
+  const team = await teams.create(uniqueTeamName("Refused deletion"));
+  const events = new EventsColumn(alice);
+  const id = await events.newEvent();
+  const editor = new EventEditor(alice);
+  await editor.title.type("Still here");
+  await editor.expectSaved();
+
+  const deletion = new RegExp(`/api/documents/${id}$`);
+  await alice.route(deletion, (route) => route.fulfill({ status: 503 }));
+  const refused = editor.clickDeleteAnswering("accept");
+  await refused.question;
+  await refused.done;
+  await editor.expectAt(team, id);
+  await editor.expectRefused("Deleting the event failed");
+  await editor.title.expectText("Still here");
+
+  await alice.unroute(deletion);
+  await editor.delete(id);
+  await teams.delete(team);
+});
+
 test("events are created in a team and listed under it", async ({
   browser,
 }) => {

@@ -418,7 +418,12 @@ export const serve = (
     );
     // Until the editor goes away.
     yield* Effect.raceFirst(read, handle);
-  }).pipe(Effect.scoped, Effect.ignore);
+  }).pipe(
+    Effect.scoped,
+    Effect.catchCause((cause) =>
+      Effect.logWarning("Draft sync session failed", cause),
+    ),
+  );
 
 /**
  * automerge-repo's WebSocket endpoint for the editor's drafts. Like the
