@@ -1,7 +1,10 @@
+import { existsSync, readFileSync } from "node:fs";
+import * as A from "@automerge/automerge";
 import { assert, layer } from "@effect/vitest";
 import { Identity } from "@skjera/oauth/api";
 import { Effect, Layer } from "effect";
 import { Migrator, SqlClient } from "effect/sql";
+import { EventContent } from "../../src/events/ContentTypes.ts";
 import { Documents } from "../../src/events/Documents.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
 import { Notifications } from "../../src/notices/Notifications.ts";
@@ -12,6 +15,38 @@ import { addTags, openEditor } from "../helpers.ts";
 import { UnmigratedTestDatabase } from "../TestDatabase.ts";
 
 const alice = new Identity({ issuer: "https://idp.example", subject: "alice" });
+
+const serverSource = (file: string) => {
+  const url = new URL(`../../src/server/${file}`, import.meta.url);
+  return existsSync(url) ? readFileSync(url, "utf8") : "";
+};
+
+layer(Layer.empty)("Current database objects", (it) => {
+  it("keeps publish_event out of numbered migrations (AC-1)", () => {
+    assert.notMatch(serverSource("migrations.ts"), /FUNCTION publish_event/);
+  });
+
+  it("installs current objects after numbered migrations (AC-2)", () => {
+    const source = serverSource("Database.ts");
+    assert.match(source, /Migrator\.make[\s\S]+installDatabaseObjects/);
+  });
+
+  it("keeps published SQL draft fields in EventContent (AC-3)", () => {
+    const source = serverSource("databaseObjects.ts");
+    const catalogue = source.match(
+      /export const publishedDraftFields = \[([\s\S]*?)\] as const/,
+    );
+    assert.isDefined(catalogue, "publishedDraftFields is exported");
+    const fields = Array.from(
+      catalogue?.[1]?.matchAll(/"([A-Za-z]+)"/g) ?? [],
+    ).flatMap((match) => (match[1] === undefined ? [] : [match[1]]));
+    assert.isNotEmpty(fields);
+    assert.deepStrictEqual(
+      fields.filter((field) => !(field in EventContent.fields)),
+      [],
+    );
+  });
+});
 
 // Not migrated: the test runs the migrations itself, in two parts.
 const TestLayer = Layer.mergeAll(Teams.layer, Documents.layer).pipe(
@@ -39,10 +74,10 @@ layer(TestLayer, { excludeTestServices: true })("Migrations", (it) => {
           yield* sql`
             INSERT INTO events (id, title, starts_at, ends_at, time_zone, body,
               is_public, allow_guests, ask_dietary, published_heads,
-              published_by_issuer, published_by_subject)
+              published_by_issuer, published_by_subject, first_published_at, published_at)
             VALUES (${id}, 'Meetup', now() + interval '1 day',
               now() + interval '2 days', 'Europe/Oslo', '[]', true, true,
-              true, '{}', 'test', 'test')
+              true, '{}', 'test', 'test', now(), now())
           `;
           return id;
         });
@@ -82,6 +117,59 @@ layer(TestLayer, { excludeTestServices: true })("Migrations", (it) => {
   );
 });
 
+layer(TestLayer, { excludeTestServices: true })(
+  "Migrations: legacy sync triggers",
+  (it) => {
+    it.effect(
+      "removes a legacy tombstone trigger before dropping its table (AC-2)",
+      () =>
+        Effect.gen(function* () {
+          const sql = yield* SqlClient.SqlClient;
+          yield* Migrator.make({})({ loader: upTo(14) });
+
+          yield* sql.unsafe(`CREATE FUNCTION sync_tombstone() RETURNS trigger LANGUAGE plpgsql AS $$
+            BEGIN
+              INSERT INTO sync_deletes (table_name, id) VALUES (TG_TABLE_NAME, OLD.id);
+              RETURN OLD;
+            END
+          $$`);
+          yield* sql`CREATE TRIGGER attendees_sync_tombstone AFTER DELETE ON attendees
+            FOR EACH ROW EXECUTE FUNCTION sync_tombstone()`;
+
+          const [teamRow] = yield* sql<{ id: string }>`
+            INSERT INTO teams (name, created_by_issuer, created_by_subject)
+            VALUES ('Team', 'test', 'test') RETURNING id
+          `;
+          assert.isDefined(teamRow);
+          const [documentRow] = yield* sql<{ id: string }>`
+            INSERT INTO documents
+              (type, team_id, draft, created_by_issuer, created_by_subject)
+            VALUES ('event', ${teamRow.id}, ${A.save(A.from({}))}::bytea, 'test', 'test')
+            RETURNING id
+          `;
+          assert.isDefined(documentRow);
+          const id = documentRow.id;
+          yield* sql`
+            INSERT INTO events (id, title, starts_at, ends_at, time_zone, body,
+              is_public, allow_guests, ask_dietary, published_heads,
+              published_by_issuer, published_by_subject, first_published_at, published_at)
+            VALUES (${id}, 'Meetup', now() + interval '1 day',
+              now() + interval '2 days', 'Europe/Oslo', '[]', true, true,
+              false, '{}', 'test', 'test', now(), now())
+          `;
+          const [attendeeRow] = yield* sql<{ id: string }>`
+            INSERT INTO attendees (event_id, name, email, cancel_token_hash)
+            VALUES (${id}, 'Ada', 'ada@example.org', 'token') RETURNING id
+          `;
+          assert.isDefined(attendeeRow);
+
+          yield* Migrator.make({})({ loader: migrations });
+          yield* sql`DELETE FROM attendees WHERE id = ${attendeeRow.id}`;
+        }),
+    );
+  },
+);
+
 // A database of its own: the first block above migrates its database whole.
 layer(TestLayer, { excludeTestServices: true })(
   "Migrations: reminders",
@@ -104,10 +192,10 @@ layer(TestLayer, { excludeTestServices: true })(
               yield* sql`
               INSERT INTO events (id, title, starts_at, ends_at, time_zone, body,
                 is_public, allow_guests, ask_dietary, send_reminders, published_heads,
-                published_by_issuer, published_by_subject)
+                published_by_issuer, published_by_subject, first_published_at, published_at)
               VALUES (${id}, 'Meetup', now() + interval '1 day',
                 now() + interval '2 days', 'Europe/Oslo', '[]', true, ${guests},
-                false, ${reminders}, '{}', 'test', 'test')
+                false, ${reminders}, '{}', 'test', 'test', now(), now())
             `;
               return id;
             });
@@ -124,6 +212,70 @@ layer(TestLayer, { excludeTestServices: true })(
           assert.strictEqual(yield* reminds(tickedWithGuests), true);
           assert.strictEqual(yield* reminds(tickedMembersOnly), false);
           assert.strictEqual(yield* reminds(unticked), false);
+        }),
+    );
+  },
+);
+
+layer(TestLayer, { excludeTestServices: true })(
+  "Migrations: legacy publish-time trigger",
+  (it) => {
+    it.effect(
+      "keeps published_at while converting a legacy reminder choice (AC-2)",
+      () =>
+        Effect.gen(function* () {
+          const sql = yield* SqlClient.SqlClient;
+          yield* Migrator.make({})({ loader: upTo(17) });
+          yield* sql.unsafe(`CREATE FUNCTION set_publish_times() RETURNS trigger LANGUAGE plpgsql AS $$
+            BEGIN
+              NEW.published_at := now();
+              NEW.first_published_at := CASE
+                WHEN TG_OP = 'UPDATE' THEN OLD.first_published_at ELSE now()
+              END;
+              RETURN NEW;
+            END
+          $$`);
+          yield* sql`CREATE TRIGGER events_publish_times
+            BEFORE INSERT OR UPDATE ON events
+            FOR EACH ROW EXECUTE FUNCTION set_publish_times()`;
+
+          const [teamRow] = yield* sql<{ id: string }>`
+            INSERT INTO teams (name, created_by_issuer, created_by_subject)
+            VALUES ('Team', 'test', 'test') RETURNING id
+          `;
+          assert.isDefined(teamRow);
+          const [documentRow] = yield* sql<{ id: string }>`
+            INSERT INTO documents
+              (type, team_id, draft, created_by_issuer, created_by_subject)
+            VALUES ('event', ${teamRow.id}, ${A.save(A.from({}))}::bytea, 'test', 'test')
+            RETURNING id
+          `;
+          assert.isDefined(documentRow);
+          const id = documentRow.id;
+          yield* sql`
+            INSERT INTO events (id, title, starts_at, ends_at, time_zone, body,
+              is_public, allow_guests, ask_dietary, send_reminders,
+              published_heads, published_by_issuer, published_by_subject,
+              first_published_at, published_at)
+            VALUES (${id}, 'Meetup', now() + interval '1 day',
+              now() + interval '2 days', 'Europe/Oslo', '[]', true, false,
+              false, true, '{}', 'test', 'test', now(), now())
+          `;
+          const [before] = yield* sql<{ published_at: Date }>`
+            SELECT published_at FROM events WHERE id = ${id}
+          `;
+
+          yield* Effect.sleep("10 millis");
+          yield* Migrator.make({})({ loader: migrations });
+
+          const [after] = yield* sql<{ published_at: Date }>`
+            SELECT published_at FROM events WHERE id = ${id}
+          `;
+          const [history] = yield* sql<{ published_at: Date }>`
+            SELECT published_at FROM event_publications WHERE event_id = ${id}
+          `;
+          assert.deepStrictEqual(after?.published_at, before?.published_at);
+          assert.deepStrictEqual(history?.published_at, before?.published_at);
         }),
     );
   },
@@ -188,10 +340,10 @@ layer(TestLayer, { excludeTestServices: true })(
           const publish = (id: string) => sql`
             INSERT INTO events (id, title, starts_at, ends_at, time_zone, body,
               is_public, allow_guests, ask_dietary, published_heads,
-              published_by_issuer, published_by_subject)
+              published_by_issuer, published_by_subject, first_published_at, published_at)
             VALUES (${id}, 'Meetup', now() + interval '1 day',
               now() + interval '2 days', 'Europe/Oslo', '[]', true, true,
-              true, '{}', 'test', 'test')
+              true, '{}', 'test', 'test', now(), now())
           `;
           const published = yield* document;
           const unpublished = yield* document;
@@ -228,10 +380,10 @@ layer(TestLayer, { excludeTestServices: true })("Migrations: history", (it) => {
         yield* sql`
             INSERT INTO events (id, title, starts_at, ends_at, time_zone, body,
               is_public, allow_guests, ask_dietary, published_heads,
-              published_by_issuer, published_by_subject)
+              published_by_issuer, published_by_subject, first_published_at, published_at)
             VALUES (${id}, 'Meetup', now() + interval '1 day',
               now() + interval '2 days', 'Europe/Oslo', '[]', true, true,
-              true, '{abc,def}', 'https://idp.example', 'alice')
+              true, '{abc,def}', 'https://idp.example', 'alice', now(), now())
           `;
         const [before] = yield* sql<{ published_at: Date }>`
             SELECT published_at FROM events WHERE id = ${id}
