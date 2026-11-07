@@ -1,17 +1,14 @@
-import type {
-  AdSource,
-  Answer,
-  AttendeeRow,
-  EventRow,
-} from "@skjera/documents/api";
+import type { Answer, AttendeeRow, EventRow } from "@skjera/documents/api";
 import { readSheet } from "read-excel-file/node";
 import { describe, expect, it } from "vitest";
 import writeExcelFile from "write-excel-file/node";
 import {
   adSourceText,
+  attendeeColumn,
   attendeesSheet,
   xlsxInput,
 } from "../src/routes/studio/attendeesSheet.ts";
+import { attendee } from "./attendee.ts";
 
 const towelSize = "11111111-1111-4111-8111-111111111111";
 const heardOf = "22222222-2222-4222-8222-222222222222";
@@ -51,35 +48,6 @@ const yes = (id: string, question: string): Answer => ({
   value: true,
 });
 
-const attendee = (
-  name: string,
-  answers: ReadonlyArray<Answer> = [],
-  more: {
-    readonly online?: boolean;
-    readonly phone?: string;
-    readonly company?: string;
-    readonly source?: AdSource;
-    readonly consent?: boolean;
-  } = {},
-): AttendeeRow => ({
-  id: name,
-  eventId: "33333333-3333-4333-8333-333333333333" as AttendeeRow["eventId"],
-  signedUpAt: new Date("2026-10-20T08:15:00.000Z"),
-  changedAt: new Date("2026-10-20T08:15:00.000Z"),
-  mine: false,
-  online: more.online ?? false,
-  details: {
-    name,
-    email: `${name.toLowerCase()}@example.com`,
-    phone: more.phone ?? null,
-    company: more.company ?? null,
-    source: more.source ?? null,
-    consent: more.consent ?? false,
-    answers,
-    guest: false,
-  },
-});
-
 /** The sheet built, with its rows read by column heading. */
 const read = (
   attendees: ReadonlyArray<AttendeeRow>,
@@ -96,6 +64,14 @@ const read = (
 };
 
 describe("attendeesSheet", () => {
+  it("keeps a heading and every attendee value in one column entry (AC-2)", () => {
+    const entry = attendeeColumn("Name", ({ details }) => details?.name ?? "");
+    const attendees = [attendee("Alice"), attendee("Gina")];
+
+    expect(entry.heading).toBe("Name");
+    expect(attendees.map(entry.value)).toEqual(["Alice", "Gina"]);
+  });
+
   it("is the sheet Sign-ups of the file <title>.xlsx (AC-7)", () => {
     const { sheet } = read([attendee("Alice")]);
     expect(sheet.name).toBe("Sign-ups");

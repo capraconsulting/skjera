@@ -1,14 +1,10 @@
 import {
-  type AdSource,
-  type Answers,
   type AttendeeRow,
   AttendeesApi,
   type DocumentId,
   type DocumentRow,
   DocumentsApi,
   type EventRow,
-  type GuestDetails,
-  type Locale,
   PublicSyncApi,
   SyncApi,
   type TagRow,
@@ -24,6 +20,13 @@ import { HttpApi, HttpApiClient } from "effect/http-api";
 import { sayWhy } from "../problems.ts";
 import { type PublicClient, provideHttp, runPublic } from "../site/client.ts";
 import { guestSignup, rememberGuestSignup } from "../site/guestSignups.ts";
+import {
+  attendPayload,
+  type Signup,
+  type SignupChange,
+} from "./signupPayload.ts";
+
+export type { Signup, SignupChange } from "./signupPayload.ts";
 
 class Api extends HttpApi.make("studio")
   .add(SyncApi)
@@ -327,31 +330,12 @@ export const attendees = syncedTable({
   write: {
     // Signing up, as the signed-in user or as a guest (see `Signup`).
     insert: (attendee, metadata) => {
-      const {
-        guest,
-        dietary,
-        answers,
-        online,
-        locale,
-        honeypot,
-        source,
-        consent,
-      } = metadata as Signup;
+      const payload = attendPayload(attendee.id, metadata as Signup);
       return sendPublic((client) =>
         client.events
           .attend({
             params: { id: attendee.eventId },
-            payload: {
-              id: attendee.id,
-              ...(guest === undefined ? {} : { guest }),
-              ...(dietary === undefined ? {} : { dietary }),
-              ...(answers === undefined ? {} : { answers }),
-              ...(online === undefined ? {} : { online }),
-              ...(locale === undefined ? {} : { locale }),
-              ...(honeypot === undefined ? {} : { honeypot }),
-              ...(source === undefined ? {} : { source }),
-              ...(consent === undefined ? {} : { consent }),
-            },
+            payload,
           })
           .pipe(
             Effect.tap((signup) =>
@@ -418,40 +402,8 @@ export const attendees = syncedTable({
   },
 });
 
-/**
- * What changing a signup sends: pass it as the update's metadata, and set
- * the row's `changedAt`, so the update has a change to send.
- */
-export type SignupChange = {
-  readonly answers?: Answers;
-  /** Follows online rather than in person; asked while the event is streamed. */
-  readonly online?: boolean;
-  /** A guest's own: kept as given when left out, empty clears. */
-  readonly phone?: string;
-  readonly company?: string;
-};
-
 /** Pass as a delete's metadata to take someone off as an organizer. */
 export type Removal = { readonly asOrganizer: true };
 
 /** Pass as a guest's delete's metadata: what the cancel form's hidden field held. */
 export type GuestCancel = { readonly honeypot: string };
-
-/** What signing up sends besides the row: pass it as the insert's metadata. */
-export type Signup = {
-  /** Signing up as a guest, without an account. */
-  readonly guest?: GuestDetails;
-  readonly dietary?: string;
-  /** Answers to the event's questions, by question id. */
-  readonly answers?: Answers;
-  /** Follows online rather than in person; asked while the event is streamed. */
-  readonly online?: boolean;
-  /** The language they signed up in: emails to them are in it. */
-  readonly locale?: Locale;
-  /** What a guest form's hidden field held: filled only by a bot. */
-  readonly honeypot?: string;
-  /** The ad they came from, kept from the address of the event's page. */
-  readonly source?: AdSource;
-  /** Asked for invitations and the newsletter: set only when the box was ticked. */
-  readonly consent?: boolean;
-};

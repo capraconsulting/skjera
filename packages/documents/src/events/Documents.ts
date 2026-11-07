@@ -22,7 +22,12 @@ import {
   type TeamId,
 } from "../Model.ts";
 import { Announcements } from "../notices/Announcements.ts";
-import { Notifications, type Signup, tell } from "../notices/Notifications.ts";
+import {
+  Notifications,
+  type Signup,
+  signupColumns,
+  tell,
+} from "../notices/Notifications.ts";
 import { SalesEvents } from "../notices/SalesEvents.ts";
 import {
   type ContentTypeName,
@@ -487,7 +492,7 @@ export class Documents extends Context.Service<
               (moved || newPlace)
             ) {
               const signups = yield* sql<Signup>`
-                SELECT id, name, email, user_issuer IS NULL AS guest, locale
+                SELECT ${signupColumns(sql)}
                 FROM attendees WHERE event_id = ${id}
               `;
               yield* tell(signups, (attendee) =>
@@ -586,7 +591,7 @@ export class Documents extends Context.Service<
           if (event?.upcoming) {
             const removed = yield* sql<Signup>`
               DELETE FROM attendees WHERE event_id = ${id}
-              RETURNING id, name, email, user_issuer IS NULL AS guest, locale
+              RETURNING ${signupColumns(sql)}
             `;
             yield* sql`DELETE FROM dietary_preferences WHERE event_id = ${id}`;
             yield* tell(removed, (attendee) =>
@@ -829,7 +834,7 @@ export class Documents extends Context.Service<
           // Signed up for what won't happen now: cancelled, in calendars too.
           if (event?.upcoming) {
             const signups = yield* sql<Signup>`
-              SELECT id, name, email, user_issuer IS NULL AS guest, locale
+              SELECT ${signupColumns(sql)}
               FROM attendees WHERE event_id = ${id}
             `;
             yield* tell(signups, (attendee) =>
