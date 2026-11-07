@@ -14,9 +14,8 @@ export const tokenHash = (token: string) =>
 export const cancelLinkLife = 2 * 60 * 60 * 1000;
 
 /**
- * Guests' tokens are signed with `SIGNING_SECRET`. Without it, with a
- * secret made up at start, and a warning: links sent before a restart
- * stop working (tokens guests' browsers keep don't).
+ * Guests' tokens are signed with `SIGNING_SECRET`. Development and tests
+ * may make one up at start, with a warning; other environments require it.
  */
 export const signingSecret = Config.Redacted("SIGNING_SECRET").pipe(
   Config.option,
@@ -24,12 +23,25 @@ export const signingSecret = Config.Redacted("SIGNING_SECRET").pipe(
     Option.match({
       onSome: Effect.succeed,
       onNone: () =>
-        Effect.as(
-          Effect.logWarning(
+        Effect.gen(function* () {
+          const nodeEnv = yield* Config.String("NODE_ENV").pipe(
+            Config.withDefault(""),
+          );
+          const playground = yield* Config.String("SKJERA_PLAYGROUND").pipe(
+            Config.withDefault("false"),
+          );
+          if (
+            nodeEnv !== "development" &&
+            nodeEnv !== "test" &&
+            playground !== "true"
+          ) {
+            return yield* Config.Redacted("SIGNING_SECRET");
+          }
+          yield* Effect.logWarning(
             "SIGNING_SECRET not set: guests' links in emails stop working on restart",
-          ),
-          Redacted.make(randomBytes(32).toString("base64url")),
-        ),
+          );
+          return Redacted.make(randomBytes(32).toString("base64url"));
+        }),
     }),
   ),
 );

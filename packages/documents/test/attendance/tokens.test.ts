@@ -158,10 +158,28 @@ const readSecret = (env: Record<string, string>) =>
 
 describe("signingSecret", () => {
   it.effect(
-    "starts without SIGNING_SECRET, and warns that guests' links in emails stop working on restart (OPS-01 AC-5)",
+    "refuses production without SIGNING_SECRET and names the missing setting (AC-1)",
     () =>
       Effect.gen(function* () {
-        const { secret, log } = yield* readSecret({});
+        const error = yield* Effect.flip(
+          readSecret({ NODE_ENV: "production" }),
+        );
+        assert.match(String(error), /SIGNING_SECRET/);
+      }),
+  );
+
+  it.effect.each<[string, Record<string, string>]>([
+    ["development", { NODE_ENV: "development" }],
+    ["unit tests", { NODE_ENV: "test" }],
+    [
+      "the built browser-test server",
+      { NODE_ENV: "production", SKJERA_PLAYGROUND: "true" },
+    ],
+  ])(
+    "starts in %s without SIGNING_SECRET and warns about restart ($0) (AC-2)",
+    ([, env]) =>
+      Effect.gen(function* () {
+        const { secret, log } = yield* readSecret(env);
         assert.isAbove(secret.length, 0);
         assert.deepStrictEqual(log, [
           {
@@ -171,6 +189,15 @@ describe("signingSecret", () => {
             ],
           },
         ]);
+      }),
+  );
+
+  it.effect(
+    "refuses an unspecified environment without SIGNING_SECRET (AC-1)",
+    () =>
+      Effect.gen(function* () {
+        const error = yield* Effect.flip(readSecret({}));
+        assert.match(String(error), /SIGNING_SECRET/);
       }),
   );
 
