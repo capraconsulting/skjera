@@ -18,6 +18,7 @@ import {
   type Audience,
   adSourceKeys,
   type DocumentId,
+  dietaryPreferenceLength,
   type GuestDetails,
   guestProblems,
   type Locale,
@@ -317,7 +318,7 @@ export class Attendance extends Context.Service<
       /** What to keep of dietary preferences: nothing unless asked and given. */
       const dietaryFor = (askDietary: boolean, value: string | undefined) => {
         const dietary = askDietary ? storedText(value) : null;
-        return dietary !== null && dietary.length > 500
+        return dietary !== null && dietary.length > dietaryPreferenceLength
           ? Effect.fail(new SignupRejected(refused({ _tag: "DietaryTooLong" })))
           : Effect.succeed(dietary);
       };

@@ -1,6 +1,9 @@
 import {
   type DocumentId,
   describe,
+  organizerEmailMissingField,
+  organizerEmailSubjectLength,
+  organizerEmailTextLength,
   Problem,
   type SentEmail,
 } from "@skjera/documents/api";
@@ -13,7 +16,6 @@ import { Input } from "../../components/Input.tsx";
 import { emailAttendees, organizerEmails } from "../../sync/tables.ts";
 import { formatClockIn, formatDateIn, localTimeZone } from "../../time.ts";
 import styles from "./Attendees.module.css";
-import { missingField } from "./organizerEmails.ts";
 
 const decodeProblem = Schema.decodeUnknownOption(Problem);
 
@@ -54,7 +56,7 @@ export function EmailAttendees(props: {
     setRefusal(null);
     setError(null);
     // The same check as the server's, so nobody is asked to confirm what it refuses.
-    const missing = missingField({ subject, text });
+    const missing = organizerEmailMissingField({ subject, text });
     if (missing !== null) {
       setRefusal({
         field: missing,
@@ -122,7 +124,7 @@ export function EmailAttendees(props: {
             <Input
               id={subjectId}
               name="subject"
-              maxLength={200}
+              maxLength={organizerEmailSubjectLength}
               aria-invalid={refusal?.field === "subject" ? true : undefined}
               aria-describedby={
                 refusal?.field === "subject" ? messageId : undefined
@@ -138,7 +140,7 @@ export function EmailAttendees(props: {
               name="text"
               className={styles.textarea}
               rows={8}
-              maxLength={10000}
+              maxLength={organizerEmailTextLength}
               aria-invalid={refusal?.field === "text" ? true : undefined}
               aria-describedby={
                 refusal?.field === "text" ? messageId : undefined

@@ -3,7 +3,12 @@ import { Context, Effect, Layer } from "effect";
 import { SqlClient, SqlError } from "effect/sql";
 import { InvalidTeamName, TeamNotEmpty, TeamNotFound } from "./api/errors.ts";
 import { refused } from "./api/Problems.ts";
-import { Team, type TeamId, type TeamLogosChange } from "./Model.ts";
+import {
+  Team,
+  type TeamId,
+  type TeamLogosChange,
+  teamNameLength,
+} from "./Model.ts";
 
 type Row = {
   id: TeamId;
@@ -76,7 +81,7 @@ export class Teams extends Context.Service<
 
       const validName = (name: string) => {
         const trimmed = name.trim();
-        return trimmed === "" || trimmed.length > 100
+        return trimmed === "" || trimmed.length > teamNameLength
           ? Effect.fail(
               new InvalidTeamName(refused({ _tag: "TeamNameLength" })),
             )

@@ -1,7 +1,12 @@
 import { Effect } from "effect";
 import { SignupRejected } from "../api/errors.ts";
 import { type Problem, refused } from "../api/Problems.ts";
-import type { Answer, Answers, Question } from "../Model.ts";
+import {
+  type Answer,
+  type Answers,
+  type Question,
+  writtenAnswerLength,
+} from "../Model.ts";
 
 /**
  * Answers checked against the questions, in the words asked and picked:
@@ -19,7 +24,7 @@ export const answersFor = (
     switch (question.type) {
       case "text": {
         const text = typeof value === "string" ? value.trim() : "";
-        if (text.length > 1000) {
+        if (text.length > writtenAnswerLength) {
           return reject({ _tag: "AnswerTooLong", question: question.text });
         }
         if (text === "" && question.required) {

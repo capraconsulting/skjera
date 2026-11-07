@@ -5,6 +5,7 @@ import { Button } from "../../components/Button.tsx";
 import { Input } from "../../components/Input.tsx";
 import { sayWhy } from "../../problems.ts";
 import { requestCancelByEmail } from "../../site/guestSignups.ts";
+import { signupFields } from "../../site/signupForm.ts";
 import styles from "./Attend.module.css";
 import { HoneypotInput } from "./AttendInputs.tsx";
 
@@ -26,7 +27,7 @@ export function CancelByEmail(props: { readonly eventId: DocumentId }) {
     requestCancelByEmail(
       props.eventId,
       email,
-      String(form.get("subject") ?? ""),
+      String(form.get(signupFields.subject) ?? ""),
     ).then(
       (refused) => {
         setBusy(false);

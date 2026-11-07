@@ -1,4 +1,12 @@
-import type { Answers, Question } from "@skjera/documents/api";
+import {
+  type Answers,
+  dietaryPreferenceLength,
+  guestCompanyLength,
+  guestJobTitleLength,
+  guestPhoneLength,
+  type Question,
+  writtenAnswerLength,
+} from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { appPaths } from "@skjera/paths";
 import { type InputHTMLAttributes, useId } from "react";
@@ -11,13 +19,14 @@ import {
   consentField,
   type GuestField,
   questionField,
+  signupFields,
 } from "../../site/signupForm.ts";
 import styles from "./Attend.module.css";
 
 /** For bots: people never see it, and screen readers and the keyboard skip it. */
 export const HoneypotInput = () => (
   <input
-    name="subject"
+    name={signupFields.subject}
     hidden
     tabIndex={-1}
     autoComplete="off"
@@ -76,23 +85,23 @@ export const GuestContactInputs = (props: {
 }) => (
   <div className={styles.fields}>
     <GuestInput
-      name="telephone"
+      name={signupFields.telephone}
       messages={props.messages}
       type="tel"
       autoComplete="tel"
       defaultValue={props.given.phone}
       aria-label={m.attend_your_phone()}
       placeholder={`${m.attend_your_phone()} ${m.attend_optional()}`}
-      maxLength={50}
+      maxLength={guestPhoneLength}
     />
     <GuestInput
-      name="company"
+      name={signupFields.company}
       messages={props.messages}
       autoComplete="organization"
       defaultValue={props.given.company}
       aria-label={m.attend_your_company()}
       placeholder={`${m.attend_your_company()} ${m.attend_optional()}`}
-      maxLength={100}
+      maxLength={guestCompanyLength}
     />
   </div>
 );
@@ -101,12 +110,12 @@ export const GuestContactInputs = (props: {
 export const JobTitleInput = (props: { readonly messages: FieldMessages }) => (
   <div className={styles.fields}>
     <GuestInput
-      name="jobtitle"
+      name={signupFields.jobtitle}
       messages={props.messages}
       autoComplete="organization-title"
       aria-label={m.attend_your_job_title()}
       placeholder={`${m.attend_your_job_title()} ${m.attend_optional()}`}
-      maxLength={100}
+      maxLength={guestJobTitleLength}
     />
   </div>
 );
@@ -140,10 +149,10 @@ export const ConsentInput = () => (
 /** Asked, optionally, of everyone signing up when the event serves food. */
 export const DietaryInput = () => (
   <Input
-    name="dietary"
+    name={signupFields.dietary}
     aria-label={m.attend_dietary()}
     placeholder={`${m.attend_dietary()} ${m.attend_optional()}`}
-    maxLength={500}
+    maxLength={dietaryPreferenceLength}
   />
 );
 
@@ -162,7 +171,7 @@ export function AttendanceInput(props: {
       <label className={styles.check}>
         <input
           type="radio"
-          name="attendance"
+          name={signupFields.attendance}
           value="in-person"
           required
           disabled={props.inPersonDisabled}
@@ -175,7 +184,7 @@ export function AttendanceInput(props: {
       <label className={styles.check}>
         <input
           type="radio"
-          name="attendance"
+          name={signupFields.attendance}
           value="online"
           required
           defaultChecked={props.defaultOnline === true}
@@ -213,7 +222,7 @@ export function QuestionInputs(props: {
                   : undefined
               }
               required={question.required}
-              maxLength={1000}
+              maxLength={writtenAnswerLength}
             />
           </div>
         );

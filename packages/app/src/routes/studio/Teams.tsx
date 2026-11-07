@@ -1,4 +1,4 @@
-import type { TeamId } from "@skjera/documents/api";
+import { type TeamId, teamNameLength } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { appPaths } from "@skjera/paths";
 import { count, eq, lower, useLiveQuery } from "@tanstack/react-db";
@@ -339,7 +339,7 @@ function TeamDialog(props: {
           className={dialogStyles.input}
           defaultValue={renaming?.name ?? ""}
           required
-          maxLength={100}
+          maxLength={teamNameLength}
           autoFocus
         />
         {error === null ? null : (

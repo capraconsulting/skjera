@@ -328,7 +328,10 @@ export class SiteSettings extends Context.Service<
   );
 }
 /** A guest's phone number, as typed, at most 50 characters; `guestProblems` checks the rest. */
-export const GuestPhone = Schema.String.check(Schema.isMaxLength(50));
+export const guestPhoneLength = 50;
+export const GuestPhone = Schema.String.check(
+  Schema.isMaxLength(guestPhoneLength),
+);
 
 /**
  * A mobile number: Norwegian (eight digits from 4 or 9, with +47 or 0047 or
@@ -377,12 +380,18 @@ export const guestProblems = (guest: {
   return problems;
 };
 /** The company a guest comes from. */
-export const GuestCompany = Schema.String.check(Schema.isMaxLength(100));
+export const guestCompanyLength = 100;
+export const GuestCompany = Schema.String.check(
+  Schema.isMaxLength(guestCompanyLength),
+);
 /** An address forms take: something@something.something, at most 254 characters, once trimmed. */
 export const isEmailAddress = (email: string): boolean =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) && email.trim().length <= 254;
 /** A guest's job title on a sales event's form. */
-export const GuestJobTitle = Schema.String.check(Schema.isMaxLength(100));
+export const guestJobTitleLength = 100;
+export const GuestJobTitle = Schema.String.check(
+  Schema.isMaxLength(guestJobTitleLength),
+);
 /** The names of the address's values that say which ad someone came from. */
 export const adSourceKeys = [
   "utm_source",
@@ -432,13 +441,17 @@ export const GuestDetails = Schema.Struct({
 export type GuestDetails = typeof GuestDetails.Type;
 
 /** A tag on an event, e.g. "Workshop": trimmed, at most 40 characters. */
+export const tagLength = 40;
 export const Tag = Schema.String.check(
   Schema.makeFilter(
     (tag: string) =>
-      (tag.trim() === tag && tag !== "" && tag.length <= 40) ||
+      (tag.trim() === tag && tag !== "" && tag.length <= tagLength) ||
       "Expected a tag of 1 to 40 characters, without spaces around it",
   ),
 );
+export const dietaryPreferenceLength = 500;
+export const writtenAnswerLength = 1000;
+export const teamNameLength = 100;
 export type Tag = typeof Tag.Type;
 
 /** Tags without repeats, ignoring case: each as first written. */
