@@ -1,30 +1,13 @@
 import type { AttendeeDetails } from "@skjera/documents/api";
 import { describe, expect, it } from "vitest";
 import { searchAttendees } from "../src/routes/studio/attendeeSearch.ts";
+import { attendeeDetails } from "./attendee.ts";
 
 type Row = { readonly id: string; readonly details: AttendeeDetails | null };
 
-const details = (
-  name: string,
-  contact: {
-    email?: string | null;
-    phone?: string | null;
-    company?: string | null;
-  } = {},
-): AttendeeDetails => ({
-  name,
-  email: contact.email ?? null,
-  phone: contact.phone ?? null,
-  company: contact.company ?? null,
-  source: null,
-  consent: false,
-  answers: [],
-  guest: false,
-});
-
 const gina: Row = {
   id: "gina",
-  details: details("Gina Guest", {
+  details: attendeeDetails("Gina Guest", {
     email: "gina@example.org",
     phone: "911 11 111",
     company: "Initech",
@@ -32,9 +15,12 @@ const gina: Row = {
 };
 const bob: Row = {
   id: "bob",
-  details: details("Bob Builder", { email: "bob@example.com" }),
+  details: attendeeDetails("Bob Builder", { email: "bob@example.com" }),
 };
-const nobody: Row = { id: "nobody", details: details("Nobody") };
+const nobody: Row = {
+  id: "nobody",
+  details: attendeeDetails("Nobody", { email: null }),
+};
 const hidden: Row = { id: "hidden", details: null };
 
 const ids = (rows: ReadonlyArray<Row>) => rows.map(({ id }) => id);

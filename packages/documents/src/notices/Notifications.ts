@@ -1,4 +1,5 @@
 import { Context, Effect, Layer, Ref, Schema } from "effect";
+import type { SqlClient } from "effect/sql";
 import { type DocumentId, Locale } from "../Model.ts";
 
 // What attendees are told of, by email (see Mail.tsx): signing up and
@@ -112,6 +113,14 @@ export interface Signup {
   readonly guest: boolean;
   readonly locale: Locale | null;
 }
+
+/** The columns every notice needs from an attendee. */
+export const signupColumns = (sql: SqlClient.SqlClient, alias?: string) => {
+  const column = (name: string) =>
+    alias === undefined ? sql(name) : sql`${sql(alias)}.${sql(name)}`;
+  return sql`${column("id")}, ${column("name")}, ${column("email")},
+    ${column("user_issuer")} IS NULL AS guest, ${column("locale")}`;
+};
 
 /** Tells `notice` of each signup that has an email address to tell. */
 export const tell = (

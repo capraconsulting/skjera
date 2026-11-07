@@ -9,7 +9,7 @@ import {
 } from "../api/PublicApi.ts";
 import type { DocumentId } from "../Model.ts";
 import { EventMail } from "./Mail.tsx";
-import { type Signup, tell } from "./Notifications.ts";
+import { type Signup, signupColumns, tell } from "./Notifications.ts";
 
 // What an organizer writes to everyone signed up to an event. The text is
 // kept, and one message per person goes to the event's mailer (see Mail.tsx),
@@ -70,7 +70,7 @@ export class OrganizerEmails extends Context.Service<
             return yield* new EventNotFound({ id: event });
           }
           const signups = yield* sql<Signup>`
-            SELECT id, name, email, user_issuer IS NULL AS guest, locale
+            SELECT ${signupColumns(sql)}
             FROM attendees
             WHERE event_id = ${published.id} AND email IS NOT NULL
             ORDER BY created_at, id

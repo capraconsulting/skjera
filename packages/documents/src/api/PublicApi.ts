@@ -43,7 +43,7 @@ export const organizerEmailMissingField = (email: {
 // logged in doesn't hold.
 
 /** What changing a signup sends: as when signing up. */
-const SignupChange = Schema.Struct({
+export const SignupChangePayload = Schema.Struct({
   answers: Schema.optionalKey(Answers),
   /** Follows online rather than in person; asked while the event is streamed. */
   online: Schema.optionalKey(Schema.Boolean),
@@ -51,6 +51,27 @@ const SignupChange = Schema.Struct({
   phone: Schema.optionalKey(GuestPhone),
   company: Schema.optionalKey(GuestCompany),
 });
+export type SignupChangePayload = typeof SignupChangePayload.Type;
+
+export const AttendPayload = Schema.Struct({
+  /** The signup's id, picked by the client. */
+  id: Schema.String.check(Schema.isUUID()),
+  guest: Schema.optionalKey(GuestDetails),
+  dietary: Schema.optionalKey(Schema.String),
+  /** Answers to the event's questions, by question id. */
+  answers: Schema.optionalKey(Answers),
+  /** Required while the event is streamed: online, or else in person. */
+  online: Schema.optionalKey(Schema.Boolean),
+  /** The language they signed up in: emails to them are in it too. */
+  locale: Schema.optionalKey(Locale),
+  /** The guest form's hidden field: only a bot fills it in, and is refused. */
+  honeypot: Schema.optionalKey(Schema.String),
+  /** The ad they came from, from the address of the event's page. */
+  source: Schema.optionalKey(AdSource),
+  /** Asked for invitations and the newsletter; sent only when ticked. */
+  consent: Schema.optionalKey(Schema.Boolean),
+});
+export type AttendPayload = typeof AttendPayload.Type;
 
 /** A guest's own signup, as stored: to start changing it from. */
 export const StoredGuestSignup = Schema.Struct({
@@ -78,24 +99,7 @@ export class EventsApi extends HttpApiGroup.make("events").add(
    */
   HttpApiEndpoint.post("attend", "/api/events/:id/attendance", {
     params: { id: DocumentId },
-    payload: Schema.Struct({
-      /** The signup's id, picked by the client. */
-      id: Schema.String.check(Schema.isUUID()),
-      guest: Schema.optionalKey(GuestDetails),
-      dietary: Schema.optionalKey(Schema.String),
-      /** Answers to the event's questions, by question id. */
-      answers: Schema.optionalKey(Answers),
-      /** Required while the event is streamed: online, or else in person. */
-      online: Schema.optionalKey(Schema.Boolean),
-      /** The language they signed up in: emails to them are in it too. */
-      locale: Schema.optionalKey(Locale),
-      /** The guest form's hidden field: only a bot fills it in, and is refused. */
-      honeypot: Schema.optionalKey(Schema.String),
-      /** The ad they came from, from the address of the event's page. */
-      source: Schema.optionalKey(AdSource),
-      /** Asked for invitations and the newsletter; sent only when ticked. */
-      consent: Schema.optionalKey(Schema.Boolean),
-    }),
+    payload: AttendPayload,
     success: Schema.NullOr(GuestSignup),
     error: [EventNotFound, SignInRequired, SignupRejected, TooManyAttempts],
   }),
@@ -120,13 +124,13 @@ export class EventsApi extends HttpApiGroup.make("events").add(
    */
   HttpApiEndpoint.patch("change", "/api/events/:id/attendance", {
     params: { id: DocumentId },
-    payload: SignupChange,
+    payload: SignupChangePayload,
     error: [EventNotFound, SignInRequired, SignupNotFound, SignupRejected],
   }),
   /** The same for a guest, with the token they were given. */
   HttpApiEndpoint.patch("changeAsGuest", "/api/events/:id/attendance/:token", {
     params: { id: DocumentId, token: Schema.String },
-    payload: SignupChange,
+    payload: SignupChangePayload,
     error: [EventNotFound, SignupNotFound, SignupRejected],
   }),
   /**

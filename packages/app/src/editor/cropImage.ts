@@ -1,4 +1,4 @@
-import { maxImageBytes } from "@skjera/documents/api";
+import { imageTypeCatalogue, maxImageBytes } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { type Frame, frameInPixels } from "./cropFrame.ts";
 
@@ -16,6 +16,11 @@ const encode = (canvas: HTMLCanvasElement, type: string, quality?: number) =>
       quality,
     );
   });
+
+export const cropOutputType = (type: string): "image/png" | "image/jpeg" =>
+  imageTypeCatalogue.find((image) => image.type === type)?.transparency === true
+    ? "image/png"
+    : "image/jpeg";
 
 /**
  * Cuts the frame out of the picture served at `src` and gives it as an image
@@ -61,13 +66,7 @@ export const cropImage = async (src: string, frame: Frame): Promise<File> => {
     );
   };
 
-  const seeThrough = [
-    "image/png",
-    "image/gif",
-    "image/webp",
-    "image/avif",
-  ].includes(picture.type);
-  if (seeThrough) {
+  if (cropOutputType(picture.type) === "image/png") {
     draw(null);
     const png = await encode(canvas, "image/png");
     if (png.size <= maxImageBytes) {

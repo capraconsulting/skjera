@@ -1,13 +1,17 @@
 import * as A from "@automerge/automerge/slim";
 import type { DocHandle } from "@automerge/automerge-repo/slim";
-import type { EventContent, RepeatUnit } from "@skjera/documents/api";
+import {
+  type EventContent,
+  type RepeatUnit,
+  repeatDefaults,
+  repeatEveryChoices,
+  repeatUnitChoices,
+} from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { useSyncExternalStore } from "react";
 import inputStyles from "../components/Input.module.css";
 import { useBooleanField } from "./CheckboxField.tsx";
 import styles from "./RepeatField.module.css";
-
-const everyChoices = [1, 2, 3, 4, 5, 6, 7];
 
 const units: Record<RepeatUnit, (count: number) => string> = {
   day: (count) => m.studio_repeat_day({ count }),
@@ -32,10 +36,10 @@ export function RepeatField(props: {
   };
   const every = useSyncExternalStore(
     subscribe,
-    () => handle.doc().repeatEvery ?? 1,
+    () => handle.doc().repeatEvery ?? repeatDefaults.every,
   );
   const unit = useSyncExternalStore(subscribe, () =>
-    String(handle.doc().repeatUnit ?? "week"),
+    String(handle.doc().repeatUnit ?? repeatDefaults.unit),
   ) as RepeatUnit;
   if (!recurring) return null;
   return (
@@ -51,7 +55,7 @@ export function RepeatField(props: {
           });
         }}
       >
-        {everyChoices.map((choice) => (
+        {repeatEveryChoices.map((choice) => (
           <option key={choice} value={choice}>
             {choice}
           </option>
@@ -69,9 +73,9 @@ export function RepeatField(props: {
           });
         }}
       >
-        {Object.entries(units).map(([each, label]) => (
+        {repeatUnitChoices.map((each) => (
           <option key={each} value={each}>
-            {label(every)}
+            {units[each](every)}
           </option>
         ))}
       </select>

@@ -1,10 +1,17 @@
 import * as A from "@automerge/automerge";
-import { assert, layer } from "@effect/vitest";
+import { assert, describe, it, layer } from "@effect/vitest";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import {
+  type BooleanEventField,
+  choiceQuestionMinimum,
   type EventContent,
   reminderChoice,
+  repeatDefaults,
+  repeatEveryChoices,
+  repeatUnitChoices,
+  salesEventFields,
+  signupTakesPlace,
 } from "../../src/events/ContentTypes.ts";
 import { Documents } from "../../src/events/Documents.ts";
 import type { DocumentId } from "../../src/Model.ts";
@@ -30,6 +37,39 @@ const setReminders = (value: unknown) => (event: EventContent) => {
   if (value === undefined) delete draft.reminders;
   else draft.reminders = value;
 };
+
+describe("shared event rules", () => {
+  it("publishes the event rule catalogues and defaults (AC-1)", () => {
+    assert.deepStrictEqual(salesEventFields, [
+      "public",
+      "guests",
+      "salesEvent",
+    ]);
+    assert.deepStrictEqual(repeatEveryChoices, [1, 2, 3, 4, 5, 6, 7]);
+    assert.deepStrictEqual(repeatUnitChoices, ["day", "week", "month", "year"]);
+    assert.deepStrictEqual(repeatDefaults, { every: 1, unit: "week" });
+    assert.strictEqual(choiceQuestionMinimum, 2);
+  });
+
+  it("counts online signups only when the event is not streamed (AC-1)", () => {
+    assert.isTrue(signupTakesPlace(false, true));
+    assert.isFalse(signupTakesPlace(true, true));
+    assert.isTrue(signupTakesPlace(true, false));
+  });
+
+  it("derives every boolean event field from EventContent (AC-2)", () => {
+    const fields: ReadonlyArray<BooleanEventField> = [
+      "public",
+      "guests",
+      "dietary",
+      "hidePlacesLeft",
+      "streamed",
+      "salesEvent",
+      "recurring",
+    ];
+    assert.strictEqual(fields.length, 7);
+  });
+});
 
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Event content", (it) => {

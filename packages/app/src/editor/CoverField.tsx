@@ -1,6 +1,10 @@
 import * as A from "@automerge/automerge/slim";
 import type { DocHandle } from "@automerge/automerge-repo/slim";
-import { type EventContent, shownCover } from "@skjera/documents/api";
+import {
+  type EventContent,
+  shownCover,
+  shownCoverData,
+} from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import {
   type ClipboardEvent,
@@ -97,15 +101,30 @@ export function CoverField(props: {
   );
   const objectId = cover?.id ?? null;
   const src = cover?.src ?? null;
-  // A crop of another picture, left by a merge, is not used.
-  const crop = cover?.crop?.from === src ? (cover?.crop ?? null) : null;
-  // A point set on another picture, left by a merge, is not used.
-  const focus =
-    cover?.focus === undefined ||
-    cover.focus === null ||
-    (cover.focus.from !== null && cover.focus.from !== src)
+  const filtered =
+    cover === null
       ? null
-      : { x: cover.focus.x, y: cover.focus.y };
+      : shownCoverData({
+          src: cover.src,
+          alt: "",
+          ...(cover.crop === null ? {} : { crop: cover.crop }),
+          ...(cover.focus === null
+            ? {}
+            : {
+                focus: {
+                  x: cover.focus.x,
+                  y: cover.focus.y,
+                  ...(cover.focus.from === null
+                    ? {}
+                    : { from: cover.focus.from }),
+                },
+              }),
+        });
+  const crop = filtered?.crop ?? null;
+  const focus =
+    filtered?.focus === undefined
+      ? null
+      : { x: filtered.focus.x, y: filtered.focus.y };
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);

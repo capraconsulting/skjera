@@ -1,4 +1,8 @@
-import type { AttendeeRow, EventRow } from "@skjera/documents/api";
+import {
+  type AttendeeRow,
+  type EventRow,
+  signupTakesPlace,
+} from "@skjera/documents/api";
 
 /**
  * Places left with a limit, null without one. Only those in person take a
@@ -10,10 +14,10 @@ export const placesLeft = (
   signups: ReadonlyArray<Pick<AttendeeRow, "online">>,
 ): number | null => {
   if (event.maxAttendees === null) return null;
-  const inPerson = event.isStreamed
-    ? signups.filter((signup) => !signup.online)
-    : signups;
-  return Math.max(0, event.maxAttendees - inPerson.length);
+  const taken = signups.filter((signup) =>
+    signupTakesPlace(event.isStreamed, signup.online),
+  );
+  return Math.max(0, event.maxAttendees - taken.length);
 };
 
 /**

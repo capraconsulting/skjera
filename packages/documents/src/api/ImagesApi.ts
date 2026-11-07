@@ -10,14 +10,16 @@ export const imagesPath = "/api/images";
 /** The largest image that can be uploaded. */
 export const maxImageBytes = 10 * 1024 * 1024;
 
-/** The image formats that can be uploaded. */
-export const imageTypes = [
-  "image/png",
-  "image/jpeg",
-  "image/gif",
-  "image/webp",
-  "image/avif",
+/** The image formats that can be uploaded and whether they can be transparent. */
+export const imageTypeCatalogue = [
+  { type: "image/png", transparency: true },
+  { type: "image/jpeg", transparency: false },
+  { type: "image/gif", transparency: true },
+  { type: "image/webp", transparency: true },
+  { type: "image/avif", transparency: true },
 ] as const;
+
+export const imageTypes = imageTypeCatalogue.map(({ type }) => type);
 
 export type ImageType = (typeof imageTypes)[number];
 

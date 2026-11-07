@@ -9,7 +9,11 @@ import {
 } from "../api/errors.ts";
 import { refused } from "../api/Problems.ts";
 import type { StoredGuestSignup } from "../api/PublicApi.ts";
-import { dietaryClosesAt, signupClosesAt } from "../events/ContentTypes.ts";
+import {
+  dietaryClosesAt,
+  signupClosesAt,
+  signupTakesPlace,
+} from "../events/ContentTypes.ts";
 import {
   type AdSource,
   type AdSourceKey,
@@ -25,7 +29,12 @@ import {
   type Question,
   SiteSettings,
 } from "../Model.ts";
-import { Notifications, type Signup, tell } from "../notices/Notifications.ts";
+import {
+  Notifications,
+  type Signup,
+  signupColumns,
+  tell,
+} from "../notices/Notifications.ts";
 import { SalesEvents } from "../notices/SalesEvents.ts";
 import { answersFor } from "./answers.ts";
 import {
@@ -206,9 +215,6 @@ export class Attendance extends Context.Service<
 
       /** Signing up and cancelling close at the deadline, or else when the event starts. On `events e`. */
       const signupOpen = sql`coalesce(e.signup_deadline, e.starts_at) > now()`;
-      /** What is returned about a signup, for notices: a `Signup`. On `attendees`, unaliased. */
-      const signupColumns = sql`id, name, email, user_issuer IS NULL AS guest, locale`;
-
       /** HubSpot is told of the signups just made. */
       const tellSignedUp = (
         event: DocumentId,
@@ -256,7 +262,7 @@ export class Attendance extends Context.Service<
           SELECT max_attendees, is_streamed FROM events WHERE id = ${event} FOR UPDATE
         `;
         if (limit === undefined || limit.max_attendees === null) return;
-        if (limit.is_streamed && online) return;
+        if (!signupTakesPlace(limit.is_streamed, online)) return;
         const [taken] = yield* sql<{ count: number; mine: boolean }>`
           SELECT count(*)::int AS count, coalesce(bool_or(${own}), false) AS mine
           FROM attendees
@@ -375,7 +381,7 @@ export class Attendance extends Context.Service<
               ${online}, ${details.locale ?? null}, ${storedAdSource(details.source)}::jsonb,
               ${details.consent === true})
             ON CONFLICT DO NOTHING
-            RETURNING ${signupColumns}
+            RETURNING ${signupColumns(sql)}
           `;
           if (inserted.length > 0) yield* keepDietary(event, dietary);
           yield* tell(inserted, (attendee) =>
@@ -398,7 +404,7 @@ export class Attendance extends Context.Service<
             DELETE FROM attendees
             WHERE event_id = ${event}
               AND user_issuer = ${user.issuer} AND user_subject = ${user.subject}
-            RETURNING ${signupColumns}
+            RETURNING ${signupColumns(sql)}
           `;
           yield* tell(deleted, (attendee) =>
             notifications.signupCancelled({ event, attendee }),
@@ -445,7 +451,7 @@ export class Attendance extends Context.Service<
               ${storedText(guest.jobTitle)}, ${JSON.stringify(answers)}::jsonb, ${tokenHash(token)},
               ${online}, ${details.locale ?? null}, ${storedAdSource(details.source)}::jsonb,
               ${details.consent === true})
-            RETURNING ${signupColumns}
+            RETURNING ${signupColumns(sql)}
           `;
           yield* keepDietary(event, dietary);
           yield* tell(inserted, (attendee) =>
@@ -481,7 +487,7 @@ export class Attendance extends Context.Service<
           const deleted = yield* sql<Signup>`
             DELETE FROM attendees
             WHERE event_id = ${event} AND cancel_token_hash = ${tokenHash(cancelToken)}
-            RETURNING ${signupColumns}
+            RETURNING ${signupColumns(sql)}
           `;
           yield* tell(deleted, (attendee) =>
             notifications.signupCancelled({ event, attendee }),
@@ -531,7 +537,7 @@ export class Attendance extends Context.Service<
         yield* rules(event, "anyone");
         // Only a guest's signup: members log in to cancel.
         const found = yield* sql<Signup>`
-          SELECT ${signupColumns}
+          SELECT ${signupColumns(sql)}
           FROM attendees
           WHERE event_id = ${event} AND user_issuer IS NULL
             AND lower(email) = lower(${email.trim()})
@@ -565,7 +571,7 @@ export class Attendance extends Context.Service<
             DELETE FROM attendees
             WHERE id = ${attendee}::uuid AND event_id = ${event}
               AND user_issuer IS NULL
-            RETURNING ${signupColumns}
+            RETURNING ${signupColumns(sql)}
           `;
           yield* tell(deleted, (each) =>
             notifications.signupCancelled({ event, attendee: each }),
@@ -671,8 +677,8 @@ export class Attendance extends Context.Service<
           >`
             DELETE FROM attendees a USING events e
             WHERE a.id = ${attendee} AND e.id = a.event_id
-            RETURNING a.id, a.name, a.email, a.user_issuer IS NULL AS guest,
-              a.locale, a.event_id, e.ends_at > now() AS upcoming
+            RETURNING ${signupColumns(sql, "a")}, a.event_id,
+              e.ends_at > now() AS upcoming
           `;
           if (removed === undefined) return false;
           // HubSpot hears of it whenever it happens, the event over or not.

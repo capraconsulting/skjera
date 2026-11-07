@@ -4,7 +4,11 @@ import { assert, layer } from "@effect/vitest";
 import { Identity } from "@skjera/oauth/api";
 import { Effect, Layer } from "effect";
 import { Migrator, SqlClient } from "effect/sql";
-import { EventContent } from "../../src/events/ContentTypes.ts";
+import {
+  EventContent,
+  repeatDefaults,
+  salesEventFields,
+} from "../../src/events/ContentTypes.ts";
 import { Documents } from "../../src/events/Documents.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
 import { Notifications } from "../../src/notices/Notifications.ts";
@@ -45,6 +49,19 @@ layer(Layer.empty)("Current database objects", (it) => {
       fields.filter((field) => !(field in EventContent.fields)),
       [],
     );
+  });
+
+  it("builds sales and repeat SQL from the shared event rules (AC-1)", () => {
+    const source = serverSource("databaseObjects.ts");
+    assert.match(source, /salesEventFields\s*\.map/);
+    assert.include(source, "repeatDefaults.every");
+    assert.include(source, "repeatDefaults.unit");
+    assert.deepStrictEqual(salesEventFields, [
+      "public",
+      "guests",
+      "salesEvent",
+    ]);
+    assert.deepStrictEqual(repeatDefaults, { every: 1, unit: "week" });
   });
 });
 

@@ -1,4 +1,8 @@
-import type { EventContent, Site } from "@skjera/documents/api";
+import {
+  type EventContent,
+  isSalesEvent,
+  type Site,
+} from "@skjera/documents/api";
 
 /**
  * Whether the studio offers the sales event setting: only on a site that
@@ -8,4 +12,5 @@ import type { EventContent, Site } from "@skjera/documents/api";
 export const salesEventOffered = (
   site: Pick<Site, "salesEvents">,
   draft: Pick<EventContent, "public" | "guests">,
-): boolean => site.salesEvents === true && draft.public && draft.guests;
+): boolean =>
+  site.salesEvents === true && isSalesEvent({ ...draft, salesEvent: true });
