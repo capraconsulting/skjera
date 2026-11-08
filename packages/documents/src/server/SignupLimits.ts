@@ -1,6 +1,8 @@
-import * as Documents from "@skjera/documents";
 import { Clock, Config, Context, Effect, Layer, Option, Schema } from "effect";
 import { HttpServerRequest } from "effect/http";
+import { TooManyAttempts } from "../api/errors.ts";
+import { refused } from "../api/Problems.ts";
+import { optionalSetting } from "../Model.ts";
 
 // How often signing up and cancelling can be tried, per visitor: guests and
 // members each have a limit per address over an hour, and a stricter one per
@@ -55,11 +57,11 @@ export class SignupLimits extends Context.Service<
       effect: Effect.Effect<A, E, R>,
     ) => Effect.Effect<
       A,
-      E | Documents.TooManyAttempts,
+      E | TooManyAttempts,
       R | HttpServerRequest.HttpServerRequest
     >;
   }
->()("@skjera/server/SignupLimits") {
+>()("@skjera/documents/SignupLimits") {
   /**
    * `PROXY_COUNT`: how many proxies stand in front of the server (1 when
    * unset: the ingress). `SIGNUP_LIMITS`: `on` (when unset) or `off`, for
@@ -69,10 +71,9 @@ export class SignupLimits extends Context.Service<
   static readonly layer = Layer.effect(
     SignupLimits,
     Effect.gen(function* () {
-      const proxies =
-        (yield* Documents.optionalSetting("PROXY_COUNT", ProxyCount)) ?? 1;
+      const proxies = (yield* optionalSetting("PROXY_COUNT", ProxyCount)) ?? 1;
       const switchedOn =
-        (yield* Documents.optionalSetting("SIGNUP_LIMITS", SwitchedOn)) ?? "on";
+        (yield* optionalSetting("SIGNUP_LIMITS", SwitchedOn)) ?? "on";
       // Each key's count starts at its first attempt and ends a whole
       // window later; a refused attempt adds nothing.
       const counts = new Map<string, { count: number; resetsAt: number }>();
@@ -94,9 +95,7 @@ export class SignupLimits extends Context.Service<
           };
           if (entry.count >= limit) {
             return Effect.fail(
-              new Documents.TooManyAttempts(
-                Documents.refused({ _tag: "TooManyAttempts" }),
-              ),
+              new TooManyAttempts(refused({ _tag: "TooManyAttempts" })),
             );
           }
           counts.set(key, { ...entry, count: entry.count + 1 });

@@ -1,3 +1,5 @@
+import { LoginFailurePage, OAuthConfig } from "@skjera/oauth";
+import { type LoginFailure, loginFailureMeta } from "@skjera/oauth/api";
 import { appPaths, appPatterns } from "@skjera/paths";
 import { Config, Effect, FileSystem, Layer, Option, Schema } from "effect";
 import {
@@ -198,6 +200,41 @@ export const sharingTags = (options: {
 export const withSharing = (page: string, tags: string): string =>
   // A function: the tags are text, not a pattern with `$&` in it.
   page.replace("</head>", () => `${tags}\n</head>`);
+
+/** The built app page with the site and failed-login details in its head. */
+export const loginFailurePage = (
+  page: string,
+  site: Site,
+  failure: LoginFailure,
+  callbackPath: string,
+) => {
+  const failureTags = [
+    meta("name", loginFailureMeta.kind, failure.kind),
+    meta("name", loginFailureMeta.returnTo, failure.returnTo),
+    meta("name", loginFailureMeta.callbackPath, callbackPath),
+  ].join("\n");
+  const tagged = withSharing(page, siteTags(site));
+  return Effect.succeed(
+    HttpServerResponse.text(withSharing(tagged, failureTags), {
+      contentType: "text/html; charset=utf-8",
+      headers: { "Cache-Control": "no-cache" },
+    }),
+  );
+};
+
+/** OAuth's failed-login page, prepared from the same built app and site tags. */
+export const layerLoginFailurePage = (options: { readonly root: string }) =>
+  Layer.effect(
+    LoginFailurePage,
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const page = yield* fs.readFileString(`${options.root}/index.html`);
+      const site = yield* SharingSite;
+      const oauth = yield* OAuthConfig;
+      return (failure: LoginFailure) =>
+        loginFailurePage(page, site, failure, oauth.redirectUri.pathname);
+    }),
+  );
 
 /** Whether the request asks for an HTML page. */
 const asksForHtml = (accept: string | undefined) =>
