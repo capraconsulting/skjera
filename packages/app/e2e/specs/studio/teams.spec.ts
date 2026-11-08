@@ -7,6 +7,27 @@ import { EventEditor } from "../../pom/studio/EventEditor.ts";
 import { EventsColumn } from "../../pom/studio/EventsColumn.ts";
 import { TeamsColumn } from "../../pom/studio/TeamsColumn.ts";
 
+test("a refused event creation stays on the team and shows the failure (STU-03 AC-8 / AC-1)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, dexUsers.alice);
+  const teams = new TeamsColumn(alice);
+  const team = await teams.create(uniqueTeamName("Refused event creation"));
+  const before = alice.url();
+
+  await alice.route("**/api/documents", (route) =>
+    route.request().method() === "POST"
+      ? route.fulfill({ status: 500 })
+      : route.continue(),
+  );
+  await alice.getByRole("button", { name: m.studio_new_event() }).click();
+  await expect(alice.getByRole("alert")).toHaveText(m.studio_create_failed());
+  await expect(alice).toHaveURL(before);
+
+  await alice.unroute("**/api/documents");
+  await teams.delete(team);
+});
+
 test("a refused event deletion keeps the editor open and shows the failure (STU-19 AC-1)", async ({
   browser,
 }) => {

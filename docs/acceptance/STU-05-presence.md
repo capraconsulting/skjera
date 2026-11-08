@@ -70,3 +70,9 @@ WHEN a person leaves the event, the editor SHALL take away their avatar and curs
 Skjera SHALL show each person present under the name they logged in with, and SHALL not pass on presence an editor claims for someone else.
 
 **Automated only:** the studio can't claim to be someone else. `packages/documents/test/events/DraftSync.test.ts`
+
+## AC-7: A fallback when the login name is blank
+
+The studio SHALL name a person present by the trimmed name from their login, by their email when that name is blank, and by the login's subject when it has neither name nor email.
+
+**Automated only:** the test logins have names and emails, so the fallback login details cannot be set by hand. `packages/oauth/test/Identity.test.ts`

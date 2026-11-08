@@ -91,3 +91,9 @@ IF an event has ended when it is deleted, THEN Skjera SHALL email nobody, and th
 WHEN an event is deleted, Skjera SHALL keep it in the database, marked as deleted and by whom, and refuse any sign-up to it.
 
 **Automated only:** nothing of it can be seen in the app. `packages/documents/test/events/notices.test.ts`
+
+## AC-8: A refused deletion
+
+IF the server refuses to delete an event, THEN the studio SHALL say «Deleting the event failed», keep the event open and leave its contents unchanged.
+
+**Automated only:** refusing the server request cannot be brought about through the studio. `packages/app/e2e/specs/studio/teams.spec.ts`

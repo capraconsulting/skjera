@@ -72,6 +72,10 @@ export class PreviewPage {
     await expect(this.page.getByText(m.site_event_missing())).toBeVisible();
   }
 
+  async expectFailure(): Promise<void> {
+    await expect(this.page.getByText(m.preview_open_failed())).toBeVisible();
+  }
+
   /** Nothing of `text` is anywhere on the page. */
   async expectNowhere(text: string): Promise<void> {
     await expect(this.page.locator("body")).not.toContainText(text);

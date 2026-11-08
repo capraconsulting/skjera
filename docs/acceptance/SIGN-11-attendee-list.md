@@ -139,3 +139,9 @@ WHILE nobody is signed up for an event, the studio SHALL NOT show the search fie
 - **Then** the list says «Nobody has signed up yet.» and has no «Search» field
 
 **Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`
+
+## AC-12: A name for every member
+
+The attendee list SHALL name a member by the trimmed name from their login, by their email when that name is blank, and by the login's subject when it has neither name nor email.
+
+**Automated only:** the test logins have names and emails, so the fallback login details cannot be set by hand. `packages/oauth/test/Identity.test.ts`

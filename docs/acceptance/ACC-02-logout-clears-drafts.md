@@ -30,3 +30,9 @@ WHEN a user logs in again after logging out, the studio SHALL show their drafts 
 - **Then** its **Body** has the line of text written before
 
 **Automated:** `packages/app/e2e/specs/studio/typing.spec.ts`
+
+## AC-3: A local copy that cannot be deleted
+
+IF the local copies cannot be deleted, THEN Skjera SHALL tell the user before logout finishes that the copies may remain on the computer.
+
+**Automated only:** a browser storage failure cannot be brought about through the account menu. `packages/app/e2e/specs/studio/typing.spec.ts`

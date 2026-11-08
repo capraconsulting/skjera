@@ -53,3 +53,9 @@ WHEN a user picks **Light**, **Dark** or **Same as the system** under **Theme** 
 - **Then** it turns light again, as the computer is
 
 **Automated:** `packages/app/e2e/specs/site/siteAccount.spec.ts`
+
+## AC-5: A name for every account menu
+
+The account menu SHALL name a user by the trimmed name from their login, by their email when that name is blank, and by the login's subject when it has neither name nor email.
+
+**Automated only:** the test logins have names and emails, so the fallback login details cannot be set by hand. `packages/oauth/test/Identity.test.ts`

@@ -128,3 +128,9 @@ The feature files in `docs/acceptance` SHALL describe the preview.
 - **And** every team and event this file's **Events:** names is in the test data
 
 **Automated:** `packages/server/test/testdata.test.ts`
+
+## AC-9: A draft that cannot be opened
+
+IF the preview cannot open a draft for another reason than a missing event, THEN the preview SHALL say «The preview could not be opened.» instead of saying that the event does not exist.
+
+**Automated only:** a draft-opening failure cannot be brought about through the studio. `packages/app/e2e/specs/studio/preview.spec.ts`

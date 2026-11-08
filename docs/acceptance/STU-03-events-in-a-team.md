@@ -88,3 +88,9 @@ IF a team that no longer exists is opened, THEN the studio SHALL say «This team
 - **Then** the studio says «This team doesn't exist anymore.»
 
 **Automated:** `packages/app/e2e/specs/studio/teams.spec.ts`
+
+## AC-8: A refused new event
+
+IF the server refuses to create a new event, THEN the studio SHALL say «Creating the event failed» and stay on the team.
+
+**Automated only:** refusing the server request cannot be brought about through the studio. `packages/app/e2e/specs/studio/teams.spec.ts`

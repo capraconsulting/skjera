@@ -112,3 +112,9 @@ WHEN the organiser chooses **Restore this version**, the studio SHALL ask them t
 - **Then** the draft is unchanged, also after you reload the page
 
 **Automated:** `packages/app/e2e/specs/studio/history.spec.ts`
+
+## AC-9: A name for every person
+
+The history SHALL name a person by the trimmed name from their login, by their email when that name is blank, and by the login's subject when it has neither name nor email.
+
+**Automated only:** the test logins have names and emails, so the fallback login details cannot be set by hand. `packages/oauth/test/Identity.test.ts`

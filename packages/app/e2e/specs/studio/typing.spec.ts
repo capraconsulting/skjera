@@ -144,3 +144,24 @@ test("logging out deletes the local copies", async ({ browser }) => {
   await againEditor.body.expectText("Kept here for a while");
   await cleanUp(again, team, id);
 });
+
+test("a local-copy cleanup failure is shown before logout finishes (ACC-02 AC-3 / AC-1)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, dexUsers.alice);
+  await alice.evaluate(() => {
+    IDBDatabase.prototype.transaction = () => {
+      throw new Error("Local cleanup failed");
+    };
+  });
+  const warning = alice.waitForEvent("dialog");
+
+  const header = new Header(alice);
+  await header.logOut();
+  const dialog = await warning;
+  expect(dialog.message()).toBe(
+    "The local copies could not be deleted. They may remain on this computer after logout.",
+  );
+  await dialog.accept();
+  await header.expectSignedOut();
+});

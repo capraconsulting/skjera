@@ -1,6 +1,11 @@
 import { dexUsers } from "@skjera/test";
 import { cleanUp } from "../../fixtures/cleanUp.ts";
-import { signedIn, uniqueTeamName, visitor } from "../../fixtures/support.ts";
+import {
+  connection,
+  signedIn,
+  uniqueTeamName,
+  visitor,
+} from "../../fixtures/support.ts";
 import { test } from "../../fixtures/test.ts";
 import { EventPage } from "../../pom/site/EventPage.ts";
 import { PreviewPage } from "../../pom/site/PreviewPage.ts";
@@ -134,6 +139,34 @@ test("someone not logged in, or an unknown draft, gets the missing-event message
   await open.expectMissing();
 
   await new TeamsColumn(alice).delete(team);
+});
+
+test("a draft that cannot be opened gets the preview-failed message (STU-21 AC-9 / AC-1)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, dexUsers.alice);
+  const team = await new TeamsColumn(alice).create(
+    uniqueTeamName("Preview open failure"),
+  );
+  const event = await new EventsColumn(alice).newEvent();
+  const editor = new EventEditor(alice);
+  await editor.title.type("Unavailable draft");
+  await editor.expectSaved();
+
+  const bob = await signedIn(browser, dexUsers.bob);
+  const network = await connection(bob);
+  await network.offline();
+  await bob.evaluate(() => {
+    IDBDatabase.prototype.transaction = () => {
+      throw new Error("Draft storage failed");
+    };
+  });
+  const preview = new PreviewPage(bob);
+  await preview.goto(event);
+  await preview.expectFailure();
+  await preview.expectNowhere("This event doesn't exist");
+
+  await cleanUp(alice, team, event);
 });
 
 test("the preview shows the sign-up box, but nothing in it can be used (STU-21 AC-7)", async ({
