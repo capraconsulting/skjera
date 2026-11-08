@@ -1,6 +1,11 @@
-import { baseLocale, cookieName, getLocale } from "@skjera/i18n/runtime";
+import {
+  baseLocale,
+  cookieName,
+  getLocale,
+  locales,
+} from "@skjera/i18n/runtime";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadSite } from "../src/i18n.ts";
+import { languages, loadSite } from "../src/i18n.ts";
 
 // The runtime counts as a server without `window`, so it reads the cookie
 // and the site's language and writes no cookie of its own.
@@ -27,6 +32,12 @@ afterEach(() => {
 });
 
 describe("the site's language", () => {
+  it("has a picker name for every catalogue language (AC-2)", () => {
+    expect(languages.map(({ locale }) => locale).sort()).toEqual(
+      [...locales].sort(),
+    );
+  });
+
   it("is the language set in SITE_LOCALE for a visitor who has not picked one, and the visitor's pick wins (ACC-06 AC-6)", async () => {
     expect(getLocale()).toBe(baseLocale);
     await loadSite();

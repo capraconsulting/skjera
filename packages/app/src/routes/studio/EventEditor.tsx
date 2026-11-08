@@ -1,6 +1,7 @@
 import type { DocHandle } from "@automerge/automerge-repo/slim";
 import {
   type DocumentId,
+  defaultEventType,
   type EventContent,
   isAttendeeLimit,
 } from "@skjera/documents/api";
@@ -39,6 +40,9 @@ import { OrganizerField } from "./OrganizerField.tsx";
 const titlePath = ["title"] as const;
 const bodyPath = ["body"] as const;
 const foodPath = ["food"] as const;
+
+export const salesEventTypeLabel = () =>
+  m.studio_sales_event_type({ eventType: defaultEventType });
 
 /** The third column: the selected event. */
 export function EventEditor() {
@@ -344,7 +348,7 @@ function SalesEventSetting(props: {
             handle={props.handle}
             presence={props.presence}
             field="salesEventType"
-            label={m.studio_sales_event_type()}
+            label={salesEventTypeLabel()}
           />
         </div>
       ) : null}

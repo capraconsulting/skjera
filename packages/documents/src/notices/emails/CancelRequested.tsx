@@ -1,11 +1,11 @@
 /** @jsxRuntime automatic @jsxImportSource react */
 import { m } from "@skjera/i18n/messages";
 import { Button, Heading, Text } from "react-email";
-import type { Locale } from "../../Model.ts";
+import { cancelLinkHours, type Locale } from "../../Model.ts";
 import { button, Layout, paragraph } from "./Layout.tsx";
 
 // Sent when a guest asks to cancel by their email address: the link in it
-// cancels their signup once its button is pressed, for 2 hours.
+// cancels their signup once its button is pressed, for the configured hours.
 
 export interface CancelRequestedProps {
   readonly locale: Locale;
@@ -36,7 +36,10 @@ export function CancelRequested(props: CancelRequestedProps) {
         {m.email_greeting({ name: props.name }, { locale })}
       </Text>
       <Text style={paragraph}>
-        {m.email_cancel_requested_body({ title, when: props.when }, { locale })}
+        {m.email_cancel_requested_body(
+          { title, when: props.when, hours: cancelLinkHours },
+          { locale },
+        )}
       </Text>
       <Button href={props.url} style={button}>
         {m.email_cancel_requested_button({}, { locale })}

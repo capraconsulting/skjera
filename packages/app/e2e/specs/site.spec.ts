@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { signupRetentionDays } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { cleanUp } from "../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName, visitor } from "../fixtures/support.ts";
@@ -731,7 +732,7 @@ test("a link to a public event shows its title, summary and cover; others the si
   await cleanUp(alice, team, shown.id);
 });
 
-test("the privacy page says in each language that signups are deleted 30 days after (AC-2, AC-4)", async ({
+test("the privacy page says the configured retention in each language (AC-2, AC-4, AC-1)", async ({
   browser,
 }) => {
   const reader = await visitor(browser);
@@ -739,17 +740,17 @@ test("the privacy page says in each language that signups are deleted 30 days af
   await new PrivacyPage(reader).goto();
   await new PrivacyPage(reader).expectTitle();
   await new PrivacyPage(reader).expectText(
-    m.privacy_keep({}, { locale: "en" }),
+    m.privacy_keep({ days: signupRetentionDays }, { locale: "en" }),
   );
   await header.selectLanguage("Bokmål");
   await new PrivacyPage(reader, "nb").expectTitle();
   await new PrivacyPage(reader, "nb").expectText(
-    m.privacy_keep({}, { locale: "nb" }),
+    m.privacy_keep({ days: signupRetentionDays }, { locale: "nb" }),
   );
   await header.selectLanguage("Nynorsk", "Språk");
   await new PrivacyPage(reader, "nn").expectTitle();
   await new PrivacyPage(reader, "nn").expectText(
-    m.privacy_keep({}, { locale: "nn" }),
+    m.privacy_keep({ days: signupRetentionDays }, { locale: "nn" }),
   );
 });
 

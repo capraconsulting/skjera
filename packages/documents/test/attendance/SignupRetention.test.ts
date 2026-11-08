@@ -12,7 +12,12 @@ import { Attendance } from "../../src/attendance/Attendance.ts";
 import * as SignupRetention from "../../src/attendance/SignupRetention.ts";
 import type { EventContent } from "../../src/events/ContentTypes.ts";
 import { Documents } from "../../src/events/Documents.ts";
-import { type DocumentId, SiteSettings, type TeamId } from "../../src/Model.ts";
+import {
+  type DocumentId,
+  SiteSettings,
+  signupRetentionDays,
+  type TeamId,
+} from "../../src/Model.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
 import * as HubSpotSync from "../../src/notices/HubSpotSync.ts";
 import * as Mail from "../../src/notices/Mail.tsx";
@@ -382,12 +387,12 @@ layer(TestLayer, { excludeTestServices: true })("Signup retention", (it) => {
   );
 
   it.effect(
-    "deletes members' and guests' signups after 30 days and a second",
+    "deletes members' and guests' signups after the configured days and a second (AC-1)",
     () =>
       Effect.gen(function* () {
         const now = new Date("2042-06-01T01:00:00Z");
         const event = yield* withSignup(
-          new Date(now.getTime() - 30 * day - 1000),
+          new Date(now.getTime() - signupRetentionDays * day - 1000),
         );
         assert.strictEqual(yield* signupsOf(event), 2);
 

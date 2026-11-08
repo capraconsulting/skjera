@@ -9,7 +9,12 @@ import { Config, Effect, Layer, Option, Schema } from "effect";
 import { ClusterSchema, Entity } from "effect/cluster";
 import { Rpc } from "effect/rpc";
 import { SqlClient } from "effect/sql";
-import { type AdSource, adSourceKeys, SiteSettings } from "../Model.ts";
+import {
+  type AdSource,
+  adSourceKeys,
+  defaultEventType,
+  SiteSettings,
+} from "../Model.ts";
 import { SalesEvents } from "./SalesEvents.ts";
 
 // What HubSpot is sent of a sales event and its sign-ups. A publish, a
@@ -21,8 +26,7 @@ import { SalesEvents } from "./SalesEvents.ts";
 // sends, read in the transaction: a message sent late sends what was true
 // when it happened.
 
-/** The type of a sales event whose organiser wrote none. */
-export const defaultEventType = "Frokostseminar";
+export { defaultEventType } from "../Model.ts";
 
 const MarketingEventFields = Schema.Struct({
   eventName: Schema.String,
