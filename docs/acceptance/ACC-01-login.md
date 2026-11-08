@@ -72,7 +72,7 @@ WHEN a logged-in user clicks **Log out** in the account menu, Skjera SHALL end t
 - **When** you open the account menu, with alice's name in the header, and click **Log out**
 - **Then** you are on the front page, the header shows **Log in**, and the account menu and the **Studio** link are gone
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/oauth/e2e/specs/login.spec.ts`, `packages/oauth/test/Sessions.test.ts`
+**Automated:** `packages/app/e2e/specs/siteAccount.spec.ts`, `packages/oauth/e2e/specs/login.spec.ts`, `packages/oauth/test/Sessions.test.ts`
 
 ## AC-7: A login that didn't work has a way back
 

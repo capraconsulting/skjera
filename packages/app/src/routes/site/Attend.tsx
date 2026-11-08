@@ -1,6 +1,5 @@
 import {
   type AttendeeRow,
-  describe,
   dietaryClosesAt,
   type GuestProblem,
   guestProblems,
@@ -26,7 +25,6 @@ import {
   changeFrom,
   fieldOf,
   salesEventForm,
-  signupFields,
   signupFrom,
 } from "../../site/signupForm.ts";
 import { attendees, type GuestCancel } from "../../sync/tables.ts";
@@ -41,14 +39,10 @@ import {
   DietaryInput,
   type FieldMessages,
   type Given,
-  GuestContactInputs,
-  GuestInput,
-  HoneypotInput,
-  JobTitleInput,
-  PrivacyLink,
   QuestionInputs,
 } from "./AttendInputs.tsx";
 import { CancelByEmail } from "./CancelByEmail.tsx";
+import { messagesFor, NewGuestSignup, SignedUp } from "./GuestSignupForm.tsx";
 import { useHasPassed } from "./useHasPassed.ts";
 
 /**
@@ -384,7 +378,6 @@ export function Attend(props: {
   // There's something to change; a guest always has their phone number and company.
   const changeable = event.questions.length > 0 || event.isStreamed;
 
-  /** Signed up: changing the answers, or cancelling. */
   const signedUp = (
     id: string,
     status: string,
@@ -392,56 +385,25 @@ export function Attend(props: {
     attendee:
       | { readonly kind: "member" }
       | { readonly kind: "guest"; readonly signup: GuestSignup },
-  ) =>
-    editing ? (
-      <form
-        className={styles.form}
-        onSubmit={(submitted) => change(submitted, id)}
-        aria-label={m.attend_your_answers()}
-      >
-        {attendee.kind === "guest" ? (
-          <GuestContactInputs given={given} messages={messages} />
-        ) : null}
-        {asked(given)}
-        <div className={styles.row}>
-          <Button type="submit" variant="primary">
-            {m.attend_save_changes()}
-          </Button>
-          <Button onClick={() => setEditing(false)}>{m.attend_keep()}</Button>
-        </div>
-      </form>
-    ) : attendee.kind === "guest" ? (
-      // A form, so the cancel carries the hidden field for bots.
-      <form
-        className={styles.row}
-        onSubmit={(submitted) => {
-          submitted.preventDefault();
-          const form = new FormData(submitted.currentTarget);
-          cancel(id, String(form.get(signupFields.subject) ?? ""));
-        }}
-      >
-        <p className={styles.status}>{status}</p>
-        <Button onClick={() => changeAsGuest(attendee.signup)}>
-          {m.attend_change_answers()}
-        </Button>
-        <HoneypotInput />
-        <Button type="submit">{m.attend_cancel_signup()}</Button>
-      </form>
-    ) : (
-      <div className={styles.row}>
-        <p className={styles.status}>{status}</p>
-        {changeable ? (
-          <Button onClick={() => setEditing(true)}>
-            {m.attend_change_answers()}
-          </Button>
-        ) : null}
-        <Button onClick={() => cancel(id)}>
-          {mine !== undefined
-            ? m.attend_cancel_attendance()
-            : m.attend_cancel_signup()}
-        </Button>
-      </div>
-    );
+  ) => (
+    <SignedUp
+      id={id}
+      status={status}
+      given={given}
+      attendee={attendee}
+      editing={editing}
+      messages={messages}
+      questions={asked(given)}
+      changeable={changeable}
+      member={mine !== undefined}
+      change={change}
+      keep={() => setEditing(false)}
+      edit={(signup) =>
+        signup === undefined ? setEditing(true) : changeAsGuest(signup)
+      }
+      cancel={cancel}
+    />
+  );
 
   if (props.signedIn) {
     return box(
@@ -504,49 +466,13 @@ export function Attend(props: {
           {guest === null && noMore ? (
             logInWhenFull
           ) : guest === null ? (
-            <form
-              className={styles.form}
-              {...sales.formAttributes}
-              onSubmit={(submitted) => signUp(submitted, true)}
-            >
-              <div className={styles.fields}>
-                <GuestInput
-                  name={signupFields.firstname}
-                  messages={messages}
-                  autoComplete="name"
-                  aria-label={m.attend_your_name()}
-                  placeholder={m.attend_your_name()}
-                  required
-                />
-                <GuestInput
-                  name={signupFields.email}
-                  messages={messages}
-                  type="email"
-                  aria-label={m.attend_your_email()}
-                  placeholder={m.attend_your_email()}
-                  required
-                />
-                <HoneypotInput />
-              </div>
-              <GuestContactInputs given={{}} messages={messages} />
-              {sales.askJobTitle ? <JobTitleInput messages={messages} /> : null}
-              {asked({}, true)}
-              {sales.askConsent ? <ConsentInput /> : null}
-              <div className={styles.row}>
-                <Button type="submit" variant="primary">
-                  {m.attend_sign_up()}
-                </Button>
-                <span>
-                  {m.attend_or()}{" "}
-                  <a href={loginUrl(appPaths.event(event.id))}>
-                    {m.attend_log_in()}
-                  </a>
-                </span>
-              </div>
-              <p className={styles.privacy}>
-                <PrivacyLink text={m.attend_privacy_link()} />
-              </p>
-            </form>
+            <NewGuestSignup
+              event={event}
+              sales={sales}
+              messages={messages}
+              questions={asked({}, true)}
+              signUp={(submitted) => signUp(submitted, true)}
+            />
           ) : (
             signedUp(
               guest.id,
@@ -566,11 +492,3 @@ export function Attend(props: {
     </>
   );
 }
-
-const messagesFor = (problems: ReadonlyArray<GuestProblem>): FieldMessages =>
-  Object.fromEntries(
-    problems.flatMap((problem) => {
-      const field = fieldOf(problem);
-      return field === undefined ? [] : [[field, describe(problem)]];
-    }),
-  );

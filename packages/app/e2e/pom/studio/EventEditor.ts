@@ -8,6 +8,10 @@ import { Attendees } from "./Attendees.ts";
 import { BodyImages } from "./BodyImages.ts";
 import { BodyToolbar } from "./BodyToolbar.ts";
 import { Cover } from "./Cover.ts";
+import { type EventEmail, EventEmailFields } from "./EventEmails.ts";
+import { EventHistory } from "./EventHistory.ts";
+import type { EventSettings, PublishedEvent } from "./EventLifecycle.ts";
+import { EventSettingsControls } from "./EventSettings.ts";
 import { EventsColumn } from "./EventsColumn.ts";
 import { EventTimes } from "./EventTimes.ts";
 import { Presence } from "./Presence.ts";
@@ -15,43 +19,11 @@ import { Questions } from "./Questions.ts";
 import { Repeat } from "./Repeat.ts";
 import { TagInput } from "./TagInput.ts";
 
+export type { EventEmail } from "./EventEmails.ts";
+export type { EventSettings, PublishedEvent } from "./EventLifecycle.ts";
+
 /** Where events are, unless a test says otherwise. */
 const defaultPlace = "Kantina";
-
-/** The emails an event sends, each with a subject and text of its own. */
-export type EventEmail =
-  | "signed up"
-  | "sign-up cancelled"
-  | "event changed"
-  | "event cancelled";
-
-/** How the studio names each email. */
-const emailNames: Record<EventEmail, string> = {
-  "signed up": "signed-up",
-  "sign-up cancelled": "sign-up cancelled",
-  "event changed": "event changed",
-  "event cancelled": "event cancelled",
-};
-
-/** What `createPublished` sets before publishing. */
-export interface EventSettings {
-  readonly public: boolean;
-  readonly past?: boolean;
-  readonly guests?: boolean;
-  readonly dietary?: boolean;
-  /** The most who can sign up; none by default. */
-  readonly maxAttendees?: number;
-  /** Streamed, with a link to the stream if given; not streamed by default. */
-  readonly streamed?: { readonly link?: string };
-  /** Tags, added one by one; none by default. */
-  readonly tags?: ReadonlyArray<string>;
-}
-
-/** A published event, as `createPublished` returns it. */
-export interface PublishedEvent {
-  readonly id: string;
-  readonly title: string;
-}
 
 /** The studio's editor for the open event. */
 export class EventEditor {
@@ -71,6 +43,9 @@ export class EventEditor {
   readonly cover: Cover;
   readonly presence: Presence;
   readonly attendees: Attendees;
+  private readonly settings: EventSettingsControls;
+  private readonly history: EventHistory;
+  private readonly emails: EventEmailFields;
 
   constructor(page: Page) {
     this.page = page;
@@ -91,6 +66,9 @@ export class EventEditor {
     this.cover = new Cover(page);
     this.presence = new Presence(page);
     this.attendees = new Attendees(page);
+    this.settings = new EventSettingsControls(page);
+    this.history = new EventHistory(page);
+    this.emails = new EventEmailFields(page);
   }
 
   /** A text field by its label, in the page's language. */
@@ -147,8 +125,6 @@ export class EventEditor {
   private readonly status = () => this.page.getByTestId("status");
   private readonly publishButton = () =>
     this.page.getByRole("button", { name: m.studio_publish(), exact: true });
-  private readonly checkbox = (name: RegExp) =>
-    this.page.getByRole("checkbox", { name });
 
   /**
    * Creates an event in the open team, fills it in and publishes it. Its
@@ -374,36 +350,9 @@ export class EventEditor {
     );
   }
 
-  /** Clicks **History** and waits for the versions it lists. */
-  async openHistory(): Promise<void> {
-    await this.page
-      .getByRole("button", { name: m.studio_history(), exact: true })
-      .click();
-    await expect(this.historyDialog()).toBeVisible();
-    await expect(
-      this.historyDialog().getByRole("listitem").first(),
-    ).toBeVisible();
-  }
-
-  private readonly historyDialog = () =>
-    this.page.getByRole("dialog", { name: m.studio_history() });
-
-  /** The history's entries of one kind: "Published", "Edited", … */
-  historyEntries(kind: string) {
-    return this.historyDialog().getByRole("listitem").filter({ hasText: kind });
-  }
-
-  /** Clicks **View** on the newest entry of a kind and gives the preview it opens. */
-  async viewVersion(kind: string): Promise<Page> {
-    const opening = this.page.context().waitForEvent("page");
-    await this.historyEntries(kind)
-      .first()
-      .getByRole("link", { name: m.studio_history_view(), exact: true })
-      .click();
-    const preview = await opening;
-    await preview.waitForLoadState();
-    return preview;
-  }
+  openHistory = () => this.history.open();
+  historyEntries = (kind: string) => this.history.entries(kind);
+  viewVersion = (kind: string) => this.history.viewVersion(kind);
 
   /**
    * Clicks **Restore this version** on the newest entry of a kind, answering
@@ -452,131 +401,34 @@ export class EventEditor {
     await this.place.expectText(text);
   }
 
-  /**
-   * Opens one of the event's own emails, to write its subject and text. The
-   * signed-up email is open from the start, so it has nothing to open.
-   */
-  async openEmail(email: Exclude<EventEmail, "signed up">): Promise<void> {
-    await this.page
-      .getByRole("button", { name: `${emailNames[email]} email` })
-      .click();
-  }
+  openEmail = (email: Exclude<EventEmail, "signed up">) =>
+    this.emails.open(email);
+  emailSubject = (email: EventEmail) => this.emails.subject(email);
+  emailText = (email: EventEmail) => this.emails.text(email);
+  emailToolbar = (email: EventEmail) => this.emails.toolbar(email);
 
-  /** The subject an email is sent with, written for this event. */
-  emailSubject(email: EventEmail): TextField {
-    return this.field(`Subject of the ${emailNames[email]} email`);
-  }
-
-  /** The text an email is sent with, written for this event. */
-  emailText(email: EventEmail): TextField {
-    return this.field(`Text of the ${emailNames[email]} email`);
-  }
-
-  /** The formatting toolbar of an email's text. */
-  emailToolbar(email: EventEmail): BodyToolbar {
-    return new BodyToolbar(this.page, `Text of the ${emailNames[email]} email`);
-  }
-
-  async checkPublic(): Promise<void> {
-    await this.checkbox(/Public event/).check();
-  }
-
-  async uncheckPublic(): Promise<void> {
-    await this.checkbox(/Public event/).uncheck();
-  }
-
-  async expectPublic(checked: boolean): Promise<void> {
-    await expect(this.checkbox(/Public event/)).toBeChecked({ checked });
-  }
-
-  async focusPublic(): Promise<void> {
-    await this.checkbox(/Public event/).focus();
-  }
-
-  async checkGuests(): Promise<void> {
-    await this.checkbox(/Guests can sign up/).check();
-  }
-
-  async uncheckGuests(): Promise<void> {
-    await this.checkbox(/Guests can sign up/).uncheck();
-  }
-
-  /** Guests can sign up shows ticked or not, and can be changed or not. */
-  async expectGuests(ticked: boolean, changeable: boolean): Promise<void> {
-    const guests = this.checkbox(/Guests can sign up/);
-    await expect(guests).toBeChecked({ checked: ticked });
-    await expect(guests).toBeEnabled({ enabled: changeable });
-  }
-
-  async checkFoodServed(): Promise<void> {
-    await this.checkbox(/Food is served/).check();
-  }
-
-  async uncheckFoodServed(): Promise<void> {
-    await this.checkbox(/Food is served/).uncheck();
-  }
-
-  async checkStreamed(): Promise<void> {
-    await this.checkbox(/The event is streamed/).check();
-  }
-
-  async uncheckStreamed(): Promise<void> {
-    await this.checkbox(/The event is streamed/).uncheck();
-  }
-
-  async expectStreamed(): Promise<void> {
-    await expect(this.checkbox(/The event is streamed/)).toBeChecked();
-  }
-
-  async checkHidePlacesLeft(): Promise<void> {
-    await this.checkbox(/Hide how many places are left/).check();
-  }
-
-  private reminders() {
-    return this.page.getByRole("combobox", { name: m.studio_remind() });
-  }
-
-  async expectReminders(choice: "default" | "on" | "off"): Promise<void> {
-    await expect(this.reminders()).toHaveValue(choice);
-  }
-
-  async chooseReminders(choice: "default" | "on" | "off"): Promise<void> {
-    await this.reminders().selectOption(choice);
-  }
-
-  private organizer() {
-    return this.page.getByRole("combobox", { name: m.site_organizer() });
-  }
-
-  /** «Organizer» has the team with this id chosen. */
-  async expectOrganizer(team: string): Promise<void> {
-    await expect(this.organizer()).toHaveValue(team);
-  }
-
-  /** «Organizer» lists these teams, by name, and no others of the test's. */
-  async expectOrganizerChoices(names: ReadonlyArray<string>): Promise<void> {
-    for (const name of names) {
-      await expect(
-        this.organizer().getByRole("option", { name, exact: true }),
-      ).toHaveCount(1);
-    }
-  }
-
-  async chooseOrganizer(name: string): Promise<void> {
-    await this.organizer().selectOption({ label: name });
-  }
-
-  /** «Organizer» can't be changed, and says why. */
-  async expectOrganizerLocked(): Promise<void> {
-    await expect(this.organizer()).toBeDisabled();
-    await expect(
-      this.page.getByText(m.studio_organizer_locked()),
-    ).toBeVisible();
-  }
-
-  async fillMaxAttendees(limit: number): Promise<void> {
-    await this.page
-      .getByRole("spinbutton", { name: m.studio_max_attendees() })
-      .fill(String(limit));
-  }
+  checkPublic = () => this.settings.checkPublic();
+  uncheckPublic = () => this.settings.uncheckPublic();
+  expectPublic = (checked: boolean) => this.settings.expectPublic(checked);
+  focusPublic = () => this.settings.focusPublic();
+  checkGuests = () => this.settings.checkGuests();
+  uncheckGuests = () => this.settings.uncheckGuests();
+  expectGuests = (ticked: boolean, changeable: boolean) =>
+    this.settings.expectGuests(ticked, changeable);
+  checkFoodServed = () => this.settings.checkFoodServed();
+  uncheckFoodServed = () => this.settings.uncheckFoodServed();
+  checkStreamed = () => this.settings.checkStreamed();
+  uncheckStreamed = () => this.settings.uncheckStreamed();
+  expectStreamed = () => this.settings.expectStreamed();
+  checkHidePlacesLeft = () => this.settings.checkHidePlacesLeft();
+  expectReminders = (choice: "default" | "on" | "off") =>
+    this.settings.expectReminders(choice);
+  chooseReminders = (choice: "default" | "on" | "off") =>
+    this.settings.chooseReminders(choice);
+  expectOrganizer = (team: string) => this.settings.expectOrganizer(team);
+  expectOrganizerChoices = (names: ReadonlyArray<string>) =>
+    this.settings.expectOrganizerChoices(names);
+  chooseOrganizer = (name: string) => this.settings.chooseOrganizer(name);
+  expectOrganizerLocked = () => this.settings.expectOrganizerLocked();
+  fillMaxAttendees = (limit: number) => this.settings.fillMaxAttendees(limit);
 }

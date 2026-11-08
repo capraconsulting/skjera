@@ -49,10 +49,10 @@ it("routes organizer emails and reminders through Notifications (AC-2, AC-5)", a
     new URL("../../src/notices/OrganizerEmails.ts", import.meta.url),
     "utf8",
   );
-  const mail = await readFile(
-    new URL("../../src/notices/Mail.tsx", import.meta.url),
+  const reminders = await readFile(
+    new URL("../../src/notices/Reminders.ts", import.meta.url),
     "utf8",
   );
   assert.match(organizer, /notifications\.organizerEmail\(/);
-  assert.match(mail, /notifications\.reminder\(/);
+  assert.match(reminders, /notifications\.reminder\(/);
 });

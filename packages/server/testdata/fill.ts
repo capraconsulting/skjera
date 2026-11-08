@@ -1,6 +1,3 @@
-// Making the catalogue's teams and events through the services the studio and
-// the site use, and removing them again.
-import { crc32, deflateSync } from "node:zlib";
 import * as A from "@automerge/automerge";
 import {
   Attendance,
@@ -20,28 +17,9 @@ import { Data, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import type { Temporal } from "temporal-polyfill";
 
-export type Colour =
-  | "red"
-  | "green"
-  | "blue"
-  | "yellow"
-  | "purple"
-  | "orange"
-  | "teal"
-  | "pink"
-  | "gray";
+export { type Colour, colouredPng } from "./images.ts";
 
-const rgb: Record<Colour, readonly [number, number, number]> = {
-  red: [220, 53, 69],
-  green: [40, 167, 69],
-  blue: [13, 110, 253],
-  yellow: [255, 193, 7],
-  purple: [111, 66, 193],
-  orange: [253, 126, 20],
-  teal: [32, 201, 151],
-  pink: [214, 51, 132],
-  gray: [108, 117, 125],
-};
+import { type Colour, colouredPng } from "./images.ts";
 
 export interface QuestionSpec {
   /** What answers are given under. */
@@ -189,197 +167,13 @@ const refusal =
 
 // ---- Images ----------------------------------------------------------------
 
-const chunk = (type: string, data: Uint8Array) => {
-  const body = Buffer.concat([Buffer.from(type, "ascii"), data]);
-  const out = Buffer.alloc(body.length + 8);
-  out.writeUInt32BE(data.length, 0);
-  body.copy(out, 4);
-  out.writeUInt32BE(crc32(body), body.length + 4);
-  return out;
-};
-
-/** A 64×64 PNG of one colour, so logos and covers can be told apart. */
-export const colouredPng = (colour: Colour): Uint8Array => {
-  const size = 64;
-  const header = Buffer.alloc(13);
-  header.writeUInt32BE(size, 0);
-  header.writeUInt32BE(size, 4);
-  header.set([8, 2, 0, 0, 0], 8); // 8 bits, RGB, no interlace
-  const row = Buffer.alloc(1 + size * 3); // filter type 0, then the pixels
-  for (let x = 0; x < size; x++) row.set(rgb[colour], 1 + x * 3);
-  const raw = Buffer.concat(Array.from({ length: size }, () => row));
-  return Buffer.concat([
-    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    chunk("IHDR", header),
-    chunk("IDAT", deflateSync(raw)),
-    chunk("IEND", Buffer.alloc(0)),
-  ]);
-};
-
-// ---- Writing a draft as the editor does ------------------------------------
-
-type TextField = {
-  [Field in keyof EventContent]-?: Exclude<
-    EventContent[Field],
-    undefined
-  > extends string
-    ? Field
-    : never;
-}[keyof EventContent];
-type Draft = {
-  -readonly [Field in keyof EventContent]: Field extends "tags"
-    ? Array<string>
-    : unknown;
-};
-
-/** A time as the editor sets it: replaced as a whole. */
-const time = (value: Temporal.ZonedDateTime | undefined) =>
-  value === undefined
-    ? null
-    : new A.ImmutableString(value.toString({ smallestUnit: "minute" }));
-
-/** Text under a key that older drafts lack, created when missing. */
-const setText = (doc: EventContent, key: TextField, text: string) => {
-  const draft = doc as Draft;
-  if (draft[key] === undefined) draft[key] = "";
-  A.updateText(doc, [key], text);
-};
-
-/** Rich text: a block marker, then its text, block after block. */
-const setRichText = (
-  doc: EventContent,
-  key: TextField,
-  blocks: ReadonlyArray<Block>,
-) => {
-  const draft = doc as Draft;
-  if (draft[key] === undefined) draft[key] = "";
-  const marks: Array<{
-    readonly start: number;
-    readonly end: number;
-    readonly name: string;
-    readonly value: string | boolean;
-  }> = [];
-  let index = 0;
-  for (const block of blocks) {
-    const [type, attrs] =
-      block.kind === "heading"
-        ? (["heading", { level: 2 }] as const)
-        : block.kind === "item"
-          ? (["unordered-list-item", {}] as const)
-          : (["paragraph", {}] as const);
-    A.splitBlock(doc, [key], index, {
-      type: new A.ImmutableString(type),
-      parents: [],
-      attrs,
-    });
-    index += 1;
-    A.splice(doc, [key], index, 0, block.text);
-    if (block.kind === "paragraph") {
-      const bold =
-        block.bold === undefined ? -1 : block.text.indexOf(block.bold);
-      if (block.bold !== undefined && bold >= 0)
-        marks.push({
-          start: index + bold,
-          end: index + bold + block.bold.length,
-          name: "strong",
-          value: true,
-        });
-      const link =
-        block.link === undefined ? -1 : block.text.indexOf(block.link.text);
-      if (block.link !== undefined && link >= 0)
-        marks.push({
-          start: index + link,
-          end: index + link + block.link.text.length,
-          name: "link",
-          value: JSON.stringify({ href: block.link.href, title: "" }),
-        });
-    }
-    index += block.text.length;
-  }
-  for (const mark of marks)
-    A.mark(
-      doc,
-      [key],
-      { start: mark.start, end: mark.end, expand: "none" },
-      mark.name,
-      mark.value,
-    );
-};
-
-/** The ids the draft's questions and their options were given. */
-interface Ids {
-  readonly questions: Map<string, string>;
-  readonly options: Map<string, string>;
-}
-
-const writeTitle = (doc: EventContent, spec: EventSpec) => {
-  A.updateText(doc, ["title"], spec.title);
-};
-
-const writeEvent = (
-  doc: EventContent,
-  spec: EventSpec,
-  ids: Ids,
-  cover: string | undefined,
-) => {
-  const draft = doc as Draft;
-  writeTitle(doc, spec);
-  if (spec.summary !== undefined) setText(doc, "summary", spec.summary);
-  if (spec.place !== undefined) setText(doc, "place", spec.place);
-  if (spec.body !== undefined) setRichText(doc, "body", spec.body);
-  if (spec.cover !== undefined && cover !== undefined)
-    draft.cover = { src: new A.ImmutableString(cover), alt: "" };
-  draft.start = time(spec.start);
-  draft.end = time(spec.end);
-  draft.deadline = time(spec.deadline);
-  draft.foodDeadline = time(spec.foodDeadline);
-  draft.public = spec.public ?? false;
-  draft.guests = spec.guests ?? false;
-  draft.dietary = spec.dietary ?? false;
-  draft.reminders = new A.ImmutableString(spec.remind ?? "off");
-  if (spec.food !== undefined) setText(doc, "food", spec.food);
-  if (spec.maxAttendees !== undefined) draft.maxAttendees = spec.maxAttendees;
-  if (spec.hidePlacesLeft !== undefined)
-    draft.hidePlacesLeft = spec.hidePlacesLeft;
-  if (spec.streamed !== undefined) draft.streamed = spec.streamed;
-  if (spec.streamLink !== undefined)
-    setText(doc, "streamLink", spec.streamLink);
-  if (spec.salesEvent !== undefined) draft.salesEvent = spec.salesEvent;
-  if (spec.salesEventType !== undefined)
-    setText(doc, "salesEventType", spec.salesEventType);
-  if (spec.questions !== undefined)
-    draft.questions = spec.questions.map((question) => {
-      const id = crypto.randomUUID();
-      ids.questions.set(question.key, id);
-      return {
-        id: new A.ImmutableString(id),
-        type: new A.ImmutableString(question.type),
-        text: question.text,
-        required: question.required ?? false,
-        options: (question.options ?? []).map((text) => {
-          const option = crypto.randomUUID();
-          ids.options.set(`${question.key}/${text}`, option);
-          return { id: new A.ImmutableString(option), text };
-        }),
-      };
-    });
-  for (const tag of spec.tags ?? []) draft.tags.push(tag);
-  for (const [kind, email] of Object.entries(spec.emails ?? {}) as Array<
-    [EmailKind, { subject?: string; text?: string }]
-  >) {
-    const { subject, text } = organizerEmails.find(
-      (candidate) => candidate.kind === kind,
-    ) as (typeof organizerEmails)[number];
-    if (email.subject !== undefined) setText(doc, subject, email.subject);
-    if (email.text !== undefined)
-      setRichText(doc, text, [{ kind: "paragraph", text: email.text }]);
-  }
-  if (spec.repeat !== undefined) {
-    draft.recurring = true;
-    draft.repeatEvery = spec.repeat.every;
-    draft.repeatUnit = new A.ImmutableString(spec.repeat.unit);
-  }
-};
+import {
+  type Ids,
+  setRichText,
+  setText,
+  writeEvent,
+  writeTitle,
+} from "./writeEvent.ts";
 
 // ---- Removing --------------------------------------------------------------
 

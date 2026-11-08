@@ -196,4 +196,4 @@ WHILE someone is logged in with a Google profile picture, the account menu in th
 - **Given** the local login, which has no pictures
 - **Then** the menu shows the initials
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/oauth/test/OAuthClient.domains.test.ts`
+**Automated:** `packages/app/e2e/specs/siteAccount.spec.ts`, `packages/oauth/test/OAuthClient.domains.test.ts`

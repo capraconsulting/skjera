@@ -68,7 +68,7 @@ Skjera SHALL send members a link to the event's page, not a link of their own.
 
 IF a link carries a token that was not given for that signup, THEN Skjera SHALL NOT let it change or cancel the signup.
 
-**Automated only:** a token is checked by the server; what the page shows for one that was not given is AC-7. `packages/documents/test/attendance/signups.test.ts`, `packages/documents/test/attendance/guests.test.ts`
+**Automated only:** a token is checked by the server; what the page shows for one that was not given is AC-7. `packages/documents/test/attendance/signups.test.ts`, `packages/documents/test/attendance/guestCancellation.test.ts`
 
 ## AC-7: A link that leads to no signup says so
 
@@ -80,4 +80,4 @@ IF a guest's link has a token that was not given for that signup, or leads to a 
 - **When** **Your signup** is opened in a new private window with a few letters of the token in the address changed, and later, after the guest has clicked **Cancel my signup**, opened as it is in another
 - **Then** the Attendance box says «This link no longer leads to a signup.», shows **Sign up**, and does not say «You're signed up.»; reloading the first window removes the message and still shows **Sign up**
 
-**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/documents/test/attendance/guests.test.ts`
+**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/documents/test/attendance/guestCancellation.test.ts`

@@ -156,7 +156,9 @@ describe("browser-test source contracts", () => {
       join(e2eRoot, "pom/studio/EventEditor.ts"),
       "utf8",
     );
-    expect(editor).toContain("readonly past?: boolean");
+    expect(
+      readFileSync(join(e2eRoot, "pom/studio/EventLifecycle.ts"), "utf8"),
+    ).toContain("readonly past?: boolean");
     expect([...editor.matchAll(/page\.once\("dialog"/g)]).toHaveLength(1);
     expect(
       readFileSync(join(e2eRoot, "specs/embed.spec.ts"), "utf8"),
@@ -233,7 +235,7 @@ describe("browser-test source contracts", () => {
     const support = readFileSync(join(e2eRoot, "fixtures/support.ts"), "utf8");
     expect(api).toContain('export * from "./Model.ts"');
     expect(
-      readFileSync(join(appRoot, "../documents/src/Model.ts"), "utf8"),
+      readFileSync(join(appRoot, "../documents/src/CoverModel.ts"), "utf8"),
     ).toContain("imagePathPattern");
     expect(
       readFileSync(join(appRoot, "../documents/src/api/PublicApi.ts"), "utf8"),

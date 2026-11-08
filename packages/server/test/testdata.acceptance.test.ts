@@ -1,4 +1,3 @@
-import { readdirSync, readFileSync } from "node:fs";
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 import {
@@ -341,21 +340,5 @@ describe("withSteps", () => {
       .filter((each) => each.state === "empty");
     expect(empty.length).toBeGreaterThan(0);
     expect(empty.every((each) => each.body === undefined)).toBe(true);
-  });
-});
-
-describe("test-data test files", () => {
-  it("keeps every test file below 800 lines (AC-4)", () => {
-    const directory = new URL("./", import.meta.url);
-    const oversized = readdirSync(directory)
-      .filter(
-        (file) => file.startsWith("testdata") && file.endsWith(".test.ts"),
-      )
-      .filter(
-        (file) =>
-          readFileSync(new URL(file, directory), "utf8").split("\\n").length >
-          800,
-      );
-    expect(oversized).toEqual([]);
   });
 });

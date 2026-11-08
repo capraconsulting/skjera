@@ -118,7 +118,7 @@ WHERE an event is a sales event, the guest form SHALL NOT be read by HubSpot's c
 
 IF a call to HubSpot fails, THEN Skjera SHALL try it again later, and keep the order of a person's sign-up and cancellation.
 
-**Automated only:** HubSpot can't reasonably be made to fail by hand, nor its answers slowed. `packages/documents/test/notices/HubSpotSync.test.ts`, `packages/hubspot/test/HubSpot.test.ts`
+**Automated only:** HubSpot can't reasonably be made to fail by hand, nor its answers slowed. `packages/documents/test/notices/HubSpotFailures.test.ts`, `packages/hubspot/test/HubSpot.test.ts`
 
 ## AC-11: Without the token, nothing is sent
 
@@ -130,4 +130,4 @@ IF `HUBSPOT_ACCESS_TOKEN` is not set, THEN Skjera SHALL send nothing to HubSpot,
 - **When** you start `pnpm dev` and open the studio for an event open to guests
 - **Then** the log says that nothing is sent to HubSpot, and there is no **Sales event (send to HubSpot)** checkbox
 
-**Automated:** `packages/documents/test/notices/HubSpotSync.test.ts`, `packages/app/test/salesEvent.test.ts`
+**Automated:** `packages/documents/test/notices/HubSpotFailures.test.ts`, `packages/app/test/salesEvent.test.ts`

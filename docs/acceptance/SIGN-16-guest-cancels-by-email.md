@@ -44,7 +44,7 @@ The address is found without regard to case or spaces around it, and only guests
 - **When** you type her address in capital letters with a space after it, and press the button again
 - **Then** a second email arrives
 
-**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/documents/test/attendance/guests.test.ts`, `packages/documents/test/notices/signups.test.tsx`
+**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/documents/test/attendance/guestCancellation.test.ts`, `packages/documents/test/notices/signups.test.tsx`
 
 ## AC-4: An address nobody signed up with
 
@@ -58,7 +58,7 @@ This goes for an address signed up for another event, and for a member's address
 - **When** you type an address nobody signed up with, and press **Meld meg av**
 - **Then** the region says the sentence, and Mailpit has no new email
 
-**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/documents/test/attendance/guests.test.ts`, `packages/documents/test/api/Problems.test.ts`
+**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/documents/test/attendance/guestCancellation.test.ts`, `packages/documents/test/api/Problems.test.ts`
 
 ## AC-5: Opening the link cancels nothing
 
@@ -70,7 +70,7 @@ WHEN the guest opens the link, Skjera SHALL show the event's title and a button 
 - **When** its button is opened in a new private window
 - **Then** the page shows the event's title and **Bekreft avmelding**, and the studio's **Attendees** still lists Gina
 
-**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/documents/test/attendance/guests.test.ts`
+**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/documents/test/attendance/guestCancellation.test.ts`
 
 ## AC-6: Pressing the button cancels
 
@@ -84,7 +84,7 @@ A link opened or confirmed after the sign-up deadline cancels nothing, and says 
 - **When** you press **Bekreft avmelding**
 - **Then** the page says the sentence, the studio's **Attendees** no longer lists Gina, and Mailpit has the email «Signup cancelled: …»
 
-**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/documents/test/attendance/guests.test.ts`, `packages/documents/test/attendance/signups.test.ts`
+**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/documents/test/attendance/guestCancellation.test.ts`, `packages/documents/test/attendance/signups.test.ts`
 
 ## AC-7: A link that does not work says so
 
@@ -100,7 +100,7 @@ IF the link has expired, has been used or is not valid, THEN Skjera SHALL say so
 - **When** you wait 2 hours, and open a link from an earlier email
 - **Then** the page says «Lenken er utløpt. Du kan be om en ny på siden til arrangementet.»
 
-**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/documents/test/attendance/guests.test.ts`
+**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/documents/test/attendance/guestCancellation.test.ts`
 
 ## AC-8: Protected as the sign-up form is
 
@@ -114,7 +114,7 @@ The form SHALL be protected against bots and repeated attempts as the sign-up fo
 - **When** you ask for links with new addresses, on a test server with the limits on, until an attempt is refused
 - **Then** the 11th attempt within a minute is refused with «Du har nådd grensen for antall forsøk. Vennligst vent en stund før du prøver igjen.»
 
-**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/documents/test/attendance/guests.test.ts`
+**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/documents/test/attendance/guestCancellation.test.ts`
 
 ## AC-9: The form is not read as a contact by HubSpot
 
