@@ -28,8 +28,7 @@ export interface ComingEvent {
 
 /**
  * The events shown to everyone that have not ended at `now`, soonest first,
- * all of them: the condition `Sync.events` gives visitors, with the team
- * joined as there. One that has started and not ended is listed.
+ * all of them. One that has started and not ended is listed.
  */
 export const comingEvents = (now: Date) =>
   Effect.gen(function* () {
@@ -51,7 +50,7 @@ export const comingEvents = (now: Date) =>
       FROM events e
         JOIN documents d ON d.id = e.id
         JOIN teams t ON t.id = d.team_id
-      WHERE e.is_public AND e.deleted_at IS NULL AND e.ends_at > ${now}
+      WHERE event_visible(e, false) AND e.ends_at > ${now}
       ORDER BY e.starts_at, e.id
     `;
     return rows.map(

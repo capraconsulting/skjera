@@ -16,7 +16,7 @@ import { SalesEvents } from "../../src/notices/SalesEvents.ts";
 import { migrations } from "../../src/server/migrations.ts";
 import { Teams } from "../../src/Teams.ts";
 import { addTags, openEditor } from "../helpers.ts";
-import { UnmigratedTestDatabase } from "../TestDatabase.ts";
+import { TestDatabase, UnmigratedTestDatabase } from "../TestDatabase.ts";
 
 const alice = new Identity({ issuer: "https://idp.example", subject: "alice" });
 
@@ -24,6 +24,9 @@ const serverSource = (file: string) => {
   const url = new URL(`../../src/server/${file}`, import.meta.url);
   return existsSync(url) ? readFileSync(url, "utf8") : "";
 };
+
+const documentSource = (file: string) =>
+  readFileSync(new URL(`../../src/${file}`, import.meta.url), "utf8");
 
 layer(Layer.empty)("Current database objects", (it) => {
   it("keeps publish_event out of numbered migrations (AC-1)", () => {
@@ -63,7 +66,99 @@ layer(Layer.empty)("Current database objects", (it) => {
     ]);
     assert.deepStrictEqual(repeatDefaults, { every: 1, unit: "week" });
   });
+
+  it("routes every event reader through event_visible (AC-1)", () => {
+    for (const [file, calls] of [
+      ["server/Sync.ts", 2],
+      ["site/PublicEvents.ts", 1],
+      ["site/Embed.ts", 1],
+      ["attendance/Attendance.ts", 1],
+    ] as const) {
+      assert.lengthOf(
+        documentSource(file).match(/event_visible\(/g) ?? [],
+        calls,
+      );
+    }
+
+    const databaseObjects = serverSource("databaseObjects.ts");
+    assert.match(
+      databaseObjects,
+      /event_visible\(OLD, false\)[\s\S]+event_visible\(NEW, false\)/,
+    );
+    assert.match(
+      databaseObjects,
+      /event_visible\(OLD, true\)[\s\S]+event_visible\(NEW, true\)/,
+    );
+  });
 });
+
+const VisibilityTestLayer = Layer.mergeAll(Teams.layer, Documents.layer).pipe(
+  Layer.provideMerge(Announcements.layerTest),
+  Layer.provideMerge(SalesEvents.layerTest),
+  Layer.provideMerge(Notifications.layerTest),
+  Layer.provideMerge(TestDatabase),
+);
+
+layer(VisibilityTestLayer, { excludeTestServices: true })(
+  "Event visibility",
+  (it) => {
+    it.effect("hides deleted events from visitors and members (AC-2)", () =>
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        const team = yield* (yield* Teams).create("Team", alice);
+        const event = (isPublic: boolean, deleted: boolean) =>
+          Effect.gen(function* () {
+            const id = yield* (yield* Documents).create(
+              "event",
+              team.id,
+              alice,
+            );
+            yield* sql`
+              INSERT INTO events (
+                id, title, starts_at, ends_at, time_zone, body, is_public,
+                allow_guests, ask_dietary, published_heads,
+                published_by_issuer, published_by_subject, deleted_at
+              ) VALUES (
+                ${id}, 'Event', now() + interval '1 day',
+                now() + interval '2 days', 'Europe/Oslo', '[]',
+                ${isPublic}, false, false, '{}', 'test', 'test',
+                ${deleted ? new Date() : null}
+              )
+            `;
+          });
+        yield* Effect.all([
+          event(true, false),
+          event(false, false),
+          event(true, true),
+          event(false, true),
+        ]);
+        const rows = yield* sql<{
+          deleted: boolean;
+          is_public: boolean;
+          member: boolean;
+          visible: boolean;
+        }>`
+          SELECT deleted_at IS NOT NULL AS deleted, is_public, member,
+            event_visible(events, member) AS visible
+          FROM events
+          CROSS JOIN (VALUES (false), (true)) audience(member)
+          ORDER BY deleted, is_public, member
+        `;
+
+        assert.deepStrictEqual(rows, [
+          { deleted: false, is_public: false, member: false, visible: false },
+          { deleted: false, is_public: false, member: true, visible: true },
+          { deleted: false, is_public: true, member: false, visible: true },
+          { deleted: false, is_public: true, member: true, visible: true },
+          { deleted: true, is_public: false, member: false, visible: false },
+          { deleted: true, is_public: false, member: true, visible: false },
+          { deleted: true, is_public: true, member: false, visible: false },
+          { deleted: true, is_public: true, member: true, visible: false },
+        ]);
+      }),
+    );
+  },
+);
 
 // Not migrated: the test runs the migrations itself, in two parts.
 const TestLayer = Layer.mergeAll(Teams.layer, Documents.layer).pipe(

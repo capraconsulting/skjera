@@ -203,7 +203,7 @@ export class Sync extends Context.Service<
           e.published_heads, e.published_at,
           e.first_published_at,
           t.name AS team_name, t.logo AS team_logo, t.logo_dark AS team_logo_dark,
-          (e.is_public OR ${audience === "members"}) AND e.deleted_at IS NULL AS visible
+          event_visible(e, ${audience === "members"}) AS visible
         FROM events e
           JOIN documents d ON d.id = e.id
           JOIN teams t ON t.id = d.team_id
@@ -298,7 +298,7 @@ export class Sync extends Context.Service<
               a.user_issuer IS NULL AS guest, a.online,
               coalesce(a.user_issuer = ${issuer} AND a.user_subject = ${subject}, false)
                 AS mine,
-              (e.is_public OR ${member}) AND e.deleted_at IS NULL AS visible
+              event_visible(e, ${member}) AS visible
             FROM attendees a JOIN events e ON e.id = a.event_id
             WHERE a.id = ANY(${keys}::uuid[])
           `.pipe(

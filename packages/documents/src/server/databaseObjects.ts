@@ -112,6 +112,8 @@ export const currentDatabaseObjectStatements = [
       RETURN NULL;
     END
     $$`,
+  `CREATE OR REPLACE FUNCTION event_visible(event events, member boolean) RETURNS boolean
+      LANGUAGE sql STABLE RETURN (event.is_public OR member) AND event.deleted_at IS NULL`,
   `CREATE OR REPLACE FUNCTION events_touch_attendees() RETURNS trigger LANGUAGE plpgsql AS $$
     BEGIN
       UPDATE attendees SET id = id WHERE event_id = NEW.id;
@@ -248,9 +250,10 @@ export const currentDatabaseObjectStatements = [
   `CREATE TRIGGER events_collect_tags AFTER INSERT OR UPDATE OF tags ON events
       FOR EACH ROW EXECUTE FUNCTION events_collect_tags()`,
   `DROP TRIGGER IF EXISTS events_touch_attendees ON events`,
-  `CREATE TRIGGER events_touch_attendees AFTER UPDATE OF is_public, deleted_at ON events
-      FOR EACH ROW WHEN (OLD.is_public IS DISTINCT FROM NEW.is_public
-        OR OLD.deleted_at IS DISTINCT FROM NEW.deleted_at)
+  `CREATE TRIGGER events_touch_attendees AFTER UPDATE ON events
+      FOR EACH ROW WHEN (
+        event_visible(OLD, false) IS DISTINCT FROM event_visible(NEW, false)
+        OR event_visible(OLD, true) IS DISTINCT FROM event_visible(NEW, true))
       EXECUTE FUNCTION events_touch_attendees()`,
   `DROP TRIGGER IF EXISTS teams_touch_events ON teams`,
   `CREATE TRIGGER teams_touch_events AFTER UPDATE OF name, logo, logo_dark ON teams

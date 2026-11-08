@@ -296,8 +296,7 @@ export class Attendance extends Context.Service<
           SELECT allow_guests, ask_dietary, food_deadline, questions,
             signup_deadline, starts_at, is_streamed AS streamed, now() AS now
           FROM events e
-          WHERE id = ${event} AND (is_public OR ${audience === "members"})
-            AND deleted_at IS NULL
+          WHERE id = ${event} AND event_visible(e, ${audience === "members"})
         `.pipe(Effect.orDie);
         if (row === undefined) {
           return yield* new EventNotFound({ id: event });
