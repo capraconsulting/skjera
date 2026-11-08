@@ -5,13 +5,14 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 import { Config, Effect, Option, Redacted } from "effect";
+import { cancelLinkHours } from "../Model.ts";
 
 /** What is kept of a guest's token: its hash, never the token. */
 export const tokenHash = (token: string) =>
   createHash("sha256").update(token).digest("base64url");
 
 /** How long a link to confirm cancelling by email works. */
-export const cancelLinkLife = 2 * 60 * 60 * 1000;
+export const cancelLinkLife = cancelLinkHours * 60 * 60 * 1000;
 
 /**
  * Guests' tokens are signed with `SIGNING_SECRET`. Development and tests

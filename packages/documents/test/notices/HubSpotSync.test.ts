@@ -13,6 +13,7 @@ import {
   type AdSource,
   adSourceKeys,
   type DocumentId,
+  defaultEventType,
   SiteSettings,
 } from "../../src/Model.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
@@ -301,7 +302,7 @@ layer(syncLayer(portal), { excludeTestServices: true })(
   "A sales event",
   (it) => {
     it.effect(
-      "becomes a Marketing Event when published with the setting on (AC-2)",
+      "becomes a Marketing Event with the configured type when published with the setting on (AC-2, AC-1)",
       () =>
         Effect.gen(function* () {
           const { id, title } = yield* publishSales({
@@ -318,7 +319,7 @@ layer(syncLayer(portal), { excludeTestServices: true })(
             startDateTime: "2036-10-15T06:00:00.000Z",
             endDateTime: "2036-10-15T08:00:00.000Z",
             eventUrl: `${siteUrl}/events/${id}`,
-            eventType: "Frokostseminar",
+            eventType: defaultEventType,
             eventCancelled: false,
           });
         }),

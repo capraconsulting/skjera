@@ -1,4 +1,4 @@
-import type { Site } from "@skjera/documents/api";
+import { type Site, signupRetentionDays } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import type { ReactNode } from "react";
 import { Button } from "../../components/Button.tsx";
@@ -22,6 +22,12 @@ export const privacyLoader = () => {
 const datatilsynet = "https://www.datatilsynet.no/";
 const rightsPage =
   "https://www.datatilsynet.no/rettigheter-og-plikter/den-registrertes-rettigheter/";
+
+export const privacyKeep = () => m.privacy_keep({ days: signupRetentionDays });
+export const privacySignupBasis = () =>
+  m.privacy_signup_basis({ days: signupRetentionDays });
+export const privacyInvited = () =>
+  m.privacy_invited({ days: signupRetentionDays });
 
 /**
  * The privacy policy: ten sections, in the order of Skjer's policy. Who
@@ -116,7 +122,7 @@ export function Privacy() {
           <li>{m.privacy_purpose_legitimate()}</li>
         </ul>
         <p>{m.privacy_purpose_minimal()}</p>
-        <p>{m.privacy_keep()}</p>
+        <p>{privacyKeep()}</p>
       </Part>
 
       <Part title={m.privacy_processing_heading()}>
@@ -125,9 +131,9 @@ export function Privacy() {
         <p>{m.privacy_signup_data()}</p>
         <p>{m.privacy_signup_visible()}</p>
         <p>{m.privacy_signup_emails()}</p>
-        <p>{m.privacy_signup_basis()}</p>
+        <p>{privacySignupBasis()}</p>
         <h3>{m.privacy_invited_heading()}</h3>
-        <p>{m.privacy_invited()}</p>
+        <p>{privacyInvited()}</p>
         <h3>{m.privacy_login_heading()}</h3>
         <p>{m.privacy_login()}</p>
         <h3>{m.privacy_use_heading()}</h3>

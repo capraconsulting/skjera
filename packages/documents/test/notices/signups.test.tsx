@@ -4,6 +4,7 @@ import { Identity } from "@skjera/oauth/api";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { Attendance } from "../../src/attendance/Attendance.ts";
+import { cancelLinkHours } from "../../src/Model.ts";
 import { formatAt } from "../../src/notices/emails/format.ts";
 import {
   descriptionOf,
@@ -72,7 +73,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: signups", (it) => {
   );
 
   it.effect(
-    "emails a guest a link that cancels, each time they ask, without a calendar (AC-3)",
+    "emails a guest a link that cancels for the configured time, each time they ask, without a calendar (AC-3, AC-1)",
     () =>
       Effect.gen(function* () {
         const attendance = yield* Attendance;
@@ -102,6 +103,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: signups", (it) => {
             address,
           });
           assert.isUndefined(email?.message.calendar);
+          assert.include(email?.message.text ?? "", String(cancelLinkHours));
           // The link names this event, and the server accepts its token.
           const link = new RegExp(
             `${process.env.SITE_URL}/events/${event}/cancel\\?token=([\\w.-]+)`,

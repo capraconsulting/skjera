@@ -40,19 +40,20 @@ describe("messages", () => {
     });
   }
 
-  // How long the policy says data is kept: 30 days, and no other period.
-  const period =
-    /\d+\s+(?:dager|dagar|days|uker|veker|weeks|måneder|månader|months|år|years)\b/g;
   for (const locale of locales) {
-    it(`names only 30 days as a period in the privacy policy, in ${locale} (AC-4)`, () => {
-      const messages = read(locale);
-      for (const [key, message] of Object.entries(messages)) {
-        if (!key.startsWith("privacy_")) continue;
-        for (const [named] of String(message).matchAll(period)) {
-          expect(`${key}: ${named}`).toMatch(/: 30 (dager|dagar|days)$/);
-        }
-      }
-      expect(String(messages.privacy_keep)).toMatch(/\b30\b/);
+    it(`renders supplied policy values in ${locale} (AC-1)`, () => {
+      expect(
+        m.email_cancel_requested_body(
+          { title: "Launch", when: "tomorrow", hours: 17 },
+          { locale },
+        ),
+      ).toContain("17");
+      expect(m.privacy_keep({ days: 41 }, { locale })).toContain("41");
+      expect(m.privacy_signup_basis({ days: 41 }, { locale })).toContain("41");
+      expect(m.privacy_invited({ days: 41 }, { locale })).toContain("41");
+      expect(
+        m.studio_sales_event_type({ eventType: "Sentinel" }, { locale }),
+      ).toContain("Sentinel");
     });
   }
 

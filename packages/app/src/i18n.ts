@@ -41,10 +41,15 @@ export const loadSite = async () => {
 export const currentSite = () => site;
 
 /** The languages, each named in itself. */
-export const languages: ReadonlyArray<{ locale: Locale; name: string }> = [
-  { locale: "en", name: "English" },
-  { locale: "nb", name: "Bokmål" },
-  { locale: "nn", name: "Nynorsk" },
-];
+const languageNames: Record<Locale, string> = {
+  en: "English",
+  nb: "Bokmål",
+  nn: "Nynorsk",
+};
+const languageOrder: ReadonlyArray<Locale> = ["en", "nb", "nn"];
+export const languages = languageOrder.map((locale) => ({
+  locale,
+  name: languageNames[locale],
+}));
 
 export { setLocale };

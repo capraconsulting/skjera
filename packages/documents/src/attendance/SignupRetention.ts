@@ -1,30 +1,31 @@
 import { Clock, Cron, Effect } from "effect";
 import { ClusterCron } from "effect/cluster";
 import { SqlClient } from "effect/sql";
+import { signupRetentionDays } from "../Model.ts";
 import { HubSpotEvent } from "../notices/HubSpotSync.ts";
 import { EventMail } from "../notices/Mail.tsx";
 import * as Cluster from "../server/Cluster.ts";
 
-// Sign-up data is kept until 30 days after its event has ended, as the
-// privacy page says. A nightly job then deletes the event's signups, its
+// Sign-up data is kept for the configured period after its event has ended,
+// as the privacy page says. A nightly job then deletes the event's signups, its
 // list of dietary preferences, the list of those noted as invited, the
 // emails an organizer sent to them and the emails and HubSpot messages kept
 // for its attendees, deleted events too. The
 // event itself, its content and its history stay.
 
 /** How long sign-up data is kept after its event has ended. */
-const keptFor = 30 * 24 * 60 * 60 * 1000;
+const keptFor = signupRetentionDays * 24 * 60 * 60 * 1000;
 
 /** Every day at 01:00 UTC; the zone is given, else `Cron` reads the process's. */
 export const schedule = Cron.parseUnsafe("0 1 * * *", "UTC");
 
 /**
- * Deletes the sign-up data of every event that ended more than 30 days
- * before `now`: its signups, members and guests, its dietary preferences,
+ * Deletes the sign-up data of every event that ended more than the retention
+ * period before `now`: its signups, members and guests, its dietary preferences,
  * its list of those invited, the emails an organizer sent to its attendees,
  * and the emails and HubSpot messages stored for it. An event never
- * published has no row in `events`: its list goes 30 days after its draft's
- * end. All of it or nothing.
+ * published has no row in `events`: its list goes after the retention period
+ * from its draft's end. All of it or nothing.
  */
 export const deleteSignups = (now: Date) =>
   Effect.gen(function* () {

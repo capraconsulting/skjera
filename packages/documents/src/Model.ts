@@ -138,6 +138,10 @@ export type Audience = "anyone" | "members";
 export const Locale = Schema.Literals(locales);
 export type Locale = typeof Locale.Type;
 
+export const cancelLinkHours = 2;
+export const signupRetentionDays = 30;
+export const defaultEventType = "Frokostseminar";
+
 /** The site's language, for those who didn't pick one: `SITE_LOCALE`. */
 export const SiteLocale = Config.Literals(locales, "SITE_LOCALE").pipe(
   Config.withDefault(baseLocale),
