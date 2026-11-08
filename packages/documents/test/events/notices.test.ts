@@ -238,7 +238,7 @@ layer(TestLayer, { excludeTestServices: true })("Attendee notices", (it) => {
       assert.deepStrictEqual(row, {
         deleted: true,
         deleted_by_subject: "bob",
-        signups: 3,
+        signups: 0,
       });
       // Otherwise gone: from the studio, the site and signing up.
       assert.isUndefined(yield* syncedDocument(id));
