@@ -2,7 +2,7 @@ import { m } from "@skjera/i18n/messages";
 import { type KeyboardEvent, type PointerEvent, useRef, useState } from "react";
 import { Button } from "../components/Button.tsx";
 import { Dialog, dialogStyles } from "../components/Dialog.tsx";
-import styles from "./CoverCrop.module.css";
+import { coverCropStyles } from "./CoverCrop.tsx";
 import {
   type Frame,
   focusInPart,
@@ -73,18 +73,18 @@ function Chooser(props: {
 
   return (
     <>
-      <p className={styles.hint}>{m.editor_cover_focus_hint()}</p>
+      <p className={coverCropStyles.hint}>{m.editor_cover_focus_hint()}</p>
       <div
         ref={area}
-        className={`${styles.area} ${styles.focus}`}
+        className={`${coverCropStyles.area} ${coverCropStyles.focus}`}
         data-testid="focus-picture"
         onPointerDown={click}
       >
-        <img className={styles.picture} src={props.src} alt="" />
+        <img className={coverCropStyles.picture} src={props.src} alt="" />
         <button
           type="button"
           aria-label={m.editor_cover_focus()}
-          className={styles.marker}
+          className={coverCropStyles.marker}
           style={{ left: percent(point.x), top: percent(point.y) }}
           onKeyDown={press}
         />

@@ -11,7 +11,6 @@ import { appPaths } from "@skjera/paths";
 import { eq, useLiveQuery } from "@tanstack/react-db";
 import { useState } from "react";
 import { Link } from "react-router";
-import buttonStyles from "../../components/Button.module.css";
 import { Button } from "../../components/Button.tsx";
 import { useVersion } from "../../documents/version.ts";
 import { events } from "../../sync/tables.ts";
@@ -105,14 +104,15 @@ export function EditorFooter(props: {
           )}
         </p>
         <div className={styles.actions}>
-          <a
-            className={`${buttonStyles.button} ${styles.preview}`}
+          <Button
+            as="a"
+            className={styles.preview}
             href={appPaths.preview(props.id)}
             target="_blank"
             rel="noopener noreferrer"
           >
             {m.studio_preview()}
-          </a>
+          </Button>
           <Button variant="danger" onClick={props.onDelete}>
             {m.common_delete()}
           </Button>

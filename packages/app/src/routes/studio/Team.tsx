@@ -16,8 +16,7 @@ import {
 } from "react-router";
 import { Badge } from "../../components/Badge.tsx";
 import { Button } from "../../components/Button.tsx";
-import inputStyles from "../../components/Input.module.css";
-import { Input } from "../../components/Input.tsx";
+import { Input, Select } from "../../components/Input.tsx";
 import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
 import { documents, events, teams } from "../../sync/tables.ts";
 import { formatDateIn } from "../../time.ts";
@@ -161,9 +160,8 @@ export function Team() {
               setSearch({ teamId, text: event.currentTarget.value })
             }
           />
-          <select
+          <Select
             aria-label={m.studio_events_order()}
-            className={inputStyles.input}
             value={order}
             onChange={(event) => choose(readOrder(event.currentTarget.value))}
           >
@@ -172,7 +170,7 @@ export function Team() {
                 {label}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         {rows.length === 0 ? (
           <p className={styles.empty}>{m.studio_no_events()}</p>

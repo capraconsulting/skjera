@@ -15,6 +15,8 @@ import {
 } from "../editor/text/richText.ts";
 import styles from "./RichText.module.css";
 
+export const richTextStyles = { content: styles.content };
+
 // Published rich text, as React elements rather than HTML, so nothing in
 // it runs as markup. Links and images keep only web addresses.
 

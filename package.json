@@ -4,11 +4,11 @@
   "packageManager": "pnpm@12.8.1",
   "scripts": {
     "dev": "mprocs",
-    "lint": "biome check .",
+    "lint": "biome check . && node dev/check-css-module-imports.mjs",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:e2e": "turbo run test:e2e",
-    "check": "biome check . && turbo run typecheck test",
+    "check": "pnpm lint && turbo run typecheck test",
     "test-server": "pnpm install --frozen-lockfile --filter \"@skjera/app...\" --filter \"@skjera/server...\" && SKJERA_PLAYGROUND=true pnpm --filter @skjera/app build && pnpm --filter @skjera/server build && node packages/server/test-server.ts"
   },
   "devDependencies": {

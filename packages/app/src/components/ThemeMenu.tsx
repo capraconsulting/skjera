@@ -1,7 +1,6 @@
 import { m } from "@skjera/i18n/messages";
 import { Check, Monitor, Moon, Sun } from "lucide-react";
 import { type ThemeChoice, useThemeChoice } from "../theme.ts";
-import buttonStyles from "./Button.module.css";
 import { Dropdown, DropdownItem } from "./Dropdown.tsx";
 import styles from "./ThemeMenu.module.css";
 
@@ -21,7 +20,8 @@ export function ThemeMenu() {
       label={m.account_theme()}
       trigger={{
         content: <Current size={16} strokeWidth={1.5} aria-hidden="true" />,
-        className: `${buttonStyles.button} ${buttonStyles.icon}`,
+        className: undefined,
+        buttonStyle: "icon",
       }}
     >
       {(close) =>

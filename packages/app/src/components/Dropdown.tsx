@@ -6,6 +6,7 @@ import {
   useRef,
 } from "react";
 import { Link } from "react-router";
+import { Button } from "./Button.tsx";
 import styles from "./Dropdown.module.css";
 import { placeUnder } from "./popover.ts";
 
@@ -22,6 +23,7 @@ export function Dropdown(props: {
   readonly trigger?: {
     readonly content: ReactNode;
     readonly className: string | undefined;
+    readonly buttonStyle?: "default" | "icon";
     /** Shown on hover. */
     readonly title?: string;
     readonly testId?: string;
@@ -38,17 +40,17 @@ export function Dropdown(props: {
 
   return (
     <>
-      <button
-        ref={trigger}
-        type="button"
+      <Button
+        buttonRef={trigger}
         popoverTarget={id}
         className={props.trigger?.className ?? styles.trigger}
+        icon={props.trigger?.buttonStyle === "icon"}
         aria-label={props.label}
         title={props.trigger?.title ?? props.label}
         data-testid={props.trigger?.testId}
       >
         {props.trigger?.content ?? <DotsIcon />}
-      </button>
+      </Button>
       <div
         ref={popover}
         id={id}

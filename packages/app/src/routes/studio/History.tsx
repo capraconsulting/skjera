@@ -3,7 +3,6 @@ import { m } from "@skjera/i18n/messages";
 import { getLocale } from "@skjera/i18n/runtime";
 import { appPaths } from "@skjera/paths";
 import { useEffect, useState } from "react";
-import buttonStyles from "../../components/Button.module.css";
 import { Button } from "../../components/Button.tsx";
 import { Dialog, dialogStyles } from "../../components/Dialog.tsx";
 import { eventHistory } from "../../sync/tables.ts";
@@ -99,14 +98,15 @@ export function History(props: {
                   {timeAgo(entry.at)}
                 </span>
                 <div className={styles.actions}>
-                  <a
-                    className={`${buttonStyles.button} ${styles.view}`}
+                  <Button
+                    as="a"
+                    className={styles.view}
                     href={appPaths.preview(id, entry.heads.join(","))}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
                     {m.studio_history_view()}
-                  </a>
+                  </Button>
                   {!isDraft(entry.heads, version) && (
                     <Button
                       onClick={() => restore(entry.heads)}

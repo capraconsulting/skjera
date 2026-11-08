@@ -9,7 +9,7 @@ import {
 } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { useSyncExternalStore } from "react";
-import inputStyles from "../components/Input.module.css";
+import { Select } from "../components/Input.tsx";
 import { useBooleanField } from "./CheckboxField.tsx";
 import styles from "./RepeatField.module.css";
 
@@ -44,9 +44,8 @@ export function RepeatField(props: {
   if (!recurring) return null;
   return (
     <div className={styles.repeat}>
-      <select
+      <Select
         aria-label={m.studio_repeat_every()}
-        className={inputStyles.input}
         value={every}
         onChange={(event) => {
           const value = Number(event.currentTarget.value);
@@ -60,10 +59,9 @@ export function RepeatField(props: {
             {choice}
           </option>
         ))}
-      </select>
-      <select
+      </Select>
+      <Select
         aria-label={m.studio_repeat_unit()}
-        className={inputStyles.input}
         value={unit}
         onChange={(event) => {
           const value = event.currentTarget.value;
@@ -78,7 +76,7 @@ export function RepeatField(props: {
             {units[each](every)}
           </option>
         ))}
-      </select>
+      </Select>
     </div>
   );
 }

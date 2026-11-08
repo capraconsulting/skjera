@@ -21,7 +21,7 @@ import {
   questionField,
   signupFields,
 } from "../../site/signupForm.ts";
-import styles from "./Attend.module.css";
+import { attendStyles as styles } from "./Attend.tsx";
 
 /** For bots: people never see it, and screen readers and the keyboard skip it. */
 export const HoneypotInput = () => (
