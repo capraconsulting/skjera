@@ -4,9 +4,7 @@ import { DocumentNotFound, InvitationRejected } from "../api/errors.ts";
 import { refused } from "../api/Problems.ts";
 import type { Invitation } from "../api/PublicApi.ts";
 import { type DocumentId, isEmailAddress } from "../Model.ts";
-
-const pgCode = (error: SqlError.SqlError) =>
-  (error.reason as { cause?: { code?: string } }).cause?.code;
+import { pgCode } from "../server/PostgresError.ts";
 
 /** Who organizers have noted as invited to an event. Nothing is sent to them. */
 export class Invitations extends Context.Service<

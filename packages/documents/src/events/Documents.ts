@@ -13,6 +13,7 @@ import {
   TeamNotFound,
 } from "../api/errors.ts";
 import { refused } from "../api/Problems.ts";
+import { removeSignups } from "../attendance/RemoveSignups.ts";
 import {
   CancellingNotice,
   type DocumentId,
@@ -21,7 +22,7 @@ import {
   isVersion,
   NoticeChanged,
   Publication,
-  PublishingNotice,
+  type PublishingNotice,
   type TeamId,
 } from "../Model.ts";
 import { Announcements } from "../notices/Announcements.ts";
@@ -33,6 +34,7 @@ import {
   tell,
 } from "../notices/Notifications.ts";
 import { SalesEvents } from "../notices/SalesEvents.ts";
+import { pgCode, pgMessage } from "../server/PostgresError.ts";
 import {
   type ContentTypeName,
   cantPublish,
@@ -47,27 +49,16 @@ import {
   sameContent,
   sameContentAs,
 } from "./DiscardChanges.ts";
-import { historyOf, type Person } from "./History.ts";
-
-/** When and where an event is, as published. */
-interface WhenAndWhere {
-  readonly starts_at: Date;
-  readonly ends_at: Date;
-  /** Null: published before events had a place. */
-  readonly place: string | null;
-}
-
-const changeToTell = (
-  before: WhenAndWhere | undefined,
-  after: WhenAndWhere | undefined,
-) => {
-  if (before === undefined || after === undefined) return null;
-  const moved =
-    before.starts_at.getTime() !== after.starts_at.getTime() ||
-    before.ends_at.getTime() !== after.ends_at.getTime();
-  const newPlace = before.place !== after.place;
-  return moved || newPlace ? { moved, newPlace } : null;
-};
+import { applyServerChange } from "./DocumentChange.ts";
+import { publishEvent } from "./EventPublishing.ts";
+import { readHistory } from "./History.ts";
+import {
+  changeToTell,
+  publishingAnswer,
+  sameCancellingNotice,
+  samePublishingNotice,
+  type WhenAndWhere,
+} from "./PublishingNotifications.ts";
 
 class NoticePreview<N> {
   readonly _tag = "NoticePreview";
@@ -500,6 +491,7 @@ export class Documents extends Context.Service<
 
       const publishRow = (id: DocumentId, heads: Heads, user: Identity) =>
         Effect.gen(function* () {
+          yield* sql`SELECT id FROM documents WHERE id = ${id} FOR UPDATE`;
           const [before] = yield* sql<
             WhenAndWhere & {
               readonly sales_event: boolean;
@@ -510,31 +502,9 @@ export class Documents extends Context.Service<
               deleted_at IS NOT NULL AS off_site
             FROM events WHERE id = ${id} FOR UPDATE
           `;
-          const rows = yield* sql<PublicationRow & WhenAndWhere>`
-            SELECT published_heads, published_at, first_published_at,
-              starts_at, ends_at, place
-            FROM publish_event(${id}, ${heads}::text[], ${user.issuer}, ${user.subject})
-          `;
+          const rows = yield* publishEvent(sql, id, heads, user, user);
           return { before, rows, after: rows[0] };
         });
-
-      const publishingAnswer = (
-        before: WhenAndWhere | undefined,
-        after: WhenAndWhere | undefined,
-        signups: ReadonlyArray<Signup>,
-      ) => {
-        const change = changeToTell(before, after);
-        return new PublishingNotice({
-          moved: change?.moved ?? false,
-          newPlace: change?.newPlace ?? false,
-          told: change === null ? 0 : recipients(signups).length,
-        });
-      };
-
-      const samePublishingNotice = (a: PublishingNotice, b: PublishingNotice) =>
-        a.moved === b.moved && a.newPlace === b.newPlace && a.told === b.told;
-      const sameCancellingNotice = (a: CancellingNotice, b: CancellingNotice) =>
-        a.told === b.told;
 
       const publishers = {
         event: (
@@ -556,10 +526,6 @@ export class Documents extends Context.Service<
               return yield* Effect.fail(new NoticeMismatch(answer));
             }
             if (after !== undefined) {
-              yield* sql`
-                INSERT INTO event_publications (event_id, heads, published_by_issuer, published_by_subject)
-                VALUES (${id}, ${after.published_heads}::text[], ${user.issuer}, ${user.subject})
-              `;
               yield* rememberName(user);
             }
             // Published for the first time: the channel is told, once.
@@ -754,11 +720,7 @@ export class Documents extends Context.Service<
           // Signed up for what won't happen now: cancelled, in calendars too,
           // and removed, so sign-up starts empty when it's published again.
           if (event?.upcoming) {
-            const removed = yield* sql<Signup>`
-              DELETE FROM attendees WHERE event_id = ${id}
-              RETURNING ${signupColumns(sql)}
-            `;
-            yield* sql`DELETE FROM dietary_preferences WHERE event_id = ${id}`;
+            const removed = yield* removeSignups(sql, id);
             yield* tell(removed, (attendee) =>
               notifications.eventCancelled({ event: id, attendee }),
             );
@@ -816,20 +778,13 @@ export class Documents extends Context.Service<
           const change = A.getLastLocalChange(restored);
           if (change !== undefined) {
             // The server's change must fit the draft's schema, as an editor's must.
-            const [merged] = yield* sql<{ content: unknown }>`
-              SELECT merge(draft, ${change}::bytea)::jsonb AS content
-              FROM documents WHERE id = ${id}
-            `;
-            yield* Schema.decodeUnknownEffect(contentTypes.event.schema)(
-              merged?.content,
-              { onExcessProperty: "error" },
-            );
             yield* claimActor(id, A.getActorId(restored), user);
             yield* rememberName(user);
-            yield* sql`
-              UPDATE documents SET draft = merge(draft, ${change}::bytea), updated_at = now()
-              WHERE id = ${id}
-            `;
+            yield* applyServerChange(sql, id, change, (content) =>
+              Schema.decodeUnknownEffect(contentTypes.event.schema)(content, {
+                onExcessProperty: "error",
+              }),
+            );
           }
 
           // Published again at the draft's heads, which differ from the
@@ -838,10 +793,19 @@ export class Documents extends Context.Service<
           // changed, and the signups stay.
           const heads = [...A.getHeads(restored)].sort();
           if (heads.join() !== [...published].sort().join()) {
-            const [row] = yield* sql`
-              SELECT id FROM publish_event(${id}, ${heads}::text[],
-                ${event.published_by_issuer}, ${event.published_by_subject})
-            `;
+            const [row] = yield* publishEvent(
+              sql,
+              id,
+              heads,
+              {
+                issuer: event.published_by_issuer,
+                subject: event.published_by_subject,
+              },
+              {
+                issuer: event.published_by_issuer,
+                subject: event.published_by_subject,
+              },
+            );
             if (row === undefined) {
               return yield* Effect.die(`Event ${id} was not published again`);
             }
@@ -856,70 +820,11 @@ export class Documents extends Context.Service<
       const history = Effect.fn("Documents.history")(function* (
         id: DocumentId,
       ) {
-        const [document] = yield* sql<{
-          draft: Uint8Array;
-          issuer: string;
-          subject: string;
-          name: string | null;
-        }>`
-          SELECT d.draft::bytea AS draft, d.created_by_issuer AS issuer,
-            d.created_by_subject AS subject, p.name
-          FROM documents d
-          LEFT JOIN people p
-            ON p.issuer = d.created_by_issuer AND p.subject = d.created_by_subject
-          WHERE d.id = ${id} AND d.deleted_at IS NULL
-        `.pipe(Effect.orDie);
-        if (document === undefined) {
+        const entries = yield* readHistory(sql, id).pipe(Effect.orDie);
+        if (entries === undefined) {
           return yield* new DocumentNotFound({ id });
         }
-        const owners = yield* sql<Person & { actor: string }>`
-          SELECT a.actor, a.user_issuer AS issuer, a.user_subject AS subject, p.name
-          FROM document_actors a
-          LEFT JOIN people p
-            ON p.issuer = a.user_issuer AND p.subject = a.user_subject
-          WHERE a.document_id = ${id}
-        `.pipe(Effect.orDie);
-        const publications = yield* sql<{
-          heads: ReadonlyArray<string>;
-          published_at: Date;
-          issuer: string | null;
-          subject: string | null;
-          name: string | null;
-        }>`
-          SELECT e.heads, e.published_at, e.published_by_issuer AS issuer,
-            e.published_by_subject AS subject, p.name
-          FROM event_publications e
-          LEFT JOIN people p
-            ON p.issuer = e.published_by_issuer AND p.subject = e.published_by_subject
-          WHERE e.event_id = ${id}
-          ORDER BY e.published_at, e.id
-        `.pipe(Effect.orDie);
-
-        return historyOf({
-          changes: A.getChangesMetaSince(A.load(document.draft), []).map(
-            ({ hash, actor, time, deps, message }) => ({
-              hash,
-              actor,
-              time,
-              deps,
-              message,
-            }),
-          ),
-          owners: owners.map(({ actor, ...person }) => ({ actor, person })),
-          creator: {
-            issuer: document.issuer,
-            subject: document.subject,
-            name: document.name,
-          },
-          publications: publications.map((row) => ({
-            heads: row.heads,
-            at: row.published_at,
-            by:
-              row.issuer === null || row.subject === null
-                ? null
-                : { issuer: row.issuer, subject: row.subject, name: row.name },
-          })),
-        });
+        return entries;
       });
 
       const restore = Effect.fn("Documents.restore")(function* (
@@ -1026,6 +931,7 @@ export class Documents extends Context.Service<
             );
             yield* salesEvents.cancelled(id);
           }
+          yield* removeSignups(sql, id);
           return true as const;
         }).pipe(
           sql.withTransaction,
@@ -1098,13 +1004,3 @@ const concat = (chunks: ReadonlyArray<Uint8Array>): Uint8Array => {
   }
   return result;
 };
-
-// The Postgres error behind a failed query: SQLSTATE and message.
-const pgCause = (error: SqlError.SqlError) =>
-  (error.reason as { cause?: { code?: string; message?: string } }).cause;
-
-const pgCode = (error: SqlError.SqlError): string | undefined =>
-  pgCause(error)?.code;
-
-const pgMessage = (error: SqlError.SqlError): string =>
-  pgCause(error)?.message ?? error.message;

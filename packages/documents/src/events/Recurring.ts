@@ -3,10 +3,13 @@ import { Clock, Cron, Effect, Schema } from "effect";
 import { ClusterCron } from "effect/cluster";
 import { SqlClient } from "effect/sql";
 import { Temporal } from "temporal-polyfill";
+import { removeSignups } from "../attendance/RemoveSignups.ts";
 import type { DocumentId, Heads, ZonedDateTime } from "../Model.ts";
 import { Announcements } from "../notices/Announcements.ts";
 import { SalesEvents } from "../notices/SalesEvents.ts";
 import { EventContent, type RepeatUnit } from "./ContentTypes.ts";
+import { applyServerChange } from "./DocumentChange.ts";
+import { publishEvent } from "./EventPublishing.ts";
 
 // A recurring event moves on to its next date when it has ended: a daily job
 // moves its times in its draft and in the published copy, publishes it
@@ -150,34 +153,28 @@ const moveOn = (id: DocumentId, now: Date) =>
       return yield* Effect.die(`Event ${id} was not moved`);
     }
     // The server's change must fit the draft's schema, as an editor's must.
-    const [merged] = yield* sql<{ content: unknown }>`
-      SELECT merge(draft, ${change}::bytea)::jsonb AS content
-      FROM documents WHERE id = ${id}
-    `;
-    yield* Schema.decodeUnknownEffect(EventContent)(merged?.content, {
-      onExcessProperty: "error",
-    });
-    yield* sql`
-      UPDATE documents SET draft = merge(draft, ${change}::bytea), updated_at = now()
-      WHERE id = ${id}
-    `;
+    yield* applyServerChange(sql, id, change, (content) =>
+      Schema.decodeUnknownEffect(EventContent)(content, {
+        onExcessProperty: "error",
+      }),
+    );
 
-    yield* sql`DELETE FROM attendees WHERE event_id = ${id}`;
-    yield* sql`DELETE FROM dietary_preferences WHERE event_id = ${id}`;
+    yield* removeSignups(sql, id);
 
     // Published again in the name of whoever published last.
-    const [published] = yield* sql<{ starts_at: Date }>`
-      SELECT starts_at FROM publish_event(${id}, ${newHeads}::text[],
-        ${event.published_by_issuer}, ${event.published_by_subject})
-    `;
+    const [published] = yield* publishEvent(
+      sql,
+      id,
+      newHeads,
+      {
+        issuer: event.published_by_issuer,
+        subject: event.published_by_subject,
+      },
+      null,
+    );
     if (published === undefined) {
       return yield* Effect.die(`Event ${id} was not published again`);
     }
-    // Skjera's own publishing: it has no publisher.
-    yield* sql`
-      INSERT INTO event_publications (event_id, heads)
-      VALUES (${id}, ${newHeads}::text[])
-    `;
     yield* announcements.eventRepeated(id, published.starts_at);
     // Its Marketing Event takes the new times; those signed up for the
     // date before are in HubSpot already, and nobody is signed up now.

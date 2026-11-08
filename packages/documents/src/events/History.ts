@@ -1,3 +1,7 @@
+import * as A from "@automerge/automerge";
+import { Effect } from "effect";
+import type { SqlClient } from "effect/sql";
+import type { DocumentId } from "../Model.ts";
 import { HistoryEntry } from "../Model.ts";
 import { discardedMessage, restoredMessage } from "./DiscardChanges.ts";
 
@@ -218,3 +222,68 @@ export const historyOf = (input: HistoryInput): ReadonlyArray<HistoryEntry> => {
       }),
   );
 };
+
+export const readHistory = (sql: SqlClient.SqlClient, id: DocumentId) =>
+  Effect.gen(function* () {
+    const [document] = yield* sql<{
+      draft: Uint8Array;
+      issuer: string;
+      subject: string;
+      name: string | null;
+    }>`
+      SELECT d.draft::bytea AS draft, d.created_by_issuer AS issuer,
+        d.created_by_subject AS subject, p.name
+      FROM documents d
+      LEFT JOIN people p
+        ON p.issuer = d.created_by_issuer AND p.subject = d.created_by_subject
+      WHERE d.id = ${id} AND d.deleted_at IS NULL
+    `;
+    if (document === undefined) return undefined;
+    const owners = yield* sql<Person & { actor: string }>`
+      SELECT a.actor, a.user_issuer AS issuer, a.user_subject AS subject, p.name
+      FROM document_actors a
+      LEFT JOIN people p
+        ON p.issuer = a.user_issuer AND p.subject = a.user_subject
+      WHERE a.document_id = ${id}
+    `;
+    const publications = yield* sql<{
+      heads: ReadonlyArray<string>;
+      published_at: Date;
+      issuer: string | null;
+      subject: string | null;
+      name: string | null;
+    }>`
+      SELECT e.heads, e.published_at, e.published_by_issuer AS issuer,
+        e.published_by_subject AS subject, p.name
+      FROM event_publications e
+      LEFT JOIN people p
+        ON p.issuer = e.published_by_issuer AND p.subject = e.published_by_subject
+      WHERE e.event_id = ${id}
+      ORDER BY e.published_at, e.id
+    `;
+    return historyOf({
+      changes: A.getChangesMetaSince(A.load(document.draft), []).map(
+        ({ hash, actor, time, deps, message }) => ({
+          hash,
+          actor,
+          time,
+          deps,
+          message,
+        }),
+      ),
+      owners: owners.map(({ actor, ...person }) => ({ actor, person })),
+      creator: {
+        issuer: document.issuer,
+        subject: document.subject,
+        name: document.name,
+      },
+      publications: publications.map((row) => ({
+        heads: row.heads,
+        at: row.published_at,
+        by:
+          row.issuer === null || row.subject === null
+            ? null
+            : { issuer: row.issuer, subject: row.subject, name: row.name },
+      })),
+    });
+  });

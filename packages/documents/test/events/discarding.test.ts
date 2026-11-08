@@ -172,6 +172,14 @@ layer(TestLayer, { excludeTestServices: true })("Discarding changes", (it) => {
         const id = yield* publishedEvent({ public: true, guests: true });
         const oldHeads = yield* publishedHeadsOf(id);
         const rowBefore = yield* rowOf(id);
+        const sql = yield* SqlClient.SqlClient;
+        const publications = () =>
+          sql<{ heads: ReadonlyArray<string> }>`
+            SELECT heads FROM event_publications
+            WHERE event_id = ${id}
+            ORDER BY published_at, id
+          `;
+        const publicationsBefore = yield* publications();
         assert.isDefined(oldHeads);
 
         const editor = yield* openEditor(id);
@@ -196,6 +204,15 @@ layer(TestLayer, { excludeTestServices: true })("Discarding changes", (it) => {
         assert.deepStrictEqual(yield* rowOf(id), rowBefore);
         assert.deepStrictEqual(
           yield* publishedHeadsOf(id),
+          [...A.getHeads(draft)].sort(),
+        );
+        const publicationsAfter = yield* publications();
+        assert.strictEqual(
+          publicationsAfter.length,
+          publicationsBefore.length + 1,
+        );
+        assert.deepStrictEqual(
+          publicationsAfter.at(-1)?.heads,
           [...A.getHeads(draft)].sort(),
         );
       }),
@@ -319,10 +336,11 @@ layer(TestLayer, { excludeTestServices: true })("Discarding changes", (it) => {
 
         yield* documents.discardChanges(id, discarder);
 
-        const [newest, edited] = yield* documents.history(id);
-        assert.strictEqual(newest?.kind, "discarded");
-        assert.strictEqual(newest?.by, "Dina Discarder");
-        assert.isFalse(newest?.automatic);
+        const [published, discarded, edited] = yield* documents.history(id);
+        assert.strictEqual(published?.kind, "published");
+        assert.strictEqual(discarded?.kind, "discarded");
+        assert.strictEqual(discarded?.by, "Dina Discarder");
+        assert.isFalse(discarded?.automatic);
         assert.strictEqual(edited?.kind, "edited");
       }),
   );

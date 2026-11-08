@@ -4,33 +4,17 @@ import { SqlClient, SqlError } from "effect/sql";
 import { InvalidTeamName, TeamNotEmpty, TeamNotFound } from "./api/errors.ts";
 import { refused } from "./api/Problems.ts";
 import {
-  Team,
+  type Team,
   type TeamId,
   type TeamLogosChange,
   teamNameLength,
 } from "./Model.ts";
-
-type Row = {
-  id: TeamId;
-  name: string;
-  logo: string | null;
-  logo_dark: string | null;
-  created_at: Date;
-  document_count: number;
-};
-
-const toTeam = (row: Row) =>
-  new Team({
-    id: row.id,
-    name: row.name,
-    logo: row.logo,
-    logoDark: row.logo_dark,
-    createdAt: row.created_at,
-    documentCount: row.document_count,
-  });
-
-const pgCode = (error: SqlError.SqlError) =>
-  (error.reason as { cause?: { code?: string } }).cause?.code;
+import { pgCode } from "./server/PostgresError.ts";
+import {
+  type TeamWithCount,
+  teamColumns,
+  toTeam,
+} from "./server/TeamPersistence.ts";
 
 /** Teams own documents. Every signed-in user sees all of them. */
 export class Teams extends Context.Service<
@@ -67,8 +51,8 @@ export class Teams extends Context.Service<
       const sql = yield* SqlClient.SqlClient;
 
       const get = Effect.fn("Teams.get")(function* (id: TeamId) {
-        const [row] = yield* sql<Row>`
-          SELECT id, name, logo, logo_dark, created_at,
+        const [row] = yield* sql<TeamWithCount>`
+          SELECT ${teamColumns(sql)},
           (SELECT count(*)::int FROM documents
             WHERE team_id = teams.id AND deleted_at IS NULL) AS document_count
           FROM teams WHERE id = ${id}
@@ -102,12 +86,12 @@ export class Teams extends Context.Service<
         id?: TeamId,
       ) {
         const trimmed = yield* validName(name);
-        const [row] = yield* sql<Row>`
+        const [row] = yield* sql<TeamWithCount>`
           INSERT INTO teams (id, name, created_by_issuer, created_by_subject)
           VALUES (coalesce(${id ?? null}::uuid, uuidv7()), ${trimmed},
             ${creator.issuer}, ${creator.subject})
           ON CONFLICT (id) DO NOTHING
-          RETURNING id, name, logo, logo_dark, created_at,
+          RETURNING ${teamColumns(sql)},
           (SELECT count(*)::int FROM documents
             WHERE team_id = teams.id AND deleted_at IS NULL) AS document_count
         `.pipe(Effect.catchIf(SqlError.isSqlError, nameTaken(trimmed)));
@@ -122,9 +106,9 @@ export class Teams extends Context.Service<
         name: string,
       ) {
         const trimmed = yield* validName(name);
-        const [row] = yield* sql<Row>`
+        const [row] = yield* sql<TeamWithCount>`
           UPDATE teams SET name = ${trimmed} WHERE id = ${id}
-          RETURNING id, name, logo, logo_dark, created_at,
+          RETURNING ${teamColumns(sql)},
           (SELECT count(*)::int FROM documents
             WHERE team_id = teams.id AND deleted_at IS NULL) AS document_count
         `.pipe(Effect.catchIf(SqlError.isSqlError, nameTaken(trimmed)));
@@ -138,12 +122,12 @@ export class Teams extends Context.Service<
         id: TeamId,
         change: TeamLogosChange,
       ) {
-        const [row] = yield* sql<Row>`
+        const [row] = yield* sql<TeamWithCount>`
           UPDATE teams SET
             logo = CASE WHEN ${"logo" in change} THEN ${change.logo ?? null} ELSE logo END,
             logo_dark = CASE WHEN ${"logoDark" in change} THEN ${change.logoDark ?? null} ELSE logo_dark END
           WHERE id = ${id}
-          RETURNING id, name, logo, logo_dark, created_at,
+          RETURNING ${teamColumns(sql)},
           (SELECT count(*)::int FROM documents
             WHERE team_id = teams.id AND deleted_at IS NULL) AS document_count
         `.pipe(Effect.orDie);

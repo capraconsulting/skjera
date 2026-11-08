@@ -36,6 +36,7 @@ import {
   tell,
 } from "../notices/Notifications.ts";
 import { SalesEvents } from "../notices/SalesEvents.ts";
+import { pgCode } from "../server/PostgresError.ts";
 import { answersFor } from "./answers.ts";
 import {
   cancelLinkLife,
@@ -94,9 +95,6 @@ const storedAdSource = (source: AdSource | undefined) => {
   }
   return Object.keys(kept).length === 0 ? null : JSON.stringify(kept);
 };
-
-const pgCode = (error: SqlError.SqlError) =>
-  (error.reason as { cause?: { code?: string } }).cause?.code;
 
 /**
  * Signups for published events, in a plain table. Members sign up with their
