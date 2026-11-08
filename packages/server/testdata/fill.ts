@@ -16,8 +16,7 @@ import {
   Teams,
 } from "@skjera/documents";
 import type { Identity } from "@skjera/oauth/api";
-import { AwsClient } from "aws4fetch";
-import { Config, Data, Effect, Redacted } from "effect";
+import { Data, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import type { Temporal } from "temporal-polyfill";
 
@@ -219,7 +218,19 @@ export const colouredPng = (colour: Colour): Uint8Array => {
 
 // ---- Writing a draft as the editor does ------------------------------------
 
-type Draft = Record<string, unknown>;
+type TextField = {
+  [Field in keyof EventContent]-?: Exclude<
+    EventContent[Field],
+    undefined
+  > extends string
+    ? Field
+    : never;
+}[keyof EventContent];
+type Draft = {
+  -readonly [Field in keyof EventContent]: Field extends "tags"
+    ? Array<string>
+    : unknown;
+};
 
 /** A time as the editor sets it: replaced as a whole. */
 const time = (value: Temporal.ZonedDateTime | undefined) =>
@@ -228,8 +239,8 @@ const time = (value: Temporal.ZonedDateTime | undefined) =>
     : new A.ImmutableString(value.toString({ smallestUnit: "minute" }));
 
 /** Text under a key that older drafts lack, created when missing. */
-const setText = (doc: EventContent, key: string, text: string) => {
-  const draft = doc as unknown as Draft;
+const setText = (doc: EventContent, key: TextField, text: string) => {
+  const draft = doc as Draft;
   if (draft[key] === undefined) draft[key] = "";
   A.updateText(doc, [key], text);
 };
@@ -237,10 +248,10 @@ const setText = (doc: EventContent, key: string, text: string) => {
 /** Rich text: a block marker, then its text, block after block. */
 const setRichText = (
   doc: EventContent,
-  key: string,
+  key: TextField,
   blocks: ReadonlyArray<Block>,
 ) => {
-  const draft = doc as unknown as Draft;
+  const draft = doc as Draft;
   if (draft[key] === undefined) draft[key] = "";
   const marks: Array<{
     readonly start: number;
@@ -311,7 +322,7 @@ const writeEvent = (
   ids: Ids,
   cover: string | undefined,
 ) => {
-  const draft = doc as unknown as Draft;
+  const draft = doc as Draft;
   writeTitle(doc, spec);
   if (spec.summary !== undefined) setText(doc, "summary", spec.summary);
   if (spec.place !== undefined) setText(doc, "place", spec.place);
@@ -352,7 +363,7 @@ const writeEvent = (
         }),
       };
     });
-  for (const tag of spec.tags ?? []) (draft.tags as Array<string>).push(tag);
+  for (const tag of spec.tags ?? []) draft.tags.push(tag);
   for (const [kind, email] of Object.entries(spec.emails ?? {}) as Array<
     [EmailKind, { subject?: string; text?: string }]
   >) {
@@ -372,36 +383,6 @@ const writeEvent = (
 
 // ---- Removing --------------------------------------------------------------
 
-/** Deletes stored images by their addresses (`/api/images/<id>`). */
-const deleteImages = (sources: ReadonlyArray<string>) =>
-  Effect.gen(function* () {
-    if (sources.length === 0) return;
-    const endpoint = yield* Config.URL("S3_ENDPOINT");
-    const bucket = yield* Config.String("S3_BUCKET");
-    const client = new AwsClient({
-      accessKeyId: yield* Config.String("S3_ACCESS_KEY_ID"),
-      secretAccessKey: Redacted.value(
-        yield* Config.Redacted("S3_SECRET_ACCESS_KEY"),
-      ),
-      region: yield* Config.String("S3_REGION").pipe(
-        Config.withDefault("us-east-1"),
-      ),
-      service: "s3",
-    });
-    for (const source of sources) {
-      const id = source.split("/").pop() ?? "";
-      const url = new URL(`${bucket}/${id}`, endpoint.href.replace(/\/?$/, "/"))
-        .href;
-      const response = yield* Effect.promise(() =>
-        client.fetch(url, { method: "DELETE" }),
-      );
-      if (!response.ok && response.status !== 404)
-        yield* Effect.die(
-          new Error(`Deleting image failed: ${response.status}`),
-        );
-    }
-  });
-
 /**
  * Removes every team of the catalogue, whoever made it, with its documents,
  * and what goes with them: events, signups, dietary preferences, the actors
@@ -413,6 +394,7 @@ const deleteImages = (sources: ReadonlyArray<string>) =>
 export const clear = (teams: ReadonlyArray<TeamSpec>) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
+    const imageService = yield* Images.Images;
     const removed: Array<string> = [];
     const images = new Set<string>();
     const unused = yield* Effect.gen(function* () {
@@ -488,7 +470,8 @@ export const clear = (teams: ReadonlyArray<TeamSpec>) =>
             ), src) > 0)`;
       return free.map(({ src }) => src);
     }).pipe(sql.withTransaction, Effect.orDie);
-    yield* deleteImages(unused);
+    for (const source of unused)
+      yield* imageService.delete(source.split("/").pop() ?? "");
     return removed as ReadonlyArray<string>;
   });
 

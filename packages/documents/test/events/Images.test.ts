@@ -68,6 +68,17 @@ layer(Images.layer, { excludeTestServices: true })("Images", (it) => {
     }),
   );
 
+  it.effect("deletes an image and accepts an absent image (AC-1)", () =>
+    Effect.gen(function* () {
+      const images = yield* Images;
+      const { id } = yield* images.upload(png);
+
+      yield* images.delete(id);
+      assert.isTrue(Option.isNone(yield* images.get(id)));
+      yield* images.delete(id);
+    }),
+  );
+
   it.effect("refuses what isn't an image", () =>
     Effect.gen(function* () {
       const images = yield* Images;

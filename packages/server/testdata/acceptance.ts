@@ -13,6 +13,10 @@ export interface Criterion {
 
 export interface Feature {
   readonly id: string;
+  /** Teams named by the feature, or its own title when none are listed. */
+  readonly teams: ReadonlyArray<string>;
+  /** Events named in the feature's Events section. */
+  readonly events: ReadonlyArray<string>;
   readonly criteria: ReadonlyArray<Criterion>;
   /** Names the file has the tester write, so the test data doesn't make them. */
   readonly writes: ReadonlyArray<string>;
@@ -51,10 +55,57 @@ export const readFeatures = (
   for (const file of readdirSync(directory).sort()) {
     if (!/^[A-Z]+-\d+-.*\.md$/.test(file)) continue;
     const text = readFileSync(new URL(file, directory), "utf8");
-    const id = /^# ([A-Z]+-\d+): /m.exec(text)?.[1];
-    if (id === undefined) continue;
+    const heading = /^# (([A-Z]+-\d+): .+)$/m.exec(text);
+    if (heading === null) continue;
+    const [, title = "", id = ""] = heading;
+    const start = text.indexOf("**Events:**");
+    const rest = start < 0 ? "" : text.slice(start);
+    const end = rest.search(/^## /m);
+    const section = end < 0 ? rest : rest.slice(0, end);
+    const teams: Array<string> = [];
+    const events: Array<string> = [];
+    for (const match of section.matchAll(/«([^»]+)»/g)) {
+      const name = match[1] ?? "";
+      const before = section.slice(Math.max(0, match.index - 30), match.index);
+      if (/title it $/.test(before)) continue;
+      if (name.startsWith(`${id}: `) || /team (named exactly )?$/.test(before))
+        teams.push(name);
+      else if (/^(?:[A-Z]+-\d+ )?AC-\d+/.test(name)) events.push(name);
+    }
+    for (const line of section.split("\n")) {
+      const row = /^\| (AC-\d+[^|]*?) \|/.exec(line);
+      if (row?.[1] !== undefined) events.push(row[1]);
+    }
+    if (/per criterion/.test(section)) {
+      const own = [
+        ...text.matchAll(/«(AC-\d+(?: (?:and|to) AC-\d+)*: [^»]+)»/g),
+      ].map((match) => match[1] ?? "");
+      const covered = new Set(
+        own.flatMap((name) => {
+          const range = rangeOf(name);
+          return range === undefined
+            ? ((name.split(":")[0] ?? "").match(/AC-\d+/g) ?? [])
+            : Array.from(
+                { length: range.last - range.first + 1 },
+                (_, step) => `AC-${range.first + step}`,
+              );
+        }),
+      );
+      events.push(...own);
+      for (const criterion of text.split(/^## /m).slice(1)) {
+        const criterionHeading = /^((AC-\d+): .+)$/m.exec(criterion);
+        if (
+          criterionHeading?.[1] !== undefined &&
+          !covered.has(criterionHeading[2] ?? "") &&
+          !criterion.includes("**Automated only")
+        )
+          events.push(criterionHeading[1]);
+      }
+    }
     features.set(id, {
       id,
+      teams: start < 0 ? [] : teams.length > 0 ? teams : [title],
+      events: [...new Set(events)],
       criteria: criteriaOfFile(text),
       writes: [
         ...text.matchAll(/(?:title it|write the title|writes) «([^»]+)»/g),

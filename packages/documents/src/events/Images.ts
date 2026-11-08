@@ -367,6 +367,8 @@ export class Images extends Context.Service<
       InvalidImage
     >;
     readonly get: (id: string) => Effect.Effect<Option.Option<StoredImage>>;
+    /** Deletes an image. An image already absent is harmless. */
+    readonly delete: (id: string) => Effect.Effect<void>;
     /** Every image in the bucket, in no particular order. */
     readonly list: () => Effect.Effect<
       ReadonlyArray<ListedImage>,
@@ -467,6 +469,22 @@ export class Images extends Context.Service<
         });
       });
 
+      const remove = Effect.fn("Images.delete")(function* (id: string) {
+        if (!validId.test(id)) return;
+        const response = yield* request(url(id), { method: "DELETE" });
+        if (!response.ok && response.status !== 404) {
+          return yield* Effect.die(
+            new Error(`Deleting image failed: ${response.status}`),
+          );
+        }
+        if (listing !== undefined) {
+          listing = {
+            ...listing,
+            images: listing.images.filter((image) => image.id !== id),
+          };
+        }
+      });
+
       // Every page of the bucket's listing. A request the store refuses, or
       // that fails, ends in an error of its own rather than a defect.
       const list = Effect.fn("Images.list")(function* () {
@@ -494,7 +512,7 @@ export class Images extends Context.Service<
         return found;
       });
 
-      return { upload, get, list };
+      return { upload, get, delete: remove, list };
     }),
   );
 }
