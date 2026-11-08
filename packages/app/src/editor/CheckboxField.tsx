@@ -3,6 +3,11 @@ import type { BooleanEventField, EventContent } from "@skjera/documents/api";
 import { useSyncExternalStore } from "react";
 import styles from "./CheckboxField.module.css";
 
+export const checkboxFieldStyles = {
+  hint: styles.hint,
+  label: styles.label,
+};
+
 /** The current value of a true/false field, following changes from anyone. */
 export const useBooleanField = (
   handle: DocHandle<EventContent>,

@@ -7,8 +7,8 @@ import {
 } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { useSyncExternalStore } from "react";
-import inputStyles from "../components/Input.module.css";
-import styles from "./CheckboxField.module.css";
+import { Select } from "../components/Input.tsx";
+import { checkboxFieldStyles } from "./CheckboxField.tsx";
 
 const choices: Record<ReminderChoice, () => string> = {
   default: () => m.studio_remind_default(),
@@ -34,10 +34,9 @@ export function ReminderField(props: {
   );
   return (
     <div>
-      <div className={styles.label}>{m.studio_remind()}</div>
-      <select
+      <div className={checkboxFieldStyles.label}>{m.studio_remind()}</div>
+      <Select
         aria-label={m.studio_remind()}
-        className={inputStyles.input}
         value={choice}
         onChange={(event) => {
           const value = event.currentTarget.value;
@@ -52,8 +51,8 @@ export function ReminderField(props: {
             {label()}
           </option>
         ))}
-      </select>
-      <span className={styles.hint}>{m.studio_remind_hint()}</span>
+      </Select>
+      <span className={checkboxFieldStyles.hint}>{m.studio_remind_hint()}</span>
     </div>
   );
 }

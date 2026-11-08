@@ -2,6 +2,7 @@ import { m } from "@skjera/i18n/messages";
 import { getLocale, isLocale } from "@skjera/i18n/runtime";
 import { ChevronDown, Globe } from "lucide-react";
 import { languages, setLocale } from "../i18n.ts";
+import { Select } from "./Input.tsx";
 import styles from "./LanguagePicker.module.css";
 
 /**
@@ -17,7 +18,7 @@ export function LanguagePicker() {
         strokeWidth={1.5}
         aria-hidden="true"
       />
-      <select
+      <Select
         className={styles.select}
         aria-label={m.common_language()}
         title={m.common_language()}
@@ -36,7 +37,7 @@ export function LanguagePicker() {
             {language.name}
           </option>
         ))}
-      </select>
+      </Select>
       <ChevronDown
         className={styles.chevron}
         size={14}

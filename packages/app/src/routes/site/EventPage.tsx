@@ -49,6 +49,9 @@ import { attendees, events } from "../../sync/tables.ts";
 import { formatDaysIn, formatHoursIn } from "../../time.ts";
 import { Attend } from "./Attend.tsx";
 import styles from "./EventPage.module.css";
+
+export const eventPageStyles = { missing: styles.missing };
+
 import { Signups } from "./Signups.tsx";
 import type { siteLoader } from "./SiteLayout.tsx";
 import { useHasPassed } from "./useHasPassed.ts";

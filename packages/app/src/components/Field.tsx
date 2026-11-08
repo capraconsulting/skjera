@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import styles from "./Field.module.css";
 
+export const fieldStyles = { field: styles.field, label: styles.label };
+
 /** A form field: its label above the input. */
 export function Field(props: {
   readonly label: string;

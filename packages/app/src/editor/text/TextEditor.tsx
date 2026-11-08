@@ -6,7 +6,7 @@ import { EditorState } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import "prosemirror-view/style/prosemirror.css";
 import { useEffect, useRef, useState } from "react";
-import richText from "../../components/RichText.module.css";
+import { richTextStyles } from "../../components/RichText.tsx";
 import type { DraftPresence } from "../../presence/presence.ts";
 import { imageUploads } from "./imageUploads.ts";
 import { presencePlugin } from "./presencePlugin.ts";
@@ -62,7 +62,7 @@ export function EmptyTextEditor(props: {
   const rich = props.rich === true;
   return (
     <div className={editorClasses({ rich })}>
-      <div className={rich ? richText.content : undefined}>
+      <div className={rich ? richTextStyles.content : undefined}>
         {/* biome-ignore lint/a11y/useSemanticElements: it stands in for the editor's own textbox, which is a div, until the editor can start. */}
         <div
           className="ProseMirror"
@@ -196,7 +196,7 @@ export function TextEditor({
           imageChoices={imageChoices}
         />
       ) : null}
-      <div ref={mount} className={rich ? richText.content : undefined} />
+      <div ref={mount} className={rich ? richTextStyles.content : undefined} />
       {uploadError === null ? null : (
         <p role="alert" className={styles.error}>
           {uploadError}

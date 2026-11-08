@@ -1,8 +1,7 @@
 import { m } from "@skjera/i18n/messages";
 import { dialogStyles } from "../../components/Dialog.tsx";
-import inputStyles from "../../components/Input.module.css";
-import { Input } from "../../components/Input.tsx";
-import styles from "./RichTextToolbar.module.css";
+import { Input, Select } from "../../components/Input.tsx";
+import { richTextToolbarStyles } from "./RichTextToolbar.tsx";
 import { type ImageChoices, imagePlacements, imageSizes } from "./richText.ts";
 
 const placementNames: Record<ImageChoices["placement"], () => string> = {
@@ -21,16 +20,16 @@ const sizeNames: Record<ImageChoices["size"], () => string> = {
 /** The caption, placement and size of an image, as fields of a form. */
 export function ImageChoiceFields(props: { readonly choices: ImageChoices }) {
   const { choices } = props;
-  const select = `${inputStyles.input} ${dialogStyles.input} ${styles.description}`;
+  const select = `${dialogStyles.input} ${richTextToolbarStyles.description}`;
   return (
     <>
       <Input
         name="caption"
         aria-label={m.editor_caption()}
-        className={`${dialogStyles.input} ${styles.description}`}
+        className={`${dialogStyles.input} ${richTextToolbarStyles.description}`}
         defaultValue={choices.caption}
       />
-      <select
+      <Select
         name="placement"
         aria-label={m.editor_placement()}
         className={select}
@@ -41,8 +40,8 @@ export function ImageChoiceFields(props: { readonly choices: ImageChoices }) {
             {placementNames[each]()}
           </option>
         ))}
-      </select>
-      <select
+      </Select>
+      <Select
         name="size"
         aria-label={m.editor_size()}
         className={select}
@@ -53,7 +52,7 @@ export function ImageChoiceFields(props: { readonly choices: ImageChoices }) {
             {sizeNames[each]()}
           </option>
         ))}
-      </select>
+      </Select>
     </>
   );
 }

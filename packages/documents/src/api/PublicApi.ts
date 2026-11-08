@@ -1,5 +1,5 @@
 import { Authentication, Identity } from "@skjera/oauth/api";
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 import { HttpApi, HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
 import {
   AdSource,
@@ -11,7 +11,10 @@ import {
   GuestSignup,
   Locale,
   Site,
+  SiteSettings,
 } from "../Model.ts";
+import * as HubSpotSync from "../notices/HubSpotSync.ts";
+import * as Mail from "../notices/Mail.tsx";
 import {
   DocumentNotFound,
   EventNotFound,
@@ -36,6 +39,27 @@ export const organizerEmailMissingField = (email: {
     : email.text.trim() === ""
       ? "text"
       : null;
+
+export const publicWriteLimits = {
+  attend: "guest",
+  leave: "member",
+  leaveAsGuest: "guest",
+  change: "member",
+  changeAsGuest: "guest",
+  requestCancel: "guest",
+  confirmCancel: "guest",
+} as const;
+
+export const siteSettings = Effect.gen(function* () {
+  const config = yield* SiteSettings;
+  const sendsEmail = yield* Mail.emailsSent;
+  const salesEvents = yield* HubSpotSync.configured;
+  return Site.make({
+    ...config,
+    sendsEmail,
+    ...(salesEvents ? { salesEvents } : {}),
+  });
+});
 
 // The site's API for signing up to published events. Public events are
 // there for anyone; with a session, members-only events too. The events
@@ -126,13 +150,19 @@ export class EventsApi extends HttpApiGroup.make("events").add(
   HttpApiEndpoint.patch("change", "/api/events/:id/attendance", {
     params: { id: DocumentId },
     payload: SignupChangePayload,
-    error: [EventNotFound, SignInRequired, SignupNotFound, SignupRejected],
+    error: [
+      EventNotFound,
+      SignInRequired,
+      SignupNotFound,
+      SignupRejected,
+      TooManyAttempts,
+    ],
   }),
   /** The same for a guest, with the token they were given. */
   HttpApiEndpoint.patch("changeAsGuest", "/api/events/:id/attendance/:token", {
     params: { id: DocumentId, token: Schema.String },
     payload: SignupChangePayload,
-    error: [EventNotFound, SignupNotFound, SignupRejected],
+    error: [EventNotFound, SignupNotFound, SignupRejected, TooManyAttempts],
   }),
   /**
    * Emails the guest signed up with an address a link that cancels, valid for

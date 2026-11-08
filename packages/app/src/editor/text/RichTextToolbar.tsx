@@ -9,6 +9,9 @@ import { ImagePicker } from "../ImagePicker.tsx";
 import { acceptedImages, uploadImage } from "../uploadImage.ts";
 import { ImageChoiceFields, readChoices } from "./ImageChoiceFields.tsx";
 import styles from "./RichTextToolbar.module.css";
+
+export const richTextToolbarStyles = { description: styles.description };
+
 import {
   choicesToStore,
   defaultChoices,

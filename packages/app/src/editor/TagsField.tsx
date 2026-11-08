@@ -5,8 +5,8 @@ import { m } from "@skjera/i18n/messages";
 import { useLiveQuery } from "@tanstack/react-db";
 import { useCombobox } from "downshift";
 import { useMemo, useState, useSyncExternalStore } from "react";
-import fieldStyles from "../components/Field.module.css";
-import inputStyles from "../components/Input.module.css";
+import { fieldStyles } from "../components/Field.tsx";
+import { Input } from "../components/Input.tsx";
 import { tags as tagsTable } from "../sync/tables.ts";
 import { sameTag, uniqueTags } from "../tags.ts";
 import styles from "./TagsField.module.css";
@@ -149,8 +149,7 @@ export function TagsField(props: { readonly handle: DocHandle<EventContent> }) {
         </ul>
       )}
       <div className={styles.combobox}>
-        <input
-          className={inputStyles.input}
+        <Input
           placeholder={m.editor_tag_placeholder()}
           maxLength={tagLength}
           {...getInputProps({ onFocus: () => openMenu() })}
