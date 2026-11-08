@@ -45,10 +45,11 @@ export const TeamId = Schema.String.check(Schema.isUUID()).pipe(
 );
 export type TeamId = typeof TeamId.Type;
 
+/** Where uploaded images are served (see ImagesApi.ts). */
+export const imagePathPattern = /^\/api\/images\/[A-Za-z0-9_-]{22}$/;
+
 /** Where an uploaded image is served (see ImagesApi.ts). */
-export const ImageSrc = Schema.String.check(
-  Schema.isPattern(/^\/api\/images\/[A-Za-z0-9_-]{22}$/),
-);
+export const ImageSrc = Schema.String.check(Schema.isPattern(imagePathPattern));
 
 /** A team's logos: uploaded images for the light theme and the dark; null: none. */
 export const TeamLogos = Schema.Struct({

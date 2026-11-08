@@ -18,14 +18,14 @@ export class EventsColumn {
   }
 
   private readonly region = () =>
-    this.page.getByRole("region", { name: "Events" });
+    this.page.getByRole("region", { name: m.site_events() });
   private readonly link = (title: string | RegExp) =>
     this.region().getByRole("link", { name: title });
 
   /** Creates an event in the open team and returns its id. */
   async newEvent(): Promise<string> {
     const before = this.page.url();
-    await this.page.getByRole("button", { name: "New event" }).click();
+    await this.page.getByRole("button", { name: m.studio_new_event() }).click();
     // Wait for the new event, also when another one was open.
     await expect(this.page).not.toHaveURL(before);
     await expect(this.page).toHaveURL(
@@ -45,7 +45,7 @@ export class EventsColumn {
   }
 
   async expectEmpty(): Promise<void> {
-    await expect(this.region().getByText("No events yet.")).toBeVisible();
+    await expect(this.region().getByText(m.studio_no_events())).toBeVisible();
   }
 
   private readonly row = (path: string) =>

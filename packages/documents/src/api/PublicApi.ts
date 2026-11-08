@@ -30,6 +30,10 @@ import { EventRow } from "./SyncApi.ts";
 export const invitationNameLength = 100;
 export const organizerEmailSubjectLength = 200;
 export const organizerEmailTextLength = 10_000;
+export const publicPath = {
+  me: "/api/me",
+  site: "/api/site",
+} as const;
 export const organizerEmailMissingField = (email: {
   readonly subject: string;
   readonly text: string;
@@ -276,9 +280,9 @@ export class AttendeesApi extends HttpApiGroup.make("attendees")
 export class PublicApi extends HttpApi.make("public").add(EventsApi) {}
 
 export class SessionApi extends HttpApiGroup.make("session")
-  .add(HttpApiEndpoint.get("me", "/api/me", { success: Identity }))
+  .add(HttpApiEndpoint.get("me", publicPath.me, { success: Identity }))
   .middleware(Authentication) {}
 
 export class SiteApi extends HttpApiGroup.make("site").add(
-  HttpApiEndpoint.get("settings", "/api/site", { success: Site }),
+  HttpApiEndpoint.get("settings", publicPath.site, { success: Site }),
 ) {}

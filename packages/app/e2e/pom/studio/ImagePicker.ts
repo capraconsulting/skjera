@@ -1,11 +1,12 @@
 import { expect, type Locator, type Page } from "@playwright/test";
+import { m } from "@skjera/i18n/messages";
 
 /** The list of images already in Skjera, as a dialog. */
 export class ImagePicker {
   private readonly dialog: Locator;
 
   constructor(page: Page) {
-    this.dialog = page.getByRole("dialog", { name: "Images in Skjera" });
+    this.dialog = page.getByRole("dialog", { name: m.editor_existing_title() });
   }
 
   private readonly pictures = () =>

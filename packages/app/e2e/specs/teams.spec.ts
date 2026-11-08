@@ -1,4 +1,5 @@
 import type { Dialog } from "@playwright/test";
+import { m } from "@skjera/i18n/messages";
 import { signedIn, uniqueTeamName } from "../fixtures/support.ts";
 import { expect, test } from "../fixtures/test.ts";
 import { EventEditor } from "../pom/studio/EventEditor.ts";
@@ -50,7 +51,9 @@ test("a failed cancellation answer shows no delete question and keeps the event 
     await dialog.dismiss();
   };
   alice.on("dialog", onDialog);
-  await alice.getByRole("button", { name: "Delete", exact: true }).click();
+  await alice
+    .getByRole("button", { name: m.common_delete(), exact: true })
+    .click();
   await editor.expectRefused("Deleting the event failed");
   expect(asked).toBe(false);
   alice.off("dialog", onDialog);

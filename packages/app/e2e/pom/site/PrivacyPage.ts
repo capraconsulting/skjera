@@ -1,6 +1,8 @@
 import { expect, type Page } from "@playwright/test";
+import type { Site } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import type { Locale } from "@skjera/i18n/runtime";
+import { overrideSite } from "../../fixtures/support.ts";
 
 /** The operator's details, as `mise.toml` sets them for the browser tests. */
 export const configuredOperator = {
@@ -26,7 +28,7 @@ const sections = {
 type Section = keyof typeof sections;
 
 /** The site's `privacy` as `/api/site` gives it. */
-type SitePrivacy = { operator: string } & Record<string, string>;
+type SitePrivacy = Site["privacy"];
 
 /** The site's privacy page. */
 export class PrivacyPage {
@@ -65,14 +67,9 @@ export class PrivacyPage {
   private async reroutePrivacy(
     change: (privacy: SitePrivacy) => SitePrivacy,
   ): Promise<void> {
-    await this.page.context().route("/api/site", async (route) => {
-      const response = await route.fetch();
-      const site = (await response.json()) as { privacy: SitePrivacy };
-      await route.fulfill({
-        response,
-        json: { ...site, privacy: change(site.privacy) },
-      });
-    });
+    await overrideSite(this.page, (site) => ({
+      privacy: change(site.privacy),
+    }));
   }
 
   /**

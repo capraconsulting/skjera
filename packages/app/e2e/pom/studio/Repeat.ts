@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { m } from "@skjera/i18n/messages";
 
 /** Whether the event repeats, and how often. */
 export class Repeat {
@@ -11,9 +12,9 @@ export class Repeat {
   private readonly repeats = () =>
     this.page.getByRole("checkbox", { name: /The event repeats/ });
   private readonly every = () =>
-    this.page.getByRole("combobox", { name: "Repeat every" });
+    this.page.getByRole("combobox", { name: m.studio_repeat_every() });
   private readonly unit = () =>
-    this.page.getByRole("combobox", { name: "Repeat unit" });
+    this.page.getByRole("combobox", { name: m.studio_repeat_unit() });
 
   async check(): Promise<void> {
     await this.repeats().check();

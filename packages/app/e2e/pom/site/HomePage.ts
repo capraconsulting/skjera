@@ -1,9 +1,11 @@
 import { expect, type Page } from "@playwright/test";
+import { m } from "@skjera/i18n/messages";
+import { defaultPollEveryMs } from "@skjera/snapsync/client";
 
 type List = "upcoming" | "past" | "any";
 
 /** Visitors' pages pull every 5 seconds: a few pulls' time, when busy. */
-const pulled = { timeout: 20_000 };
+const pulled = { timeout: 4 * defaultPollEveryMs };
 
 /** One try inside a retry: short, so one try never uses the whole budget. */
 const attempt = { timeout: 1_000 };
@@ -20,19 +22,19 @@ export class HomePage {
     list === "any"
       ? this.page.locator("body")
       : this.page.getByRole("region", {
-          name: list === "upcoming" ? "Upcoming events" : "Past events",
+          name: list === "upcoming" ? m.site_upcoming() : m.site_past(),
         });
   private readonly link = (title: string, list: List = "any") =>
     this.list(list).getByRole("link", { name: title });
   private readonly showMore = (list: "upcoming" | "past") =>
-    this.list(list).getByRole("button", { name: "Show more events" });
+    this.list(list).getByRole("button", { name: m.site_show_more() });
   private readonly tagFilters = () =>
-    this.page.getByRole("navigation", { name: "Filter by tag" });
+    this.page.getByRole("navigation", { name: m.site_filter_by_tag() });
   private readonly guestFilter = (which: "open" | "not open") =>
     this.page
-      .getByRole("navigation", { name: "Filter by who can sign up" })
+      .getByRole("navigation", { name: m.site_filter_by_guests() })
       .getByRole("button", {
-        name: which === "open" ? "Open to all" : "Internal only",
+        name: which === "open" ? m.site_open_to_all() : m.site_internal_only(),
         exact: true,
       });
 
@@ -63,7 +65,7 @@ export class HomePage {
 
   async expectUpcomingHeading(): Promise<void> {
     await expect(
-      this.page.getByRole("heading", { name: "Upcoming events" }),
+      this.page.getByRole("heading", { name: m.site_upcoming() }),
     ).toBeVisible();
   }
 

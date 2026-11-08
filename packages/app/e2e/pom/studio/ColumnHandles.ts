@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page } from "@playwright/test";
+import { m } from "@skjera/i18n/messages";
 
 type Column = "teams" | "events";
 
@@ -13,13 +14,11 @@ export class ColumnHandles {
   private readonly handle = (column: Column): Locator =>
     this.page.getByRole("separator", {
       name:
-        column === "teams"
-          ? "Width of the teams column"
-          : "Width of the events column",
+        column === "teams" ? m.studio_resize_teams() : m.studio_resize_events(),
     });
   private readonly region = (column: Column): Locator =>
     this.page.getByRole("region", {
-      name: column === "teams" ? "Teams" : "Events",
+      name: column === "teams" ? m.studio_teams() : m.site_events(),
     });
 
   /** The column's width on screen, in pixels. */

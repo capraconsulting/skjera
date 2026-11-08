@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { m } from "@skjera/i18n/messages";
 
 /** The header on every page, the site's and the studio's. */
 export class Header {
@@ -9,17 +10,22 @@ export class Header {
   }
 
   private readonly brand = () =>
-    this.page.getByRole("link", { name: "Skjera", exact: true });
+    this.page.getByRole("link", {
+      name: "Skjera",
+      exact: true,
+    });
   private readonly studio = () =>
-    this.page.getByRole("link", { name: "Studio", exact: true });
+    this.page.getByRole("link", { name: m.common_studio(), exact: true });
   private readonly logIn = () =>
-    this.page.getByRole("link", { name: "Log in" });
+    this.page.getByRole("link", { name: m.common_log_in() });
   private readonly me = () => this.page.getByTestId("me");
   private readonly accountMenuButton = () =>
-    this.page.getByRole("button", { name: "Account menu" });
+    this.page.getByRole("button", { name: m.common_account_menu() });
   private readonly accountMenu = () => this.page.locator(":popover-open");
   private readonly subscribe = () =>
-    this.page.getByRole("banner").getByRole("link", { name: "Subscribe" });
+    this.page
+      .getByRole("banner")
+      .getByRole("link", { name: m.common_subscribe() });
   private readonly root = () => this.page.locator("html");
 
   async clickBrand(): Promise<void> {
@@ -100,22 +106,22 @@ export class Header {
 
   async expectAccountMenuWithoutSubscribe(): Promise<void> {
     await expect(
-      this.accountMenu().getByRole("link", { name: "Account settings" }),
+      this.accountMenu().getByRole("link", { name: m.account_settings() }),
     ).toBeVisible();
     await expect(
-      this.accountMenu().getByRole("link", { name: "Subscribe" }),
+      this.accountMenu().getByRole("link", { name: m.common_subscribe() }),
     ).toHaveCount(0);
   }
 
   async clickAccountSettings(): Promise<void> {
     await this.accountMenu()
-      .getByRole("link", { name: "Account settings" })
+      .getByRole("link", { name: m.account_settings() })
       .click();
   }
 
   async logOut(): Promise<void> {
     await this.openAccountMenu();
-    await this.page.getByRole("button", { name: "Log out" }).click();
+    await this.page.getByRole("button", { name: m.common_log_out() }).click();
   }
 
   async closeMenu(): Promise<void> {
@@ -128,7 +134,7 @@ export class Header {
 
   async expectNoSubscribe(): Promise<void> {
     await expect(
-      this.page.getByRole("link", { name: "Subscribe" }),
+      this.page.getByRole("link", { name: m.common_subscribe() }),
     ).toHaveCount(0);
   }
 
@@ -173,7 +179,9 @@ export class Header {
   async pickTheme(
     theme: "Light" | "Dark" | "Same as the system",
   ): Promise<void> {
-    await this.page.getByRole("button", { name: "Theme", exact: true }).click();
+    await this.page
+      .getByRole("button", { name: m.account_theme(), exact: true })
+      .click();
     await this.page.getByRole("button", { name: theme, exact: true }).click();
   }
 
@@ -181,7 +189,9 @@ export class Header {
   async expectThemePicked(
     theme: "Light" | "Dark" | "Same as the system",
   ): Promise<void> {
-    await this.page.getByRole("button", { name: "Theme", exact: true }).click();
+    await this.page
+      .getByRole("button", { name: m.account_theme(), exact: true })
+      .click();
     await expect(
       this.page.getByRole("button", { name: theme, exact: true }),
     ).toHaveAttribute("aria-pressed", "true");

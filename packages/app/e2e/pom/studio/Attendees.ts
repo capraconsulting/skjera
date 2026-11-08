@@ -24,11 +24,11 @@ export class Attendees {
   }
 
   private readonly region = () =>
-    this.page.getByRole("region", { name: "Attendees" });
+    this.page.getByRole("region", { name: m.studio_attendees() });
   private readonly row = (name: string) =>
     this.region().getByRole("listitem").filter({ hasText: name });
   private readonly dietary = () =>
-    this.page.getByRole("region", { name: "Dietary preferences" });
+    this.page.getByRole("region", { name: m.attend_dietary() });
 
   /** How many are signed up, as the heading says. */
   async count(): Promise<number> {
@@ -90,7 +90,9 @@ export class Attendees {
 
   async downloadExcel(): Promise<AttendeesExcel> {
     const downloading = this.page.waitForEvent("download");
-    await this.region().getByRole("button", { name: "Download Excel" }).click();
+    await this.region()
+      .getByRole("button", { name: m.studio_download_excel() })
+      .click();
     const file = await downloading;
     return {
       filename: file.suggestedFilename(),

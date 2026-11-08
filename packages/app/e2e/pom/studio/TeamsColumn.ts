@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page } from "@playwright/test";
+import { teamPath } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { pixel } from "../images.ts";
 
@@ -11,7 +12,7 @@ export class TeamsColumn {
   }
 
   private readonly region = () =>
-    this.page.getByRole("region", { name: "Teams" });
+    this.page.getByRole("region", { name: m.studio_teams() });
   /** A team's link, which is marked while the team is selected. */
   private readonly link = (name: string) =>
     this.region().getByRole("link", { name });
@@ -36,9 +37,7 @@ export class TeamsColumn {
 
   /** The studio says the team opened does not exist. */
   async expectTeamGone(): Promise<void> {
-    await expect(
-      this.page.getByText("This team doesn't exist anymore."),
-    ).toBeVisible();
+    await expect(this.page.getByText(m.studio_team_gone())).toBeVisible();
   }
 
   /** Creates a team with the "New team" dialog, opens it and returns its id. */
@@ -53,8 +52,10 @@ export class TeamsColumn {
   }
 
   async openNewTeamDialog(): Promise<TeamDialog> {
-    await this.page.getByRole("button", { name: "Team list options" }).click();
-    await this.page.getByRole("button", { name: "New team" }).click();
+    await this.page
+      .getByRole("button", { name: m.studio_team_list_options() })
+      .click();
+    await this.page.getByRole("button", { name: m.studio_new_team() }).click();
     const dialog = new TeamDialog(this.page, "New team", "Create team");
     await dialog.expectOpen();
     return dialog;
@@ -94,21 +95,23 @@ export class TeamsColumn {
     const done = this.page.waitForResponse(
       (response) =>
         response.request().method() === "DELETE" &&
-        new URL(response.url()).pathname.startsWith("/api/teams/"),
+        teamPath.itemPattern.test(new URL(response.url()).pathname),
     );
-    await this.page.getByRole("button", { name: "Delete team" }).click();
+    await this.page
+      .getByRole("button", { name: m.studio_delete_team() })
+      .click();
     await done;
     await expect(
-      this.page
-        .getByRole("alert")
-        .getByText("Only teams without events can be deleted."),
+      this.page.getByRole("alert").getByText(m.studio_only_empty_teams()),
     ).toBeVisible();
   }
 
   /** Opens the rename dialog from the team's menu. */
   async openRenameDialog(id: string): Promise<TeamDialog> {
     await this.openMenu(id);
-    await this.page.getByRole("button", { name: "Rename team…" }).click();
+    await this.page
+      .getByRole("button", { name: m.studio_rename_team_menu() })
+      .click();
     return new TeamDialog(this.page, "Rename team", "Rename team");
   }
 
@@ -121,7 +124,9 @@ export class TeamsColumn {
 
   async openLogoDialog(id: string): Promise<LogoDialog> {
     await this.openMenu(id);
-    await this.page.getByRole("button", { name: "Logo…" }).click();
+    await this.page
+      .getByRole("button", { name: m.studio_team_logo_menu() })
+      .click();
     return new LogoDialog(this.page);
   }
 
@@ -181,9 +186,11 @@ export class TeamsColumn {
     const done = this.page.waitForResponse(
       (response) =>
         response.request().method() === "DELETE" &&
-        new URL(response.url()).pathname === `/api/teams/${id}`,
+        new URL(response.url()).pathname === teamPath.item(id),
     );
-    await this.page.getByRole("button", { name: "Delete team" }).click();
+    await this.page
+      .getByRole("button", { name: m.studio_delete_team() })
+      .click();
     await this.expectAt();
     await expect(this.linkTo(id)).toHaveCount(0);
     await done;
@@ -201,7 +208,7 @@ export class TeamDialog {
   }
 
   private readonly nameField = () =>
-    this.dialog.getByRole("textbox", { name: "Team name" });
+    this.dialog.getByRole("textbox", { name: m.studio_team_name() });
 
   async expectOpen(): Promise<void> {
     await expect(this.dialog).toBeVisible();
@@ -224,7 +231,7 @@ export class TeamDialog {
   }
 
   async clickCancel(): Promise<void> {
-    await this.dialog.getByRole("button", { name: "Cancel" }).click();
+    await this.dialog.getByRole("button", { name: m.common_cancel() }).click();
   }
 
   async closeWithEscape(): Promise<void> {
@@ -241,12 +248,17 @@ export class LogoDialog {
   private readonly dialog: Locator;
 
   constructor(page: Page) {
-    this.dialog = page.getByRole("dialog", { name: "Team logo" });
+    this.dialog = page.getByRole("dialog", {
+      name: m.studio_team_logo_title(),
+    });
   }
 
   private readonly field = (theme: "light" | "dark") =>
     this.dialog.getByRole("group", {
-      name: theme === "light" ? "Light theme" : "Dark theme",
+      name:
+        theme === "light"
+          ? m.studio_team_logo_light()
+          : m.studio_team_logo_dark(),
     });
   private readonly logo = (theme: "light" | "dark") =>
     this.field(theme).getByRole("img", { name: `Logo for the ${theme} theme` });
@@ -263,13 +275,13 @@ export class LogoDialog {
 
   async clickReplace(theme: "light" | "dark"): Promise<void> {
     await this.field(theme)
-      .getByRole("button", { name: "Replace image" })
+      .getByRole("button", { name: m.studio_team_logo_replace() })
       .click();
   }
 
   async clickRemove(theme: "light" | "dark"): Promise<void> {
     await this.field(theme)
-      .getByRole("button", { name: "Remove image" })
+      .getByRole("button", { name: m.studio_team_logo_remove() })
       .click();
   }
 
@@ -291,7 +303,7 @@ export class LogoDialog {
   }
 
   async close(): Promise<void> {
-    await this.dialog.getByRole("button", { name: "Close" }).click();
+    await this.dialog.getByRole("button", { name: m.common_close() }).click();
     await expect(this.dialog).toBeHidden();
   }
 

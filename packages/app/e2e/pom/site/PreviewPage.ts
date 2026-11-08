@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { m } from "@skjera/i18n/messages";
 
 /** An event's preview: its page as the draft is now, under a fixed notice. */
 export class PreviewPage {
@@ -8,10 +9,9 @@ export class PreviewPage {
     this.page = page;
   }
 
-  private readonly notice = () =>
-    this.page.getByText("Preview – this isn't published.");
+  private readonly notice = () => this.page.getByText(m.preview_notice());
   private readonly publishedLink = () =>
-    this.page.getByRole("link", { name: "View the published page" });
+    this.page.getByRole("link", { name: m.preview_view_published() });
   // Role queries skip what is inside an `inert` part, so the button is found
   // by its text. The preview is shown to those logged in, so it is a member's.
   private readonly signUpButton = () =>
@@ -65,17 +65,11 @@ export class PreviewPage {
 
   /** The line shown instead of the page while the event lacks times. */
   async expectNeedsTimes(): Promise<void> {
-    await expect(
-      this.page.getByText(
-        "The page is shown once the event has a start and an end.",
-      ),
-    ).toBeVisible();
+    await expect(this.page.getByText(m.preview_needs_times())).toBeVisible();
   }
 
   async expectMissing(): Promise<void> {
-    await expect(
-      this.page.getByText("This event doesn't exist, or isn't published."),
-    ).toBeVisible();
+    await expect(this.page.getByText(m.site_event_missing())).toBeVisible();
   }
 
   /** Nothing of `text` is anywhere on the page. */

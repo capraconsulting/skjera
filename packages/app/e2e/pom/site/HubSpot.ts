@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { overrideSite } from "../../fixtures/support.ts";
 
 const account = "146072525";
 
@@ -21,11 +22,7 @@ export class HubSpot {
   async install(): Promise<ReadonlyArray<string>> {
     const requested: Array<string> = [];
     const context = this.page.context();
-    await context.route("/api/site", async (route) => {
-      const response = await route.fetch();
-      const site = (await response.json()) as object;
-      await route.fulfill({ response, json: { ...site, hubSpot: account } });
-    });
+    await overrideSite(this.page, { hubSpot: account });
     await context.route("https://js-eu1.hs-scripts.com/**", (route) => {
       requested.push(route.request().url());
       return route.fulfill({

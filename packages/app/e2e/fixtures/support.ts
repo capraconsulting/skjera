@@ -4,6 +4,7 @@ import type {
   Page,
   WebSocketRoute,
 } from "@playwright/test";
+import { draftSyncPath, publicPath, type Site } from "@skjera/documents/api";
 import { Header } from "../pom/Header.ts";
 import { LoginPage } from "../pom/LoginPage.ts";
 
@@ -36,7 +37,7 @@ export const uniqueTeamName = (label: string): string =>
 export const connection = async (page: Page) => {
   let online = true;
   const open = new Set<WebSocketRoute>();
-  await page.routeWebSocket(/\/automerge$/, (ws) => {
+  await page.routeWebSocket(new RegExp(`${draftSyncPath}$`), (ws) => {
     if (!online) {
       ws.close();
       return;
@@ -56,11 +57,19 @@ export const connection = async (page: Page) => {
   };
 };
 
-/** Gives the page's browser `/api/site` as a site that sends no email. */
-export const siteSendsNoEmail = async (page: Page): Promise<void> => {
-  await page.context().route("/api/site", async (route) => {
+/** Changes fields in the site's `/api/site` answer for one browser. */
+export const overrideSite = async (
+  page: Page,
+  change: Partial<Site> | ((site: Site) => Partial<Site>),
+): Promise<void> => {
+  await page.context().route(publicPath.site, async (route) => {
     const response = await route.fetch();
-    const site = (await response.json()) as Record<string, unknown>;
-    await route.fulfill({ response, json: { ...site, sendsEmail: false } });
+    const site = (await response.json()) as Site;
+    const fields = typeof change === "function" ? change(site) : change;
+    await route.fulfill({ response, json: { ...site, ...fields } });
   });
 };
+
+/** Gives the page's browser `/api/site` as a site that sends no email. */
+export const siteSendsNoEmail = (page: Page): Promise<void> =>
+  overrideSite(page, { sendsEmail: false });

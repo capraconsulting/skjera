@@ -1,4 +1,6 @@
 import { expect, type Page } from "@playwright/test";
+import { imagesPath } from "@skjera/documents/api";
+import { m } from "@skjera/i18n/messages";
 
 /** An event's page on the site: what was published. */
 export class EventPage {
@@ -27,7 +29,9 @@ export class EventPage {
 
   /** Follows the page's «All events» link to the front page. */
   async clickAllEvents(): Promise<void> {
-    await this.article().getByRole("link", { name: "All events" }).click();
+    await this.article()
+      .getByRole("link", { name: m.site_all_events() })
+      .click();
   }
 
   async expectAt(id: string): Promise<void> {
@@ -75,7 +79,9 @@ export class EventPage {
   }
 
   async expectInternalOnly(): Promise<void> {
-    await expect(this.article().getByText("Internal only")).toBeVisible();
+    await expect(
+      this.article().getByText(m.site_internal_only()),
+    ).toBeVisible();
   }
 
   async expectStreamLink(link: string): Promise<void> {
@@ -87,7 +93,7 @@ export class EventPage {
   /** Says the event is streamed, with no link to the stream. */
   async expectStreamedWithoutLink(): Promise<void> {
     await expect(
-      this.article().getByText("Streamed", { exact: true }),
+      this.article().getByText(m.site_streamed(), { exact: true }),
     ).toBeVisible();
     await expect(
       this.article().getByRole("link", { name: /^https?:\/\// }),
@@ -127,7 +133,7 @@ export class EventPage {
 
   async clickTag(name: string): Promise<void> {
     await this.page
-      .getByRole("list", { name: "Tags" })
+      .getByRole("list", { name: m.site_tags() })
       .getByRole("link", { name })
       .click();
   }
@@ -185,7 +191,7 @@ export class EventPage {
   }
 
   async expectBodyImageCount(count: number): Promise<void> {
-    await expect(this.body().locator('img[src*="/api/images/"]')).toHaveCount(
+    await expect(this.body().locator(`img[src*="${imagesPath}/"]`)).toHaveCount(
       count,
     );
   }

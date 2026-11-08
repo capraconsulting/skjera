@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { m } from "@skjera/i18n/messages";
 
 /** 1 as "1st", 14 as "14th": how the calendar names its days. */
 const ordinal = (day: number): string => {
@@ -16,7 +17,7 @@ export class EventTimes {
   }
 
   private readonly startDate = () =>
-    this.page.getByRole("button", { name: "Start date" });
+    this.page.getByRole("button", { name: m.editor_start_date() });
 
   /**
    * Sets the event to start at 18:00 on the 15th of next month, so sign-up
@@ -72,36 +73,38 @@ export class EventTimes {
   }
 
   async fillStartTime(time: string): Promise<void> {
-    await this.page.getByLabel("Start time").fill(time);
+    await this.page.getByLabel(m.editor_start_time()).fill(time);
   }
 
   async expectStartTime(time: string): Promise<void> {
-    await expect(this.page.getByLabel("Start time")).toHaveValue(time);
+    await expect(this.page.getByLabel(m.editor_start_time())).toHaveValue(time);
   }
 
   async fillEndTime(time: string): Promise<void> {
-    await this.page.getByLabel("End time").fill(time);
+    await this.page.getByLabel(m.editor_end_time()).fill(time);
   }
 
   async expectEndTime(time: string): Promise<void> {
-    await expect(this.page.getByLabel("End time")).toHaveValue(time);
+    await expect(this.page.getByLabel(m.editor_end_time())).toHaveValue(time);
   }
 
   /** Sets a sign-up deadline at midnight on the 1st, which has passed. */
   async setPassedDeadline(): Promise<void> {
     // Exact: the food deadline's date and time have these words in theirs.
     await this.page
-      .getByRole("button", { name: "Deadline date", exact: true })
+      .getByRole("button", { name: m.editor_deadline_date(), exact: true })
       .click();
     await this.page
       .getByRole("button", { name: /1st, \d{4}/ })
       .first()
       .click();
-    await this.page.getByLabel("Deadline time", { exact: true }).fill("00:00");
+    await this.page
+      .getByLabel(m.editor_deadline_time(), { exact: true })
+      .fill("00:00");
   }
 
   private readonly foodDate = () =>
-    this.page.getByRole("button", { name: "Food deadline date" });
+    this.page.getByRole("button", { name: m.editor_food_deadline_date() });
 
   /**
    * Picks `day` under the food deadline. The calendar keeps the month it last
@@ -134,31 +137,35 @@ export class EventTimes {
       new Date(now.getFullYear(), now.getMonth(), 1),
       towards,
     );
-    await this.page.getByLabel("Food deadline time").fill("00:00");
+    await this.page.getByLabel(m.editor_food_deadline_time()).fill("00:00");
   }
 
   async expectFoodDeadline(shown: string, time: string): Promise<void> {
     await expect(this.foodDate()).toHaveText(shown);
-    await expect(this.page.getByLabel("Food deadline time")).toHaveValue(time);
+    await expect(
+      this.page.getByLabel(m.editor_food_deadline_time()),
+    ).toHaveValue(time);
   }
 
   async clearFoodDeadline(): Promise<void> {
     await this.page
-      .getByRole("button", { name: "Clear food deadline" })
+      .getByRole("button", { name: m.editor_food_deadline_clear() })
       .click();
   }
 
   async expectNoFoodDeadline(): Promise<void> {
-    await expect(this.foodDate()).toHaveText("Pick a date");
-    await expect(this.page.getByLabel("Food deadline time")).toHaveValue("");
+    await expect(this.foodDate()).toHaveText(m.editor_pick_date());
     await expect(
-      this.page.getByRole("button", { name: "Clear food deadline" }),
+      this.page.getByLabel(m.editor_food_deadline_time()),
+    ).toHaveValue("");
+    await expect(
+      this.page.getByRole("button", { name: m.editor_food_deadline_clear() }),
     ).toHaveCount(0);
   }
 
   async selectTimeZone(zone: string): Promise<void> {
     await this.page
-      .getByRole("combobox", { name: "Time zone" })
+      .getByRole("combobox", { name: m.editor_time_zone() })
       .selectOption(zone);
   }
 }

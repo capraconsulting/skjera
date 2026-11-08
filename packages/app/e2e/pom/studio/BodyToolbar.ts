@@ -1,4 +1,6 @@
 import { expect, type Locator, type Page } from "@playwright/test";
+import { imagesPath } from "@skjera/documents/api";
+import { m } from "@skjera/i18n/messages";
 import { ImagePicker } from "./ImagePicker.ts";
 
 /**
@@ -20,16 +22,18 @@ export class BodyToolbar {
       .getByRole("button", { name, exact: true });
 
   async clickBold(): Promise<void> {
-    await this.page.getByRole("button", { name: "Bold" }).click();
+    await this.page.getByRole("button", { name: m.editor_bold() }).click();
   }
 
   /** Links the selected text in the body to `address`. */
   async linkSelection(address: string): Promise<void> {
-    await this.page.getByRole("button", { name: "Link", exact: true }).click();
     await this.page
-      .getByRole("textbox", { name: "Link address" })
+      .getByRole("button", { name: m.editor_link(), exact: true })
+      .click();
+    await this.page
+      .getByRole("textbox", { name: m.editor_link_address() })
       .fill(address);
-    await this.page.getByRole("button", { name: "Add link" }).click();
+    await this.page.getByRole("button", { name: m.editor_add_link() }).click();
   }
 
   /**
@@ -37,7 +41,9 @@ export class BodyToolbar {
    * link, "Edit link" for text with one.
    */
   async openLinkDialog(title: "Add link" | "Edit link"): Promise<LinkDialog> {
-    await this.page.getByRole("button", { name: "Link", exact: true }).click();
+    await this.page
+      .getByRole("button", { name: m.editor_link(), exact: true })
+      .click();
     return new LinkDialog(this.page, title);
   }
 
@@ -68,7 +74,7 @@ export class ImageDialog {
 
   private readonly pickExisting = () =>
     this.dialog.getByRole("button", {
-      name: "Pick an existing image",
+      name: m.editor_existing_pick(),
       exact: true,
     });
 
@@ -87,7 +93,7 @@ export class ImageDialog {
   /** The image picked from the list is the one this dialog will add. */
   async expectPicked(src: string): Promise<void> {
     await expect(
-      this.dialog.locator('img[src^="/api/images/"]'),
+      this.dialog.locator(`img[src^="${imagesPath}/"]`),
     ).toHaveAttribute("src", src);
   }
 
@@ -96,28 +102,32 @@ export class ImageDialog {
     readonly mimeType: string;
     readonly buffer: Buffer;
   }): Promise<void> {
-    await this.dialog.getByLabel("Image file").setInputFiles(file);
+    await this.dialog.getByLabel(m.editor_image_file()).setInputFiles(file);
   }
 
   async fillDescription(text: string): Promise<void> {
-    await this.dialog.getByRole("textbox", { name: "Description" }).fill(text);
+    await this.dialog
+      .getByRole("textbox", { name: m.editor_description() })
+      .fill(text);
   }
 
   async fillCaption(text: string): Promise<void> {
-    await this.dialog.getByRole("textbox", { name: "Caption" }).fill(text);
+    await this.dialog
+      .getByRole("textbox", { name: m.editor_caption() })
+      .fill(text);
   }
 
   /** Picks a placement by its name, e.g. "Float left". */
   async choosePlacement(name: string): Promise<void> {
     await this.dialog
-      .getByRole("combobox", { name: "Placement" })
+      .getByRole("combobox", { name: m.editor_placement() })
       .selectOption({ label: name });
   }
 
   /** Picks a size by its name, e.g. "Small". */
   async chooseSize(name: string): Promise<void> {
     await this.dialog
-      .getByRole("combobox", { name: "Size" })
+      .getByRole("combobox", { name: m.editor_size() })
       .selectOption({ label: name });
   }
 
@@ -128,29 +138,29 @@ export class ImageDialog {
     readonly caption: string;
   }): Promise<void> {
     await expect(
-      this.dialog.getByRole("combobox", { name: "Placement" }),
+      this.dialog.getByRole("combobox", { name: m.editor_placement() }),
     ).toHaveValue(choices.placement);
     await expect(
-      this.dialog.getByRole("combobox", { name: "Size" }),
+      this.dialog.getByRole("combobox", { name: m.editor_size() }),
     ).toHaveValue(choices.size);
     await expect(
-      this.dialog.getByRole("textbox", { name: "Caption" }),
+      this.dialog.getByRole("textbox", { name: m.editor_caption() }),
     ).toHaveValue(choices.caption);
   }
 
   async cancel(): Promise<void> {
-    await this.dialog.getByRole("button", { name: "Cancel" }).click();
+    await this.dialog.getByRole("button", { name: m.common_cancel() }).click();
   }
 
   async expectNoChoices(): Promise<void> {
     await expect(
-      this.dialog.getByRole("textbox", { name: "Caption" }),
+      this.dialog.getByRole("textbox", { name: m.editor_caption() }),
     ).toHaveCount(0);
     await expect(
-      this.dialog.getByRole("combobox", { name: "Placement" }),
+      this.dialog.getByRole("combobox", { name: m.editor_placement() }),
     ).toHaveCount(0);
     await expect(
-      this.dialog.getByRole("combobox", { name: "Size" }),
+      this.dialog.getByRole("combobox", { name: m.editor_size() }),
     ).toHaveCount(0);
   }
 
@@ -178,7 +188,7 @@ export class LinkDialog {
   }
 
   private readonly address = () =>
-    this.dialog.getByRole("textbox", { name: "Link address" });
+    this.dialog.getByRole("textbox", { name: m.editor_link_address() });
 
   async fillAddress(address: string): Promise<void> {
     await this.address().fill(address);
@@ -194,7 +204,9 @@ export class LinkDialog {
   }
 
   async clickRemove(): Promise<void> {
-    await this.dialog.getByRole("button", { name: "Remove link" }).click();
+    await this.dialog
+      .getByRole("button", { name: m.editor_remove_link() })
+      .click();
   }
 
   async expectError(text: string): Promise<void> {

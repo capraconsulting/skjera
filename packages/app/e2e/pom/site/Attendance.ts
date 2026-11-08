@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page } from "@playwright/test";
+import { m } from "@skjera/i18n/messages";
 
 /**
  * The fields of signing up: on the form itself, or on the form changing
@@ -110,11 +111,13 @@ export class SignupFields {
   }
 
   async clickSaveChanges(): Promise<void> {
-    await this.scope.getByRole("button", { name: "Save changes" }).click();
+    await this.scope
+      .getByRole("button", { name: m.attend_save_changes() })
+      .click();
   }
 
   async clickKeepAsIs(): Promise<void> {
-    await this.scope.getByRole("button", { name: "Keep as is" }).click();
+    await this.scope.getByRole("button", { name: m.attend_keep() }).click();
   }
 }
 
@@ -134,14 +137,14 @@ export class Attendance extends SignupFields {
   /** The form changing what was given, once opened. */
   get answers(): SignupFields {
     return new SignupFields(
-      this.scope.getByRole("form", { name: "Your answers" }),
+      this.scope.getByRole("form", { name: m.attend_your_answers() }),
     );
   }
 
   /** The link under the guest form to the privacy page. */
   async clickPrivacyLink(): Promise<void> {
     await this.scope
-      .getByRole("link", { name: "How we handle your details" })
+      .getByRole("link", { name: m.attend_privacy_link() })
       .click();
   }
 
@@ -219,7 +222,7 @@ export class Attendance extends SignupFields {
   /** The form for changing answers is not open. */
   async expectAnswersClosed(): Promise<void> {
     await expect(
-      this.scope.getByRole("form", { name: "Your answers" }),
+      this.scope.getByRole("form", { name: m.attend_your_answers() }),
     ).toHaveCount(0);
   }
 
@@ -259,9 +262,7 @@ export class Attendance extends SignupFields {
   /** What the box says after cancelling here: whether a confirmation email was sent. */
   async expectCancelled(emailSent = true): Promise<void> {
     await expect(this.scope).toContainText(
-      emailSent
-        ? "You're no longer signed up for the event 👋 We've sent you a confirmation by email."
-        : "You're no longer signed up for the event 👋 Unfortunately, we couldn't send a confirmation by email.",
+      emailSent ? m.cancel_done() : m.cancel_done_no_email(),
     );
   }
 
@@ -277,8 +278,8 @@ export class Attendance extends SignupFields {
   async expectDietaryDeadline(passed: boolean): Promise<void> {
     const line = this.scope.getByText(/Dietary preferences by /);
     await expect(line).toBeVisible();
-    if (passed) await expect(line).toContainText("(The deadline has passed)");
-    else await expect(line).not.toContainText("(The deadline has passed)");
+    if (passed) await expect(line).toContainText(m.attend_deadline_passed());
+    else await expect(line).not.toContainText(m.attend_deadline_passed());
   }
 
   async expectText(text: string | RegExp): Promise<void> {
@@ -316,19 +317,19 @@ export class Attendance extends SignupFields {
 
   async expectLogInToAttend(): Promise<void> {
     await expect(
-      this.scope.getByRole("link", { name: "Log in to attend" }),
+      this.scope.getByRole("link", { name: m.attend_log_in_to_attend() }),
     ).toBeVisible();
   }
 
   /** The button that logs in and comes back to the event. */
   async expectLogInButton(): Promise<void> {
     await expect(
-      this.scope.getByRole("button", { name: "Log in" }),
+      this.scope.getByRole("button", { name: m.common_log_in() }),
     ).toBeVisible();
   }
 
   async clickLogIn(): Promise<void> {
-    await this.scope.getByRole("button", { name: "Log in" }).click();
+    await this.scope.getByRole("button", { name: m.common_log_in() }).click();
   }
 
   async expectLogInIfSignedUp(): Promise<void> {
@@ -356,9 +357,11 @@ export class CancelByEmail {
   }
 
   private readonly emailField = () =>
-    this.scope.getByRole("textbox", { name: "Enter your email here" });
+    this.scope.getByRole("textbox", {
+      name: m.attend_cancel_email_placeholder(),
+    });
   private readonly button = () =>
-    this.scope.getByRole("button", { name: "Cancel my signup" });
+    this.scope.getByRole("button", { name: m.attend_cancel_signup() });
   private readonly hiddenField = () =>
     this.scope.locator('input[name="subject"]');
 

@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { m } from "@skjera/i18n/messages";
 
 /** Who else has the event open: their avatars over the editor. */
 export class Presence {
@@ -9,7 +10,9 @@ export class Presence {
   }
 
   private readonly avatars = () =>
-    this.page.getByRole("region", { name: "Editor" }).getByTestId("avatar");
+    this.page
+      .getByRole("region", { name: m.studio_editor() })
+      .getByTestId("avatar");
 
   /** Someone else here, by their avatar's name. */
   async expectOthersHere(name: string): Promise<void> {

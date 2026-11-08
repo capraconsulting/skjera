@@ -1,3 +1,4 @@
+import { m } from "@skjera/i18n/messages";
 import { cleanUp } from "../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName } from "../fixtures/support.ts";
 import { expect, test } from "../fixtures/test.ts";
@@ -18,7 +19,9 @@ test("the history lists the event's versions, each with who and when (AC-1)", as
   const published = editor.historyEntries("Published").first();
   await expect(published).toBeVisible();
   await expect(published).toContainText(/alice/i);
-  await expect(editor.historyEntries("Edited").first()).toContainText(/alice/i);
+  await expect(
+    editor.historyEntries(m.studio_history_edited()).first(),
+  ).toContainText(/alice/i);
 
   await cleanUp(alice, team, event.id);
 });

@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { m } from "@skjera/i18n/messages";
 
 /** The questions the event asks those signing up, numbered from 1. */
 export class Questions {
@@ -26,7 +27,7 @@ export class Questions {
     text: string,
     type?: "Checkbox" | "One of several",
   ): Promise<void> {
-    await this.page.getByRole("button", { name: "Add question" }).click();
+    await this.page.getByRole("button", { name: m.editor_q_add() }).click();
     if (type !== undefined) await this.type(n).selectOption(type);
     await this.question(n).fill(text);
   }
@@ -62,7 +63,9 @@ export class Questions {
 
   /** Adds an option to the one-of-several question `n`. */
   async addOption(n: number): Promise<void> {
-    await this.item(n).getByRole("button", { name: "Add option" }).click();
+    await this.item(n)
+      .getByRole("button", { name: m.editor_q_option_add() })
+      .click();
   }
 
   async removeOption(n: number, option: number): Promise<void> {

@@ -1,4 +1,6 @@
 import { expect, type Page } from "@playwright/test";
+import { imagesPath } from "@skjera/documents/api";
+import { m } from "@skjera/i18n/messages";
 import { dropPng, pastePng } from "../images.ts";
 
 /** The images in the event's body. */
@@ -10,9 +12,10 @@ export class BodyImages {
   }
 
   private readonly body = () =>
-    this.page.getByRole("textbox", { name: "Body" });
+    this.page.getByRole("textbox", { name: m.studio_body() });
   /** Undescribed images have no img role: these are found by address. */
-  private readonly all = () => this.body().locator('img[src^="/api/images/"]');
+  private readonly all = () =>
+    this.body().locator(`img[src^="${imagesPath}/"]`);
   private readonly image = (name: string) =>
     this.body().getByRole("img", { name });
 

@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page } from "@playwright/test";
+import { m } from "@skjera/i18n/messages";
 import { dropPng, pixel } from "../images.ts";
 import { TextField } from "../TextField.ts";
 import { ImagePicker } from "./ImagePicker.ts";
@@ -11,15 +12,15 @@ export class Cover {
   constructor(page: Page) {
     this.page = page;
     this.description = new TextField(
-      page.getByRole("textbox", { name: "Cover description" }),
+      page.getByRole("textbox", { name: m.editor_cover_description() }),
     );
   }
 
   private readonly preview = () =>
-    this.page.getByRole("img", { name: "Cover" });
+    this.page.getByRole("img", { name: m.editor_cover_alt() });
 
   async chooseFile(image: Buffer = pixel): Promise<void> {
-    await this.page.getByLabel("Cover image file").setInputFiles({
+    await this.page.getByLabel(m.editor_cover_file()).setInputFiles({
       name: "picture.png",
       mimeType: "image/png",
       buffer: image,
@@ -45,7 +46,7 @@ export class Cover {
 
   private readonly pickExisting = () =>
     this.page.getByRole("button", {
-      name: "Pick an existing image",
+      name: m.editor_existing_pick(),
       exact: true,
     });
 
@@ -62,7 +63,7 @@ export class Cover {
   }
 
   private readonly reset = () =>
-    this.page.getByRole("button", { name: "Reset crop and focal point" });
+    this.page.getByRole("button", { name: m.editor_cover_reset() });
 
   /**
    * Crops to the part between two points of the picture, each as a share of
@@ -72,15 +73,19 @@ export class Cover {
     from: { readonly x: number; readonly y: number },
     to: { readonly x: number; readonly y: number },
   ): Promise<void> {
-    await this.page.getByRole("button", { name: "Crop", exact: true }).click();
+    await this.page
+      .getByRole("button", { name: m.editor_cover_crop(), exact: true })
+      .click();
     await this.drag(this.page.getByTestId("crop-picture"), from, to);
-    await this.page.getByRole("button", { name: "Apply" }).click();
+    await this.page
+      .getByRole("button", { name: m.editor_cover_apply() })
+      .click();
   }
 
   /** Sets the focal point to a point of the picture shown, and applies it. */
   async setFocalPoint(at: { readonly x: number; readonly y: number }) {
     await this.page
-      .getByRole("button", { name: "Focal point", exact: true })
+      .getByRole("button", { name: m.editor_cover_focus(), exact: true })
       .click();
     const picture = this.page.getByTestId("focus-picture");
     const box = await picture.boundingBox();
@@ -88,7 +93,9 @@ export class Cover {
     await picture.click({
       position: { x: (box?.width ?? 0) * at.x, y: (box?.height ?? 0) * at.y },
     });
-    await this.page.getByRole("button", { name: "Apply" }).click();
+    await this.page
+      .getByRole("button", { name: m.editor_cover_apply() })
+      .click();
   }
 
   private async drag(
@@ -133,7 +140,9 @@ export class Cover {
   }
 
   async remove(): Promise<void> {
-    await this.page.getByRole("button", { name: "Remove cover image" }).click();
+    await this.page
+      .getByRole("button", { name: m.editor_cover_remove() })
+      .click();
   }
 
   /** No cover, and no description for one. */

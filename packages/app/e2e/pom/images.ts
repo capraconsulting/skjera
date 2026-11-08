@@ -1,5 +1,6 @@
 import { crc32, deflateSync } from "node:zlib";
 import { expect, type Locator, type Page } from "@playwright/test";
+import { imagesPath } from "@skjera/documents/api";
 
 // The smallest valid PNG: one transparent pixel.
 export const pixel = Buffer.from(
@@ -84,28 +85,31 @@ export const dropPng = async (target: Locator): Promise<void> => {
  * is served.
  */
 export const uploadPng = (page: Page): Promise<string> =>
-  page.evaluate(async (base64) => {
-    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-    const response = await fetch("/api/images", {
-      method: "POST",
-      body: bytes,
-      headers: { "Content-Type": "image/png" },
-    });
-    return ((await response.json()) as { url: string }).url;
-  }, pixelBase64);
+  page.evaluate(
+    async ({ base64, imagesPath }) => {
+      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      const response = await fetch(imagesPath, {
+        method: "POST",
+        body: bytes,
+        headers: { "Content-Type": "image/png" },
+      });
+      return ((await response.json()) as { url: string }).url;
+    },
+    { base64: pixelBase64, imagesPath },
+  );
 
 /** How many images the list's first page holds, and whether it goes on. */
 export const firstPageOfImages = (
   page: Page,
 ): Promise<{ readonly count: number; readonly more: boolean }> =>
-  page.evaluate(async () => {
-    const response = await fetch("/api/images");
+  page.evaluate(async (imagesPath) => {
+    const response = await fetch(imagesPath);
     const body = (await response.json()) as {
       images: ReadonlyArray<unknown>;
       next: string | null;
     };
     return { count: body.images.length, more: body.next !== null };
-  });
+  }, imagesPath);
 
 /** Counts the uploads `page` makes from now on. */
 export const watchUploads = (page: Page): { count: () => number } => {
@@ -113,7 +117,7 @@ export const watchUploads = (page: Page): { count: () => number } => {
   page.on("request", (request) => {
     if (
       request.method() === "POST" &&
-      new URL(request.url()).pathname === "/api/images"
+      new URL(request.url()).pathname === imagesPath
     ) {
       uploads++;
     }

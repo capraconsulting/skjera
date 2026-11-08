@@ -1,7 +1,9 @@
 import { expect, type Page } from "@playwright/test";
+import { m } from "@skjera/i18n/messages";
+import { defaultPollEveryMs } from "@skjera/snapsync/client";
 
 /** Another browser's change comes with a pull: a few pulls' time, when busy. */
-const pulled = { timeout: 20_000 };
+const pulled = { timeout: 4 * defaultPollEveryMs };
 
 /** An event page's "Who's coming": members and guests apart. */
 export class WhoIsComing {
@@ -12,7 +14,7 @@ export class WhoIsComing {
   }
 
   private readonly region = () =>
-    this.page.getByRole("region", { name: "Who's coming" });
+    this.page.getByRole("region", { name: m.attend_who_is_coming() });
   private readonly part = (part: "members" | "guests") =>
     this.region().getByRole("region", {
       name: part === "members" ? /^Members/ : /^Guests/,

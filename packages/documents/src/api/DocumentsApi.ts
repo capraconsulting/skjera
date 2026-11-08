@@ -20,6 +20,24 @@ import {
   TeamNotFound,
 } from "./errors.ts";
 
+const documentApiPath = {
+  item: "/api/documents/:id",
+  publication: "/api/documents/:id/publication",
+  changes: "/api/documents/:id/changes",
+  restorations: "/api/documents/:id/restorations",
+} as const;
+
+export const documentPath = {
+  item: (id: string) => `/api/documents/${id}`,
+  publication: (id: string) => `/api/documents/${id}/publication`,
+  changes: (id: string) => `/api/documents/${id}/changes`,
+  restorations: (id: string) => `/api/documents/${id}/restorations`,
+  itemPattern: /^\/api\/documents\/[0-9a-f-]+$/,
+  publicationPattern: /^\/api\/documents\/[0-9a-f-]+\/publication$/,
+  changesPattern: /^\/api\/documents\/[0-9a-f-]+\/changes$/,
+  restorationsPattern: /^\/api\/documents\/[0-9a-f-]+\/restorations$/,
+} as const;
+
 /**
  * Creating, publishing, unpublishing and deleting documents, for signed-in users.
  * Documents are synced as rows; their drafts sync over automerge-repo's
@@ -66,7 +84,7 @@ export class DocumentsApi extends HttpApiGroup.make("documents")
      * the server must already have. The published version syncs as a row
      * of `events`.
      */
-    HttpApiEndpoint.patch("update", "/api/documents/:id", {
+    HttpApiEndpoint.patch("update", documentApiPath.item, {
       params: { id: DocumentId },
       payload: Schema.Struct({
         published: Schema.Literal(true),
@@ -99,7 +117,7 @@ export class DocumentsApi extends HttpApiGroup.make("documents")
      * Takes the published version off the site, keeping the draft. Not
      * published is as good as unpublished.
      */
-    HttpApiEndpoint.delete("unpublish", "/api/documents/:id/publication", {
+    HttpApiEndpoint.delete("unpublish", documentApiPath.publication, {
       params: { id: DocumentId },
       payload: Schema.Struct({
         confirmed: Schema.optionalKey(CancellingNotice),
@@ -111,7 +129,7 @@ export class DocumentsApi extends HttpApiGroup.make("documents")
      * Discards the draft's changes since it was last published: the draft
      * becomes the published version again. Not published: nothing to discard.
      */
-    HttpApiEndpoint.delete("discardChanges", "/api/documents/:id/changes", {
+    HttpApiEndpoint.delete("discardChanges", documentApiPath.changes, {
       params: { id: DocumentId },
       error: DocumentNotFound,
     }),
@@ -128,13 +146,13 @@ export class DocumentsApi extends HttpApiGroup.make("documents")
      * Makes the draft equal to its version at `heads`, in every field,
      * without publishing. Heads the draft doesn't have are refused.
      */
-    HttpApiEndpoint.post("restore", "/api/documents/:id/restorations", {
+    HttpApiEndpoint.post("restore", documentApiPath.restorations, {
       params: { id: DocumentId },
       payload: Schema.Struct({ heads: Heads }),
       error: [DocumentNotFound, RestoreRejected],
     }),
     /** Deletes the document, taking its published version off the site. */
-    HttpApiEndpoint.delete("delete", "/api/documents/:id", {
+    HttpApiEndpoint.delete("delete", documentApiPath.item, {
       params: { id: DocumentId },
       payload: Schema.Struct({
         confirmed: Schema.optionalKey(CancellingNotice),

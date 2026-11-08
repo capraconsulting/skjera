@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { m } from "@skjera/i18n/messages";
 
 /** The page a cancel link from an email opens: the event's title, and a button that cancels. */
 export class CancelSignupPage {
@@ -9,7 +10,7 @@ export class CancelSignupPage {
   }
 
   private readonly confirmButton = () =>
-    this.page.getByRole("button", { name: "Confirm cancelling" });
+    this.page.getByRole("button", { name: m.cancel_confirm() });
 
   /** Opens the link from the email. */
   async goto(link: string): Promise<void> {
@@ -34,6 +35,6 @@ export class CancelSignupPage {
 
   /** Follows the link to the event's page. */
   async clickToEvent(): Promise<void> {
-    await this.page.getByRole("link", { name: "Go to the event" }).click();
+    await this.page.getByRole("link", { name: m.cancel_to_event() }).click();
   }
 }

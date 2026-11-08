@@ -1,3 +1,4 @@
+import { imagePathPattern, imagesPath } from "@skjera/documents/api";
 import { cleanUp } from "../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName, visitor } from "../fixtures/support.ts";
 import { expect, test } from "../fixtures/test.ts";
@@ -12,8 +13,6 @@ import { EventPage } from "../pom/site/EventPage.ts";
 import { EventEditor } from "../pom/studio/EventEditor.ts";
 import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
 
-const imagePath = /^\/api\/images\/[A-Za-z0-9_-]{22}$/;
-
 test("an image upload waits for a server that is starting (AC-4)", async ({
   browser,
 }) => {
@@ -22,14 +21,14 @@ test("an image upload waits for a server that is starting (AC-4)", async ({
   const editor = new EventEditor(page);
   const event = await editor.createPublished({ public: true });
   let attempts = 0;
-  await page.route("/api/images", (route) => {
+  await page.route(imagesPath, (route) => {
     if (route.request().method() !== "POST") return route.continue();
     attempts += 1;
     return attempts === 1 ? route.fulfill({ status: 503 }) : route.continue();
   });
 
   await editor.cover.chooseFile();
-  await editor.cover.expect(imagePath);
+  await editor.cover.expect(imagePathPattern);
   expect(attempts).toBe(2);
 
   await cleanUp(page, team, event.id);
@@ -67,7 +66,7 @@ test("images are uploaded into the body and shown on the site (AC-1, AC-7)", asy
   await dialog.expectClosed();
   await editor.bodyImages.expect("A pixel");
   const src = await editor.bodyImages.src("A pixel");
-  expect(src).toMatch(imagePath);
+  expect(src).toMatch(imagePathPattern);
 
   await editor.publish();
 
@@ -107,7 +106,7 @@ test("images pasted or dropped into the body are uploaded (AC-2, AC-8)", async (
 
   await editor.bodyImages.paste();
   await editor.bodyImages.expectCount(1);
-  await editor.bodyImages.expectAddresses(imagePath);
+  await editor.bodyImages.expectAddresses(imagePathPattern);
 
   // Selected after it lands, so it can be described right away.
   const dialog = await editor.toolbar.openDescribeImageDialog();
@@ -155,7 +154,7 @@ test("an event's cover image is shown on the site", async ({ browser }) => {
   const event = await editor.createPublished({ public: true });
 
   await editor.cover.chooseFile();
-  await editor.cover.expect(imagePath);
+  await editor.cover.expect(imagePathPattern);
   const first = await editor.cover.src();
   await editor.cover.description.type("A full room");
 
@@ -191,14 +190,14 @@ test("the organiser crops the cover, and the site shows the cropped part (AC-1, 
   const event = await editor.createPublished({ public: true });
 
   await editor.cover.chooseFile(wide);
-  await editor.cover.expect(imagePath);
+  await editor.cover.expect(imagePathPattern);
   const picture = await editor.cover.src();
   await editor.cover.expectCannotReset();
 
   // The left half of a 200 × 100 picture is about square.
   await editor.cover.crop({ x: 0.02, y: 0.02 }, { x: 0.5, y: 1 });
   await editor.cover.expectNot(picture);
-  await editor.cover.expect(imagePath);
+  await editor.cover.expect(imagePathPattern);
   await editor.cover.expectAboutSquare();
   await editor.cover.expectCanReset();
   const part = await editor.cover.src();
@@ -222,7 +221,7 @@ test("the organiser sets the cover's focal point, and resets it (AC-1, AC-8)", a
   const event = await editor.createPublished({ public: true });
 
   await editor.cover.chooseFile(wide);
-  await editor.cover.expect(imagePath);
+  await editor.cover.expect(imagePathPattern);
   const picture = await editor.cover.src();
   await editor.cover.setFocalPoint({ x: 0.8, y: 0.3 });
   await editor.cover.expectCanReset();
@@ -250,7 +249,7 @@ test("the cover offers to pick an image already in Skjera (AC-1)", async ({
 
   await editor.cover.expectCanPickExisting();
   await editor.cover.chooseFile();
-  await editor.cover.expect(imagePath);
+  await editor.cover.expect(imagePathPattern);
   await editor.cover.expectCanPickExisting();
 
   await cleanUp(alice, team, event.id);

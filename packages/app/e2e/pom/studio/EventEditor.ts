@@ -1,4 +1,6 @@
 import { expect, type Page } from "@playwright/test";
+import { documentPath } from "@skjera/documents/api";
+import { m } from "@skjera/i18n/messages";
 import { Mailbox } from "../Mailbox.ts";
 import { EventPage } from "../site/EventPage.ts";
 import { TextField } from "../TextField.ts";
@@ -73,12 +75,12 @@ export class EventEditor {
     this.page = page;
     const textbox = (name: string, exact = false) =>
       new TextField(page.getByRole("textbox", { name, exact }));
-    this.title = textbox("Title");
-    this.summary = textbox("Summary");
-    this.body = textbox("Body");
-    this.place = textbox("Place", true);
-    this.streamLink = textbox("Link to the stream");
-    this.whatsServed = textbox("What's served");
+    this.title = textbox(m.studio_title());
+    this.summary = textbox(m.studio_summary());
+    this.body = textbox(m.studio_body());
+    this.place = textbox(m.site_place(), true);
+    this.streamLink = textbox(m.studio_stream_link());
+    this.whatsServed = textbox(m.studio_whats_served());
     this.times = new EventTimes(page);
     this.tags = new TagInput(page);
     this.repeat = new Repeat(page);
@@ -131,7 +133,7 @@ export class EventEditor {
   async copy(): Promise<string> {
     const before = this.page.url();
     await this.page
-      .getByRole("button", { name: "Make a copy", exact: true })
+      .getByRole("button", { name: m.studio_copy(), exact: true })
       .click();
     // The copy opens in the same team, as another event.
     await expect(this.page).not.toHaveURL(before);
@@ -143,7 +145,7 @@ export class EventEditor {
 
   private readonly status = () => this.page.getByTestId("status");
   private readonly publishButton = () =>
-    this.page.getByRole("button", { name: "Publish", exact: true });
+    this.page.getByRole("button", { name: m.studio_publish(), exact: true });
   private readonly checkbox = (name: RegExp) =>
     this.page.getByRole("checkbox", { name });
 
@@ -211,7 +213,10 @@ export class EventEditor {
   /** The Publish button reads "Published" and can't be clicked. */
   async expectPublishedButtonDisabled(): Promise<void> {
     await expect(
-      this.page.getByRole("button", { name: "Published", exact: true }),
+      this.page.getByRole("button", {
+        name: m.studio_published(),
+        exact: true,
+      }),
     ).toBeDisabled();
   }
 
@@ -220,11 +225,11 @@ export class EventEditor {
   }
 
   async expectSaved(): Promise<void> {
-    await expect(this.status()).toContainText("Saved");
+    await expect(this.status()).toContainText(m.studio_saved());
   }
 
   async expectPublished(): Promise<void> {
-    await expect(this.status()).toContainText("Published");
+    await expect(this.status()).toContainText(m.studio_published());
   }
 
   /** What the footer says: "Saving", "Not published", or in another language. */
@@ -234,14 +239,16 @@ export class EventEditor {
 
   async expectViewOnSite(): Promise<void> {
     await expect(
-      this.page.getByRole("link", { name: "View on site" }),
+      this.page.getByRole("link", { name: m.studio_view_on_site() }),
     ).toBeVisible();
   }
 
   /** Clicks **Preview** and gives the tab it opens the event's preview in. */
   async openPreview(): Promise<Page> {
     const opening = this.page.context().waitForEvent("page");
-    await this.page.getByRole("link", { name: "Preview", exact: true }).click();
+    await this.page
+      .getByRole("link", { name: m.studio_preview(), exact: true })
+      .click();
     const preview = await opening;
     await preview.waitForLoadState();
     return preview;
@@ -293,10 +300,10 @@ export class EventEditor {
     const done = this.page.waitForResponse(
       (response) =>
         response.request().method() === "DELETE" &&
-        /^\/api\/documents\/[0-9a-f-]+$/.test(new URL(response.url()).pathname),
+        documentPath.itemPattern.test(new URL(response.url()).pathname),
     );
     const clicked = this.page
-      .getByRole("button", { name: "Delete", exact: true })
+      .getByRole("button", { name: m.common_delete(), exact: true })
       .click();
     return { question: clicked.then(() => question), done };
   }
@@ -321,13 +328,13 @@ export class EventEditor {
         ? this.page.waitForResponse(
             (response) =>
               response.request().method() === "DELETE" &&
-              /^\/api\/documents\/[0-9a-f-]+\/publication$/.test(
+              documentPath.publicationPattern.test(
                 new URL(response.url()).pathname,
               ),
           )
         : Promise.resolve();
     const clicked = this.page
-      .getByRole("button", { name: "Unpublish", exact: true })
+      .getByRole("button", { name: m.studio_unpublish(), exact: true })
       .click();
     return { question: clicked.then(() => question), done };
   }
@@ -352,13 +359,13 @@ export class EventEditor {
         ? this.page.waitForResponse(
             (response) =>
               response.request().method() === "DELETE" &&
-              /^\/api\/documents\/[0-9a-f-]+\/changes$/.test(
+              documentPath.changesPattern.test(
                 new URL(response.url()).pathname,
               ),
           )
         : Promise.resolve();
     const clicked = this.page
-      .getByRole("button", { name: "Discard changes", exact: true })
+      .getByRole("button", { name: m.studio_discard_changes(), exact: true })
       .click();
     return { question: clicked.then(() => question), done };
   }
@@ -366,7 +373,7 @@ export class EventEditor {
   /** Clicks **History** and waits for the versions it lists. */
   async openHistory(): Promise<void> {
     await this.page
-      .getByRole("button", { name: "History", exact: true })
+      .getByRole("button", { name: m.studio_history(), exact: true })
       .click();
     await expect(this.historyDialog()).toBeVisible();
     await expect(
@@ -375,7 +382,7 @@ export class EventEditor {
   }
 
   private readonly historyDialog = () =>
-    this.page.getByRole("dialog", { name: "History" });
+    this.page.getByRole("dialog", { name: m.studio_history() });
 
   /** The history's entries of one kind: "Published", "Edited", … */
   historyEntries(kind: string) {
@@ -387,7 +394,7 @@ export class EventEditor {
     const opening = this.page.context().waitForEvent("page");
     await this.historyEntries(kind)
       .first()
-      .getByRole("link", { name: "View", exact: true })
+      .getByRole("link", { name: m.studio_history_view(), exact: true })
       .click();
     const preview = await opening;
     await preview.waitForLoadState();
@@ -417,14 +424,14 @@ export class EventEditor {
         ? this.page.waitForResponse(
             (response) =>
               response.request().method() === "POST" &&
-              /^\/api\/documents\/[0-9a-f-]+\/restorations$/.test(
+              documentPath.restorationsPattern.test(
                 new URL(response.url()).pathname,
               ),
           )
         : Promise.resolve();
     const clicked = this.historyEntries(kind)
       .first()
-      .getByRole("button", { name: "Restore this version", exact: true })
+      .getByRole("button", { name: m.studio_restore_version(), exact: true })
       .click();
     return { question: clicked.then(() => question), done };
   }
@@ -522,7 +529,7 @@ export class EventEditor {
   }
 
   private reminders() {
-    return this.page.getByRole("combobox", { name: "Remind attendees" });
+    return this.page.getByRole("combobox", { name: m.studio_remind() });
   }
 
   async expectReminders(choice: "default" | "on" | "off"): Promise<void> {
@@ -534,7 +541,7 @@ export class EventEditor {
   }
 
   private organizer() {
-    return this.page.getByRole("combobox", { name: "Organizer" });
+    return this.page.getByRole("combobox", { name: m.site_organizer() });
   }
 
   /** «Organizer» has the team with this id chosen. */
@@ -559,15 +566,13 @@ export class EventEditor {
   async expectOrganizerLocked(): Promise<void> {
     await expect(this.organizer()).toBeDisabled();
     await expect(
-      this.page.getByText(
-        "The organizer can't be changed once the event has been published.",
-      ),
+      this.page.getByText(m.studio_organizer_locked()),
     ).toBeVisible();
   }
 
   async fillMaxAttendees(limit: number): Promise<void> {
     await this.page
-      .getByRole("spinbutton", { name: "Maximum attendees" })
+      .getByRole("spinbutton", { name: m.studio_max_attendees() })
       .fill(String(limit));
   }
 }
