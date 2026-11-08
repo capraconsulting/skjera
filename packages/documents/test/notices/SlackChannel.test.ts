@@ -16,6 +16,7 @@ import { Notifications } from "../../src/notices/Notifications.ts";
 import { SalesEvents } from "../../src/notices/SalesEvents.ts";
 import * as SlackChannel from "../../src/notices/SlackChannel.ts";
 import { Teams } from "../../src/Teams.ts";
+import { clusterSettled } from "../cluster.ts";
 import { TestDatabase } from "../TestDatabase.ts";
 
 // What Slack is told of: the two messages, the deadlines due, and the
@@ -539,7 +540,7 @@ layer(channelLayer(workspace), { excludeTestServices: true })(
         const far = yield* dueIn(now, 25);
         const before = textsOf(workspace).length;
         yield* SlackChannel.postDeadlines(now);
-        yield* Effect.sleep("300 millis");
+        yield* clusterSettled;
         assert.strictEqual(textsOf(workspace).length, before);
         assert.isFalse(
           textsOf(workspace).some((text) => text.includes(far.title)),
@@ -556,7 +557,7 @@ layer(channelLayer(workspace), { excludeTestServices: true })(
           yield* SlackChannel.postDeadlines(now);
           yield* SlackChannel.postDeadlines(now);
           yield* postedAbout(workspace, today.title);
-          yield* Effect.sleep("500 millis");
+          yield* clusterSettled;
           assert.strictEqual(
             (yield* postedAbout(workspace, today.title)).length,
             1,

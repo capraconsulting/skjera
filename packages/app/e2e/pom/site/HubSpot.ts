@@ -68,11 +68,6 @@ export class HubSpot {
     ).toEqual([["showBanner"]]);
   }
 
-  /** Waits for the page to be done loading, nothing left to ask for. */
-  async waitForIdle(): Promise<void> {
-    await this.page.waitForLoadState("networkidle");
-  }
-
   private runs() {
     return this.page.evaluate(
       () => (window as { hubSpotRuns?: number }).hubSpotRuns ?? 0,

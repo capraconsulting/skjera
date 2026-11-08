@@ -19,6 +19,7 @@ import {
 import { SalesEvents } from "../../../src/notices/SalesEvents.ts";
 import * as SlackChannel from "../../../src/notices/SlackChannel.ts";
 import { Teams } from "../../../src/Teams.ts";
+import { clusterSettled } from "../../cluster.ts";
 import { TestDatabase } from "../../TestDatabase.ts";
 
 // What moving a recurring event on does to it, its signups and the Slack
@@ -78,7 +79,7 @@ const repeatsAbout = (title: string) =>
 const settledRepeatsAbout = (title: string) =>
   Effect.gen(function* () {
     yield* postedAbout(title);
-    yield* Effect.sleep("400 millis");
+    yield* clusterSettled;
     return yield* repeatsAbout(title);
   });
 
@@ -516,7 +517,7 @@ layer(TestLayer, { excludeTestServices: true })("Moving events", (it) => {
           "2048-01-10T17:00:00.000Z",
         );
         yield* postedAbout(title, 2);
-        yield* Effect.sleep("400 millis");
+        yield* clusterSettled;
         assert.strictEqual((yield* repeatsAbout(title)).length, 1);
 
         yield* Recurring.moveEnded(new Date(now.getTime() + 7 * day));
@@ -526,7 +527,7 @@ layer(TestLayer, { excludeTestServices: true })("Moving events", (it) => {
           "2048-01-17T17:00:00.000Z",
         );
         yield* postedAbout(title, 3);
-        yield* Effect.sleep("400 millis");
+        yield* clusterSettled;
         assert.strictEqual((yield* repeatsAbout(title)).length, 2);
       }),
   );

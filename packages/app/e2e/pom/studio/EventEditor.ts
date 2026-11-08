@@ -474,6 +474,10 @@ export class EventEditor {
     await this.checkbox(/Public event/).uncheck();
   }
 
+  async expectPublic(checked: boolean): Promise<void> {
+    await expect(this.checkbox(/Public event/)).toBeChecked({ checked });
+  }
+
   async focusPublic(): Promise<void> {
     await this.checkbox(/Public event/).focus();
   }

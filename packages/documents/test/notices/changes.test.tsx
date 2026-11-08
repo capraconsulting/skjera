@@ -8,6 +8,7 @@ import { organizerEmails } from "../../src/events/ContentTypes.ts";
 import type { DocumentId } from "../../src/Model.ts";
 import * as Mail from "../../src/notices/Mail.tsx";
 import { Notifications } from "../../src/notices/Notifications.ts";
+import { clusterSettled } from "../cluster.ts";
 import {
   emailsTo,
   outbox,
@@ -53,7 +54,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: changes", (it) => {
       assert.strictEqual(message?.calendar?.method, "REQUEST");
       const invitation = message?.calendar?.content ?? "";
       assert.include(invitation, "DTSTART:20361016T160000Z");
-      yield* Effect.sleep("300 millis");
+      yield* clusterSettled;
       assert.strictEqual(outbox.to(address).length, 1);
     }),
   );
@@ -85,7 +86,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: changes", (it) => {
         assert.notInclude(message?.text ?? "", "It was Wednesday");
         assert.strictEqual(message?.calendar?.method, "REQUEST");
         assert.include(message?.calendar?.content ?? "", "LOCATION:Aula");
-        yield* Effect.sleep("300 millis");
+        yield* clusterSettled;
         assert.strictEqual(outbox.to(address).length, 1);
       }),
   );
@@ -125,7 +126,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: changes", (it) => {
         assert.match(message?.text ?? "", /It was Wednesday, October 15, 2036/);
         assert.include(message?.text ?? "", "Aula");
         assert.include(message?.text ?? "", "It was at Kantina.");
-        yield* Effect.sleep("300 millis");
+        yield* clusterSettled;
         assert.strictEqual(outbox.to(address).length, 1);
       }),
   );
@@ -274,7 +275,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: changes", (it) => {
       assert.notInclude(message?.text ?? "", "?guest=");
       assert.strictEqual(message?.calendar?.method, "CANCEL");
       assert.include(message?.calendar?.content ?? "", "STATUS:CANCELLED");
-      yield* Effect.sleep("300 millis");
+      yield* clusterSettled;
       assert.deepStrictEqual(outbox.to(`late-${run}@example.org`), []);
     }),
   );
@@ -383,7 +384,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: changes", (it) => {
         );
         // Already in their calendar.
         assert.isUndefined(reminder?.message.calendar);
-        yield* Effect.sleep("300 millis");
+        yield* clusterSettled;
         for (const who of ["first", "sameday", "last"]) {
           assert.strictEqual(reminded(who).length, 1, who);
         }
@@ -470,7 +471,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: changes", (it) => {
           attendee: { id: signup, name: "Gina", email: address, guest: true },
         });
         yield* emailsTo(address, 2);
-        yield* Effect.sleep("300 millis");
+        yield* clusterSettled;
         assert.deepStrictEqual(
           outbox
             .to(address)
@@ -504,7 +505,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: changes", (it) => {
         yield* Mail.sendReminders(now);
         yield* Mail.sendReminders(now);
         yield* emailsTo(address, 2);
-        yield* Effect.sleep("300 millis");
+        yield* clusterSettled;
         assert.strictEqual(reminded().length, 1);
 
         // Moved to the following day: the next morning's run reminds again.
@@ -517,7 +518,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: changes", (it) => {
         yield* Mail.sendReminders(nextMorning);
         yield* Mail.sendReminders(nextMorning);
         yield* emailsTo(address, 3);
-        yield* Effect.sleep("300 millis");
+        yield* clusterSettled;
         assert.strictEqual(reminded().length, 2);
       }),
   );

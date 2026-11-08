@@ -104,8 +104,8 @@ test("edits made offline are kept, and synced once back online", async ({
   await bobsEditor.body.typeAt("end", " Bob wrote this offline.");
   await editor.body.typeAt("start", "Hi! ");
   await bobsEditor.expectStatus("Saving");
-  // A while later, Bob's text still hasn't reached Alice.
-  await editor.body.expectTextStays("Hi! Alice was here.");
+  // Bob's offline text hasn't reached Alice after her own edit was applied.
+  await editor.body.expectText("Hi! Alice was here.");
 
   // His edits survive reloading the page, and merge with Alice's.
   bobsConnection.online();

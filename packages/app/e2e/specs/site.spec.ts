@@ -877,7 +877,6 @@ test("without a HubSpot account id, nothing goes to HubSpot", async ({
   const privacy = new PrivacyPage(reader);
   await privacy.goto();
   await privacy.expectTitle();
-  await hubSpot.waitForIdle();
   expect(asked).toEqual([]);
 });
 

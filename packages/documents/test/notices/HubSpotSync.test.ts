@@ -20,6 +20,7 @@ import { Announcements } from "../../src/notices/Announcements.ts";
 import * as HubSpotSync from "../../src/notices/HubSpotSync.ts";
 import { Notifications } from "../../src/notices/Notifications.ts";
 import { Teams } from "../../src/Teams.ts";
+import { clusterSettled } from "../cluster.ts";
 import { TestDatabase } from "../TestDatabase.ts";
 import { cluster } from "./helpers.ts";
 
@@ -255,7 +256,7 @@ const participations = (portal: Portal, event: DocumentId, count: number) =>
   });
 
 /** Lets what is on its way reach the portal. */
-const settle = Effect.sleep("400 millis");
+const settle = clusterSettled;
 
 describe("splitName", () => {
   it("splits a name at the last space (AC-5)", () => {
@@ -749,9 +750,13 @@ layer(syncLayer(portal), { excludeTestServices: true })(
       "sends everyone already signed up, earliest first, when the setting is turned on (AC-7)",
       () =>
         Effect.gen(function* () {
+          const sql = yield* SqlClient.SqlClient;
           const { id } = yield* publishNew();
           const first = yield* guestSignsUp(id);
-          yield* Effect.sleep("20 millis");
+          yield* sql`
+            UPDATE attendees SET created_at = created_at - interval '1 second'
+            WHERE id = ${first.id}::uuid
+          `;
           const second = yield* memberSignsUp(id, "Marie Hansen");
           yield* settle;
           assert.isUndefined(portal.event(id));

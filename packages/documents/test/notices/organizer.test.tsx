@@ -2,6 +2,7 @@ import { assert, layer } from "@effect/vitest";
 import { Effect } from "effect";
 import { Attendance } from "../../src/attendance/Attendance.ts";
 import { Teams } from "../../src/Teams.ts";
+import { clusterSettled } from "../cluster.ts";
 import {
   emailsTo,
   organizerOf,
@@ -27,7 +28,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: organizer", (it) => {
         ),
       );
       assert.strictEqual(refused._tag, "SignupRejected");
-      yield* Effect.sleep("300 millis");
+      yield* clusterSettled;
       assert.deepStrictEqual(outbox.to(address), []);
     }),
   );

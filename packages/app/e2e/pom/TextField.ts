@@ -83,18 +83,6 @@ export class TextField {
     else await expect(caret).toHaveCount(0);
   }
 
-  /** Still says `text` after a while: nothing more has come. */
-  async expectTextStays(text: string): Promise<void> {
-    await this.editor.page().waitForTimeout(500);
-    await this.expectText(text);
-  }
-
-  /** Someone else's caret is still there after a while. */
-  async expectCaretStays(name: string): Promise<void> {
-    await this.editor.page().waitForTimeout(500);
-    await this.expectCaretOf(name, true);
-  }
-
   /** As if the window lost focus: switched to another window or app. */
   async leaveWindow(): Promise<void> {
     await this.editor.evaluate((editor) => {
@@ -118,7 +106,6 @@ export class TextField {
   async placeCaret(where: "start" | "end"): Promise<void> {
     await expect(async () => {
       await this.setCaret(where);
-      await this.editor.page().waitForTimeout(150);
       expect(await this.caretOffset()).toBe(
         where === "start"
           ? 0
@@ -130,29 +117,16 @@ export class TextField {
     }).toPass({ timeout: 5_000 });
   }
 
-  /**
-   * Pressing Home/End right after focusing is flaky: 20ms after an editor
-   * gains focus, ProseMirror writes its own stored selection back into the
-   * DOM, which can land after the key press. So focus, wait that out, then
-   * set the selection.
-   */
+  /** Sets the selection after focusing the editor. */
   private setCaret(where: "start" | "end") {
-    return this.editor.evaluate(async (element, atStart) => {
+    return this.editor.evaluate((element, atStart) => {
       (element as HTMLElement).focus();
-      await new Promise((settled) => setTimeout(settled, 100));
-      await new Promise<void>((resolve) => {
-        const range = document.createRange();
-        range.selectNodeContents(element.querySelector("p") ?? element);
-        range.collapse(atStart);
-        // ProseMirror reads the new selection in its own `selectionchange`
-        // listener, which was added before this one and so runs first.
-        document.addEventListener("selectionchange", () => resolve(), {
-          once: true,
-        });
-        const selection = window.getSelection();
-        selection?.removeAllRanges();
-        selection?.addRange(range);
-      });
+      const range = document.createRange();
+      range.selectNodeContents(element.querySelector("p") ?? element);
+      range.collapse(atStart);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
     }, where === "start");
   }
 

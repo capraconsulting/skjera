@@ -6,6 +6,7 @@ import { SqlClient } from "effect/sql";
 import { Attendance } from "../../src/attendance/Attendance.ts";
 import { cancelLinkHours } from "../../src/Model.ts";
 import { formatAt } from "../../src/notices/emails/format.ts";
+import { clusterSettled } from "../cluster.ts";
 import {
   descriptionOf,
   emailsTo,
@@ -190,7 +191,7 @@ layer(TestLayer, { excludeTestServices: true })("Mail: signups", (it) => {
       yield* attendance.attend(event, member);
       yield* attendance.attend(event, member);
       const sent = yield* emailsTo(member.email ?? "", 1);
-      yield* Effect.sleep("300 millis");
+      yield* clusterSettled;
       assert.strictEqual(outbox.to(member.email ?? "").length, 1);
       // Members get the event's page, not a guest's link.
       assert.notInclude(sent[0]?.message.text ?? "", "?guest=");

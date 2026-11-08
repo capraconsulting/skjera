@@ -5,6 +5,7 @@ import { SqlClient } from "effect/sql";
 import { Attendance } from "../../src/attendance/Attendance.ts";
 import type { DocumentId } from "../../src/Model.ts";
 import { OrganizerEmails } from "../../src/notices/OrganizerEmails.ts";
+import { clusterSettled } from "../cluster.ts";
 import {
   alice,
   emailsTo,
@@ -165,7 +166,7 @@ layer(OrganizerTestLayer, { excludeTestServices: true })(
             ["EmailSubjectMissing", "EmailTextMissing"],
           );
           assert.strictEqual(yield* recordsOf(event), 0);
-          yield* Effect.sleep("300 millis");
+          yield* clusterSettled;
           assert.lengthOf(outbox.to(bob.email ?? ""), 1);
         }),
     );

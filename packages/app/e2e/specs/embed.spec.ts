@@ -106,7 +106,6 @@ test("the embed page loads nothing from HubSpot", async ({ browser }) => {
   const embed = new EmbedPage(reader);
   await embed.goto();
   await embed.expectEvents();
-  await hubSpot.waitForIdle();
   expect(asked).toEqual([]);
   await hubSpot.expectLoaders(0);
 

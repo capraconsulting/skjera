@@ -32,9 +32,12 @@ test("an event shows who else has it open, with their cursors", async ({
   await editor.title.expectText(/Hello there!/);
   await editor.title.expectCaretOf("bob", true);
 
-  // It stays while Bob is in another window, as if he alt-tabbed away...
+  // It stays while Bob is in another window. The following document change
+  // reaches Alice after any presence change caused by the blur.
   await bobsEditor.title.leaveWindow();
-  await editor.title.expectCaretStays("bob");
+  await bobsEditor.checkPublic();
+  await editor.expectPublic(true);
+  await editor.title.expectCaretOf("bob", true);
 
   // ...and goes when he focuses something else on the page.
   await bobsEditor.title.returnToWindow();
