@@ -1,10 +1,11 @@
 import { expect } from "@playwright/test";
 import { m } from "@skjera/i18n/messages";
 import { locales } from "@skjera/i18n/runtime";
+import { mailpitApiUrl } from "@skjera/test";
 
 /** Mailpit's API (compose.yml): where the server's emails go in development. */
 const mailpit = async (path: string, init?: RequestInit) => {
-  const response = await fetch(`http://localhost:8025/api/v1${path}`, init);
+  const response = await fetch(`${mailpitApiUrl}${path}`, init);
   if (!response.ok) throw new Error(`Mailpit: ${response.status} ${path}`);
   return response.headers.get("content-type")?.includes("json")
     ? response.json()

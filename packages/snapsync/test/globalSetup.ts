@@ -1,10 +1,7 @@
-import { execFileSync } from "node:child_process";
+import { composeServices, startComposeServices } from "@skjera/test";
 
 // The tests run against the Postgres from the repository's compose.yml;
 // start it if needed.
 export default function setup() {
-  execFileSync("docker", ["compose", "up", "--detach", "--wait", "postgres"], {
-    cwd: new URL("../../..", import.meta.url),
-    stdio: "inherit",
-  });
+  startComposeServices(composeServices.snapsync);
 }

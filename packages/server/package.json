@@ -19,6 +19,7 @@
     "@skjera/email": "workspace:*",
     "@skjera/oauth": "workspace:*",
     "@skjera/paths": "workspace:*",
+    "@skjera/test": "workspace:*",
     "effect": "catalog:",
     "tsx": "catalog:"
   },

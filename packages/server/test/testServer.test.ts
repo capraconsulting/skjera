@@ -1,4 +1,5 @@
 import { PgClient } from "@effect/sql-pg";
+import { databaseServerUrl } from "@skjera/test/database";
 import { Effect, Redacted } from "effect";
 import { SqlClient } from "effect/sql";
 import { afterEach, describe, expect, it } from "vitest";
@@ -8,8 +9,7 @@ import {
   testServerEnv,
 } from "../test-server.ts";
 
-const serverUrl =
-  process.env.DATABASE_URL ?? "postgres://skjera:skjera@localhost:5433/skjera";
+const serverUrl = databaseServerUrl(process.env);
 
 const development = {
   OAUTH_ISSUER: "http://localhost:5556/dex",

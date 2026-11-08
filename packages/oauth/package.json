@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@skjera/paths": "workspace:*",
+    "@skjera/test": "workspace:*",
     "effect": "catalog:",
     "oauth4webapi": "catalog:"
   },

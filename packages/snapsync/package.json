@@ -26,6 +26,7 @@
   "devDependencies": {
     "@effect/sql-pg": "catalog:",
     "@effect/vitest": "catalog:",
+    "@skjera/test": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
