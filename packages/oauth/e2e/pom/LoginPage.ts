@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { dexIssuerUrl } from "@skjera/test";
 
 /** Dex's login page, where the demo sends people to sign in. */
 export class LoginPage {
@@ -16,7 +17,7 @@ export class LoginPage {
 
   /** Still at Dex, asking for the login again. */
   async expectShown(): Promise<void> {
-    await expect(this.page).toHaveURL(/localhost:5556\/dex/);
+    await expect(this.page).toHaveURL(new RegExp(dexIssuerUrl(process.env)));
     await expect(this.page.locator("#login")).toBeVisible();
   }
 }

@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { assert, describe, it } from "@effect/vitest";
+import { mailpitApiUrl } from "@skjera/test";
 import { ConfigProvider, Effect, Exit, Layer, Redacted } from "effect";
 import { simpleParser } from "mailparser";
 import { Body, Button, Heading, Html, Text } from "react-email";
@@ -121,7 +122,7 @@ const sesAt = (endpoint: string) =>
 /** Mailpit's API, from compose.yml. */
 const mailpit = (path: string, init?: RequestInit) =>
   Effect.promise(() =>
-    fetch(`http://localhost:8025/api/v1${path}`, init).then((response) =>
+    fetch(`${mailpitApiUrl}${path}`, init).then((response) =>
       response.headers.get("content-type")?.includes("json")
         ? response.json()
         : response.text(),

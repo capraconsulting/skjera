@@ -429,7 +429,7 @@ export class Images extends Context.Service<
         const id = newId();
         const response = yield* request(url(id), {
           method: "PUT",
-          body: bytes,
+          body: new Uint8Array(bytes),
           headers: { "Content-Type": contentType },
         });
         if (!response.ok) {

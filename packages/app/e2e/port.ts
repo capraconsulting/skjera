@@ -8,10 +8,11 @@ import { closeSync, openSync, readFileSync, rmSync, writeSync } from "node:fs";
 import { connect } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { e2ePorts } from "@skjera/test";
 
 /** Test servers' ports Dex lets log in, highest first. 8801 is left for a
  *  test server started by hand. */
-export const e2ePorts = [8806, 8805, 8804, 8803, 8802] as const;
+export { e2ePorts };
 
 const lockFile = (dir: string, port: number) =>
   join(dir, `skjera-e2e-${port}.lock`);

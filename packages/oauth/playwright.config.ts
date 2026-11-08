@@ -1,4 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
+import { dexIssuerUrl } from "@skjera/test";
+
+const dex = dexIssuerUrl(process.env);
 
 export default defineConfig({
   testDir: "e2e/specs",
@@ -15,7 +18,7 @@ export default defineConfig({
       // Reuses Dex when it is already running, e.g. from `pnpm dev`.
       command: "docker compose up dex",
       cwd: "../..",
-      url: "http://localhost:5556/dex/.well-known/openid-configuration",
+      url: `${dex}/.well-known/openid-configuration`,
       reuseExistingServer: true,
       timeout: 120_000,
     },

@@ -33,7 +33,13 @@
     },
     "@skjera/app#test": {
       "dependsOn": ["compile", "^compile"],
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/compose.yml"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/.github/workflows/ci.yml",
+        "$TURBO_ROOT$/compose.yml",
+        "$TURBO_ROOT$/dev/dex/config.yaml",
+        "$TURBO_ROOT$/mise.toml"
+      ]
     },
     "@skjera/server#test": {
       "dependsOn": ["compile", "^compile"],

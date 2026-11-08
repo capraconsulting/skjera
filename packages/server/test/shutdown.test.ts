@@ -2,13 +2,13 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { connect, createServer } from "node:net";
 import { fileURLToPath } from "node:url";
 import { PgClient } from "@effect/sql-pg";
+import { databaseServerUrl } from "@skjera/test/database";
 import { Effect, Redacted } from "effect";
 import { SqlClient } from "effect/sql";
 import { afterEach, describe, expect, it } from "vitest";
 import { createDatabase } from "../test-server.ts";
 
-const serverUrl =
-  process.env.DATABASE_URL ?? "postgres://skjera:skjera@localhost:5433/skjera";
+const serverUrl = databaseServerUrl(process.env);
 
 /** A port nothing listens on. */
 const freePort = () =>

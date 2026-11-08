@@ -1,4 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
+import {
+  composeServices,
+  dexDiscoveryUrl,
+  testServerOrigin,
+} from "@skjera/test";
 import { reservePort } from "./e2e/port.ts";
 
 const ci = !!process.env.CI;
@@ -10,7 +15,7 @@ const ci = !!process.env.CI;
 // process, and the workers get it through the environment.
 process.env.SKJERA_E2E_PORT ??= String(await reservePort());
 const port = Number(process.env.SKJERA_E2E_PORT);
-const site = `${process.env.SKJERA_TEST_SERVER_URL || "http://localhost"}:${port}`;
+const site = testServerOrigin(process.env, port);
 
 export default defineConfig({
   testDir: "e2e/specs",
@@ -35,10 +40,9 @@ export default defineConfig({
   webServer: [
     {
       // Leaves the containers running, like `pnpm dev` would.
-      command:
-        "docker compose up --wait postgres dex rustfs mailpit && tail -f /dev/null",
+      command: `docker compose up --wait ${[...composeServices.server, "dex", "mailpit"].join(" ")} && tail -f /dev/null`,
       cwd: "../..",
-      url: "http://localhost:5556/dex/.well-known/openid-configuration",
+      url: dexDiscoveryUrl(),
       reuseExistingServer: true,
       timeout: 180_000,
     },
