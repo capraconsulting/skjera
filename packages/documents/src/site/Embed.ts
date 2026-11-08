@@ -4,7 +4,7 @@ import { Clock, Config, Effect, Layer, Schema } from "effect";
 import { HttpRouter, HttpServerResponse } from "effect/http";
 import { SqlClient } from "effect/sql";
 import { type Locale, organizerLogos, SiteSettings } from "../Model.ts";
-import { escapeHtml } from "./Sharing.ts";
+import { escapeHtml } from "./Html.ts";
 
 // The next events as a small page of its own, for the company's websites to
 // show in an iframe (`GET /embed`): written by the server, so nothing but

@@ -297,6 +297,14 @@ describe("configured", () => {
 
 const portal = HubSpotTest.make();
 
+it("derives prior sales state inside HubSpotSync (AC-1)", async () => {
+  const source = await readFile(
+    new URL("../../src/notices/HubSpotSync.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /!row\.off_site && publications\[1\]\?\.sales_event/);
+});
+
 // Real clock: these tests talk to a real database.
 layer(syncLayer(portal), { excludeTestServices: true })(
   "A sales event",
@@ -348,7 +356,7 @@ layer(syncLayer(portal), { excludeTestServices: true })(
     );
 
     it.effect(
-      "updates its Marketing Event when it is published again (AC-3)",
+      "updates its Marketing Event when it is published again (AC-3, AC-1)",
       () =>
         Effect.gen(function* () {
           const { id } = yield* publishSales({ summary: "Before" });
@@ -371,7 +379,7 @@ layer(syncLayer(portal), { excludeTestServices: true })(
     );
 
     it.effect(
-      "updates its Marketing Event when it moves on to its next date (AC-3)",
+      "updates its Marketing Event when it moves on to its next date (AC-3, AC-1)",
       () =>
         Effect.gen(function* () {
           const { id } = yield* publishSales({
@@ -392,7 +400,7 @@ layer(syncLayer(portal), { excludeTestServices: true })(
     );
 
     it.effect(
-      "has its Marketing Event cancelled when it is unpublished, and not when it is published again (AC-4)",
+      "has its Marketing Event cancelled when it is unpublished, and not when it is published again (AC-4, AC-1)",
       () =>
         Effect.gen(function* () {
           const { id } = yield* publishSales();
@@ -406,6 +414,21 @@ layer(syncLayer(portal), { excludeTestServices: true })(
           yield* eventually(() =>
             portal.event(id)?.eventCancelled === false ? true : undefined,
           );
+        }),
+    );
+
+    it.effect(
+      "does not register existing sign-ups again after unpublish and republish (AC-1)",
+      () =>
+        Effect.gen(function* () {
+          const { id } = yield* publishSales();
+          yield* guestSignsUp(id);
+          yield* participations(portal, id, 1);
+          yield* (yield* Documents).unpublish(id);
+          const documents = yield* Documents;
+          yield* documents.publish(id, (yield* documents.get(id)).heads, alice);
+          yield* settle;
+          assert.strictEqual(portal.participations(id).length, 1);
         }),
     );
 
@@ -997,3 +1020,5 @@ describe("The server's layer", () => {
     );
   }
 });
+
+import { readFile } from "node:fs/promises";

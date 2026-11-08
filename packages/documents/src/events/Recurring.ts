@@ -178,7 +178,7 @@ const moveOn = (id: DocumentId, now: Date) =>
     yield* announcements.eventRepeated(id, published.starts_at);
     // Its Marketing Event takes the new times; those signed up for the
     // date before are in HubSpot already, and nobody is signed up now.
-    yield* salesEvents.published(id, { wasSalesEvent: true });
+    yield* salesEvents.published(id);
   });
 
 /**

@@ -13,9 +13,14 @@ import { ClusterCron, ClusterSchema, Entity } from "effect/cluster";
 import { Rpc } from "effect/rpc";
 import { SqlClient } from "effect/sql";
 import type { ReactElement } from "react";
-import { Attendance } from "../attendance/Attendance.ts";
+import {
+  cancelLinkToken,
+  guestToken,
+  signingSecret,
+} from "../attendance/tokens.ts";
 import { organizerEmails, signupClosesAt } from "../events/ContentTypes.ts";
 import {
+  type DocumentId,
   type Locale,
   optionalSetting,
   type RichText,
@@ -124,6 +129,19 @@ export const layerNotifications = Layer.effect(
           kind: "eventCancelled",
           attendee,
         }),
+      organizerEmail: ({ event, attendee, organizerEmail }) =>
+        send(event, {
+          key: `organizerEmail/${organizerEmail}/${attendee.id}`,
+          kind: "organizerEmail",
+          attendee,
+          organizerEmail,
+        }),
+      reminder: ({ event, attendee, version }) =>
+        send(event, {
+          key: `reminder/${version}/${attendee.id}`,
+          kind: "reminder",
+          attendee,
+        }),
     });
   }),
 );
@@ -200,7 +218,7 @@ const mailer = (site: {
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
       const email = yield* Email;
-      const attendance = yield* Attendance;
+      const secret = yield* signingSecret.pipe(Effect.orDie);
       const address = yield* Entity.CurrentAddress;
       const eventId = address.entityId;
       const from = parseAddress(site.from);
@@ -330,7 +348,7 @@ const mailer = (site: {
                     appPaths.guestEvent(
                       eventId,
                       attendee.id,
-                      attendance.guestToken(attendee.id),
+                      guestToken(secret, attendee.id),
                     ),
                   ),
                 }
@@ -439,7 +457,8 @@ const mailer = (site: {
                           site.url,
                           appPaths.cancelEvent(
                             eventId,
-                            attendance.cancelLinkToken(
+                            cancelLinkToken(
+                              secret,
                               eventId,
                               attendee.id,
                               payload.expiresAt ?? 0,
@@ -599,7 +618,7 @@ export const reminderSchedule = Cron.parseUnsafe("5 7 * * *", "UTC");
 export const sendReminders = (now: Date) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    const mailer = yield* EventMail.client;
+    const notifications = yield* Notifications;
     const { timeZone } = yield* SiteSettings;
     const due = yield* sql<
       Signup & { readonly event_id: string; readonly starts_at: Date }
@@ -617,16 +636,11 @@ export const sendReminders = (now: Date) =>
       due,
       ({ event_id, starts_at, ...signup }) =>
         tell([signup], (attendee) =>
-          mailer(event_id)
-            .Send(
-              {
-                key: `reminder/${starts_at.getTime()}/${attendee.id}`,
-                kind: "reminder",
-                attendee,
-              },
-              { discard: true },
-            )
-            .pipe(Effect.orDie),
+          notifications.reminder({
+            event: event_id as DocumentId,
+            attendee,
+            version: String(starts_at.getTime()),
+          }),
         ),
       { discard: true },
     );

@@ -1,3 +1,4 @@
+import { retryTransient as retry } from "@skjera/retry";
 import {
   Context,
   Duration,
@@ -277,27 +278,17 @@ const answer = (
 export const retryTransient =
   (options: { readonly times?: number; readonly base?: Duration.Input } = {}) =>
   <A, E, R>(self: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> => {
-    const times = options.times ?? 5;
     const base = Duration.fromInputUnsafe(options.base ?? "1 second");
-    const delay = (
-      error: HubSpotRateLimited | HubSpotUnavailable,
-      n: number,
-    ) =>
-      error._tag === "HubSpotRateLimited"
-        ? Duration.seconds(error.retryAfter)
-        : Duration.min(Duration.times(base, 2 ** n), Duration.minutes(1));
-    const attempt = (n: number): Effect.Effect<A, E, R> =>
-      self.pipe(
-        Effect.catchIf(
-          (error): error is E & (HubSpotRateLimited | HubSpotUnavailable) =>
-            n < times &&
-            (error instanceof HubSpotRateLimited ||
-              error instanceof HubSpotUnavailable),
-          (error) =>
-            Effect.sleep(delay(error, n)).pipe(
-              Effect.andThen(Effect.suspend(() => attempt(n + 1))),
-            ),
-        ),
-      );
-    return attempt(0);
+    return self.pipe(
+      retry<HubSpotRateLimited | HubSpotUnavailable>({
+        ...(options.times === undefined ? {} : { times: options.times }),
+        retryable: (error): error is HubSpotRateLimited | HubSpotUnavailable =>
+          error instanceof HubSpotRateLimited ||
+          error instanceof HubSpotUnavailable,
+        delay: (error, n) =>
+          error._tag === "HubSpotRateLimited"
+            ? Duration.seconds(error.retryAfter)
+            : Duration.min(Duration.times(base, 2 ** n), Duration.minutes(1)),
+      }),
+    );
   };

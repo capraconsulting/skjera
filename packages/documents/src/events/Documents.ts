@@ -559,6 +559,10 @@ export class Documents extends Context.Service<
                 }),
               );
             }
+            // HubSpot reads the prior off-site state before it is cleared.
+            if (after !== undefined) {
+              yield* salesEvents.published(id);
+            }
             // Unpublished before: back on the site. Never a document deleted
             // meanwhile.
             yield* sql`
@@ -567,12 +571,6 @@ export class Documents extends Context.Service<
               WHERE e.id = ${id} AND d.id = e.id
                 AND e.deleted_at IS NOT NULL AND d.deleted_at IS NULL
             `;
-            // HubSpot hears of every publish; only a sales event is sent.
-            if (after !== undefined) {
-              yield* salesEvents.published(id, {
-                wasSalesEvent: before?.sales_event === true && !before.off_site,
-              });
-            }
             return rows;
           }).pipe(
             sql.withTransaction,

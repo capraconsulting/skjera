@@ -46,6 +46,14 @@ export interface CancelNotice extends Notice {
   readonly expiresAt: number;
 }
 
+export interface OrganizerNotice extends Notice {
+  readonly organizerEmail: string;
+}
+
+export interface ReminderNotice extends Notice {
+  readonly version: string;
+}
+
 export type Kept =
   | (Notice & {
       readonly kind:
@@ -55,7 +63,9 @@ export type Kept =
         | "eventCancelled";
     })
   | (ChangeNotice & { readonly kind: "eventChanged" })
-  | (CancelNotice & { readonly kind: "cancelRequested" });
+  | (CancelNotice & { readonly kind: "cancelRequested" })
+  | (OrganizerNotice & { readonly kind: "organizerEmail" })
+  | (ReminderNotice & { readonly kind: "reminder" });
 
 /** The notices `Notifications.layerTest` kept. */
 export class NoticesKept extends Context.Service<
@@ -82,6 +92,8 @@ export class Notifications extends Context.Service<
     readonly eventChanged: (notice: ChangeNotice) => Effect.Effect<void>;
     /** The event was deleted before it was over: it won't happen. */
     readonly eventCancelled: (notice: Notice) => Effect.Effect<void>;
+    readonly organizerEmail: (notice: OrganizerNotice) => Effect.Effect<void>;
+    readonly reminder: (notice: ReminderNotice) => Effect.Effect<void>;
   }
 >()("@skjera/documents/Notifications") {
   /** Notices kept, for tests: `NoticesKept` has them, oldest first. */
@@ -100,6 +112,8 @@ export class Notifications extends Context.Service<
           keep({ kind: "cancelRequested", ...notice }),
         eventChanged: (notice) => keep({ kind: "eventChanged", ...notice }),
         eventCancelled: (notice) => keep({ kind: "eventCancelled", ...notice }),
+        organizerEmail: (notice) => keep({ kind: "organizerEmail", ...notice }),
+        reminder: (notice) => keep({ kind: "reminder", ...notice }),
       };
     }),
   ).pipe(Layer.provideMerge(NoticesKept.layer));

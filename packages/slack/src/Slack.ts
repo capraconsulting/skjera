@@ -1,3 +1,4 @@
+import { retryTransient as retry } from "@skjera/retry";
 import type { Block, KnownBlock } from "@slack/types";
 import { ErrorCode, LogLevel, WebClient } from "@slack/web-api";
 import {
@@ -250,24 +251,17 @@ const fromClient = (client: WebClient): Slack["Service"] => {
 export const retryTransient =
   (options: { readonly times?: number; readonly base?: Duration.Input } = {}) =>
   <A, E, R>(self: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> => {
-    const times = options.times ?? 5;
     const base = Duration.fromInputUnsafe(options.base ?? "1 second");
-    const delay = (error: SlackRateLimited | SlackUnavailable, n: number) =>
-      error._tag === "SlackRateLimited"
-        ? Duration.seconds(error.retryAfter)
-        : Duration.min(Duration.times(base, 2 ** n), Duration.minutes(1));
-    const attempt = (n: number): Effect.Effect<A, E, R> =>
-      self.pipe(
-        Effect.catchIf(
-          (error): error is E & (SlackRateLimited | SlackUnavailable) =>
-            n < times &&
-            (error instanceof SlackRateLimited ||
-              error instanceof SlackUnavailable),
-          (error) =>
-            Effect.sleep(delay(error, n)).pipe(
-              Effect.andThen(Effect.suspend(() => attempt(n + 1))),
-            ),
-        ),
-      );
-    return attempt(0);
+    return self.pipe(
+      retry<SlackRateLimited | SlackUnavailable>({
+        ...(options.times === undefined ? {} : { times: options.times }),
+        retryable: (error): error is SlackRateLimited | SlackUnavailable =>
+          error instanceof SlackRateLimited ||
+          error instanceof SlackUnavailable,
+        delay: (error, n) =>
+          error._tag === "SlackRateLimited"
+            ? Duration.seconds(error.retryAfter)
+            : Duration.min(Duration.times(base, 2 ** n), Duration.minutes(1)),
+      }),
+    );
   };

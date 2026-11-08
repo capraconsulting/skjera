@@ -158,6 +158,30 @@ const readSecret = (env: Record<string, string>) =>
 
 describe("signingSecret", () => {
   it.effect(
+    "uses one fallback secret for attendance and mail links (AC-4)",
+    () =>
+      Effect.gen(function* () {
+        const first = yield* readSecret({ NODE_ENV: "test" });
+        const second = yield* readSecret({ NODE_ENV: "test" });
+        const link = cancelLinkToken(
+          Redacted.make(first.secret),
+          event,
+          attendee,
+          expiresAt,
+        );
+        assert.deepStrictEqual(
+          readCancelLink(
+            Redacted.make(second.secret),
+            event,
+            link,
+            expiresAt - 1,
+          ),
+          { attendee },
+        );
+      }),
+  );
+
+  it.effect(
     "refuses production without SIGNING_SECRET and names the missing setting (AC-1)",
     () =>
       Effect.gen(function* () {

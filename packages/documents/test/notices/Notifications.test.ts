@@ -1,47 +1,58 @@
-import { assert, layer } from "@effect/vitest";
-import { Effect } from "effect";
-import { SqlClient } from "effect/sql";
-import { signupColumns } from "../../src/notices/Notifications.ts";
-import { TestDatabase } from "../TestDatabase.ts";
+import { assert, it } from "@effect/vitest";
+import { Effect, Ref } from "effect";
+import { DocumentId } from "../../src/Model.ts";
+import { NoticesKept, Notifications } from "../../src/notices/Notifications.ts";
 
-layer(TestDatabase, { excludeTestServices: true })("signupColumns", (it) => {
-  it.effect("selects the sign-up fields without an alias (AC-3)", () =>
-    Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient;
-      const rows = yield* sql`
-        SELECT ${signupColumns(sql)}
-        FROM (VALUES ('id', 'Gina', 'gina@example.org', NULL, 'nb'))
-          AS attendees(id, name, email, user_issuer, locale)
-      `;
-      assert.deepStrictEqual(rows, [
-        {
-          id: "id",
-          name: "Gina",
-          email: "gina@example.org",
-          guest: true,
-          locale: "nb",
-        },
-      ]);
-    }),
-  );
+it.effect("records organizer emails and reminders (AC-2, AC-5)", () =>
+  Effect.gen(function* () {
+    const notifications = yield* Notifications;
+    const kept = yield* NoticesKept;
+    const attendee = {
+      id: "signup",
+      name: "Gina",
+      email: "gina@example.org",
+      guest: true,
+    };
+    const event = DocumentId.make("00000000-0000-4000-8000-000000000001");
+    yield* notifications.organizerEmail({
+      event,
+      attendee,
+      organizerEmail: "message",
+    });
+    yield* notifications.reminder({
+      event,
+      attendee,
+      version: "123",
+    });
 
-  it.effect("selects the sign-up fields with an alias (AC-3)", () =>
-    Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient;
-      const rows = yield* sql`
-        SELECT ${signupColumns(sql, "a")}
-        FROM (VALUES ('id', 'Gina', 'gina@example.org', NULL, 'nb'))
-          AS a(id, name, email, user_issuer, locale)
-      `;
-      assert.deepStrictEqual(rows, [
-        {
-          id: "id",
-          name: "Gina",
-          email: "gina@example.org",
-          guest: true,
-          locale: "nb",
-        },
-      ]);
-    }),
+    assert.deepStrictEqual(yield* Ref.get(kept), [
+      {
+        kind: "organizerEmail",
+        event,
+        attendee,
+        organizerEmail: "message",
+      },
+      {
+        kind: "reminder",
+        event,
+        attendee,
+        version: "123",
+      },
+    ]);
+  }).pipe(Effect.provide(Notifications.layerTest)),
+);
+
+import { readFile } from "node:fs/promises";
+
+it("routes organizer emails and reminders through Notifications (AC-2, AC-5)", async () => {
+  const organizer = await readFile(
+    new URL("../../src/notices/OrganizerEmails.ts", import.meta.url),
+    "utf8",
   );
+  const mail = await readFile(
+    new URL("../../src/notices/Mail.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(organizer, /notifications\.organizerEmail\(/);
+  assert.match(mail, /notifications\.reminder\(/);
 });

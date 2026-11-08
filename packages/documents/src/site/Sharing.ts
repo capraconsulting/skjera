@@ -19,6 +19,7 @@ import {
   SiteSettings,
   shownCover,
 } from "../Model.ts";
+import { escapeHtml } from "./Html.ts";
 
 // What a link to an event shows when it is shared: LinkedIn, Slack and the
 // like fetch the page without logging in and without running its scripts,
@@ -108,15 +109,6 @@ export const sharedEvent = (id: string) =>
       ),
     );
   }).pipe(Effect.orDie);
-
-/** Text as HTML: safe in an element's content and in a quoted attribute. */
-export const escapeHtml = (text: string) =>
-  text
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
 
 const meta = (key: "name" | "property", name: string, content: string) =>
   `<meta ${key}="${name}" content="${escapeHtml(content)}">`;

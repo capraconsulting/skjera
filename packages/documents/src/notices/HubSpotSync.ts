@@ -238,15 +238,18 @@ export const layerSalesEvents = Layer.effect(
     };
 
     return SalesEvents.of({
-      published: (event, { wasSalesEvent }) =>
+      published: (event) =>
         Effect.gen(function* () {
-          const [row] = yield* sql<PublishedEvent & { published_at: Date }>`
+          const [row] = yield* sql<
+            PublishedEvent & { published_at: Date; off_site: boolean }
+          >`
             SELECT e.title, e.summary, e.starts_at, e.ends_at, e.sales_event_type,
-              e.published_at, t.name AS team_name
+              e.published_at, e.deleted_at IS NOT NULL AS off_site,
+              t.name AS team_name
             FROM events e
               JOIN documents d ON d.id = e.id
               JOIN teams t ON t.id = d.team_id
-            WHERE e.id = ${event} AND e.sales_event AND e.deleted_at IS NULL
+            WHERE e.id = ${event} AND e.sales_event
           `;
           if (row === undefined) return;
           yield* send(event, {
@@ -254,6 +257,19 @@ export const layerSalesEvents = Layer.effect(
             kind: "event",
             event: marketingEvent(event, row, siteUrl),
           });
+          const publications = yield* sql<{ sales_event: boolean }>`
+            SELECT coalesce(
+              (automerge_to_jsonb(d.draft, p.heads)->>'salesEvent')::boolean,
+              false
+            ) AS sales_event
+            FROM event_publications p
+            JOIN documents d ON d.id = p.event_id
+            WHERE p.event_id = ${event}
+            ORDER BY p.published_at DESC, p.id DESC
+            LIMIT 2
+          `;
+          const wasSalesEvent =
+            !row.off_site && publications[1]?.sales_event === true;
           // Turned on just now: those signed up before are sent, earliest first.
           if (wasSalesEvent) return;
           const signups = yield* sql<SignupRow>`

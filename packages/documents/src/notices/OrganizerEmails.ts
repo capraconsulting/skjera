@@ -8,8 +8,12 @@ import {
   type SentEmail,
 } from "../api/PublicApi.ts";
 import type { DocumentId } from "../Model.ts";
-import { EventMail } from "./Mail.tsx";
-import { type Signup, signupColumns, tell } from "./Notifications.ts";
+import {
+  Notifications,
+  type Signup,
+  signupColumns,
+  tell,
+} from "./Notifications.ts";
 
 // What an organizer writes to everyone signed up to an event. The text is
 // kept, and one message per person goes to the event's mailer (see Mail.tsx),
@@ -43,7 +47,7 @@ export class OrganizerEmails extends Context.Service<
     OrganizerEmails,
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
-      const mailer = yield* EventMail.client;
+      const notifications = yield* Notifications;
 
       const send = Effect.fn("OrganizerEmails.send")(function* (
         event: DocumentId,
@@ -92,17 +96,11 @@ export class OrganizerEmails extends Context.Service<
             return yield* Effect.die("INSERT returned no row");
           }
           yield* tell(signups, (attendee) =>
-            mailer(published.id)
-              .Send(
-                {
-                  key: `organizerEmail/${record.id}/${attendee.id}`,
-                  kind: "organizerEmail",
-                  attendee,
-                  organizerEmail: record.id,
-                },
-                { discard: true },
-              )
-              .pipe(Effect.orDie),
+            notifications.organizerEmail({
+              event: published.id,
+              attendee,
+              organizerEmail: record.id,
+            }),
           );
           return record;
         }).pipe(

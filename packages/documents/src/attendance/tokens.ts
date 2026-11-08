@@ -14,6 +14,15 @@ export const tokenHash = (token: string) =>
 /** How long a link to confirm cancelling by email works. */
 export const cancelLinkLife = cancelLinkHours * 60 * 60 * 1000;
 
+let fallbackSigningSecret: Redacted.Redacted<string> | undefined;
+
+const fallbackSecret = () => {
+  fallbackSigningSecret ??= Redacted.make(
+    randomBytes(32).toString("base64url"),
+  );
+  return fallbackSigningSecret;
+};
+
 /**
  * Guests' tokens are signed with `SIGNING_SECRET`. Development and tests
  * may make one up at start, with a warning; other environments require it.
@@ -41,7 +50,7 @@ export const signingSecret = Config.Redacted("SIGNING_SECRET").pipe(
           yield* Effect.logWarning(
             "SIGNING_SECRET not set: guests' links in emails stop working on restart",
           );
-          return Redacted.make(randomBytes(32).toString("base64url"));
+          return fallbackSecret();
         }),
     }),
   ),
