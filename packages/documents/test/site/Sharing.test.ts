@@ -6,7 +6,7 @@ import {
 import { assert, layer } from "@effect/vitest";
 import { Identity } from "@skjera/oauth/api";
 import { ConfigProvider, Effect, FileSystem, Layer, Option } from "effect";
-import { HttpRouter } from "effect/http";
+import { HttpRouter, HttpServerResponse } from "effect/http";
 import { SqlClient } from "effect/sql";
 import { Documents } from "../../src/events/Documents.ts";
 import { Images } from "../../src/events/Images.ts";
@@ -174,6 +174,40 @@ const asBuilt = (html: string) => html.replace(/<(?:meta|link) [^>]*>\n?/g, "");
 
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Sharing", (it) => {
+  it.effect(
+    "serves a login failure with site tags and escaped failure tags (AC-3, AC-4)",
+    () =>
+      Effect.gen(function* () {
+        const failure = {
+          kind: "failed" as const,
+          returnTo: `/events/launch?x=" /><script>alert(1)</script>`,
+        };
+        const response = HttpServerResponse.toWeb(
+          yield* Sharing.loginFailurePage(
+            index,
+            fullSite,
+            failure,
+            "/oauth/callback",
+          ),
+        );
+        assert.strictEqual(response.headers.get("cache-control"), "no-cache");
+        const html = yield* Effect.promise(() => response.text());
+        assert.strictEqual(
+          metaOf(html).get("description"),
+          "Skjer | Capra Liflig",
+        );
+        assert.notInclude(html, "<script>alert(1)</script>");
+        assert.strictEqual(
+          readEscaped(metaOf(html).get("skjera-login-failure") ?? ""),
+          failure.kind,
+        );
+        assert.strictEqual(
+          readEscaped(metaOf(html).get("skjera-login-return-to") ?? ""),
+          failure.returnTo,
+        );
+      }),
+  );
+
   it.effect("gives the tags of an event shown to everyone", () =>
     Effect.gen(function* () {
       const id = yield* publishedEvent({

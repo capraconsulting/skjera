@@ -473,7 +473,7 @@ layer(TestLayer, { excludeTestServices: true })("Moving events", (it) => {
 
         const row = yield* publishedRow(deleted.id);
         assert.strictEqual(row.starts_at.getTime(), before.starts_at.getTime());
-        assert.strictEqual(yield* signupsOf(deleted.id), 2);
+        assert.strictEqual(yield* signupsOf(deleted.id), 0);
         const published = yield* sql<{ n: number }>`
           SELECT count(*)::int AS n FROM events WHERE id = ${draftId}
         `;

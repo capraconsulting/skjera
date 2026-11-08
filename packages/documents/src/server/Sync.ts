@@ -23,6 +23,7 @@ import type {
   RichText,
   TeamId,
 } from "../Model.ts";
+import { type TeamFields, teamColumns } from "./TeamPersistence.ts";
 
 export type Pull<Row> = Pulled<Row>;
 
@@ -92,14 +93,8 @@ export class Sync extends Context.Service<
         since: Token | undefined,
       ) {
         return yield* pull("teams", since, (keys) =>
-          sql<{
-            id: TeamId;
-            name: string;
-            logo: string | null;
-            logo_dark: string | null;
-            created_at: Date;
-          }>`
-            SELECT id, name, logo, logo_dark, created_at
+          sql<TeamFields>`
+            SELECT ${teamColumns(sql)}
             FROM teams WHERE id = ANY(${keys}::uuid[])
           `.pipe(
             Effect.map((rows) =>

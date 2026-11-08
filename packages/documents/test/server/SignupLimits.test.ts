@@ -6,7 +6,7 @@ import {
   type AttemptKind,
   SignupLimits,
   visitorAddress,
-} from "../src/signupLimits.ts";
+} from "../../src/server/SignupLimits.ts";
 
 /** Who is attempting: the socket's address, what the proxy appended, the browser. */
 interface Visitor {

@@ -5,6 +5,7 @@ import { signupRetentionDays } from "../Model.ts";
 import { HubSpotEvent } from "../notices/HubSpotSync.ts";
 import { EventMail } from "../notices/Mail.tsx";
 import * as Cluster from "../server/Cluster.ts";
+import { removeSignupsFor } from "./RemoveSignups.ts";
 
 // Sign-up data is kept for the configured period after its event has ended,
 // as the privacy page says. A nightly job then deletes the event's signups, its
@@ -33,8 +34,7 @@ export const deleteSignups = (now: Date) =>
     const cutoff = new Date(now.getTime() - keptFor);
     const ended = sql`SELECT id FROM events WHERE ends_at < ${cutoff}`;
     yield* Effect.gen(function* () {
-      yield* sql`DELETE FROM attendees WHERE event_id IN (${ended})`;
-      yield* sql`DELETE FROM dietary_preferences WHERE event_id IN (${ended})`;
+      yield* removeSignupsFor(sql, ended);
       yield* sql`DELETE FROM organizer_emails WHERE event_id IN (${ended})`;
       // Never published: no row in `events`, so the draft's own end counts,
       // read as `documents_summarize` reads its start. A draft with no end
