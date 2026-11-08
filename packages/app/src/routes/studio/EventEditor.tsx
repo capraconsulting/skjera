@@ -1,11 +1,13 @@
 import type { DocHandle } from "@automerge/automerge-repo/slim";
 import {
+  type CancellingNotice,
   type DocumentId,
   type EventContent,
   isAttendeeLimit,
 } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { appPaths } from "@skjera/paths";
+import { Effect } from "effect";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Avatars } from "../../components/Avatars.tsx";
@@ -27,8 +29,13 @@ import {
   type DraftPresence,
   useDraftPresence,
 } from "../../presence/presence.ts";
-import { deleteDocument, documents } from "../../sync/tables.ts";
+import {
+  cancellingNotice,
+  deleteDocument,
+  documents,
+} from "../../sync/tables.ts";
 import { Attendees } from "./Attendees.tsx";
+import { confirmNotice, deleteQuestion } from "./attendeeNotices.ts";
 import { DraftText } from "./DraftText.tsx";
 import { EditorFooter } from "./EditorFooter.tsx";
 import { EmailTexts } from "./EmailTexts.tsx";
@@ -76,16 +83,29 @@ function EventSession({ id }: { readonly id: DocumentId }) {
     );
   }
 
-  // Asked first, by the footer.
-  const remove = () => {
+  const remove = async () => {
     setDeleteError(null);
-    void deleteDocument(id).then(
-      () => {
-        navigate(appPaths.studioTeam(teamId));
-        void documents.refresh();
-      },
-      () => setDeleteError(m.studio_delete_failed()),
-    );
+    try {
+      const deleted = await confirmNotice(
+        await Effect.runPromise(cancellingNotice(id)),
+        deleteQuestion,
+        (question) => window.confirm(question),
+        async (confirmed) => {
+          const result = await deleteDocument(id, confirmed);
+          return result === undefined
+            ? undefined
+            : {
+                _tag: "NoticeChanged" as const,
+                notice: result.notice as CancellingNotice,
+              };
+        },
+      );
+      if (!deleted) return;
+      navigate(appPaths.studioTeam(teamId));
+      void documents.refresh();
+    } catch {
+      setDeleteError(m.studio_delete_failed());
+    }
   };
 
   return (
@@ -112,7 +132,7 @@ function EventSession({ id }: { readonly id: DocumentId }) {
               navigate(appPaths.studioEvent(owner ?? teamId, copy)),
             )
           }
-          onDelete={remove}
+          onDelete={() => void remove()}
         />
       }
     >

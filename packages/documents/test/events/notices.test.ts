@@ -6,7 +6,7 @@ import { SqlClient } from "effect/sql";
 import { Attendance } from "../../src/attendance/Attendance.ts";
 import type { EventContent } from "../../src/events/ContentTypes.ts";
 import { Documents } from "../../src/events/Documents.ts";
-import type { DocumentId } from "../../src/Model.ts";
+import { type DocumentId, NoticeChanged } from "../../src/Model.ts";
 import { NoticesKept } from "../../src/notices/Notifications.ts";
 import {
   alice,
@@ -25,6 +25,59 @@ import {
 
 // Real clock: these tests talk to a real database.
 layer(TestLayer, { excludeTestServices: true })("Attendee notices", (it) => {
+  it.effect(
+    "answers with the same publishing and cancelling rules it acts on (AC-1)",
+    () =>
+      Effect.gen(function* () {
+        const documents = yield* Documents;
+        const attendance = yield* Attendance;
+        const id = yield* publishedEvent({ public: true, guests: true });
+        yield* attendance.attendAsGuest(id, {
+          name: "Gina",
+          email: "gina@example.org",
+        });
+        yield* attendance.attend(id, bob);
+        const editor = yield* openEditor(id);
+        const heads = yield* documents.applyChanges(
+          id,
+          [
+            editor.edit((event) =>
+              setTimes(event, {
+                start: "2036-10-16T18:00+02:00[Europe/Oslo]",
+                end: "2036-10-16T21:00+02:00[Europe/Oslo]",
+              }),
+            ),
+          ],
+          alice,
+        );
+
+        assert.deepStrictEqual(
+          { ...(yield* documents.publishingNotice(id, heads, alice)) },
+          { moved: true, newPlace: false, told: 1 },
+        );
+        assert.deepStrictEqual(
+          { ...(yield* documents.cancellingNotice(id)) },
+          { told: 1 },
+        );
+
+        const stale = yield* documents.publishConfirmed(id, heads, alice, {
+          moved: false,
+          newPlace: false,
+          told: 0,
+        });
+        if (!(stale instanceof NoticeChanged))
+          assert.fail("expected changed notice");
+        assert.strictEqual(stale._tag, "NoticeChanged");
+        assert.deepStrictEqual(
+          { ...stale.notice },
+          {
+            moved: true,
+            newPlace: false,
+            told: 1,
+          },
+        );
+      }),
+  );
   it.effect(
     "tells attendees when a republish gives the event another place",
     () =>

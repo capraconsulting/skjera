@@ -1,3 +1,19 @@
+export const versionOf = (heads: ReadonlyArray<string>): string =>
+  [...heads].sort().join(",");
+
+export const publishedState = (
+  publishedHeads: ReadonlyArray<string> | undefined,
+  version: string,
+): "draft" | "changed" | "published" => {
+  if (publishedHeads === undefined) return "draft";
+  return versionOf(publishedHeads) === version ? "published" : "changed";
+};
+
+export const rowState = (row: {
+  readonly publishedHeads: ReadonlyArray<string> | undefined;
+  readonly draftHeads: ReadonlyArray<string>;
+}) => publishedState(row.publishedHeads, versionOf(row.draftHeads));
+
 /** Whether the published version is the draft, and whether there are changes to discard. */
 export const publishState = (input: {
   /** Undefined: not published. */
@@ -9,9 +25,7 @@ export const publishState = (input: {
 }): { readonly upToDate: boolean; readonly changed: boolean } => {
   const { publishedHeads, version, saving } = input;
   const upToDate =
-    publishedHeads !== undefined &&
-    !saving &&
-    [...publishedHeads].sort().join(",") === version;
+    !saving && publishedState(publishedHeads, version) === "published";
   return { upToDate, changed: publishedHeads !== undefined && !upToDate };
 };
 
@@ -22,4 +36,4 @@ export const publishState = (input: {
 export const isDraft = (
   heads: ReadonlyArray<string>,
   version: string,
-): boolean => [...heads].sort().join(",") === version;
+): boolean => versionOf(heads) === version;

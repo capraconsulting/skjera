@@ -439,6 +439,16 @@
       }
     }
   ],
+  "studio_confirm_publish_emailed": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Publish the changes? The person signed up is emailed about them.",
+        "countPlural=other": "Publish the changes? The {count} people signed up are emailed about them."
+      }
+    }
+  ],
   "studio_confirm_delete_cancels": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

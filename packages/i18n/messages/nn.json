@@ -439,6 +439,16 @@
       }
     }
   ],
+  "studio_confirm_publish_emailed": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Publisere endringane? Den påmelde får melding om dei på e-post.",
+        "countPlural=other": "Publisere endringane? Dei {count} påmelde får melding om dei på e-post."
+      }
+    }
+  ],
   "studio_confirm_delete_cancels": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

@@ -1,17 +1,22 @@
 import type { DocHandle } from "@automerge/automerge-repo/slim";
-import type { DocumentId, EventContent } from "@skjera/documents/api";
+import type {
+  CancellingNotice,
+  DocumentId,
+  EventContent,
+  PublishingNotice,
+} from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { getLocale } from "@skjera/i18n/runtime";
 import { appPaths } from "@skjera/paths";
 import { eq, useLiveQuery } from "@tanstack/react-db";
 import { useState } from "react";
 import { Link } from "react-router";
-import { Temporal } from "temporal-polyfill";
 import buttonStyles from "../../components/Button.module.css";
 import { Button } from "../../components/Button.tsx";
 import { useVersion } from "../../documents/version.ts";
-import { attendees, events } from "../../sync/tables.ts";
+import { events } from "../../sync/tables.ts";
 import { timeAgo } from "../../time.ts";
+import { publishQuestion, unpublishQuestion } from "./attendeeNotices.ts";
 import styles from "./EditorFooter.module.css";
 import { History } from "./History.tsx";
 import { publishState } from "./publishState.ts";
@@ -29,8 +34,10 @@ export function EditorFooter(props: {
   readonly discarding: boolean;
   readonly restoring: boolean;
   readonly copying: boolean;
-  readonly onPublish: () => void;
-  readonly onUnpublish: () => void;
+  readonly onPublish: (confirm: (notice: PublishingNotice) => boolean) => void;
+  readonly onUnpublish: (
+    confirm: (notice: CancellingNotice) => boolean,
+  ) => void;
   readonly onDiscard: () => void;
   readonly onRestore: (heads: ReadonlyArray<string>) => void;
   readonly onCopy: () => void;
@@ -52,65 +59,14 @@ export function EditorFooter(props: {
     version,
     saving: props.saving,
   });
-  const signedUp = useLiveQuery({
-    query: (q) =>
-      q
-        .from({ attendee: attendees.collection })
-        .where(({ attendee }) => eq(attendee.eventId, id)),
-  }).data.length;
+  const publish = () =>
+    props.onPublish((notice) => {
+      const question = publishQuestion(notice);
+      return question === null || window.confirm(question);
+    });
 
-  // Moving an event people signed up for, or giving it another place,
-  // emails them: say so first.
-  const publish = () => {
-    const draft = props.handle.doc();
-    const moved =
-      publication !== undefined &&
-      (!sameInstant(draft.start, publication.startsAt) ||
-        !sameInstant(draft.end, publication.endsAt));
-    const place = draft.place ?? "";
-    // As published: compared as written, as the server compares it.
-    const newPlace =
-      publication !== undefined &&
-      place.trim() !== "" &&
-      place !== (publication.place ?? "");
-    const question =
-      moved && newPlace
-        ? m.studio_confirm_move_and_place
-        : moved
-          ? m.studio_confirm_move
-          : newPlace
-            ? m.studio_confirm_new_place
-            : null;
-    if (
-      question !== null &&
-      signedUp > 0 &&
-      !window.confirm(question({ count: signedUp }))
-    ) {
-      return;
-    }
-    props.onPublish();
-  };
-
-  // Taking an event off the site, or deleting it, before it ends cancels it
-  // for the people signed up.
-  const cancels = () =>
-    publication !== undefined &&
-    publication.endsAt.getTime() > Date.now() &&
-    signedUp > 0;
-
-  const remove = () => {
-    const question = cancels()
-      ? m.studio_confirm_delete_cancels({ count: signedUp })
-      : m.studio_confirm_delete();
-    if (window.confirm(question)) props.onDelete();
-  };
-
-  const unpublish = () => {
-    const question = cancels()
-      ? m.studio_confirm_unpublish_cancels({ count: signedUp })
-      : m.studio_confirm_unpublish();
-    if (window.confirm(question)) props.onUnpublish();
-  };
+  const unpublish = () =>
+    props.onUnpublish((notice) => window.confirm(unpublishQuestion(notice)));
 
   const discard = () => {
     if (window.confirm(m.studio_confirm_discard())) props.onDiscard();
@@ -157,7 +113,7 @@ export function EditorFooter(props: {
           >
             {m.studio_preview()}
           </a>
-          <Button variant="danger" onClick={remove}>
+          <Button variant="danger" onClick={props.onDelete}>
             {m.common_delete()}
           </Button>
           <Button onClick={() => setHistoryOpen(true)}>
@@ -211,9 +167,3 @@ export function EditorFooter(props: {
     </footer>
   );
 }
-
-/** Whether a draft's time is when it was published (`at`). */
-const sameInstant = (time: unknown, at: Date) =>
-  time === null ||
-  time === undefined ||
-  Temporal.ZonedDateTime.from(String(time)).epochMilliseconds === at.getTime();

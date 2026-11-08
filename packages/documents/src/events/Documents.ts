@@ -14,16 +14,20 @@ import {
 } from "../api/errors.ts";
 import { refused } from "../api/Problems.ts";
 import {
+  CancellingNotice,
   type DocumentId,
   type Heads,
   type HistoryEntry,
   isVersion,
+  NoticeChanged,
   Publication,
+  PublishingNotice,
   type TeamId,
 } from "../Model.ts";
 import { Announcements } from "../notices/Announcements.ts";
 import {
   Notifications,
+  recipients,
   type Signup,
   signupColumns,
   tell,
@@ -51,6 +55,34 @@ interface WhenAndWhere {
   readonly ends_at: Date;
   /** Null: published before events had a place. */
   readonly place: string | null;
+}
+
+const changeToTell = (
+  before: WhenAndWhere | undefined,
+  after: WhenAndWhere | undefined,
+) => {
+  if (before === undefined || after === undefined) return null;
+  const moved =
+    before.starts_at.getTime() !== after.starts_at.getTime() ||
+    before.ends_at.getTime() !== after.ends_at.getTime();
+  const newPlace = before.place !== after.place;
+  return moved || newPlace ? { moved, newPlace } : null;
+};
+
+class NoticePreview<N> {
+  readonly _tag = "NoticePreview";
+  readonly notice: N;
+  constructor(notice: N) {
+    this.notice = notice;
+  }
+}
+
+class NoticeMismatch<N> {
+  readonly _tag = "NoticeMismatch";
+  readonly notice: N;
+  constructor(notice: N) {
+    this.notice = notice;
+  }
 }
 
 export interface DocumentSnapshot {
@@ -134,6 +166,23 @@ export class Documents extends Context.Service<
       heads: Heads,
       user: Identity,
     ) => Effect.Effect<Publication, DocumentNotFound | PublishRejected>;
+    readonly publishConfirmed: (
+      id: DocumentId,
+      heads: Heads,
+      user: Identity,
+      confirmed: PublishingNotice,
+    ) => Effect.Effect<
+      Publication | NoticeChanged,
+      DocumentNotFound | PublishRejected
+    >;
+    readonly publishingNotice: (
+      id: DocumentId,
+      heads: Heads,
+      user: Identity,
+    ) => Effect.Effect<PublishingNotice, DocumentNotFound | PublishRejected>;
+    readonly cancellingNotice: (
+      id: DocumentId,
+    ) => Effect.Effect<CancellingNotice, DocumentNotFound>;
     /**
      * Takes the published version off the site and keeps the draft. When the
      * event hasn't ended, its signups are removed and told it's cancelled.
@@ -141,7 +190,8 @@ export class Documents extends Context.Service<
      */
     readonly unpublish: (
       id: DocumentId,
-    ) => Effect.Effect<void, DocumentNotFound>;
+      confirmed?: CancellingNotice,
+    ) => Effect.Effect<undefined | NoticeChanged, DocumentNotFound>;
     /**
      * Makes the draft the published version again, in every field, and
      * publishes it at its new heads in the name of whoever published last.
@@ -178,7 +228,8 @@ export class Documents extends Context.Service<
     readonly delete: (
       id: DocumentId,
       user: Identity,
-    ) => Effect.Effect<void, DocumentNotFound>;
+      confirmed?: CancellingNotice,
+    ) => Effect.Effect<undefined | NoticeChanged, DocumentNotFound>;
   }
 >()("@skjera/documents/Documents") {
   static readonly layer = Layer.effect(
@@ -445,25 +496,65 @@ export class Documents extends Context.Service<
         );
       }, Effect.uninterruptible);
 
+      const upcoming = sql`ends_at > now()`;
+
+      const publishRow = (id: DocumentId, heads: Heads, user: Identity) =>
+        Effect.gen(function* () {
+          const [before] = yield* sql<
+            WhenAndWhere & {
+              readonly sales_event: boolean;
+              readonly off_site: boolean;
+            }
+          >`
+            SELECT starts_at, ends_at, place, sales_event,
+              deleted_at IS NOT NULL AS off_site
+            FROM events WHERE id = ${id} FOR UPDATE
+          `;
+          const rows = yield* sql<PublicationRow & WhenAndWhere>`
+            SELECT published_heads, published_at, first_published_at,
+              starts_at, ends_at, place
+            FROM publish_event(${id}, ${heads}::text[], ${user.issuer}, ${user.subject})
+          `;
+          return { before, rows, after: rows[0] };
+        });
+
+      const publishingAnswer = (
+        before: WhenAndWhere | undefined,
+        after: WhenAndWhere | undefined,
+        signups: ReadonlyArray<Signup>,
+      ) => {
+        const change = changeToTell(before, after);
+        return new PublishingNotice({
+          moved: change?.moved ?? false,
+          newPlace: change?.newPlace ?? false,
+          told: change === null ? 0 : recipients(signups).length,
+        });
+      };
+
+      const samePublishingNotice = (a: PublishingNotice, b: PublishingNotice) =>
+        a.moved === b.moved && a.newPlace === b.newPlace && a.told === b.told;
+      const sameCancellingNotice = (a: CancellingNotice, b: CancellingNotice) =>
+        a.told === b.told;
+
       const publishers = {
-        event: (id: DocumentId, heads: Heads, user: Identity) =>
+        event: (
+          id: DocumentId,
+          heads: Heads,
+          user: Identity,
+          confirmed?: PublishingNotice,
+        ) =>
           Effect.gen(function* () {
-            const [before] = yield* sql<
-              WhenAndWhere & {
-                readonly sales_event: boolean;
-                readonly off_site: boolean;
-              }
-            >`
-              SELECT starts_at, ends_at, place, sales_event,
-                deleted_at IS NOT NULL AS off_site
-              FROM events WHERE id = ${id} FOR UPDATE
+            const { before, rows, after } = yield* publishRow(id, heads, user);
+            const signups = yield* sql<Signup>`
+              SELECT ${signupColumns(sql)} FROM attendees WHERE event_id = ${id}
             `;
-            const rows = yield* sql<PublicationRow & WhenAndWhere>`
-              SELECT published_heads, published_at, first_published_at,
-                starts_at, ends_at, place
-              FROM publish_event(${id}, ${heads}::text[], ${user.issuer}, ${user.subject})
-            `;
-            const [after] = rows;
+            const answer = publishingAnswer(before, after, signups);
+            if (
+              confirmed !== undefined &&
+              !samePublishingNotice(confirmed, answer)
+            ) {
+              return yield* Effect.fail(new NoticeMismatch(answer));
+            }
             if (after !== undefined) {
               yield* sql`
                 INSERT INTO event_publications (event_id, heads, published_by_issuer, published_by_subject)
@@ -475,32 +566,20 @@ export class Documents extends Context.Service<
             if (before === undefined && after !== undefined) {
               yield* announcements.eventPublished(id);
             }
-            const moved =
-              before !== undefined &&
-              after !== undefined &&
-              (before.starts_at.getTime() !== after.starts_at.getTime() ||
-                before.ends_at.getTime() !== after.ends_at.getTime());
-            const newPlace =
-              before !== undefined &&
-              after !== undefined &&
-              before.place !== after.place;
+            const change = changeToTell(before, after);
             // Moved, or somewhere else: its attendees are told, in one
             // email, and get the new time and place for their calendars.
             if (
               before !== undefined &&
               after !== undefined &&
-              (moved || newPlace)
+              change !== null
             ) {
-              const signups = yield* sql<Signup>`
-                SELECT ${signupColumns(sql)}
-                FROM attendees WHERE event_id = ${id}
-              `;
               yield* tell(signups, (attendee) =>
                 notifications.eventChanged({
                   event: id,
                   attendee,
                   version: String(after.published_at.getTime()),
-                  ...(moved
+                  ...(change.moved
                     ? {
                         previously: {
                           startsAt: before.starts_at.toISOString(),
@@ -508,7 +587,9 @@ export class Documents extends Context.Service<
                         },
                       }
                     : {}),
-                  ...(newPlace ? { previousPlace: before.place ?? "" } : {}),
+                  ...(change.newPlace
+                    ? { previousPlace: before.place ?? "" }
+                    : {}),
                 }),
               );
             }
@@ -523,14 +604,16 @@ export class Documents extends Context.Service<
             // HubSpot hears of every publish; only a sales event is sent.
             if (after !== undefined) {
               yield* salesEvents.published(id, {
-                wasSalesEvent:
-                  before !== undefined &&
-                  before.sales_event &&
-                  !before.off_site,
+                wasSalesEvent: before?.sales_event === true && !before.off_site,
               });
             }
             return rows;
-          }).pipe(sql.withTransaction),
+          }).pipe(
+            sql.withTransaction,
+            Effect.catchTag("NoticeMismatch", ({ notice }) =>
+              Effect.succeed(new NoticeChanged({ notice })),
+            ),
+          ),
       } satisfies Record<ContentTypeName, unknown>;
 
       const unknownVersion = (error: SqlError.SqlError) =>
@@ -540,15 +623,11 @@ export class Documents extends Context.Service<
             )
           : Effect.die(error);
 
-      const publish = Effect.fn("Documents.publish")(function* (
+      const publishable = Effect.fnUntraced(function* (
         id: DocumentId,
         heads: Heads,
-        user: Identity,
       ) {
         const type = yield* typeOf(id);
-
-        // Check the version being published first, so the message names
-        // everything that is missing. The table constraints are a backstop.
         const [version] = yield* sql<{ content: unknown }>`
           SELECT automerge_to_jsonb(draft, ${heads}::text[]) AS content
           FROM documents WHERE id = ${id}
@@ -560,20 +639,95 @@ export class Documents extends Context.Service<
         if (missing !== null) {
           return yield* new PublishRejected(refused(missing));
         }
+        return type;
+      });
 
-        const [row] = yield* publishers[type](id, heads, user).pipe(
-          Effect.catchIf(SqlError.isSqlError, unknownVersion),
-        );
+      const publishingNotice = Effect.fn("Documents.publishingNotice")(
+        function* (id: DocumentId, heads: Heads, user: Identity) {
+          yield* publishable(id, heads);
+          return yield* Effect.gen(function* () {
+            const { before, after } = yield* publishRow(id, heads, user);
+            if (after === undefined) return yield* new DocumentNotFound({ id });
+            const signups = yield* sql<Signup>`
+              SELECT ${signupColumns(sql)} FROM attendees WHERE event_id = ${id}
+            `;
+            return yield* Effect.fail(
+              new NoticePreview(publishingAnswer(before, after, signups)),
+            );
+          }).pipe(
+            sql.withTransaction,
+            Effect.catchTag("NoticePreview", ({ notice }) =>
+              Effect.succeed(notice),
+            ),
+            Effect.catchIf(SqlError.isSqlError, unknownVersion),
+          );
+        },
+      );
+
+      const publishAction = Effect.fn("Documents.publish")(function* (
+        id: DocumentId,
+        heads: Heads,
+        user: Identity,
+        confirmed?: PublishingNotice,
+      ) {
+        const type = yield* publishable(id, heads);
+
+        const published = yield* publishers[type](
+          id,
+          heads,
+          user,
+          confirmed,
+        ).pipe(Effect.catchIf(SqlError.isSqlError, unknownVersion));
+        if (published instanceof NoticeChanged) return published;
+        const [row] = published;
         if (row === undefined) {
           return yield* new DocumentNotFound({ id });
         }
         return toPublication(row);
       }, Effect.uninterruptible);
 
+      const publish = (id: DocumentId, heads: Heads, user: Identity) =>
+        publishAction(id, heads, user).pipe(
+          Effect.flatMap((result) =>
+            result instanceof NoticeChanged
+              ? Effect.die(result)
+              : Effect.succeed(result),
+          ),
+        );
+      const publishConfirmed = (
+        id: DocumentId,
+        heads: Heads,
+        user: Identity,
+        confirmed: PublishingNotice,
+      ) => publishAction(id, heads, user, confirmed);
+
+      const cancellingAnswer = Effect.fnUntraced(function* (id: DocumentId) {
+        const [document] = yield* sql`
+          SELECT id FROM documents WHERE id = ${id} AND deleted_at IS NULL
+        `;
+        if (document === undefined) return yield* new DocumentNotFound({ id });
+        const [event] = yield* sql<{ upcoming: boolean }>`
+          SELECT ${upcoming} AS upcoming FROM events WHERE id = ${id}
+        `;
+        if (!event?.upcoming) return new CancellingNotice({ told: 0 });
+        const signups = yield* sql<Signup>`
+          SELECT ${signupColumns(sql)} FROM attendees WHERE event_id = ${id}
+        `;
+        return new CancellingNotice({ told: recipients(signups).length });
+      });
+
+      const cancellingNotice = Effect.fn("Documents.cancellingNotice")(
+        (id: DocumentId) =>
+          cancellingAnswer(id).pipe(
+            Effect.catchIf(SqlError.isSqlError, Effect.die),
+          ),
+      );
+
       const unpublish = Effect.fn("Documents.unpublish")(function* (
         id: DocumentId,
+        confirmed?: CancellingNotice,
       ) {
-        const found = yield* Effect.gen(function* () {
+        const result = yield* Effect.gen(function* () {
           // The document first, then the event: the order `delete` locks them in.
           const [document] = yield* sql`
             SELECT id FROM documents WHERE id = ${id} AND deleted_at IS NULL FOR UPDATE
@@ -584,8 +738,19 @@ export class Documents extends Context.Service<
           const [event] = yield* sql<{ upcoming: boolean }>`
             UPDATE events SET deleted_at = now()
             WHERE id = ${id} AND deleted_at IS NULL
-            RETURNING ends_at > now() AS upcoming
+            RETURNING ${upcoming} AS upcoming
           `;
+          if (confirmed !== undefined) {
+            const signups = event?.upcoming
+              ? yield* sql<Signup>`SELECT ${signupColumns(sql)} FROM attendees WHERE event_id = ${id}`
+              : [];
+            const answer = new CancellingNotice({
+              told: event?.upcoming ? recipients(signups).length : 0,
+            });
+            if (!sameCancellingNotice(confirmed, answer)) {
+              return yield* Effect.fail(new NoticeMismatch(answer));
+            }
+          }
           // Signed up for what won't happen now: cancelled, in calendars too,
           // and removed, so sign-up starts empty when it's published again.
           if (event?.upcoming) {
@@ -599,9 +764,16 @@ export class Documents extends Context.Service<
             );
             yield* salesEvents.cancelled(id);
           }
-          return true;
-        }).pipe(sql.withTransaction, Effect.orDie);
-        if (!found) {
+          return true as const;
+        }).pipe(
+          sql.withTransaction,
+          Effect.catchTag("NoticeMismatch", ({ notice }) =>
+            Effect.succeed(new NoticeChanged({ notice })),
+          ),
+          Effect.orDie,
+        );
+        if (result instanceof NoticeChanged) return result;
+        if (!result) {
           return yield* new DocumentNotFound({ id });
         }
       }, Effect.uninterruptible);
@@ -818,8 +990,9 @@ export class Documents extends Context.Service<
       const deleteDocument = Effect.fn("Documents.delete")(function* (
         id: DocumentId,
         user: Identity,
+        confirmed?: CancellingNotice,
       ) {
-        const found = yield* Effect.gen(function* () {
+        const result = yield* Effect.gen(function* () {
           const deleted = yield* sql`
             UPDATE documents SET deleted_at = now(),
               deleted_by_issuer = ${user.issuer}, deleted_by_subject = ${user.subject}
@@ -829,8 +1002,19 @@ export class Documents extends Context.Service<
           if (deleted.length === 0) return false;
           const [event] = yield* sql<{ upcoming: boolean }>`
             UPDATE events SET deleted_at = now() WHERE id = ${id}
-            RETURNING ends_at > now() AS upcoming
+            RETURNING ${upcoming} AS upcoming
           `;
+          if (confirmed !== undefined) {
+            const signups = event?.upcoming
+              ? yield* sql<Signup>`SELECT ${signupColumns(sql)} FROM attendees WHERE event_id = ${id}`
+              : [];
+            const answer = new CancellingNotice({
+              told: event?.upcoming ? recipients(signups).length : 0,
+            });
+            if (!sameCancellingNotice(confirmed, answer)) {
+              return yield* Effect.fail(new NoticeMismatch(answer));
+            }
+          }
           // Signed up for what won't happen now: cancelled, in calendars too.
           if (event?.upcoming) {
             const signups = yield* sql<Signup>`
@@ -842,9 +1026,16 @@ export class Documents extends Context.Service<
             );
             yield* salesEvents.cancelled(id);
           }
-          return true;
-        }).pipe(sql.withTransaction, Effect.orDie);
-        if (!found) {
+          return true as const;
+        }).pipe(
+          sql.withTransaction,
+          Effect.catchTag("NoticeMismatch", ({ notice }) =>
+            Effect.succeed(new NoticeChanged({ notice })),
+          ),
+          Effect.orDie,
+        );
+        if (result instanceof NoticeChanged) return result;
+        if (!result) {
           return yield* new DocumentNotFound({ id });
         }
       }, Effect.uninterruptible);
@@ -883,6 +1074,9 @@ export class Documents extends Context.Service<
         changesSince,
         applyChanges,
         publish,
+        publishConfirmed,
+        publishingNotice,
+        cancellingNotice,
         unpublish,
         discardChanges,
         history,

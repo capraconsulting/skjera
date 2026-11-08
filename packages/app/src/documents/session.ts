@@ -5,9 +5,11 @@ import {
   type StorageId,
 } from "@automerge/automerge-repo/slim";
 import {
+  type CancellingNotice,
   type DocumentId,
   type EventContent,
   isSyncRefused,
+  type PublishingNotice,
   serverStorageId,
   type TeamId,
 } from "@skjera/documents/api";
@@ -17,13 +19,16 @@ import { Effect, Fiber } from "effect";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { DraftPresence } from "../presence/presence.ts";
 import { sayWhy } from "../problems.ts";
+import { confirmNotice } from "../routes/studio/attendeeNotices.ts";
 import {
+  cancellingNotice,
   copyDocument,
   discardChanges,
   documents,
   events,
   moveDocument,
   publishDraft,
+  publishingNotice,
   restoreVersion,
   unpublishDocument,
 } from "../sync/tables.ts";
@@ -53,8 +58,8 @@ export interface SessionState {
   readonly error: string | null;
   /** Someone deleted the document; the session has stopped. */
   readonly deleted: boolean;
-  readonly publish: () => void;
-  readonly unpublish: () => void;
+  readonly publish: (confirm: (notice: PublishingNotice) => boolean) => void;
+  readonly unpublish: (confirm: (notice: CancellingNotice) => boolean) => void;
   readonly discard: () => void;
   /** Makes the draft the version at `heads`, without publishing. */
   readonly restore: (heads: ReadonlyArray<string>) => void;
@@ -178,41 +183,97 @@ const session = (id: DocumentId, store: SessionStore) =>
       );
 
     // Publishes what this copy shows, once the server has all of it.
-    const publish = versionToPublish({
-      saved,
-      version: () => A.getHeads(handle.doc()),
-    }).pipe(
-      Effect.flatMap((heads) => publishDraft(id, heads)),
-      // The published version reaches the page as a row of `events`; the
-      // document's row says it was published, which locks the organizer.
-      Effect.tap(() =>
-        Effect.promise(() =>
-          Promise.all([events.refresh(), documents.refresh()]),
-        ).pipe(Effect.andThen(Effect.sync(() => store.set({ error: null })))),
-      ),
-      Effect.catch((error) =>
-        Effect.sync(() =>
-          store.set({ error: sayWhy(error, m.studio_publish_failed()) }),
+    const publish = (confirm: (notice: PublishingNotice) => boolean) =>
+      versionToPublish({
+        saved,
+        version: () => A.getHeads(handle.doc()),
+      }).pipe(
+        Effect.flatMap((heads) =>
+          Effect.tryPromise({
+            try: async () => {
+              const first = await Effect.runPromise(
+                publishingNotice(id, heads),
+              );
+              let current = first;
+              await confirmNotice(
+                first,
+                (notice) => {
+                  current = notice;
+                  return "publish";
+                },
+                () => confirm(current),
+                async (confirmed) => {
+                  const result = await Effect.runPromise(
+                    publishDraft(id, heads, confirmed),
+                  );
+                  return "_tag" in result
+                    ? {
+                        _tag: "NoticeChanged" as const,
+                        notice: result.notice as PublishingNotice,
+                      }
+                    : undefined;
+                },
+              );
+            },
+            catch: (error) => error,
+          }),
         ),
-      ),
-      Effect.ensuring(Effect.sync(() => store.set({ publishing: false }))),
-    );
+        // The published version reaches the page as a row of `events`; the
+        // document's row says it was published, which locks the organizer.
+        Effect.tap(() =>
+          Effect.promise(() =>
+            Promise.all([events.refresh(), documents.refresh()]),
+          ).pipe(Effect.andThen(Effect.sync(() => store.set({ error: null })))),
+        ),
+        Effect.catch((error) =>
+          Effect.sync(() =>
+            store.set({ error: sayWhy(error, m.studio_publish_failed()) }),
+          ),
+        ),
+        Effect.ensuring(Effect.sync(() => store.set({ publishing: false }))),
+      );
 
     // Takes the published version off the site; the draft stays.
-    const unpublish = unpublishDocument(id).pipe(
-      // Its row leaves `events` at once, as a sync would take it.
-      Effect.tap(() =>
-        Effect.promise(() => events.refresh()).pipe(
-          Effect.andThen(Effect.sync(() => store.set({ error: null }))),
+    const unpublish = (confirm: (notice: CancellingNotice) => boolean) =>
+      Effect.tryPromise({
+        try: async () => {
+          const first = await Effect.runPromise(cancellingNotice(id));
+          let current = first;
+          await confirmNotice(
+            first,
+            (notice) => {
+              current = notice;
+              return "unpublish";
+            },
+            () => confirm(current),
+            async (confirmed) => {
+              const result = await Effect.runPromise(
+                unpublishDocument(id, confirmed),
+              );
+              return result === undefined
+                ? undefined
+                : {
+                    _tag: "NoticeChanged" as const,
+                    notice: result.notice as CancellingNotice,
+                  };
+            },
+          );
+        },
+        catch: (error) => error,
+      }).pipe(
+        // Its row leaves `events` at once, as a sync would take it.
+        Effect.tap(() =>
+          Effect.promise(() => events.refresh()).pipe(
+            Effect.andThen(Effect.sync(() => store.set({ error: null }))),
+          ),
         ),
-      ),
-      Effect.catch((error) =>
-        Effect.sync(() =>
-          store.set({ error: sayWhy(error, m.studio_unpublish_failed()) }),
+        Effect.catch((error) =>
+          Effect.sync(() =>
+            store.set({ error: sayWhy(error, m.studio_unpublish_failed()) }),
+          ),
         ),
-      ),
-      Effect.ensuring(Effect.sync(() => store.set({ unpublishing: false }))),
-    );
+        Effect.ensuring(Effect.sync(() => store.set({ unpublishing: false }))),
+      );
 
     // Goes back to the published version, once the server has every edit
     // this copy has, so they are discarded too. The change reaches the copy
@@ -303,13 +364,13 @@ const session = (id: DocumentId, store: SessionStore) =>
       restoring: false,
       copying: false,
       moving: false,
-      publish: () => {
+      publish: (confirm) => {
         store.set({ publishing: true });
-        void Effect.runPromise(publish);
+        void Effect.runPromise(publish(confirm));
       },
-      unpublish: () => {
+      unpublish: (confirm) => {
         store.set({ unpublishing: true });
-        void Effect.runPromise(unpublish);
+        void Effect.runPromise(unpublish(confirm));
       },
       discard: () => {
         store.set({ discarding: true });

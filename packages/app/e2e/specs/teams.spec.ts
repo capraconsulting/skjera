@@ -1,5 +1,6 @@
+import type { Dialog } from "@playwright/test";
 import { signedIn, uniqueTeamName } from "../fixtures/support.ts";
-import { test } from "../fixtures/test.ts";
+import { expect, test } from "../fixtures/test.ts";
 import { EventEditor } from "../pom/studio/EventEditor.ts";
 import { EventsColumn } from "../pom/studio/EventsColumn.ts";
 import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
@@ -17,7 +18,7 @@ test("a refused event deletion keeps the editor open and shows the failure (AC-1
   await editor.expectSaved();
 
   const deletion = new RegExp(`/api/documents/${id}$`);
-  await alice.route(deletion, (route) => route.fulfill({ status: 503 }));
+  await alice.route(deletion, (route) => route.fulfill({ status: 500 }));
   const refused = editor.clickDeleteAnswering("accept");
   await refused.question;
   await refused.done;
@@ -26,6 +27,37 @@ test("a refused event deletion keeps the editor open and shows the failure (AC-1
   await editor.title.expectText("Still here");
 
   await alice.unroute(deletion);
+  await editor.delete(id);
+  await teams.delete(team);
+});
+
+test("a failed cancellation answer shows no delete question and keeps the event (AC-1)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const teams = new TeamsColumn(alice);
+  const team = await teams.create(uniqueTeamName("Failed cancellation answer"));
+  const id = await new EventsColumn(alice).newEvent();
+  const editor = new EventEditor(alice);
+  await editor.title.type("Still here");
+  await editor.expectSaved();
+
+  const answer = new RegExp(`/api/documents/${id}/cancellation-notice$`);
+  await alice.route(answer, (route) => route.fulfill({ status: 500 }));
+  let asked = false;
+  const onDialog = async (dialog: Dialog) => {
+    asked = true;
+    await dialog.dismiss();
+  };
+  alice.on("dialog", onDialog);
+  await alice.getByRole("button", { name: "Delete", exact: true }).click();
+  await editor.expectRefused("Deleting the event failed");
+  expect(asked).toBe(false);
+  alice.off("dialog", onDialog);
+  await editor.expectAt(team, id);
+  await editor.title.expectText("Still here");
+
+  await alice.unroute(answer);
   await editor.delete(id);
   await teams.delete(team);
 });

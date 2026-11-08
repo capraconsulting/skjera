@@ -96,6 +96,23 @@ export class Publication extends Schema.Class<Publication>(
   firstPublishedAt: Schema.Date,
 }) {}
 
+export class PublishingNotice extends Schema.Class<PublishingNotice>(
+  "@skjera/documents/PublishingNotice",
+)({
+  moved: Schema.Boolean,
+  newPlace: Schema.Boolean,
+  told: Schema.Int,
+}) {}
+
+export class CancellingNotice extends Schema.Class<CancellingNotice>(
+  "@skjera/documents/CancellingNotice",
+)({ told: Schema.Int }) {}
+
+export class NoticeChanged extends Schema.TaggedClass<NoticeChanged>()(
+  "NoticeChanged",
+  { notice: Schema.Union([PublishingNotice, CancellingNotice]) },
+) {}
+
 /** One line of an event's history: what happened, by whom, and the version it left. */
 export class HistoryEntry extends Schema.Class<HistoryEntry>(
   "@skjera/documents/HistoryEntry",

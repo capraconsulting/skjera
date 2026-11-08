@@ -3,10 +3,13 @@ import { Schema } from "effect";
 import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
 import { ContentTypeName } from "../events/ContentTypes.ts";
 import {
+  CancellingNotice,
   DocumentId,
   Heads,
   HistoryEntry,
+  NoticeChanged,
   Publication,
+  PublishingNotice,
   TeamId,
 } from "../Model.ts";
 import {
@@ -65,16 +68,43 @@ export class DocumentsApi extends HttpApiGroup.make("documents")
      */
     HttpApiEndpoint.patch("update", "/api/documents/:id", {
       params: { id: DocumentId },
-      payload: Schema.Struct({ published: Schema.Literal(true), heads: Heads }),
-      success: Publication,
+      payload: Schema.Struct({
+        published: Schema.Literal(true),
+        heads: Heads,
+        confirmed: Schema.optionalKey(PublishingNotice),
+      }),
+      success: Schema.Union([Publication, NoticeChanged]),
       error: [DocumentNotFound, PublishRejected],
     }),
+    HttpApiEndpoint.post(
+      "publishingNotice",
+      "/api/documents/:id/publishing-notice",
+      {
+        params: { id: DocumentId },
+        payload: Schema.Struct({ heads: Heads }),
+        success: PublishingNotice,
+        error: [DocumentNotFound, PublishRejected],
+      },
+    ),
+    HttpApiEndpoint.get(
+      "cancellingNotice",
+      "/api/documents/:id/cancellation-notice",
+      {
+        params: { id: DocumentId },
+        success: CancellingNotice,
+        error: DocumentNotFound,
+      },
+    ),
     /**
      * Takes the published version off the site, keeping the draft. Not
      * published is as good as unpublished.
      */
     HttpApiEndpoint.delete("unpublish", "/api/documents/:id/publication", {
       params: { id: DocumentId },
+      payload: Schema.Struct({
+        confirmed: Schema.optionalKey(CancellingNotice),
+      }),
+      success: Schema.Union([Schema.Void, NoticeChanged]),
       error: DocumentNotFound,
     }),
     /**
@@ -106,6 +136,10 @@ export class DocumentsApi extends HttpApiGroup.make("documents")
     /** Deletes the document, taking its published version off the site. */
     HttpApiEndpoint.delete("delete", "/api/documents/:id", {
       params: { id: DocumentId },
+      payload: Schema.Struct({
+        confirmed: Schema.optionalKey(CancellingNotice),
+      }),
+      success: Schema.Union([Schema.Void, NoticeChanged]),
       error: DocumentNotFound,
     }),
   )

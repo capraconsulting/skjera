@@ -114,6 +114,13 @@ export interface Signup {
   readonly locale: Locale | null;
 }
 
+/** The signups that can actually be emailed. */
+export const recipients = (signups: ReadonlyArray<Signup>) =>
+  signups.filter(
+    (signup): signup is Signup & { readonly email: string } =>
+      signup.email !== null,
+  );
+
 /** The columns every notice needs from an attendee. */
 export const signupColumns = (sql: SqlClient.SqlClient, alias?: string) => {
   const column = (name: string) =>
@@ -128,16 +135,14 @@ export const tell = (
   notice: (attendee: Recipient) => Effect.Effect<void>,
 ) =>
   Effect.forEach(
-    signups,
+    recipients(signups),
     (signup) =>
-      signup.email === null
-        ? Effect.void
-        : notice({
-            id: signup.id,
-            name: signup.name,
-            email: signup.email,
-            guest: signup.guest,
-            ...(signup.locale === null ? {} : { locale: signup.locale }),
-          }),
+      notice({
+        id: signup.id,
+        name: signup.name,
+        email: signup.email,
+        guest: signup.guest,
+        ...(signup.locale === null ? {} : { locale: signup.locale }),
+      }),
     { discard: true },
   );

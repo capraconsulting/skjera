@@ -1,8 +1,10 @@
 import type {
   AttendeeRow,
+  CancellingNotice,
   DocumentId,
   DocumentRow,
   EventRow,
+  PublishingNotice,
   TagRow,
   TeamId,
   TeamLogosChange,
@@ -84,10 +86,13 @@ export const teams = syncedTable({
 export type TeamChange = { readonly logos: TeamLogosChange };
 
 /** Deletes a document on the server without first removing its local row. */
-export const deleteDocument = (id: DocumentId) =>
-  sendRequest((client) =>
+export const deleteDocument = (id: DocumentId, confirmed?: CancellingNotice) =>
+  request((client) =>
     client.documents
-      .delete({ params: { id } })
+      .delete({
+        params: { id },
+        payload: confirmed === undefined ? {} : { confirmed },
+      })
       .pipe(Effect.catchTag("DocumentNotFound", () => Effect.void)),
   );
 
@@ -110,7 +115,7 @@ export const documents = syncedTable({
         }),
       ),
     // Gone already is as good as deleted.
-    delete: (document) => deleteDocument(document.id),
+    delete: (document) => deleteDocument(document.id).then(() => undefined),
   },
 });
 
@@ -118,11 +123,35 @@ export const documents = syncedTable({
  * Publishes a draft as of `heads`, the version the user saw. The server
  * must have all of it. The published version arrives as a row of `events`.
  */
-export const publishDraft = (id: DocumentId, heads: ReadonlyArray<string>) =>
+export const publishingNotice = (
+  id: DocumentId,
+  heads: ReadonlyArray<string>,
+) =>
+  requestEffect((client) =>
+    client.documents.publishingNotice({
+      params: { id },
+      payload: { heads: [...heads] },
+    }),
+  );
+
+export const cancellingNotice = (id: DocumentId) =>
+  requestEffect((client) =>
+    client.documents.cancellingNotice({ params: { id } }),
+  );
+
+export const publishDraft = (
+  id: DocumentId,
+  heads: ReadonlyArray<string>,
+  confirmed?: PublishingNotice,
+) =>
   requestEffect((client) =>
     client.documents.update({
       params: { id },
-      payload: { published: true, heads: [...heads] },
+      payload: {
+        published: true,
+        heads: [...heads],
+        ...(confirmed === undefined ? {} : { confirmed }),
+      },
     }),
   );
 
@@ -130,8 +159,16 @@ export const publishDraft = (id: DocumentId, heads: ReadonlyArray<string>) =>
  * Takes a published event off the site, keeping its draft. The row of
  * `events` leaves with it.
  */
-export const unpublishDocument = (id: DocumentId) =>
-  requestEffect((client) => client.documents.unpublish({ params: { id } }));
+export const unpublishDocument = (
+  id: DocumentId,
+  confirmed?: CancellingNotice,
+) =>
+  requestEffect((client) =>
+    client.documents.unpublish({
+      params: { id },
+      payload: confirmed === undefined ? {} : { confirmed },
+    }),
+  );
 
 /**
  * Makes a published event's draft the published version again. The event's

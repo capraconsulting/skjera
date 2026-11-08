@@ -24,7 +24,7 @@ WHEN an organiser clicks **Delete**, the studio SHALL ask first, and SHALL keep 
 
 ## AC-2: The question says who is told
 
-WHERE a published event that has not ended has people signed up, the question SHALL say they are emailed that it is cancelled, and how many they are.
+WHERE a published event that has not ended has signed-up people who can be emailed, the question SHALL say they are emailed that it is cancelled, and how many are emailed.
 
 **Test**
 
@@ -34,7 +34,7 @@ WHERE a published event that has not ended has people signed up, the question SH
 - **When** you click **Cancel**
 - **Then** the event is still there, for AC-3
 
-**Automated:** `packages/app/e2e/specs/attendance/emails.spec.ts`
+**Automated:** `packages/documents/test/events/notices.test.ts`, `packages/app/test/attendeeNotices.test.ts`, `packages/app/e2e/specs/attendance/emails.spec.ts`
 
 ## AC-3: Gone from the studio and the site
 

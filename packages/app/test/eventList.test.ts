@@ -2,10 +2,17 @@ import { describe, expect, it } from "vitest";
 import {
   defaultOrder,
   eventOrders,
+  orderOptions,
   readOrder,
   searchEvents,
   sortEvents,
 } from "../src/routes/studio/eventList.ts";
+
+it("offers every order from the one order catalogue (AC-3)", () => {
+  expect(orderOptions().map(({ value }) => value)).toEqual(
+    eventOrders.map(({ value }) => value),
+  );
+});
 
 const event = (
   id: string,
@@ -106,7 +113,7 @@ describe("sortEvents", () => {
 
 describe("readOrder", () => {
   it("reads each order stored (AC-6)", () => {
-    for (const order of eventOrders) expect(readOrder(order)).toBe(order);
+    for (const { value } of eventOrders) expect(readOrder(value)).toBe(value);
   });
 
   it("starts at «Sist endret» (AC-2)", () => {

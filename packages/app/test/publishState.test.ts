@@ -1,5 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { isDraft, publishState } from "../src/routes/studio/publishState.ts";
+import {
+  isDraft,
+  publishedState,
+  publishState,
+  rowState,
+  versionOf,
+} from "../src/routes/studio/publishState.ts";
+
+it("uses one order-independent published-state rule in the list and editor (AC-2)", () => {
+  expect(versionOf(["b", "a"])).toBe("a,b");
+  expect(publishedState(["b", "a"], "a,b")).toBe("published");
+  expect(rowState({ publishedHeads: ["b", "a"], draftHeads: ["a", "b"] })).toBe(
+    "published",
+  );
+  expect(
+    publishState({ publishedHeads: ["b", "a"], version: "a,b", saving: false }),
+  ).toEqual({
+    upToDate: true,
+    changed: false,
+  });
+  expect(publishedState(["a"], "a,b")).toBe("changed");
+  expect(publishedState(undefined, "a,b")).toBe("draft");
+});
 
 describe("publishState", () => {
   it("has changes to discard when the draft is not the published version (AC-1)", () => {

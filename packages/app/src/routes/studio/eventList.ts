@@ -1,12 +1,15 @@
+import { m } from "@skjera/i18n/messages";
 import { useSyncExternalStore } from "react";
 
 /** How the studio's lists of events are ordered, newest first. */
-export type EventOrder = "updated" | "created" | "starts";
-export const eventOrders: ReadonlyArray<EventOrder> = [
-  "updated",
-  "created",
-  "starts",
-];
+export const eventOrders = [
+  { value: "updated", label: () => m.studio_order_updated() },
+  { value: "created", label: () => m.studio_order_created() },
+  { value: "starts", label: () => m.studio_order_starts() },
+] as const;
+export type EventOrder = (typeof eventOrders)[number]["value"];
+export const orderOptions = () =>
+  eventOrders.map(({ value, label }) => ({ value, label: label() }));
 export const defaultOrder: EventOrder = "updated";
 
 /**
@@ -68,7 +71,7 @@ export const sortEvents = <T extends Sortable>(
 
 /** The order stored, or the default for one missing or unknown. */
 export const readOrder = (stored: string | null): EventOrder =>
-  eventOrders.find((order) => order === stored) ?? defaultOrder;
+  eventOrders.find(({ value }) => value === stored)?.value ?? defaultOrder;
 
 const storageKey = "skjera-studio-event-order";
 

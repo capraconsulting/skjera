@@ -22,11 +22,13 @@ import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
 import { documents, events, teams } from "../../sync/tables.ts";
 import { formatDateIn } from "../../time.ts";
 import {
+  orderOptions,
   readOrder,
   searchEvents,
   sortEvents,
   useEventOrder,
 } from "./eventList.ts";
+import { rowState } from "./publishState.ts";
 import styles from "./Team.module.css";
 
 export const teamLoader = async ({ params }: LoaderFunctionArgs) => {
@@ -55,17 +57,21 @@ export const teamLoader = async ({ params }: LoaderFunctionArgs) => {
 };
 
 /** The team's events, with how published and what the lists search and order by. */
-const useTeamEvents = (teamId: TeamId) =>
+export const useListedEvents = (teamId?: TeamId) =>
   useLiveQuery({
-    query: (q) =>
-      q
+    query: (q) => {
+      const listed = q
         .from({ document: documents.collection })
+        .innerJoin({ team: teams.collection }, ({ document, team }) =>
+          eq(document.teamId, team.id),
+        )
         .leftJoin({ event: events.collection }, ({ document, event }) =>
           eq(document.id, event.id),
         )
-        .where(({ document }) => eq(document.teamId, teamId))
-        .select(({ document, event }) => ({
+        .select(({ document, event, team }) => ({
           id: document.id,
+          teamId: document.teamId,
+          teamName: team.name,
           title: document.title,
           // The draft's tags, not the published version's: `event.tags`.
           tags: document.tags,
@@ -75,7 +81,11 @@ const useTeamEvents = (teamId: TeamId) =>
           publishedHeads: event?.publishedHeads,
           createdAt: document.createdAt,
           updatedAt: document.updatedAt,
-        })),
+        }));
+      return teamId === undefined
+        ? listed
+        : listed.where(({ document }) => eq(document.teamId, teamId));
+    },
   }).data;
 
 /** What a row of a list of events shows of an event. */
@@ -121,7 +131,7 @@ export function Team() {
       )
       .finally(() => setCreating(false));
   };
-  const rows = useTeamEvents(teamId);
+  const rows = useListedEvents(teamId);
   const { order, choose } = useEventOrder();
   // The search belongs to the team's list: opening one of its events keeps it,
   // and another team, or coming back to this one, starts with an empty field.
@@ -157,9 +167,11 @@ export function Team() {
             value={order}
             onChange={(event) => choose(readOrder(event.currentTarget.value))}
           >
-            <option value="updated">{m.studio_order_updated()}</option>
-            <option value="created">{m.studio_order_created()}</option>
-            <option value="starts">{m.studio_order_starts()}</option>
+            {orderOptions().map(({ value, label }) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
           </select>
         </div>
         {rows.length === 0 ? (
@@ -211,9 +223,9 @@ export function EventItem(props: {
         {event.startsAt == null || event.timeZone == null
           ? m.studio_no_date()
           : formatDateIn(event.startsAt, event.timeZone)}
-        {event.publishedHeads === undefined ? (
+        {rowState(event) === "draft" ? (
           <Badge tone="neutral">{m.studio_draft()}</Badge>
-        ) : event.publishedHeads.join() !== event.draftHeads.join() ? (
+        ) : rowState(event) === "changed" ? (
           <Badge tone="warning">{m.studio_changed()}</Badge>
         ) : (
           <Badge tone="success">{m.studio_published()}</Badge>

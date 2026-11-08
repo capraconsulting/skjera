@@ -37,7 +37,7 @@ WHEN an organiser clicks **Unpublish**, the studio SHALL ask first, and SHALL ke
 
 ## AC-3: The question says who is told
 
-WHERE a published event that has not ended has people signed up, the question SHALL say they are emailed that it is cancelled, and how many they are.
+WHERE a published event that has not ended has signed-up people who can be emailed, the question SHALL say they are emailed that it is cancelled, and how many are emailed.
 
 **Test**
 
@@ -50,7 +50,7 @@ WHERE a published event that has not ended has people signed up, the question SH
 - **When** you click **Unpublish**
 - **Then** the browser asks «Unpublish this event? It's taken off the site and kept here as a draft.»
 
-**Automated:** `packages/app/e2e/specs/unpublishing.spec.ts`
+**Automated:** `packages/documents/test/events/notices.test.ts`, `packages/app/test/attendeeNotices.test.ts`, `packages/app/e2e/specs/unpublishing.spec.ts`
 
 ## AC-4: Off the site at once
 

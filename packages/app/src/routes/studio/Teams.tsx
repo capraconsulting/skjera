@@ -13,7 +13,7 @@ import { documents, events, teams } from "../../sync/tables.ts";
 import { ColumnHandle } from "./ColumnHandle.tsx";
 import { defaultWidths, useColumnWidths } from "./columnWidths.ts";
 import { searchEvents, sortEvents, useEventOrder } from "./eventList.ts";
-import { EventItem } from "./Team.tsx";
+import { EventItem, useListedEvents } from "./Team.tsx";
 import { TeamLogosDialog } from "./TeamLogos.tsx";
 import styles from "./Teams.module.css";
 
@@ -46,36 +46,9 @@ const useTeams = () =>
 
 type Team = ReturnType<typeof useTeams>[number];
 
-/** Every team's events, with their team's name and how published. */
-const useAllEvents = () =>
-  useLiveQuery((q) =>
-    q
-      .from({ document: documents.collection })
-      .innerJoin({ team: teams.collection }, ({ document, team }) =>
-        eq(document.teamId, team.id),
-      )
-      .leftJoin({ event: events.collection }, ({ document, event }) =>
-        eq(document.id, event.id),
-      )
-      .select(({ document, team, event }) => ({
-        id: document.id,
-        teamId: document.teamId,
-        teamName: team.name,
-        title: document.title,
-        // The draft's tags, not the published version's: `event.tags`.
-        tags: document.tags,
-        startsAt: document.startsAt,
-        timeZone: document.timeZone,
-        draftHeads: document.draftHeads,
-        publishedHeads: event?.publishedHeads,
-        createdAt: document.createdAt,
-        updatedAt: document.updatedAt,
-      })),
-  ).data;
-
 /** The events of every team that `text` finds, in the order chosen. */
 function FoundEvents(props: { readonly text: string }) {
-  const found = useAllEvents();
+  const found = useListedEvents();
   const { order } = useEventOrder();
   const shown = sortEvents(searchEvents(found, props.text), order);
   return shown.length === 0 ? (

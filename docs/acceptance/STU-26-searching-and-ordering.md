@@ -46,7 +46,7 @@ The studio SHALL let the organiser order a team's list by «Sist endret», «Opp
 - **When** you choose «Dato for arrangementet»
 - **Then** «AC-2: Sommerfest», the latest start, is first, and «AC-2: No date» is last
 
-**Automated:** `packages/app/test/eventList.test.ts`, `packages/app/e2e/specs/teams.spec.ts`
+**Automated:** `packages/app/test/eventList.test.ts`, including that the offered options come from the order catalogue; `packages/app/e2e/specs/teams.spec.ts`
 
 ## AC-3: Search every team
 

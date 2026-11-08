@@ -46,9 +46,9 @@ WHEN the organiser answers yes, Skjera SHALL publish the new time and email thos
 
 **Automated:** `packages/app/e2e/specs/attendance/emails.spec.ts`, `packages/documents/test/notices/changes.test.tsx`, `packages/documents/test/events/notices.test.ts`
 
-## AC-4: The question counts those signed up
+## AC-4: The question counts those who are emailed
 
-WHERE more than one person is signed up, the question SHALL say how many.
+WHERE more than one signed-up person can be emailed, the question SHALL say how many are emailed.
 
 **Test**
 
@@ -56,7 +56,7 @@ WHERE more than one person is signed up, the question SHALL say how many.
 - **When** you change the start time and click **Publish**
 - **Then** the browser asks «Publish the new time? The 2 people signed up are emailed about it.»
 
-**Automated:** `packages/app/e2e/specs/attendance/emails.spec.ts`
+**Automated:** `packages/documents/test/events/notices.test.ts`, `packages/app/test/attendeeNotices.test.ts`, `packages/app/e2e/specs/attendance/emails.spec.ts`
 
 ## AC-5: A new place is asked about too
 

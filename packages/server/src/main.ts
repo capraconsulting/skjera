@@ -338,14 +338,32 @@ const DocumentsHandlers = HttpApiBuilder.group(Api, "documents", (handlers) =>
       )
       .handle("update", ({ params, payload }) =>
         Effect.gen(function* () {
-          return yield* documents.publish(
+          const user = yield* OAuth.CurrentUser;
+          return yield* payload.confirmed === undefined
+            ? documents.publish(params.id, payload.heads, user)
+            : documents.publishConfirmed(
+                params.id,
+                payload.heads,
+                user,
+                payload.confirmed,
+              );
+        }),
+      )
+      .handle("publishingNotice", ({ params, payload }) =>
+        Effect.gen(function* () {
+          return yield* documents.publishingNotice(
             params.id,
             payload.heads,
             yield* OAuth.CurrentUser,
           );
         }),
       )
-      .handle("unpublish", ({ params }) => documents.unpublish(params.id))
+      .handle("cancellingNotice", ({ params }) =>
+        documents.cancellingNotice(params.id),
+      )
+      .handle("unpublish", ({ params, payload }) =>
+        documents.unpublish(params.id, payload.confirmed),
+      )
       .handle("discardChanges", ({ params }) =>
         Effect.gen(function* () {
           return yield* documents.discardChanges(
@@ -364,9 +382,13 @@ const DocumentsHandlers = HttpApiBuilder.group(Api, "documents", (handlers) =>
           );
         }),
       )
-      .handle("delete", ({ params }) =>
+      .handle("delete", ({ params, payload }) =>
         Effect.gen(function* () {
-          return yield* documents.delete(params.id, yield* OAuth.CurrentUser);
+          return yield* documents.delete(
+            params.id,
+            yield* OAuth.CurrentUser,
+            payload.confirmed,
+          );
         }),
       );
   }),
