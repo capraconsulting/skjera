@@ -28,6 +28,3 @@ export const services = Authenticator.layer.pipe(
 
 /** The auth routes and the `Authentication` middleware, on top of `services`. */
 export const routes = Layer.mergeAll(AuthRoutes, AuthenticationLive);
-
-/** `routes` with `services`, for when startup order doesn't matter. */
-export const layer = routes.pipe(Layer.provideMerge(services));
