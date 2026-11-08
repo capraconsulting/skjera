@@ -1,4 +1,5 @@
 import { m } from "@skjera/i18n/messages";
+import { dexUsers } from "@skjera/test";
 import { cleanUp } from "../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName } from "../fixtures/support.ts";
 import { expect, test } from "../fixtures/test.ts";
@@ -6,10 +7,10 @@ import { PreviewPage } from "../pom/site/PreviewPage.ts";
 import { EventEditor } from "../pom/studio/EventEditor.ts";
 import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
 
-test("the history lists the event's versions, each with who and when (AC-1)", async ({
+test("the history lists the event's versions, each with who and when (STU-28 AC-1)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("History"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
@@ -26,10 +27,10 @@ test("the history lists the event's versions, each with who and when (AC-1)", as
   await cleanUp(alice, team, event.id);
 });
 
-test("viewing a version shows the event as it was, which later edits do not change (AC-2)", async ({
+test("viewing a version shows the event as it was, which later edits do not change (STU-28 AC-2)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("History view"),
   );
@@ -52,10 +53,10 @@ test("viewing a version shows the event as it was, which later edits do not chan
   await cleanUp(alice, team, event.id);
 });
 
-test("a version that is not change hashes is not found (AC-2)", async ({
+test("a version that is not change hashes is not found (STU-28 AC-2)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("History missing"),
   );
@@ -69,10 +70,10 @@ test("a version that is not change hashes is not found (AC-2)", async ({
   await cleanUp(alice, team, event.id);
 });
 
-test("restoring a version asks first, and Cancel changes nothing (AC-8)", async ({
+test("restoring a version asks first, and Cancel changes nothing (STU-28 AC-8)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("History asks"),
   );
@@ -93,10 +94,10 @@ test("restoring a version asks first, and Cancel changes nothing (AC-8)", async 
   await cleanUp(alice, team, event.id);
 });
 
-test("restoring a version puts its title back in the draft without reloading (AC-3)", async ({
+test("restoring a version puts its title back in the draft without reloading (STU-28 AC-3)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("History restore"),
   );

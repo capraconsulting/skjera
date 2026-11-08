@@ -1,3 +1,4 @@
+import { dexUsers } from "@skjera/test";
 import { cleanUp } from "../../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName, visitor } from "../../fixtures/support.ts";
 import { test } from "../../fixtures/test.ts";
@@ -9,10 +10,10 @@ import { HomePage } from "../../pom/site/HomePage.ts";
 import { EventEditor } from "../../pom/studio/EventEditor.ts";
 import { TeamsColumn } from "../../pom/studio/TeamsColumn.ts";
 
-test("a guest who came from an ad has it on their signup, after moving between pages and with no cookie choice made (AC-1, AC-2)", async ({
+test("a guest who came from an ad has it on their signup, after moving between pages and with no cookie choice made (EXT-08 AC-1, EXT-08 AC-2)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Ad guest"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
@@ -36,10 +37,10 @@ test("a guest who came from an ad has it on their signup, after moving between p
   await cleanUp(alice, team, event.id);
 });
 
-test("a visitor who came from an ad keeps it through logging in and signing up as a member (AC-1)", async ({
+test("a visitor who came from an ad keeps it through logging in and signing up as a member (EXT-08 AC-1)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Ad member"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
@@ -49,14 +50,14 @@ test("a visitor who came from an ad keeps it through logging in and signing up a
   await page.gotoLink(`/events/${event.id}?utm_source=linkedin&fbclid=F`);
   await new HomePage(bob).goto();
   await new Header(bob).clickLogIn();
-  await new LoginPage(bob).signIn("bob@example.com");
-  await new Header(bob).expectSignedInAs("bob@example.com");
+  await new LoginPage(bob).signIn(dexUsers.bob);
+  await new Header(bob).expectSignedInAs(dexUsers.bob);
   await page.goto(event.id);
   await new Attendance(bob).attend();
 
   await editor.reload();
   await editor.attendees.expectRow(
-    "bob@example.com",
+    dexUsers.bob,
     "utm_source: linkedin, fbclid: F",
   );
 

@@ -1,5 +1,11 @@
+import { dexUsers } from "@skjera/test";
 import { cleanUp } from "../../fixtures/cleanUp.ts";
-import { signedIn, uniqueTeamName, visitor } from "../../fixtures/support.ts";
+import {
+  signedIn,
+  uniqueEmail,
+  uniqueTeamName,
+  visitor,
+} from "../../fixtures/support.ts";
 import { expect, test } from "../../fixtures/test.ts";
 import { Mailbox } from "../../pom/Mailbox.ts";
 import { Attendance } from "../../pom/site/Attendance.ts";
@@ -7,10 +13,10 @@ import { EventPage } from "../../pom/site/EventPage.ts";
 import { EventEditor } from "../../pom/studio/EventEditor.ts";
 import { TeamsColumn } from "../../pom/studio/TeamsColumn.ts";
 
-test("the attendee list offers an email to those signed up only while someone is (AC-1)", async ({
+test("the attendee list offers an email to those signed up only while someone is (MAIL-08 AC-1)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Mail"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
@@ -20,10 +26,7 @@ test("the attendee list offers an email to those signed up only while someone is
 
   const guest = await visitor(browser);
   await new EventPage(guest).goto(event.id);
-  await new Attendance(guest).signUpAsGuest(
-    "Gina",
-    `gina-${crypto.randomUUID()}@example.org`,
-  );
+  await new Attendance(guest).signUpAsGuest("Gina", uniqueEmail("gina"));
   await editor.attendees.expectText("Gina");
   await editor.attendees.expectEmailButton(true);
   await editor.attendees.openEmailForm(1);
@@ -31,14 +34,14 @@ test("the attendee list offers an email to those signed up only while someone is
   await cleanUp(alice, team, event.id);
 });
 
-test("an organizer's email goes out once confirmed, and is listed at once (AC-2, AC-4)", async ({
+test("an organizer's email goes out once confirmed, and is listed at once (MAIL-08 AC-2, MAIL-08 AC-4)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Mail"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
-  const address = `gina-${crypto.randomUUID()}@example.org`;
+  const address = uniqueEmail("gina");
   const guest = await visitor(browser);
   await new EventPage(guest).goto(event.id);
   await new Attendance(guest).signUpAsGuest("Gina", address);

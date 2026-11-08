@@ -30,6 +30,18 @@ export const signedIn = async (
 export const uniqueTeamName = (label: string): string =>
   `${label} ${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
+/** An email address no other test run uses. */
+export const uniqueEmail = (label: string): string =>
+  `${label}-${crypto.randomUUID()}@example.org`;
+
+/** A guest's private event link from an email. */
+export const guestLink = (text: string, eventId: string): string | undefined =>
+  text.match(new RegExp(`http\\S*/events/${eventId}\\?guest=\\S+`))?.[0];
+
+/** A guest's cancellation-confirmation link from an email. */
+export const cancelLink = (text: string, eventId: string): string | undefined =>
+  text.match(new RegExp(`http\\S*/events/${eventId}/cancel\\?token=\\S+`))?.[0];
+
 /**
  * Controls a page's live connections to the server: its WebSockets.
  * Set it up before the page opens the socket, e.g. before navigating.

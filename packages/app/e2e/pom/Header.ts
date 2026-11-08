@@ -1,5 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 import { m } from "@skjera/i18n/messages";
+import { expectImagesLoaded } from "./images.ts";
 
 /** The header on every page, the site's and the studio's. */
 export class Header {
@@ -81,9 +82,7 @@ export class Header {
     const picture = this.accountMenuButton().locator("img");
     await expect(picture).toHaveAttribute("alt", "Profile picture");
     await expect(picture).toHaveAttribute("src", src);
-    await expect
-      .poll(() => picture.evaluate((img: HTMLImageElement) => img.naturalWidth))
-      .toBeGreaterThan(0);
+    await expectImagesLoaded(picture);
   }
 
   /** The menu shows no picture, so it shows the initials. */

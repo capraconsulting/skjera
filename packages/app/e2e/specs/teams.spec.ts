@@ -1,15 +1,16 @@
 import type { Dialog } from "@playwright/test";
 import { m } from "@skjera/i18n/messages";
+import { dexUsers } from "@skjera/test";
 import { signedIn, uniqueTeamName } from "../fixtures/support.ts";
 import { expect, test } from "../fixtures/test.ts";
 import { EventEditor } from "../pom/studio/EventEditor.ts";
 import { EventsColumn } from "../pom/studio/EventsColumn.ts";
 import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
 
-test("a refused event deletion keeps the editor open and shows the failure (AC-1)", async ({
+test("a refused event deletion keeps the editor open and shows the failure (STU-19 AC-1)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const teams = new TeamsColumn(alice);
   const team = await teams.create(uniqueTeamName("Refused deletion"));
   const events = new EventsColumn(alice);
@@ -32,10 +33,10 @@ test("a refused event deletion keeps the editor open and shows the failure (AC-1
   await teams.delete(team);
 });
 
-test("a failed cancellation answer shows no delete question and keeps the event (AC-1)", async ({
+test("a failed cancellation answer shows no delete question and keeps the event (STU-01 AC-1)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const teams = new TeamsColumn(alice);
   const team = await teams.create(uniqueTeamName("Failed cancellation answer"));
   const id = await new EventsColumn(alice).newEvent();
@@ -65,11 +66,11 @@ test("a failed cancellation answer shows no delete question and keeps the event 
   await teams.delete(team);
 });
 
-test("events are created in a team and a refused team deletion shows the server reason (AC-3)", async ({
+test("events are created in a team and a refused team deletion shows the server reason (STU-03 AC-3)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
-  const bob = await signedIn(browser, "bob@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
+  const bob = await signedIn(browser, dexUsers.bob);
   const redName = uniqueTeamName("Red");
   const blueName = uniqueTeamName("Blue");
   const red = await new TeamsColumn(alice).create(redName);
@@ -116,7 +117,7 @@ test("events are created in a team and a refused team deletion shows the server 
 test("the events column shows the team picked, switching without a reload", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const teams = new TeamsColumn(alice);
   const events = new EventsColumn(alice);
   const editor = new EventEditor(alice);
@@ -145,7 +146,7 @@ test("the events column shows the team picked, switching without a reload", asyn
 });
 
 test("team names must be unique", async ({ browser }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const teams = new TeamsColumn(alice);
   const name = uniqueTeamName("Unique");
   const team = await teams.create(name);
@@ -167,7 +168,7 @@ test("team names must be unique", async ({ browser }) => {
 });
 
 test("teams can be renamed", async ({ browser }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const teams = new TeamsColumn(alice);
   const takenName = uniqueTeamName("Taken");
   const taken = await teams.create(takenName);
@@ -195,8 +196,8 @@ test("teams can be renamed", async ({ browser }) => {
 test("the team list follows others' changes without reloading", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
-  const bob = await signedIn(browser, "bob@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
+  const bob = await signedIn(browser, dexUsers.bob);
   const aliceSees = new TeamsColumn(alice);
   await aliceSees.expectShown();
 
@@ -213,13 +214,13 @@ test("the team list follows others' changes without reloading", async ({
 test("the events column follows others' changes without reloading", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Watched"));
   const aliceSees = new EventsColumn(alice);
   await aliceSees.expectEmpty();
 
   // Bob adds and names an event in Alice's team, and she sees it.
-  const bob = await signedIn(browser, "bob@example.com");
+  const bob = await signedIn(browser, dexUsers.bob);
   await new TeamsColumn(bob).goto(team);
   const event = await new EventsColumn(bob).newEvent();
   const bobsEditor = new EventEditor(bob);
@@ -233,9 +234,9 @@ test("the events column follows others' changes without reloading", async ({
 });
 
 test("publishing shows for others without reloading", async ({ browser }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Launches"));
-  const bob = await signedIn(browser, "bob@example.com");
+  const bob = await signedIn(browser, dexUsers.bob);
   await new TeamsColumn(bob).goto(team);
   const event = await new EventsColumn(bob).newEvent();
   const bobsEditor = new EventEditor(bob);
@@ -268,7 +269,7 @@ test("publishing shows for others without reloading", async ({ browser }) => {
 test("a team's logos are chosen, replaced and removed in its logo dialog", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const teams = new TeamsColumn(alice);
   const team = await teams.create(uniqueTeamName("Logos"));
   const dialog = await teams.openLogoDialog(team);
@@ -300,10 +301,10 @@ test("a team's logos are chosen, replaced and removed in its logo dialog", async
   await teams.delete(team);
 });
 
-test("a team's events are searched by title and tags, and ordered (AC-1, AC-2, AC-4)", async ({
+test("a team's events are searched by title and tags, and ordered (STU-26 AC-1, STU-26 AC-2, STU-26 AC-4)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const teams = new TeamsColumn(alice);
   const events = new EventsColumn(alice);
   const editor = new EventEditor(alice);
@@ -372,10 +373,10 @@ test("a team's events are searched by title and tags, and ordered (AC-1, AC-2, A
   await teams.delete(blue);
 });
 
-test("events are found across teams in the order chosen, which is kept (AC-3, AC-4, AC-6)", async ({
+test("events are found across teams in the order chosen, which is kept (STU-26 AC-3, STU-26 AC-4, STU-26 AC-6)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const teams = new TeamsColumn(alice);
   const events = new EventsColumn(alice);
   const editor = new EventEditor(alice);
@@ -435,10 +436,10 @@ test("events are found across teams in the order chosen, which is kept (AC-3, AC
   await teams.delete(blue);
 });
 
-test("a search and an order keep following others' edits without reloading (AC-7)", async ({
+test("a search and an order keep following others' edits without reloading (STU-26 AC-7)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const teams = new TeamsColumn(alice);
   const events = new EventsColumn(alice);
   const editor = new EventEditor(alice);
@@ -455,7 +456,7 @@ test("a search and an order keep following others' edits without reloading (AC-7
   await events.expectTitles([early]);
 
   // Bob makes an event that matches, and it is first for her in both lists.
-  const bob = await signedIn(browser, "bob@example.com");
+  const bob = await signedIn(browser, dexUsers.bob);
   await new TeamsColumn(bob).goto(red);
   const added = `Added by Bob ${word}`;
   const addedId = await new EventsColumn(bob).newEvent();
@@ -473,7 +474,7 @@ test("a search and an order keep following others' edits without reloading (AC-7
 test("an event without a title or a start shows Untitled and No date in the list (STU-03 AC-2)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const teams = new TeamsColumn(alice);
   const events = new EventsColumn(alice);
   const editor = new EventEditor(alice);
@@ -497,7 +498,7 @@ test("an event without a title or a start shows Untitled and No date in the list
 test("a team that no longer exists says so when its address is opened (STU-03 AC-7)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const teams = new TeamsColumn(alice);
   const team = await teams.create(uniqueTeamName("Gone"));
 

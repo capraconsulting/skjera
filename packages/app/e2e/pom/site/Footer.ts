@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { expectImagesLoaded } from "../images.ts";
 
 /** The site's footer, as configured (SITE_FOOTER, SITE_OPERATOR, …). */
 export class Footer {
@@ -38,14 +39,7 @@ export class Footer {
   /** Every logo shown in the footer has loaded. */
   async expectLogosLoaded(): Promise<void> {
     const images = this.footer().getByRole("img");
-    await expect(images.first()).toBeVisible();
-    await expect
-      .poll(() =>
-        images.evaluateAll((all) =>
-          all.every((image) => (image as HTMLImageElement).naturalWidth > 0),
-        ),
-      )
-      .toBe(true);
+    await expectImagesLoaded(images);
   }
 
   async clickPrivacy(): Promise<void> {

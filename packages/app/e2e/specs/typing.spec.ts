@@ -1,3 +1,4 @@
+import { dexUsers } from "@skjera/test";
 import { cleanUp } from "../fixtures/cleanUp.ts";
 import { connection, signedIn, uniqueTeamName } from "../fixtures/support.ts";
 import { expect, test } from "../fixtures/test.ts";
@@ -13,7 +14,7 @@ const letters = (text: string) => [...text].sort().join("");
 test("a top-level text field keeps focus when its edit starts saving", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Focus"));
   const id = await new EventsColumn(alice).newEvent();
   const editor = new EventEditor(alice);
@@ -36,11 +37,11 @@ test("no keystroke is lost when two people type at once", async ({
   browser,
 }) => {
   test.slow();
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Typing"));
   const id = await new EventsColumn(alice).newEvent();
   const editor = new EventEditor(alice);
-  const bob = await signedIn(browser, "bob@example.com");
+  const bob = await signedIn(browser, dexUsers.bob);
   const bobsEditor = new EventEditor(bob);
   await bobsEditor.goto(team, id);
   await bobsEditor.body.expectVisible();
@@ -76,7 +77,7 @@ test("no keystroke is lost when two people type at once", async ({
   // And the server has it all.
   await editor.expectSaved();
   await bobsEditor.expectSaved();
-  const fresh = await signedIn(browser, "alice@example.com");
+  const fresh = await signedIn(browser, dexUsers.alice);
   const freshEditor = new EventEditor(fresh);
   await freshEditor.goto(team, id);
   await freshEditor.body.expectText(text);
@@ -87,13 +88,13 @@ test("no keystroke is lost when two people type at once", async ({
 test("edits made offline are kept, and synced once back online", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Offline"));
   const id = await new EventsColumn(alice).newEvent();
   const editor = new EventEditor(alice);
   await editor.body.type("Alice was here.");
 
-  const bob = await signedIn(browser, "bob@example.com");
+  const bob = await signedIn(browser, dexUsers.bob);
   const bobsConnection = await connection(bob);
   const bobsEditor = new EventEditor(bob);
   await bobsEditor.goto(team, id);
@@ -119,7 +120,7 @@ test("edits made offline are kept, and synced once back online", async ({
 });
 
 test("logging out deletes the local copies", async ({ browser }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Logout"));
   const id = await new EventsColumn(alice).newEvent();
   const editor = new EventEditor(alice);
@@ -133,7 +134,7 @@ test("logging out deletes the local copies", async ({ browser }) => {
   await header.expectSignedOut();
   await copies.expectNone();
 
-  const again = await signedIn(browser, "alice@example.com");
+  const again = await signedIn(browser, dexUsers.alice);
   const againEditor = new EventEditor(again);
   await againEditor.goto(team, id);
   await againEditor.body.expectText("Kept here for a while");

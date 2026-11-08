@@ -1,4 +1,5 @@
 import { m } from "@skjera/i18n/messages";
+import { dexUsers } from "@skjera/test";
 import { signedIn, uniqueTeamName, visitor } from "../fixtures/support.ts";
 import { test } from "../fixtures/test.ts";
 import { Header } from "../pom/Header.ts";
@@ -19,7 +20,7 @@ const publish = async (editor: EventEditor) => {
 test("events are tagged, and the site groups and filters them", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const teams = new TeamsColumn(alice);
   const events = new EventsColumn(alice);
   const editor = new EventEditor(alice);
@@ -91,7 +92,7 @@ test("the site filters events open to guests and those not, with the tag too", a
   browser,
 }) => {
   test.slow();
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const teams = new TeamsColumn(alice);
   const editor = new EventEditor(alice);
   const team = await teams.create(uniqueTeamName("Guest filter"));
@@ -106,12 +107,11 @@ test("the site filters events open to guests and those not, with the tag too", a
   const b = await editor.createPublished({ public: true, tags: [tag] });
   const c = await editor.createPublished({ public: true, guests: true });
   // D is past, not open to guests, tagged.
-  const d = await new EventsColumn(alice).newEvent();
-  const dTitle = `Was ${d.slice(-12)}`;
-  await editor.title.type(dTitle);
-  await editor.times.pickPastStart();
-  await editor.tags.add(tag);
-  await publish(editor);
+  const d = await editor.createPublished({
+    public: true,
+    past: true,
+    tags: [tag],
+  });
 
   const reader = await visitor(browser);
   const home = new HomePage(reader);
@@ -159,17 +159,17 @@ test("the site filters events open to guests and those not, with the tag too", a
   // narrow the upcoming events only, so D is under «Past events» either way.
   await home.goto(`?tag=${encodeURIComponent(tag)}&guests=yes`);
   await home.expectEvents("upcoming", [a], [b, c]);
-  await home.expectEvent(dTitle, "past");
+  await home.expectEvent(d.title, "past");
   await home.goto(`?tag=${encodeURIComponent(tag)}&guests=no`);
   await home.expectEvents("upcoming", [b], [a, c]);
-  await home.expectEvent(dTitle, "past");
+  await home.expectEvent(d.title, "past");
 
   // An unknown value is no choice.
   await home.goto("?guests=maybe");
   await home.expectGuestFilter(null);
   await home.expectEvents("upcoming", [a, b, c]);
 
-  await editor.delete(d);
+  await editor.delete(d.id);
   for (const event of [a, b, c]) {
     await editor.goto(team, event.id);
     await editor.delete(event.id);
@@ -177,11 +177,11 @@ test("the site filters events open to guests and those not, with the tag too", a
   await teams.delete(team);
 });
 
-test("the upcoming events show six at a time, and a new filter starts them again (AC-1, AC-2, AC-5, AC-6)", async ({
+test("the upcoming events show six at a time, and a new filter starts them again (SITE-02 AC-1, SITE-02 AC-2, SITE-02 AC-5, SITE-02 AC-6)", async ({
   browser,
 }) => {
   test.slow();
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const teams = new TeamsColumn(alice);
   const editor = new EventEditor(alice);
   const team = await teams.create(uniqueTeamName("Paging"));

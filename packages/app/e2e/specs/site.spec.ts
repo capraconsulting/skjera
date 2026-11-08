@@ -1,10 +1,12 @@
 import type { Page } from "@playwright/test";
 import { signupRetentionDays } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
+import { dexUsers } from "@skjera/test";
 import { cleanUp } from "../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName, visitor } from "../fixtures/support.ts";
 import { expect, test } from "../fixtures/test.ts";
 import { Header } from "../pom/Header.ts";
+import { pixel } from "../pom/images.ts";
 import { LoginPage } from "../pom/LoginPage.ts";
 import { AccountPage } from "../pom/site/AccountPage.ts";
 import { Attendance, CancelByEmail } from "../pom/site/Attendance.ts";
@@ -31,7 +33,7 @@ test("visitors can read the site but not the studio", async ({ browser }) => {
   await new LoginPage(page).expectShown();
 });
 
-test("logging in from the site's header comes back to the page, filter and all (AC-1, AC-2)", async ({
+test("logging in from the site's header comes back to the page, filter and all (ACC-01 AC-1, ACC-01 AC-2)", async ({
   browser,
 }) => {
   const page = await visitor(browser);
@@ -41,16 +43,16 @@ test("logging in from the site's header comes back to the page, filter and all (
   await home.clickGuestFilter("open");
   await home.expectQuery("yes", null);
   await header.clickLogIn();
-  await new LoginPage(page).signIn("alice@example.com");
+  await new LoginPage(page).signIn(dexUsers.alice);
   await home.expectUrl(/\/\?guests=yes$/);
-  await header.expectSignedInAs("alice@example.com");
+  await header.expectSignedInAs(dexUsers.alice);
   await header.expectStudioLink();
 });
 
-test("a page waits for a server that is starting and keeps the configured site (AC-1)", async ({
+test("a page waits for a server that is starting and keeps the configured site (OPS-07 AC-1)", async ({
   browser,
 }) => {
-  const page = await signedIn(browser, "alice@example.com");
+  const page = await signedIn(browser, dexUsers.alice);
   const teams = new TeamsColumn(page);
   const name = uniqueTeamName("Starting");
   const team = await teams.create(name);
@@ -65,7 +67,7 @@ test("a page waits for a server that is starting and keeps the configured site (
   });
 
   await teams.goto();
-  await new Header(page).expectSignedInAs("alice@example.com");
+  await new Header(page).expectSignedInAs(dexUsers.alice);
   await teams.expectTeam(name);
   await expect(page).toHaveTitle("Skjera");
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
@@ -115,7 +117,7 @@ test("the site shows what was published, and only that", async ({
   const teams = new TeamsColumn(alice);
   const editor = new EventEditor(alice);
   await teams.goto();
-  await new LoginPage(alice).signIn("alice@example.com");
+  await new LoginPage(alice).signIn(dexUsers.alice);
   const team = await teams.create(uniqueTeamName("Site"));
   await teams.goto(team);
   const id = await new EventsColumn(alice).newEvent();
@@ -183,7 +185,7 @@ test("the site shows what was published, and only that", async ({
 test("an event's summary is written in the studio and shown on its page", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Summary"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true });
@@ -205,7 +207,7 @@ test("the site follows publishing without reloading", async ({ browser }) => {
   const home = new HomePage(reader);
   await home.goto();
 
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Live site"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true });
@@ -220,10 +222,10 @@ test("the site follows publishing without reloading", async ({ browser }) => {
   await cleanUp(alice, team, event.id);
 });
 
-test("sign-up closes at the deadline or event start, in its time zone (AC-1, AC-2)", async ({
+test("sign-up closes at the deadline or event start, in its time zone (SIGN-05 AC-1, SIGN-05 AC-2)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Deadline"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({
@@ -270,10 +272,10 @@ test("sign-up closes at the deadline or event start, in its time zone (AC-1, AC-
   await cleanUp(alice, team, event.id, started.id);
 });
 
-test("the account menu uses the canonical login name and leads to settings (AC-1, AC-2)", async ({
+test("the account menu uses the canonical login name and leads to settings (ACC-05 AC-1, ACC-05 AC-2)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const header = new Header(alice);
   // In the studio, its link says so; on the site, it doesn't.
   await header.expectStudioCurrent(true);
@@ -281,7 +283,7 @@ test("the account menu uses the canonical login name and leads to settings (AC-1
   // Who's signed in: their name from the login, and their email.
   await header.openAccountMenu();
   await header.expectAccountMenuShows("alice");
-  await header.expectAccountMenuShows("alice@example.com");
+  await header.expectAccountMenuShows(dexUsers.alice);
 
   await alice.context().route("/api/me", async (route) => {
     const response = await route.fetch();
@@ -303,7 +305,7 @@ test("the account menu uses the canonical login name and leads to settings (AC-1
   await account.expectAt();
   await header.expectStudioCurrent(false);
   await account.expectHeading("Account settings");
-  await account.expectText("alice@example.com");
+  await account.expectText(dexUsers.alice);
 
   // The theme: picked, or the system's again.
   await account.pickTheme("Dark");
@@ -335,15 +337,10 @@ const meWithPicture = async (page: Page, picture: string): Promise<void> => {
   });
 };
 
-const smallImage = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
-  "base64",
-);
-
-test("the account menu shows the picture from the login, and the initials with none or one that fails (AC-6)", async ({
+test("the account menu shows the picture from the login, and the initials with none or one that fails (ACC-01 AC-6)", async ({
   browser,
 }) => {
-  const bob = await signedIn(browser, "bob@example.com");
+  const bob = await signedIn(browser, dexUsers.bob);
   const header = new Header(bob);
   // The local login has no picture: the menu shows the initials.
   await header.expectNoProfilePicture();
@@ -354,7 +351,7 @@ test("the account menu shows the picture from the login, and the initials with n
   await bob
     .context()
     .route(picture, (route) =>
-      route.fulfill({ contentType: "image/png", body: smallImage }),
+      route.fulfill({ contentType: "image/png", body: pixel }),
     );
   await new HomePage(bob).goto();
   await header.expectProfilePicture(picture);
@@ -374,7 +371,7 @@ test("the header subscribes to the coming events in Google Calendar, beside the 
   await new HomePage(reader).goto();
   await new Header(reader).expectNoSubscribe();
 
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const header = new Header(alice);
   // Nothing leaves the machine: Google's address is answered here.
   await alice
@@ -399,7 +396,7 @@ test("the header subscribes to the coming events in Google Calendar, beside the 
 test("the calendar to subscribe to holds the coming events, members-only too, to anyone", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Feed"));
   const editor = new EventEditor(alice);
   const open = await editor.createPublished({ public: true });
@@ -419,7 +416,7 @@ test("the calendar to subscribe to holds the coming events, members-only too, to
 test("the header keeps «Abonner» and the account menu in a phone's window", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   await alice.setViewportSize({ width: 320, height: 640 });
   for (const path of ["/", "/studio/teams"]) {
     await alice.goto(path);
@@ -427,7 +424,7 @@ test("the header keeps «Abonner» and the account menu in a phone's window", as
   }
 });
 
-test("the site has its logo, its footer and a privacy page (AC-2, AC-3)", async ({
+test("the site has its logo, its footer and a privacy page (SITE-01 AC-2, SITE-01 AC-3)", async ({
   browser,
 }) => {
   // Capra's and Liflig's logo; as configured in mise.toml: SITE_FOOTER, …
@@ -454,7 +451,7 @@ test("the site has its logo, its footer and a privacy page (AC-2, AC-3)", async 
   await privacy.expectOperatorDetails();
 });
 
-test("the footer is Capra's, as in Skjer (AC-3, AC-4, AC-9)", async ({
+test("the footer is Capra's, as in Skjer (SITE-01 AC-3, SITE-01 AC-4, SITE-01 AC-9)", async ({
   browser,
 }) => {
   const page = await visitor(browser);
@@ -492,7 +489,7 @@ test("the footer is Capra's, as in Skjer (AC-3, AC-4, AC-9)", async ({
   );
 });
 
-test("the privacy page has the sections of Skjer's policy (AC-1)", async ({
+test("the privacy page has the sections of Skjer's policy (SITE-10 AC-1)", async ({
   browser,
 }) => {
   const reader = await visitor(browser);
@@ -501,7 +498,7 @@ test("the privacy page has the sections of Skjer's policy (AC-1)", async ({
   await privacy.expectSections();
 });
 
-test("the privacy page names the operator the site gives (AC-4)", async ({
+test("the privacy page names the operator the site gives (SITE-10 AC-4)", async ({
   browser,
 }) => {
   const reader = await visitor(browser);
@@ -511,7 +508,7 @@ test("the privacy page names the operator the site gives (AC-4)", async ({
   await privacy.expectInPart("controller", "Example Ltd");
 });
 
-test("without the operator's details, the privacy page leaves out their lines (AC-3)", async ({
+test("without the operator's details, the privacy page leaves out their lines (SITE-10 AC-3)", async ({
   browser,
 }) => {
   const reader = await visitor(browser);
@@ -554,20 +551,13 @@ test("with a policy kept elsewhere, /privacy sends the visitor there", async ({
 /** Publishes an event in the open team, a month ago. Returns its title. */
 const publishedPastEvent = async (page: Page) => {
   const editor = new EventEditor(page);
-  const id = await new EventsColumn(page).newEvent();
-  const past = `Was ${id.slice(-12)}`;
-  await editor.title.type(past);
-  await editor.times.pickPastStart();
-  await editor.writePlace();
-  await editor.checkPublic();
-  await editor.publish();
-  return { id, title: past };
+  return editor.createPublished({ public: true, past: true });
 };
 
 test("the site's list shows each event's team as its organizer", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const teams = new TeamsColumn(alice);
   const editor = new EventEditor(alice);
   const brandedName = uniqueTeamName("Branded");
@@ -594,7 +584,7 @@ test("the site's list shows each event's team as its organizer", async ({
 });
 
 test("the event page shows the team as its organizer", async ({ browser }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const teams = new TeamsColumn(alice);
   const editor = new EventEditor(alice);
   const brandedName = uniqueTeamName("Branded");
@@ -621,7 +611,7 @@ test("the event page shows the team as its organizer", async ({ browser }) => {
 test("the dark theme shows the team's dark logo, or its light one when it has none", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const teams = new TeamsColumn(alice);
   const team = await teams.create(uniqueTeamName("Themed"));
   const light = await teams.setLogo(team, "light");
@@ -654,7 +644,7 @@ test("the dark theme shows the team's dark logo, or its light one when it has no
 test("the open list follows a team's rename without reloading", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const teams = new TeamsColumn(alice);
   const name = uniqueTeamName("Before");
   const team = await teams.create(name);
@@ -675,7 +665,7 @@ test("the open list follows a team's rename without reloading", async ({
 test("a team's new logo shows on the open list without reloading", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const teams = new TeamsColumn(alice);
   const name = uniqueTeamName("Relogo");
   const team = await teams.create(name);
@@ -693,10 +683,10 @@ test("a team's new logo shows on the open list without reloading", async ({
   await cleanUp(alice, team, event.id);
 });
 
-test("a link to a public event shows its title, summary and cover; others the site's name (AC-3, AC-6)", async ({
+test("a link to a public event shows its title, summary and cover; others the site's name (SITE-11 AC-3, SITE-11 AC-6)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Shared"));
   const editor = new EventEditor(alice);
   const shown = await editor.createPublished({ public: true });
@@ -732,7 +722,7 @@ test("a link to a public event shows its title, summary and cover; others the si
   await cleanUp(alice, team, shown.id);
 });
 
-test("the privacy page says the configured retention in each language (AC-2, AC-4, AC-1)", async ({
+test("the privacy page says the configured retention in each language (SIGN-13 AC-2, SIGN-13 AC-4, SIGN-13 AC-1)", async ({
   browser,
 }) => {
   const reader = await visitor(browser);
@@ -757,7 +747,7 @@ test("the privacy page says the configured retention in each language (AC-2, AC-
 test("every page of the site loads HubSpot's script, once", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("HubSpot"));
   const event = await new EventEditor(alice).createPublished({ public: true });
 
@@ -790,7 +780,7 @@ test("every page of the site loads HubSpot's script, once", async ({
 test("the way from the studio to the site loads HubSpot's script", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const hubSpot = new HubSpot(alice);
   await hubSpot.install();
   const teams = new TeamsColumn(alice);
@@ -805,7 +795,7 @@ test("the way from the studio to the site loads HubSpot's script", async ({
 test("the studio never runs HubSpot's script, however it is entered", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const hubSpot = new HubSpot(alice);
   const asked = await hubSpot.install();
   const header = new Header(alice);
@@ -839,7 +829,7 @@ test("the studio never runs HubSpot's script, however it is entered", async ({
 test("the preview never runs HubSpot's script, however it is entered", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("Preview HubSpot"),
   );
@@ -880,7 +870,7 @@ test("without a HubSpot account id, nothing goes to HubSpot", async ({
   expect(asked).toEqual([]);
 });
 
-test("the privacy page names HubSpot, and opens its cookie settings (AC-5)", async ({
+test("the privacy page names HubSpot, and opens its cookie settings (EXT-06 AC-5)", async ({
   browser,
 }) => {
   const reader = await visitor(browser);
@@ -894,7 +884,7 @@ test("the privacy page names HubSpot, and opens its cookie settings (AC-5)", asy
   await hubSpot.expectBannerAsked();
 });
 
-test("the privacy page names HubSpot in Norwegian too (AC-5)", async ({
+test("the privacy page names HubSpot in Norwegian too (EXT-06 AC-5)", async ({
   browser,
 }) => {
   const reader = await visitor(browser);
@@ -913,7 +903,7 @@ test("the privacy page names HubSpot in Norwegian too (AC-5)", async ({
   );
 });
 
-test("without a HubSpot account id, the privacy page says nothing tracks you (AC-5)", async ({
+test("without a HubSpot account id, the privacy page says nothing tracks you (EXT-06 AC-5)", async ({
   browser,
 }) => {
   const reader = await visitor(browser);
@@ -927,7 +917,7 @@ test("without a HubSpot account id, the privacy page says nothing tracks you (AC
 test("the event page leads back to the front page with All events (SITE-05 AC-4)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("All events"),
   );
@@ -948,7 +938,7 @@ test("the event page leads back to the front page with All events (SITE-05 AC-4)
 test("a deleted event leaves open front pages, and its open page says it does not exist (SITE-09 AC-3)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Deleted"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true });
@@ -974,7 +964,7 @@ test("a deleted event leaves open front pages, and its open page says it does no
 test("the editor refuses a link that is not a web or email address, and edits and removes links (STU-07 AC-4, STU-07 AC-5)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Links"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true });

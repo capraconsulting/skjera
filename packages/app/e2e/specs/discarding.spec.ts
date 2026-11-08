@@ -1,3 +1,4 @@
+import { dexUsers } from "@skjera/test";
 import { cleanUp } from "../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName } from "../fixtures/support.ts";
 import { expect, test } from "../fixtures/test.ts";
@@ -7,7 +8,7 @@ import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
 test("discarding changes asks first, and Cancel keeps them", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("Discard asks"),
   );
@@ -36,7 +37,7 @@ test("discarding changes asks first, and Cancel keeps them", async ({
 test("discarding changes puts the published title back and says the event is published", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Discarded"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });

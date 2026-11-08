@@ -1,5 +1,11 @@
+import { dexUsers } from "@skjera/test";
 import { cleanUp } from "../fixtures/cleanUp.ts";
-import { signedIn, uniqueTeamName, visitor } from "../fixtures/support.ts";
+import {
+  signedIn,
+  uniqueEmail,
+  uniqueTeamName,
+  visitor,
+} from "../fixtures/support.ts";
 import { expect, test } from "../fixtures/test.ts";
 import { Mailbox } from "../pom/Mailbox.ts";
 import { Attendance } from "../pom/site/Attendance.ts";
@@ -11,7 +17,7 @@ import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
 test("unpublishing asks first, and Cancel keeps the event published", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("Unpublish asks"),
   );
@@ -40,7 +46,7 @@ test("unpublishing asks first, and Cancel keeps the event published", async ({
 test("unpublishing an event people signed up for cancels it for them and keeps the draft", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("Unpublished"),
   );
@@ -50,21 +56,15 @@ test("unpublishing an event people signed up for cancels it for them and keeps t
   const guest = await visitor(browser);
   const page = new EventPage(guest);
   await page.goto(event.id);
-  await new Attendance(guest).signUpAsGuest(
-    "Gina",
-    `gina-${crypto.randomUUID()}@example.org`,
-  );
+  await new Attendance(guest).signUpAsGuest("Gina", uniqueEmail("gina"));
   const other = await visitor(browser);
   await new EventPage(other).goto(event.id);
-  await new Attendance(other).signUpAsGuest(
-    "Gus",
-    `gus-${crypto.randomUUID()}@example.org`,
-  );
+  await new Attendance(other).signUpAsGuest("Gus", uniqueEmail("gus"));
   await editor.attendees.expectText("Gina");
   await editor.attendees.expectText("Gus");
 
   // Bob has the event open too.
-  const bob = await signedIn(browser, "bob@example.com");
+  const bob = await signedIn(browser, dexUsers.bob);
   const bobsEditor = new EventEditor(bob);
   await bobsEditor.goto(team, event.id);
   await bobsEditor.expectPublished();
@@ -94,7 +94,7 @@ test("unpublishing an event people signed up for cancels it for them and keeps t
 test("an unpublished event can be edited and published again", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("Published again"),
   );

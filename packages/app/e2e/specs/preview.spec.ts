@@ -1,3 +1,4 @@
+import { dexUsers } from "@skjera/test";
 import { cleanUp } from "../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName, visitor } from "../fixtures/support.ts";
 import { test } from "../fixtures/test.ts";
@@ -7,10 +8,10 @@ import { EventEditor } from "../pom/studio/EventEditor.ts";
 import { EventsColumn } from "../pom/studio/EventsColumn.ts";
 import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
 
-test("the preview shows the draft's changes, and the published page keeps its title (AC-1, AC-2)", async ({
+test("the preview shows the draft's changes, and the published page keeps its title (STU-21 AC-1, STU-21 AC-2)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("Preview draft"),
   );
@@ -33,10 +34,10 @@ test("the preview shows the draft's changes, and the published page keeps its ti
   await cleanUp(alice, team, event.id);
 });
 
-test("the preview follows the draft without a reload (AC-3)", async ({
+test("the preview follows the draft without a reload (STU-21 AC-3)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("Preview live"),
   );
@@ -54,10 +55,10 @@ test("the preview follows the draft without a reload (AC-3)", async ({
   await cleanUp(alice, team, event.id);
 });
 
-test("the notice says it is a preview, links to the published page, and stays in view (AC-4)", async ({
+test("the notice says it is a preview, links to the published page, and stays in view (STU-21 AC-4)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("Preview notice"),
   );
@@ -81,10 +82,10 @@ test("the notice says it is a preview, links to the published page, and stays in
   await cleanUp(alice, team, event.id, draft);
 });
 
-test("an event never published shows once it has times (AC-5)", async ({
+test("an event never published shows once it has times (STU-21 AC-5)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("Preview unpublished"),
   );
@@ -105,10 +106,10 @@ test("an event never published shows once it has times (AC-5)", async ({
   await cleanUp(alice, team, event);
 });
 
-test("someone not logged in, or an unknown draft, gets the missing-event message (AC-6)", async ({
+test("someone not logged in, or an unknown draft, gets the missing-event message (STU-21 AC-6)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("Preview closed"),
   );
@@ -135,10 +136,10 @@ test("someone not logged in, or an unknown draft, gets the missing-event message
   await new TeamsColumn(alice).delete(team);
 });
 
-test("the preview shows the sign-up box, but nothing in it can be used (AC-7)", async ({
+test("the preview shows the sign-up box, but nothing in it can be used (STU-21 AC-7)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("Preview inert"),
   );

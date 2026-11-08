@@ -1,3 +1,4 @@
+import { dexUsers } from "@skjera/test";
 import { cleanUp } from "../../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName, visitor } from "../../fixtures/support.ts";
 import { expect, test } from "../../fixtures/test.ts";
@@ -10,7 +11,7 @@ import { TeamsColumn } from "../../pom/studio/TeamsColumn.ts";
 test("signups show up for visitors and organizers without reloading", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("Live signups"),
   );
@@ -29,17 +30,17 @@ test("signups show up for visitors and organizers without reloading", async ({
 
   // Bob signs up: the visitor's places left and Alice's list follow, and the
   // visitor is not told how many are signed up (AC-10).
-  const bob = await signedIn(browser, "bob@example.com");
+  const bob = await signedIn(browser, dexUsers.bob);
   await new EventPage(bob).goto(event.id);
   const member = new Attendance(bob);
   await member.attend();
   await page.expectInfoItem("2 places left");
   await page.expectNoInfoItem(/attending/);
   await new Attendance(reader).expectNoCount();
-  await editor.attendees.expectText("bob@example.com");
+  await editor.attendees.expectText(dexUsers.bob);
   // The visitor can count places, not see who.
   await new WhoIsComing(reader).expectHidden();
-  await page.expectNowhere("bob@example.com");
+  await page.expectNowhere(dexUsers.bob);
   await page.expectNowhere(/\bbob\b/i);
 
   // Nor does the API tell: every row a pull without a session returns has no
@@ -49,7 +50,7 @@ test("signups show up for visitors and organizers without reloading", async ({
     const pull = JSON.parse(body) as { rows: { details: unknown }[] };
     for (const row of pull.rows) expect(row.details).toBeNull();
   }
-  expect(bodies.join("")).not.toContain("bob@example.com");
+  expect(bodies.join("")).not.toContain(dexUsers.bob);
 
   // A guest signs up in another window: the visitor's places follow.
   const gina = await visitor(browser);
@@ -77,7 +78,7 @@ test("signups show up for visitors and organizers without reloading", async ({
 test("members see who's coming, members and guests apart, without reloading", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("Who is coming"),
   );
@@ -87,7 +88,7 @@ test("members see who's coming, members and guests apart, without reloading", as
   });
 
   // Nobody yet: each kind says so.
-  const bob = await signedIn(browser, "bob@example.com");
+  const bob = await signedIn(browser, dexUsers.bob);
   await new EventPage(bob).goto(event.id);
   const bobSees = new WhoIsComing(bob);
   await bobSees.expectSays("members", "Members (0)");
@@ -122,13 +123,13 @@ test("members see who's coming, members and guests apart, without reloading", as
 });
 
 test("an event not open to guests lists only members", async ({ browser }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("Members list"),
   );
   const event = await new EventEditor(alice).createPublished({ public: true });
 
-  const bob = await signedIn(browser, "bob@example.com");
+  const bob = await signedIn(browser, dexUsers.bob);
   await new EventPage(bob).goto(event.id);
   await new WhoIsComing(bob).expectPart("members", true);
   await new WhoIsComing(bob).expectPart("guests", false);

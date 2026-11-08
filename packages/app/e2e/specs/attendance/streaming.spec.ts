@@ -1,3 +1,4 @@
+import { dexUsers } from "@skjera/test";
 import { cleanUp } from "../../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName, visitor } from "../../fixtures/support.ts";
 import { expect, test } from "../../fixtures/test.ts";
@@ -10,7 +11,7 @@ test("a streamed event shows its link, asks in person or online, and lists how e
   browser,
 }) => {
   const link = "https://stream.example/meetup";
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Streamed"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({
@@ -49,7 +50,7 @@ test("a streamed event shows its link, asks in person or online, and lists how e
   await box.expectSignedUp();
 
   // So does a member's.
-  const bob = await signedIn(browser, "bob@example.com");
+  const bob = await signedIn(browser, dexUsers.bob);
   await new EventPage(bob).goto(event.id);
   const member = new Attendance(bob);
   await member.expectOption("Online", "unchecked");
@@ -73,7 +74,7 @@ test("a streamed event without a link only says so; the link, once given, shows 
   browser,
 }) => {
   const link = "https://stream.example/later";
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Stream"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, streamed: {} });
@@ -86,7 +87,7 @@ test("a streamed event without a link only says so; the link, once given, shows 
   await editor.streamLink.expectText(link);
   await editor.publish();
 
-  const bob = new EventPage(await signedIn(browser, "bob@example.com"));
+  const bob = new EventPage(await signedIn(browser, dexUsers.bob));
   await bob.goto(event.id);
   await bob.expectStreamLink(link);
   await guest.goto(event.id);
@@ -98,7 +99,7 @@ test("a streamed event without a link only says so; the link, once given, shows 
 test("a full streamed event takes no more in person but still takes those online", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("Streamed full"),
   );
@@ -109,7 +110,7 @@ test("a full streamed event takes no more in person but still takes those online
     streamed: {},
   });
 
-  const bob = await signedIn(browser, "bob@example.com");
+  const bob = await signedIn(browser, dexUsers.bob);
   await new EventPage(bob).goto(event.id);
   const member = new Attendance(bob);
   await member.checkOption("In person");
@@ -133,7 +134,7 @@ test("a full streamed event takes no more in person but still takes those online
 test("everyone counts as in person once the event is no longer streamed", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("Unstreamed"),
   );

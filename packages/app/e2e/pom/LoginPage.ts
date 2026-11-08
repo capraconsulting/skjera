@@ -1,5 +1,5 @@
 import { expect, type Page } from "@playwright/test";
-import { testServerDexIssuerUrl } from "@skjera/test";
+import { dexFormIds, testServerDexIssuerUrl } from "@skjera/test";
 
 /** Dex's login page, where the studio sends people to sign in. */
 export class LoginPage {
@@ -10,9 +10,9 @@ export class LoginPage {
   }
 
   async signIn(email: string): Promise<void> {
-    await this.page.locator("#login").fill(email);
-    await this.page.locator("#password").fill("password");
-    await this.page.locator("#submit-login").click();
+    await this.page.locator(dexFormIds.login).fill(email);
+    await this.page.locator(dexFormIds.password).fill("password");
+    await this.page.locator(dexFormIds.submit).click();
   }
 
   /** Dex is at the machine's test-server address, or localhost without one. */

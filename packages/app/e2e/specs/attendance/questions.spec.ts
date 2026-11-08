@@ -1,3 +1,4 @@
+import { dexUsers } from "@skjera/test";
 import { cleanUp } from "../../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName, visitor } from "../../fixtures/support.ts";
 import { expect, test } from "../../fixtures/test.ts";
@@ -9,7 +10,7 @@ import { TeamsColumn } from "../../pom/studio/TeamsColumn.ts";
 test("events ask their own questions, and say what's served", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Questions"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
@@ -56,10 +57,10 @@ test("events ask their own questions, and say what's served", async ({
   await cleanUp(alice, team, event.id);
 });
 
-test("a checkbox question has its answer option beside the box, apart from the question (AC-1, AC-2, AC-3, AC-5)", async ({
+test("a checkbox question has its answer option beside the box, apart from the question (SIGN-09 AC-1, SIGN-09 AC-2, SIGN-09 AC-3, SIGN-09 AC-5)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("Answer option"),
   );
@@ -113,7 +114,7 @@ test("a checkbox question has its answer option beside the box, apart from the q
 test("people change their answers; organizers export them as an Excel file and remove them", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Changes"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({
@@ -150,7 +151,7 @@ test("people change their answers; organizers export them as an Excel file and r
   await box.expectSignedUp();
 
   // So does a member, from their own answers.
-  const bob = await signedIn(browser, "bob@example.com");
+  const bob = await signedIn(browser, dexUsers.bob);
   await new EventPage(bob).goto(event.id);
   const member = new Attendance(bob);
   await member.fillDietaryPreferences("Fish");
@@ -181,7 +182,7 @@ test("people change their answers; organizers export them as an Excel file and r
   expect(headings).toEqual(["Name", "Email", "Phone", "Company", "Towel size"]);
   expect([...rows].sort()).toEqual([
     ["Gina", "gina@example.org", null, null, "Large"],
-    ["bob", "bob@example.com", null, null, "Small"],
+    ["bob", dexUsers.bob, null, null, "Small"],
   ]);
   expect(JSON.stringify(file.sheets)).not.toMatch(/Vegan|Fish/);
 
@@ -197,7 +198,7 @@ test("people change their answers; organizers export them as an Excel file and r
 test("an organizer adds and removes options, never fewer than two, and removes a question (STU-14 AC-3, STU-14 AC-5)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("Editing questions"),
   );
@@ -240,7 +241,7 @@ test("an organizer adds and removes options, never fewer than two, and removes a
 test("Keep as is closes the form for changing answers and keeps them as they were (SIGN-10 AC-3)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Keeping"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
@@ -249,7 +250,7 @@ test("Keep as is closes the form for changing answers and keeps them as they wer
   await editor.questions.fillOption(1, 2, "Large");
   await editor.publish();
 
-  const bob = await signedIn(browser, "bob@example.com");
+  const bob = await signedIn(browser, dexUsers.bob);
   await new EventPage(bob).goto(event.id);
   const member = new Attendance(bob);
   await member.expectOption("Small", "checked");

@@ -1,3 +1,4 @@
+import { dexUsers } from "@skjera/test";
 import {
   defaultWidths,
   maxWidth,
@@ -13,7 +14,7 @@ const rem = 16;
 test("the studio's columns are dragged wider, and stay so after a reload", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const teams = new TeamsColumn(alice);
   const columns = new ColumnHandles(alice);
   await teams.goto();

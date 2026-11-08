@@ -1,5 +1,12 @@
+import { dexUsers } from "@skjera/test";
 import { cleanUp } from "../../fixtures/cleanUp.ts";
-import { signedIn, uniqueTeamName, visitor } from "../../fixtures/support.ts";
+import {
+  guestLink,
+  signedIn,
+  uniqueEmail,
+  uniqueTeamName,
+  visitor,
+} from "../../fixtures/support.ts";
 import { expect, test } from "../../fixtures/test.ts";
 import { invitationOf, Mailbox } from "../../pom/Mailbox.ts";
 import { Attendance } from "../../pom/site/Attendance.ts";
@@ -10,11 +17,11 @@ import { TeamsColumn } from "../../pom/studio/TeamsColumn.ts";
 test("moving an event emails who signed up, once the organizer agrees", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Moved"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
-  const address = `gina-${crypto.randomUUID()}@example.org`;
+  const address = uniqueEmail("gina");
 
   const guest = await visitor(browser);
   await new EventPage(guest).goto(event.id);
@@ -52,11 +59,11 @@ test("moving an event emails who signed up, once the organizer agrees", async ({
 test("a new place emails who signed up, once the organizer agrees", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Elsewhere"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
-  const address = `gina-${crypto.randomUUID()}@example.org`;
+  const address = uniqueEmail("gina");
 
   const guest = await visitor(browser);
   await new EventPage(guest).goto(event.id);
@@ -84,14 +91,14 @@ test("a new place emails who signed up, once the organizer agrees", async ({
   await cleanUp(alice, team, event.id);
 });
 
-test("an organizer writes the signed-up email's own subject and text, open from the start (AC-1, AC-2)", async ({
+test("an organizer writes the signed-up email's own subject and text, open from the start (MAIL-06 AC-1, MAIL-06 AC-2)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Own email"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
-  const address = `gina-${crypto.randomUUID()}@example.org`;
+  const address = uniqueEmail("gina");
   const wording = "Welcome, we saved you a seat";
 
   // Opening a published event does not make it unpublished: the signed-up
@@ -131,9 +138,7 @@ test("an organizer writes the signed-up email's own subject and text, open from 
   expect(signedUp.text).not.toContain(`You're signed up for ${event.title}`);
   expect(signedUp.text).toContain(event.title);
   expect(invitationOf(signedUp).location).toBe("Kantina");
-  expect(signedUp.text).toMatch(
-    new RegExp(`http\\S*/events/${event.id}\\?guest=\\S+`),
-  );
+  expect(guestLink(signedUp.text, event.id)).toBeDefined();
 
   await cleanUp(alice, team, event.id);
 });
@@ -141,11 +146,11 @@ test("an organizer writes the signed-up email's own subject and text, open from 
 test("deleting an event emails who signed up that it's cancelled", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Cancelled"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
-  const address = `gina-${crypto.randomUUID()}@example.org`;
+  const address = uniqueEmail("gina");
 
   const guest = await visitor(browser);
   const page = new EventPage(guest);
@@ -176,7 +181,7 @@ test("deleting an event emails who signed up that it's cancelled", async ({
 test("an invitation has the place, the summary and the team as organizer", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const teamName = uniqueTeamName("Invited");
   const team = await new TeamsColumn(alice).create(teamName);
   const editor = new EventEditor(alice);
@@ -184,7 +189,7 @@ test("an invitation has the place, the summary and the team as organizer", async
   const summary = `Coffee and a talk ${event.id.slice(-6)}`;
   await editor.summary.type(summary);
   await editor.publish();
-  const address = `gina-${crypto.randomUUID()}@example.org`;
+  const address = uniqueEmail("gina");
 
   const guest = await visitor(browser);
   await new EventPage(guest).goto(event.id);
@@ -203,11 +208,11 @@ test("an invitation has the place, the summary and the team as organizer", async
 test("a new time and a new place at once send one email about both", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Both"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
-  const address = `gina-${crypto.randomUUID()}@example.org`;
+  const address = uniqueEmail("gina");
 
   const guest = await visitor(browser);
   await new EventPage(guest).goto(event.id);
@@ -238,7 +243,7 @@ test("a new time and a new place at once send one email about both", async ({
 test("the cancelled, changed and cancelled-event emails go out as written for the event", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Written"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
@@ -258,7 +263,7 @@ test("the cancelled, changed and cancelled-event emails go out as written for th
   await editor.publish();
 
   // Gina signs up and cancels.
-  const gina = `gina-${crypto.randomUUID()}@example.org`;
+  const gina = uniqueEmail("gina");
   const first = await visitor(browser);
   await new EventPage(first).goto(event.id);
   const ginas = new Attendance(first);
@@ -271,7 +276,7 @@ test("the cancelled, changed and cancelled-event emails go out as written for th
   expect(left.text).toContain("Sorry to see you go, in a few words");
 
   // Gus signs up, the event moves, then it's deleted.
-  const gus = `gus-${crypto.randomUUID()}@example.org`;
+  const gus = uniqueEmail("gus");
   const second = await visitor(browser);
   await new EventPage(second).goto(event.id);
   await new Attendance(second).signUpAsGuest("Gus", gus);
@@ -306,7 +311,7 @@ test("the cancelled, changed and cancelled-event emails go out as written for th
 test("a cancelled event's email has the subject published, not a later draft's", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Drafted"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
@@ -319,7 +324,7 @@ test("a cancelled event's email has the subject published, not a later draft's",
     .emailSubject("event cancelled")
     .expectText("Called off for good");
   await editor.expectSaved();
-  const address = `gina-${crypto.randomUUID()}@example.org`;
+  const address = uniqueEmail("gina");
 
   const guest = await visitor(browser);
   await new EventPage(guest).goto(event.id);
@@ -342,20 +347,17 @@ test("a cancelled event's email has the subject published, not a later draft's",
 test("the question before a new time is published says how many are signed up, when more than one (STU-18 AC-4)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Two"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
 
-  const bob = await signedIn(browser, "bob@example.com");
+  const bob = await signedIn(browser, dexUsers.bob);
   await new EventPage(bob).goto(event.id);
   await new Attendance(bob).attend();
   const guest = await visitor(browser);
   await new EventPage(guest).goto(event.id);
-  await new Attendance(guest).signUpAsGuest(
-    "Gina",
-    `gina-${crypto.randomUUID()}@example.org`,
-  );
+  await new Attendance(guest).signUpAsGuest("Gina", uniqueEmail("gina"));
   await editor.attendees.expectText("Gina");
   await editor.attendees.expectText("bob");
 

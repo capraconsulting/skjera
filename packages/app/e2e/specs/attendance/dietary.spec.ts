@@ -1,3 +1,4 @@
+import { dexUsers } from "@skjera/test";
 import { cleanUp } from "../../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName, visitor } from "../../fixtures/support.ts";
 import { expect, test } from "../../fixtures/test.ts";
@@ -9,7 +10,7 @@ import { TeamsColumn } from "../../pom/studio/TeamsColumn.ts";
 test("dietary preferences are optional, and organizers see them without names", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Dinner"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({
@@ -19,7 +20,7 @@ test("dietary preferences are optional, and organizers see them without names", 
   });
 
   // A member attends without answering, and has no answers to change.
-  const bob = await signedIn(browser, "bob@example.com");
+  const bob = await signedIn(browser, dexUsers.bob);
   await new EventPage(bob).goto(event.id);
   const member = new Attendance(bob);
   await member.expectFieldOptional("Dietary preferences");
@@ -69,10 +70,10 @@ test("dietary preferences are optional, and organizers see them without names", 
   await cleanUp(alice, team, event.id);
 });
 
-test("the food deadline is set and cleared in the studio, and the event page says by when (AC-3, AC-8, AC-9)", async ({
+test("the food deadline is set and cleared in the studio, and the event page says by when (SIGN-08 AC-3, SIGN-08 AC-8, SIGN-08 AC-9)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Food"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({
@@ -134,10 +135,10 @@ test("the food deadline is set and cleared in the studio, and the event page say
   await cleanUp(alice, team, event.id);
 });
 
-test("the food deadline is still shown, marked as passed, once sign-up has closed (AC-3, AC-4)", async ({
+test("the food deadline is still shown, marked as passed, once sign-up has closed (SIGN-05 AC-3, SIGN-05 AC-4)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Closed"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({

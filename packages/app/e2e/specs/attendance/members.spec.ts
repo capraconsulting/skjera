@@ -1,3 +1,4 @@
+import { dexUsers } from "@skjera/test";
 import { cleanUp } from "../../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName, visitor } from "../../fixtures/support.ts";
 import { test } from "../../fixtures/test.ts";
@@ -11,7 +12,7 @@ import { TeamsColumn } from "../../pom/studio/TeamsColumn.ts";
 test("a members-only event opens from its link for visitors, asking them to log in", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Members"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: false });
@@ -52,7 +53,7 @@ test("a members-only event opens from its link for visitors, asking them to log 
   // Logging in from the box leads back to the event, to attend.
   await page.goto(event.id);
   await attendance.clickLogIn();
-  await new LoginPage(anonymous).signIn("bob@example.com");
+  await new LoginPage(anonymous).signIn(dexUsers.bob);
   await page.expectAt(event.id);
   await attendance.expectEmpty();
   await attendance.expectNoText("You need to log in");
@@ -72,24 +73,24 @@ test("a members-only event opens from its link for visitors, asking them to log 
 });
 
 test("members attend and change their mind", async ({ browser }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Attend"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: false });
 
-  const bob = await signedIn(browser, "bob@example.com");
+  const bob = await signedIn(browser, dexUsers.bob);
   await new EventPage(bob).goto(event.id);
   const attendance = new Attendance(bob);
   await attendance.expectEmpty();
   // Right after attending, the box says where the confirmation goes (AC-1).
-  await attendance.attend("bob@example.com");
+  await attendance.attend(dexUsers.bob);
   await attendance.expectText("1 attending");
   await new EventPage(bob).reload();
   await attendance.expectText("You're attending.");
 
   // The organizer sees who is coming.
   await editor.reload();
-  await editor.attendees.expectText("bob@example.com");
+  await editor.attendees.expectText(dexUsers.bob);
 
   // Cancelling says whether the confirmation email was sent (AC-2).
   await attendance.cancelAttendance();
@@ -103,7 +104,7 @@ test("members attend and change their mind", async ({ browser }) => {
 test("the front page marks the upcoming events the reader has signed up for (SITE-02 AC-6)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Marked"));
   const editor = new EventEditor(alice);
   const membersEvent = await editor.createPublished({
@@ -117,7 +118,7 @@ test("the front page marks the upcoming events the reader has signed up for (SIT
   const signedUp = "You're signed up";
 
   // A member, from their signup.
-  const bob = await signedIn(browser, "bob@example.com");
+  const bob = await signedIn(browser, dexUsers.bob);
   await new EventPage(bob).goto(membersEvent.id);
   await new Attendance(bob).attend();
   const bobsHome = new HomePage(bob);

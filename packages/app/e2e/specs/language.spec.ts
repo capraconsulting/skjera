@@ -1,6 +1,12 @@
 import { m } from "@skjera/i18n/messages";
+import { dexUsers } from "@skjera/test";
 import { cleanUp } from "../fixtures/cleanUp.ts";
-import { signedIn, uniqueTeamName, visitor } from "../fixtures/support.ts";
+import {
+  signedIn,
+  uniqueEmail,
+  uniqueTeamName,
+  visitor,
+} from "../fixtures/support.ts";
 import { expect, test } from "../fixtures/test.ts";
 import { Header } from "../pom/Header.ts";
 import { Mailbox } from "../pom/Mailbox.ts";
@@ -13,13 +19,13 @@ import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
 test("visitors pick their language, and get emails in it", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Språk"));
   const event = await new EventEditor(alice).createPublished({
     public: true,
     guests: true,
   });
-  const address = `nora-${crypto.randomUUID()}@example.org`;
+  const address = uniqueEmail("nora");
 
   const nora = await visitor(browser);
   const header = new Header(nora);
@@ -66,7 +72,7 @@ test("visitors pick their language, and get emails in it", async ({
 });
 
 test("the studio speaks Nynorsk too", async ({ browser }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Nynorsk"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true });

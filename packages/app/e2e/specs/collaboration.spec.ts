@@ -1,3 +1,4 @@
+import { dexUsers } from "@skjera/test";
 import { cleanUp } from "../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName } from "../fixtures/support.ts";
 import { test } from "../fixtures/test.ts";
@@ -8,8 +9,8 @@ import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
 test("two users edit an event live, publish it and delete it", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
-  const bob = await signedIn(browser, "bob@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
+  const bob = await signedIn(browser, dexUsers.bob);
   const editor = new EventEditor(alice);
   const bobsEditor = new EventEditor(bob);
 
@@ -58,7 +59,7 @@ test("two users edit an event live, publish it and delete it", async ({
 test("publishing needs a title, times that make sense and a place", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Untitled"));
   const id = await new EventsColumn(alice).newEvent();
   const editor = new EventEditor(alice);
@@ -90,7 +91,7 @@ test("publishing needs a title, times that make sense and a place", async ({
 test("an event can be set to repeat, and still repeats after a reload", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Repeating"));
   const id = await new EventsColumn(alice).newEvent();
   const editor = new EventEditor(alice);

@@ -1,3 +1,4 @@
+import { dexUsers } from "@skjera/test";
 import { cleanUp } from "../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName } from "../fixtures/support.ts";
 import { test } from "../fixtures/test.ts";
@@ -5,10 +6,10 @@ import { EventEditor } from "../pom/studio/EventEditor.ts";
 import { EventsColumn } from "../pom/studio/EventsColumn.ts";
 import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
 
-test("a published event can be copied, and the copy opens as an event of its own that is not published (AC-1, AC-4)", async ({
+test("a published event can be copied, and the copy opens as an event of its own that is not published (STU-24 AC-1, STU-24 AC-4)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Copied"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
@@ -23,10 +24,10 @@ test("a published event can be copied, and the copy opens as an event of its own
   await cleanUp(alice, team, event.id, copy);
 });
 
-test("an event that was never published can be copied (AC-1)", async ({
+test("an event that was never published can be copied (STU-24 AC-1)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("Draft copy"),
   );

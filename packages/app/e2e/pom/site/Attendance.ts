@@ -1,6 +1,36 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 import { m } from "@skjera/i18n/messages";
 
+class BotTrap {
+  private readonly page: Page;
+  private readonly hidden: Locator;
+
+  constructor(page: Page, scope: Locator) {
+    this.page = page;
+    this.hidden = scope.locator('input[name="subject"]');
+  }
+
+  async fill(text: string): Promise<void> {
+    await this.hidden.evaluate((field, value) => {
+      (field as HTMLInputElement).value = value;
+    }, text);
+  }
+
+  async expectSkipped(from: Locator, to: Locator): Promise<void> {
+    await expect(this.hidden).toHaveCount(1);
+    await expect(this.hidden).toBeHidden();
+    await from.focus();
+    for (let presses = 0; presses < 20; presses++) {
+      await this.page.keyboard.press("Tab");
+      await expect(this.hidden).not.toBeFocused();
+      if (await to.evaluate((element) => element === document.activeElement)) {
+        return;
+      }
+    }
+    throw new Error("Tab never reached the next control");
+  }
+}
+
 /**
  * The fields of signing up: on the form itself, or on the form changing
  * what was given ("Your answers").
@@ -124,11 +154,13 @@ export class SignupFields {
 /** An event page's Attendance box: signing up, as a member or a guest. */
 export class Attendance extends SignupFields {
   private readonly page: Page;
+  private readonly botTrap: BotTrap;
 
   /** `name` is the box's name in the page's language. */
   constructor(page: Page, name = "Attendance") {
     super(page.getByRole("region", { name }));
     this.page = page;
+    this.botTrap = new BotTrap(page, this.scope);
   }
 
   private readonly button = (name: string) =>
@@ -152,15 +184,9 @@ export class Attendance extends SignupFields {
     await this.button(name).click();
   }
 
-  /** The field that is for bots: it isn't shown, so only a script reaches it. */
-  private readonly hiddenField = () =>
-    this.scope.locator('input[name="subject"]');
-
   /** Fills the hidden field by script, as a bot does: it can't be typed into. */
   async fillHiddenField(text: string): Promise<void> {
-    await this.hiddenField().evaluate((field, value) => {
-      (field as HTMLInputElement).value = value;
-    }, text);
+    await this.botTrap.fill(text);
   }
 
   /** The hidden field isn't shown, and Tab from one control to the other never lands in it. */
@@ -168,21 +194,9 @@ export class Attendance extends SignupFields {
     from: { role: "textbox" | "button"; name: string },
     to: { role: "textbox" | "button"; name: string },
   ): Promise<void> {
-    const hidden = this.hiddenField();
-    await expect(hidden).toHaveCount(1);
-    await expect(hidden).toBeHidden();
     const control = (which: typeof from) =>
       this.scope.getByRole(which.role, { name: which.name });
-    await control(from).focus();
-    for (let presses = 0; presses < 20; presses++) {
-      await this.page.keyboard.press("Tab");
-      await expect(hidden).not.toBeFocused();
-      const arrived = await control(to).evaluate(
-        (element) => element === document.activeElement,
-      );
-      if (arrived) return;
-    }
-    throw new Error(`Tab never reached ${to.name}`);
+    await this.botTrap.expectSkipped(control(from), control(to));
   }
 
   async clickAttend(): Promise<void> {
@@ -348,12 +362,12 @@ export class Attendance extends SignupFields {
  * signup's own link: a region of its own, named in the page's language.
  */
 export class CancelByEmail {
-  private readonly page: Page;
   private readonly scope: Locator;
+  private readonly botTrap: BotTrap;
 
   constructor(page: Page, name = "Want to cancel your signup?") {
-    this.page = page;
     this.scope = page.getByRole("region", { name });
+    this.botTrap = new BotTrap(page, this.scope);
   }
 
   private readonly emailField = () =>
@@ -362,8 +376,6 @@ export class CancelByEmail {
     });
   private readonly button = () =>
     this.scope.getByRole("button", { name: m.attend_cancel_signup() });
-  private readonly hiddenField = () =>
-    this.scope.locator('input[name="subject"]');
 
   async expectShown(): Promise<void> {
     await expect(this.scope).toBeVisible();
@@ -395,26 +407,12 @@ export class CancelByEmail {
 
   /** Fills the hidden field by script, as a bot does: it can't be typed into. */
   async fillHiddenField(text: string): Promise<void> {
-    await this.hiddenField().evaluate((field, value) => {
-      (field as HTMLInputElement).value = value;
-    }, text);
+    await this.botTrap.fill(text);
   }
 
   /** The hidden field isn't shown, and Tab from the email field to the button never lands in it. */
   async expectHiddenFieldSkipped(): Promise<void> {
-    const hidden = this.hiddenField();
-    await expect(hidden).toHaveCount(1);
-    await expect(hidden).toBeHidden();
-    await this.emailField().focus();
-    for (let presses = 0; presses < 20; presses++) {
-      await this.page.keyboard.press("Tab");
-      await expect(hidden).not.toBeFocused();
-      const arrived = await this.button().evaluate(
-        (element) => element === document.activeElement,
-      );
-      if (arrived) return;
-    }
-    throw new Error("Tab never reached the button");
+    await this.botTrap.expectSkipped(this.emailField(), this.button());
   }
 
   async expectText(text: string | RegExp): Promise<void> {

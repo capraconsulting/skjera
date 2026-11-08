@@ -6,6 +6,17 @@ export const e2ePorts = [8806, 8805, 8804, 8803, 8802] as const;
 export const dexPort = 5556;
 export const mailpitApiUrl = "http://localhost:8025/api/v1";
 
+export const dexUsers = {
+  alice: "alice@example.com",
+  bob: "bob@example.com",
+} as const;
+
+export const dexFormIds = {
+  login: "#login",
+  password: "#password",
+  submit: "#submit-login",
+} as const;
+
 export const composeServices = {
   documents: ["postgres", "rustfs"],
   email: ["mailpit"],

@@ -1,5 +1,6 @@
-import { expect, test } from "@playwright/test";
-import { dexIssuerUrl } from "@skjera/test";
+import { expect } from "@playwright/test";
+import { dexIssuerUrl, dexUsers } from "@skjera/test";
+import { test } from "../../../app/e2e/fixtures/test.ts";
 import { DemoPage } from "../pom/DemoPage.ts";
 import { LoginPage } from "../pom/LoginPage.ts";
 
@@ -11,10 +12,10 @@ test("logs in and out through the provider", async ({ page }) => {
 
   await demo.clickLogIn();
   await login.expectShown();
-  await login.signIn("alice@example.com");
+  await login.signIn(dexUsers.alice);
 
   await demo.expectAt("/");
-  await demo.expectLoggedInAs("alice@example.com");
+  await demo.expectLoggedInAs(dexUsers.alice);
 
   const cookies = await demo.cookies();
   expect(cookies.session?.httpOnly).toBe(true);
@@ -29,18 +30,18 @@ test("logs in and out through the provider", async ({ page }) => {
 test("stays at the provider when the password is wrong", async ({ page }) => {
   const login = new LoginPage(page);
   await new DemoPage(page).gotoLogin();
-  await login.signIn("bob@example.com", "wrong");
+  await login.signIn(dexUsers.bob, "wrong");
   await login.expectShown();
 });
 
 test("returns to the requested page after login", async ({ page }) => {
   const demo = new DemoPage(page);
   await demo.gotoLogin("/api/me");
-  await new LoginPage(page).signIn("bob@example.com");
+  await new LoginPage(page).signIn(dexUsers.bob);
   await demo.expectAt("/api/me");
   expect(JSON.parse(await demo.bodyText())).toMatchObject({
     issuer: dexIssuerUrl(process.env),
-    email: "bob@example.com",
+    email: dexUsers.bob,
     name: "bob",
   });
 });
@@ -48,7 +49,7 @@ test("returns to the requested page after login", async ({ page }) => {
 test("refuses to redirect to another site after login", async ({ page }) => {
   const demo = new DemoPage(page);
   await demo.gotoLogin("https://evil.example/");
-  await new LoginPage(page).signIn("alice@example.com");
+  await new LoginPage(page).signIn(dexUsers.alice);
   await demo.expectAt("/");
 });
 
@@ -56,8 +57,8 @@ test("rejects a replayed callback", async ({ page }) => {
   const demo = new DemoPage(page);
   const callback = demo.watchCallback();
   await demo.gotoLogin();
-  await new LoginPage(page).signIn("alice@example.com");
-  await demo.expectLoggedInAs("alice@example.com");
+  await new LoginPage(page).signIn(dexUsers.alice);
+  await demo.expectLoggedInAs(dexUsers.alice);
 
   const url = callback.url();
   expect(url, "a callback request was seen").toBeDefined();

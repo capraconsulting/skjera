@@ -1,3 +1,4 @@
+import { dexUsers } from "@skjera/test";
 import { cleanUp } from "../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName } from "../fixtures/support.ts";
 import { test } from "../fixtures/test.ts";
@@ -6,10 +7,10 @@ import { EventEditor } from "../pom/studio/EventEditor.ts";
 import { EventsColumn } from "../pom/studio/EventsColumn.ts";
 import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
 
-test("an event that was never published can be moved to another team, which then has it in its list and in its preview (AC-1, AC-3)", async ({
+test("an event that was never published can be moved to another team, which then has it in its list and in its preview (STU-27 AC-1, STU-27 AC-3)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const teams = new TeamsColumn(alice);
   const events = new EventsColumn(alice);
   const editor = new EventEditor(alice);
@@ -45,10 +46,10 @@ test("an event that was never published can be moved to another team, which then
   await teams.delete(from);
 });
 
-test("the organizer of a published event can't be changed, also after it is unpublished (AC-4)", async ({
+test("the organizer of a published event can't be changed, also after it is unpublished (STU-27 AC-4)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("Locked organizer"),
   );
@@ -67,10 +68,10 @@ test("the organizer of a published event can't be changed, also after it is unpu
   await cleanUp(alice, team, event.id);
 });
 
-test("the old address of a moved event opens it in its new team, also after the old team is deleted (AC-5)", async ({
+test("the old address of a moved event opens it in its new team, also after the old team is deleted (STU-27 AC-5)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const teams = new TeamsColumn(alice);
   const editor = new EventEditor(alice);
   const toName = uniqueTeamName("Moved to");
@@ -90,11 +91,11 @@ test("the old address of a moved event opens it in its new team, also after the 
   await cleanUp(alice, to, event);
 });
 
-test("others who have the event open follow it to the new team, without reloading (AC-7)", async ({
+test("others who have the event open follow it to the new team, without reloading (STU-27 AC-7)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
-  const bob = await signedIn(browser, "bob@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
+  const bob = await signedIn(browser, dexUsers.bob);
   const teams = new TeamsColumn(alice);
   const editor = new EventEditor(alice);
   const bobsEditor = new EventEditor(bob);

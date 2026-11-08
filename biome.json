@@ -30,5 +30,30 @@
         "organizeImports": "on"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "packages/app/e2e/specs/**/*.ts",
+        "packages/oauth/e2e/specs/**/*.ts"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@playwright/test": {
+                    "importNames": ["test"],
+                    "message": "Import test from the shared browser fixture."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

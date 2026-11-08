@@ -8,6 +8,26 @@ export const pixel = Buffer.from(
   "base64",
 );
 
+/** Waits until every image in `images` has loaded. */
+export const expectImagesLoaded = async (
+  images: Locator,
+  width?: number,
+): Promise<void> => {
+  await expect(images.first()).toBeVisible();
+  await expect
+    .poll(() =>
+      images.evaluateAll(
+        (all, expected) =>
+          all.every((image) => {
+            const actual = (image as HTMLImageElement).naturalWidth;
+            return expected === undefined ? actual > 0 : actual === expected;
+          }),
+        width,
+      ),
+    )
+    .toBe(true);
+};
+
 const pixelBase64 = pixel.toString("base64");
 
 const chunk = (type: string, data: Buffer) => {

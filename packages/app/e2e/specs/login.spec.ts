@@ -1,3 +1,4 @@
+import { dexUsers } from "@skjera/test";
 import { visitor } from "../fixtures/support.ts";
 import { expect, test } from "../fixtures/test.ts";
 import { Header } from "../pom/Header.ts";
@@ -7,7 +8,7 @@ import { HomePage } from "../pom/site/HomePage.ts";
 import { LoginFailedPage } from "../pom/site/LoginFailedPage.ts";
 import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
 
-test("an account that is not allowed gets a page in the visitor's language (AC-1, AC-5, AC-6)", async ({
+test("an account that is not allowed gets a page in the visitor's language (ACC-03 AC-1, ACC-03 AC-5, ACC-03 AC-6)", async ({
   browser,
 }) => {
   const page = await visitor(browser);
@@ -38,7 +39,7 @@ test("an account that is not allowed gets a page in the visitor's language (AC-1
   await header.expectLogIn();
 });
 
-test("an expired login offers to log in again, back where it started (AC-2, AC-4, ACC-04 AC-3)", async ({
+test("an expired login offers to log in again, back where it started (ACC-04 AC-2, ACC-04 AC-4, ACC-04 AC-3)", async ({
   browser,
 }) => {
   const page = await visitor(browser);
@@ -48,7 +49,7 @@ test("an expired login offers to log in again, back where it started (AC-2, AC-4
   await new AccountPage(page).goto();
   const login = new LoginPage(page);
   await login.expectShown();
-  await login.signIn("bob@example.com");
+  await login.signIn(dexUsers.bob);
   await new AccountPage(page).expectAt();
 
   // The callback has been answered once: opening it again is a replay.
@@ -58,12 +59,12 @@ test("an expired login offers to log in again, back where it started (AC-2, AC-4
   await failed.expectExpired();
 
   await failed.clickLogInAgain();
-  await login.signIn("bob@example.com");
+  await login.signIn(dexUsers.bob);
   await new AccountPage(page).expectAt();
-  await new Header(page).expectSignedInAs("bob@example.com");
+  await new Header(page).expectSignedInAs(dexUsers.bob);
 });
 
-test("a login that didn't work offers to log in again, back where it started (AC-3, AC-4)", async ({
+test("a login that didn't work offers to log in again, back where it started (ACC-04 AC-3, ACC-04 AC-4)", async ({
   browser,
 }) => {
   const page = await visitor(browser);
@@ -78,7 +79,7 @@ test("a login that didn't work offers to log in again, back where it started (AC
   await failed.expectFailed();
 
   await failed.clickLogInAgain();
-  await login.signIn("bob@example.com");
+  await login.signIn(dexUsers.bob);
   await new AccountPage(page).expectAt();
-  await new Header(page).expectSignedInAs("bob@example.com");
+  await new Header(page).expectSignedInAs(dexUsers.bob);
 });

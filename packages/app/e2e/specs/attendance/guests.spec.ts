@@ -1,7 +1,11 @@
+import { dexUsers } from "@skjera/test";
 import { cleanUp } from "../../fixtures/cleanUp.ts";
 import {
+  cancelLink,
+  guestLink,
   signedIn,
   siteSendsNoEmail,
+  uniqueEmail,
   uniqueTeamName,
   visitor,
 } from "../../fixtures/support.ts";
@@ -15,7 +19,7 @@ import { EventEditor } from "../../pom/studio/EventEditor.ts";
 import { TeamsColumn } from "../../pom/studio/TeamsColumn.ts";
 
 test("guests sign up with their name and email", async ({ browser }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Guests"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
@@ -61,7 +65,7 @@ test("guests sign up with their name and email", async ({ browser }) => {
 test("a guest form says what is wrong by each field, and refuses a member's email address", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Checks"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
@@ -82,7 +86,7 @@ test("a guest form says what is wrong by each field, and refuses a member's emai
 
   // A member's email address is refused by the server, by the email field (AC-1).
   await box.fillName("Bob");
-  await box.fillEmail("bob@example.com");
+  await box.fillEmail(dexUsers.bob);
   await box.clickSignUp();
   await box.expectFieldMessage(
     "Your email",
@@ -107,10 +111,10 @@ test("a guest form says what is wrong by each field, and refuses a member's emai
   await cleanUp(alice, team, event.id);
 });
 
-test("a guest's forms have a hidden field, and one with it filled in is refused (AC-1, AC-2, AC-8)", async ({
+test("a guest's forms have a hidden field, and one with it filled in is refused (SIGN-14 AC-1, SIGN-14 AC-2, SIGN-14 AC-8)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Bots"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
@@ -169,7 +173,7 @@ test("a guest's forms have a hidden field, and one with it filled in is refused 
 test("Guests can sign up shows unticked on a members-only event, and as it was set once public again", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Visible"));
   const editor = new EventEditor(alice);
   const open = await editor.createPublished({ public: true, guests: true });
@@ -200,7 +204,7 @@ test("Guests can sign up shows unticked on a members-only event, and as it was s
 test("guests give a phone number and a company, and organizers see, search and export them", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Contact"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
@@ -228,7 +232,7 @@ test("guests give a phone number and a company, and organizers see, search and e
   await box.clickSignUp();
   await box.expectSignedUp();
 
-  const bob = await signedIn(browser, "bob@example.com");
+  const bob = await signedIn(browser, dexUsers.bob);
   await new EventPage(bob).goto(event.id);
   await new Attendance(bob).attend();
 
@@ -250,7 +254,7 @@ test("guests give a phone number and a company, and organizers see, search and e
   await editor.attendees.expectSearch();
   await editor.attendees.search("initech");
   await editor.attendees.expectRow("Gina", "Initech");
-  await editor.attendees.expectNoText("bob@example.com");
+  await editor.attendees.expectNoText(dexUsers.bob);
   expect(await editor.attendees.count()).toBe(2);
   const narrowed = await editor.attendees.downloadExcel();
   // The headings, and a row for each of the two.
@@ -263,11 +267,11 @@ test("a guest's email brings their signup to another browser", async ({
   browser,
   baseURL,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Links"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
-  const address = `gina-${crypto.randomUUID()}@example.org`;
+  const address = uniqueEmail("gina");
 
   const first = await visitor(browser);
   await new EventPage(first).goto(event.id);
@@ -279,9 +283,7 @@ test("a guest's email brings their signup to another browser", async ({
     `You're signed up: ${event.title}`,
   );
   expect(signedUp.raw).toMatch(/Content-Type: text\/calendar;.*method=REQUEST/);
-  const link = signedUp.text.match(
-    new RegExp(`http\\S*/events/${event.id}\\?guest=\\S+`),
-  )?.[0];
+  const link = guestLink(signedUp.text, event.id);
   expect(link).toBeDefined();
   // At the server's own address, as configured.
   expect(link?.startsWith(`${baseURL}/events/`)).toBe(true);
@@ -315,9 +317,7 @@ const linkFrom = async (
     address,
     `You're signed up: ${event.title}`,
   );
-  const link = email.text.match(
-    new RegExp(`http\\S*/events/${event.id}\\?guest=\\S+`),
-  )?.[0];
+  const link = guestLink(email.text, event.id);
   expect(link).toBeDefined();
   return link ?? "";
 };
@@ -325,14 +325,14 @@ const linkFrom = async (
 test("a guest changes their answers from another browser", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Elsewhere"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
   await editor.questions.add(1, "Where did you hear of it?");
   await editor.questions.checkRule(1, "Required");
   await editor.publish();
-  const address = `gina-${crypto.randomUUID()}@example.org`;
+  const address = uniqueEmail("gina");
 
   // Gina signs up in one browser...
   const first = await visitor(browser);
@@ -388,14 +388,14 @@ test("a guest changes their answers from another browser", async ({
   await cleanUp(alice, team, event.id);
 });
 
-test("a guest who lost the email cancels by typing their address, and confirming from a link (AC-1, AC-3, AC-4, AC-5, AC-6, AC-7)", async ({
+test("a guest who lost the email cancels by typing their address, and confirming from a link (SIGN-16 AC-1, SIGN-16 AC-3, SIGN-16 AC-4, SIGN-16 AC-5, SIGN-16 AC-6, SIGN-16 AC-7)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Lost"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
-  const address = `gina-${crypto.randomUUID()}@example.org`;
+  const address = uniqueEmail("gina");
 
   // Gina signs up in one browser...
   const first = await visitor(browser);
@@ -409,7 +409,7 @@ test("a guest who lost the email cancels by typing their address, and confirming
   await form.expectShown();
 
   // An address nobody signed up with is told so (AC-4).
-  await form.fillEmail(`nobody-${crypto.randomUUID()}@example.org`);
+  await form.fillEmail(uniqueEmail("nobody"));
   await form.submit();
   await form.expectText("Sorry, we can't find a signup with this email.");
 
@@ -423,9 +423,7 @@ test("a guest who lost the email cancels by typing their address, and confirming
     address,
     `Confirm cancelling: ${event.title}`,
   );
-  const link = email.text.match(
-    new RegExp(`http\\S*/events/${event.id}/cancel\\?token=\\S+`),
-  )?.[0];
+  const link = cancelLink(email.text, event.id);
   expect(link).toBeDefined();
 
   // Opening the link cancels nothing (AC-5)...
@@ -455,11 +453,11 @@ test("a guest who lost the email cancels by typing their address, and confirming
 });
 
 test("a link that leads to no signup says so", async ({ browser }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Gone"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
-  const address = `gina-${crypto.randomUUID()}@example.org`;
+  const address = uniqueEmail("gina");
   const gone = "This link no longer leads to a signup.";
 
   const first = await visitor(browser);
@@ -498,10 +496,10 @@ test("a link that leads to no signup says so", async ({ browser }) => {
   await cleanUp(alice, team, event.id);
 });
 
-test("a site that sends no email says so after a guest cancels, on the event page and on the cancel link's page (AC-2)", async ({
+test("a site that sends no email says so after a guest cancels, on the event page and on the cancel link's page (MAIL-02 AC-2)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("NoMail"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
@@ -511,12 +509,12 @@ test("a site that sends no email says so after a guest cancels, on the event pag
   await siteSendsNoEmail(first);
   await new EventPage(first).goto(event.id);
   const box = new Attendance(first);
-  await box.signUpAsGuest("Gina", `gina-${crypto.randomUUID()}@example.org`);
+  await box.signUpAsGuest("Gina", uniqueEmail("gina"));
   await box.cancelSignup();
   await box.expectCancelled(false);
 
   // Confirming on the cancel link's page.
-  const address = `hanna-${crypto.randomUUID()}@example.org`;
+  const address = uniqueEmail("hanna");
   const second = await visitor(browser);
   await new EventPage(second).goto(event.id);
   await new Attendance(second).signUpAsGuest("Hanna", address);
@@ -529,9 +527,7 @@ test("a site that sends no email says so after a guest cancels, on the event pag
     address,
     `Confirm cancelling: ${event.title}`,
   );
-  const link = email.text.match(
-    new RegExp(`http\\S*/events/${event.id}/cancel\\?token=\\S+`),
-  )?.[0];
+  const link = cancelLink(email.text, event.id);
   expect(link).toBeDefined();
   const third = await visitor(browser);
   await siteSendsNoEmail(third);
@@ -548,7 +544,7 @@ test("a site that sends no email says so after a guest cancels, on the event pag
 test("the cancel form's email field is named cancelEmail, not email (SIGN-16 AC-9)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("Cancel name"),
   );
@@ -569,7 +565,7 @@ test("the cancel form's email field is named cancelEmail, not email (SIGN-16 AC-
 test("the guest form links to the privacy page (SITE-10 AC-5)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Privacy"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });

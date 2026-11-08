@@ -1,3 +1,4 @@
+import { dexUsers } from "@skjera/test";
 import { cleanUp } from "../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName } from "../fixtures/support.ts";
 import { test } from "../fixtures/test.ts";
@@ -8,14 +9,14 @@ import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
 test("an event shows who else has it open, with their cursors", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const teamName = uniqueTeamName("Presence");
   const team = await new TeamsColumn(alice).create(teamName);
   const id = await new EventsColumn(alice).newEvent();
   const editor = new EventEditor(alice);
   await editor.title.type("Hello there");
 
-  const bob = await signedIn(browser, "bob@example.com");
+  const bob = await signedIn(browser, dexUsers.bob);
   const bobsEditor = new EventEditor(bob);
   await bobsEditor.goto(team, id);
   await bobsEditor.title.expectText("Hello there");
@@ -57,13 +58,13 @@ test("an event shows who else has it open, with their cursors", async ({
 test("someone with the event open in two tabs has one avatar (STU-05 AC-2)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Tabs"));
   const id = await new EventsColumn(alice).newEvent();
   const editor = new EventEditor(alice);
   await editor.title.type("Hello there");
 
-  const bob = await signedIn(browser, "bob@example.com");
+  const bob = await signedIn(browser, dexUsers.bob);
   const firstTab = new EventEditor(bob);
   await firstTab.goto(team, id);
   await firstTab.title.expectText("Hello there");

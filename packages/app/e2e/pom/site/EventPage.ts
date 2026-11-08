@@ -1,6 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 import { imagesPath } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
+import { expectImagesLoaded } from "../images.ts";
 
 /** An event's page on the site: what was published. */
 export class EventPage {
@@ -171,9 +172,7 @@ export class EventPage {
       return;
     }
     await expect(image).toHaveAttribute("src", src);
-    await expect
-      .poll(() => image.evaluate((img: HTMLImageElement) => img.naturalWidth))
-      .toBe(1);
+    await expectImagesLoaded(image, 1);
   }
 
   /**

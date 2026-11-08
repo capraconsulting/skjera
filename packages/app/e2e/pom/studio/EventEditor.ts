@@ -36,6 +36,7 @@ const emailNames: Record<EventEmail, string> = {
 /** What `createPublished` sets before publishing. */
 export interface EventSettings {
   readonly public: boolean;
+  readonly past?: boolean;
   readonly guests?: boolean;
   readonly dietary?: boolean;
   /** The most who can sign up; none by default. */
@@ -157,7 +158,8 @@ export class EventEditor {
     const id = await new EventsColumn(this.page).newEvent();
     const title = `Meetup ${id.slice(-12)}`;
     await this.title.type(title);
-    await this.times.pick();
+    if (settings.past) await this.times.pickPastStart();
+    else await this.times.pick();
     await this.writePlace();
     if (settings.tags !== undefined && settings.tags.length > 0) {
       for (const tag of settings.tags) await this.tags.add(tag);
@@ -196,14 +198,23 @@ export class EventEditor {
    * dismissing it. Returns the question.
    */
   async clickPublishAnswering(answer: "accept" | "dismiss"): Promise<string> {
-    const asked = new Promise<string>((resolve) => {
+    return this.clickAnswering(answer, () => this.clickPublish()).question;
+  }
+
+  private clickAnswering(
+    answer: "accept" | "dismiss",
+    click: () => Promise<unknown>,
+    waitForDone: () => Promise<unknown> = () => Promise.resolve(),
+  ): { readonly question: Promise<string>; readonly done: Promise<unknown> } {
+    const question = new Promise<string>((resolve) => {
       this.page.once("dialog", (dialog) => {
         resolve(dialog.message());
         return answer === "accept" ? dialog.accept() : dialog.dismiss();
       });
     });
-    await this.clickPublish();
-    return asked;
+    const done = waitForDone();
+    const clicked = click();
+    return { question: clicked.then(() => question), done };
   }
 
   async expectPublishEnabled(): Promise<void> {
@@ -289,23 +300,19 @@ export class EventEditor {
     readonly question: Promise<string>;
     readonly done: Promise<unknown>;
   } {
-    const question = new Promise<string>((resolve) => {
-      this.page.once("dialog", (dialog) => {
-        resolve(dialog.message());
-        return answer === "accept" ? dialog.accept() : dialog.dismiss();
-      });
-    });
-    // The studio shows the delete before the server has done it, and
-    // leaving the page would cut the request off.
-    const done = this.page.waitForResponse(
-      (response) =>
-        response.request().method() === "DELETE" &&
-        documentPath.itemPattern.test(new URL(response.url()).pathname),
+    return this.clickAnswering(
+      answer,
+      () =>
+        this.page
+          .getByRole("button", { name: m.common_delete(), exact: true })
+          .click(),
+      () =>
+        this.page.waitForResponse(
+          (response) =>
+            response.request().method() === "DELETE" &&
+            documentPath.itemPattern.test(new URL(response.url()).pathname),
+        ),
     );
-    const clicked = this.page
-      .getByRole("button", { name: m.common_delete(), exact: true })
-      .click();
-    return { question: clicked.then(() => question), done };
   }
 
   /**
@@ -317,26 +324,23 @@ export class EventEditor {
     readonly question: Promise<string>;
     readonly done: Promise<unknown>;
   } {
-    const question = new Promise<string>((resolve) => {
-      this.page.once("dialog", (dialog) => {
-        resolve(dialog.message());
-        return answer === "accept" ? dialog.accept() : dialog.dismiss();
-      });
-    });
-    const done =
-      answer === "accept"
-        ? this.page.waitForResponse(
-            (response) =>
-              response.request().method() === "DELETE" &&
-              documentPath.publicationPattern.test(
-                new URL(response.url()).pathname,
-              ),
-          )
-        : Promise.resolve();
-    const clicked = this.page
-      .getByRole("button", { name: m.studio_unpublish(), exact: true })
-      .click();
-    return { question: clicked.then(() => question), done };
+    return this.clickAnswering(
+      answer,
+      () =>
+        this.page
+          .getByRole("button", { name: m.studio_unpublish(), exact: true })
+          .click(),
+      () =>
+        answer === "accept"
+          ? this.page.waitForResponse(
+              (response) =>
+                response.request().method() === "DELETE" &&
+                documentPath.publicationPattern.test(
+                  new URL(response.url()).pathname,
+                ),
+            )
+          : Promise.resolve(),
+    );
   }
 
   /**
@@ -348,26 +352,26 @@ export class EventEditor {
     readonly question: Promise<string>;
     readonly done: Promise<unknown>;
   } {
-    const question = new Promise<string>((resolve) => {
-      this.page.once("dialog", (dialog) => {
-        resolve(dialog.message());
-        return answer === "accept" ? dialog.accept() : dialog.dismiss();
-      });
-    });
-    const done =
-      answer === "accept"
-        ? this.page.waitForResponse(
-            (response) =>
-              response.request().method() === "DELETE" &&
-              documentPath.changesPattern.test(
-                new URL(response.url()).pathname,
-              ),
-          )
-        : Promise.resolve();
-    const clicked = this.page
-      .getByRole("button", { name: m.studio_discard_changes(), exact: true })
-      .click();
-    return { question: clicked.then(() => question), done };
+    return this.clickAnswering(
+      answer,
+      () =>
+        this.page
+          .getByRole("button", {
+            name: m.studio_discard_changes(),
+            exact: true,
+          })
+          .click(),
+      () =>
+        answer === "accept"
+          ? this.page.waitForResponse(
+              (response) =>
+                response.request().method() === "DELETE" &&
+                documentPath.changesPattern.test(
+                  new URL(response.url()).pathname,
+                ),
+            )
+          : Promise.resolve(),
+    );
   }
 
   /** Clicks **History** and waits for the versions it lists. */
@@ -413,27 +417,27 @@ export class EventEditor {
     readonly question: Promise<string>;
     readonly done: Promise<unknown>;
   } {
-    const question = new Promise<string>((resolve) => {
-      this.page.once("dialog", (dialog) => {
-        resolve(dialog.message());
-        return answer === "accept" ? dialog.accept() : dialog.dismiss();
-      });
-    });
-    const done =
-      answer === "accept"
-        ? this.page.waitForResponse(
-            (response) =>
-              response.request().method() === "POST" &&
-              documentPath.restorationsPattern.test(
-                new URL(response.url()).pathname,
-              ),
-          )
-        : Promise.resolve();
-    const clicked = this.historyEntries(kind)
-      .first()
-      .getByRole("button", { name: m.studio_restore_version(), exact: true })
-      .click();
-    return { question: clicked.then(() => question), done };
+    return this.clickAnswering(
+      answer,
+      () =>
+        this.historyEntries(kind)
+          .first()
+          .getByRole("button", {
+            name: m.studio_restore_version(),
+            exact: true,
+          })
+          .click(),
+      () =>
+        answer === "accept"
+          ? this.page.waitForResponse(
+              (response) =>
+                response.request().method() === "POST" &&
+                documentPath.restorationsPattern.test(
+                  new URL(response.url()).pathname,
+                ),
+            )
+          : Promise.resolve(),
+    );
   }
 
   /** Back on the event's team, without the event. */

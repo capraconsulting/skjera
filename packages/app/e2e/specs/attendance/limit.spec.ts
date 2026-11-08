@@ -1,3 +1,4 @@
+import { dexUsers } from "@skjera/test";
 import { cleanUp } from "../../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName, visitor } from "../../fixtures/support.ts";
 import { test } from "../../fixtures/test.ts";
@@ -6,10 +7,10 @@ import { EventPage } from "../../pom/site/EventPage.ts";
 import { EventEditor } from "../../pom/studio/EventEditor.ts";
 import { TeamsColumn } from "../../pom/studio/TeamsColumn.ts";
 
-test("a limit shows the places left, and a full event takes no more (AC-1)", async ({
+test("a limit shows the places left, and a full event takes no more (SIGN-06 AC-1)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Limit"));
   const editor = new EventEditor(alice);
   const unlimited = await editor.createPublished({ public: true });
@@ -26,7 +27,7 @@ test("a limit shows the places left, and a full event takes no more (AC-1)", asy
   await new Attendance(stranger).expectNoText("place");
 
   // A member and a guest take the two places.
-  const bob = await signedIn(browser, "bob@example.com");
+  const bob = await signedIn(browser, dexUsers.bob);
   await new EventPage(bob).goto(event.id);
   const member = new Attendance(bob);
   await member.expectText("2 places left");
@@ -85,7 +86,7 @@ test("a limit shows the places left, and a full event takes no more (AC-1)", asy
 test("a signup sent once the event is full is refused, saying it is full", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("Last place"),
   );
@@ -119,12 +120,12 @@ test("a signup sent once the event is full is refused, saying it is full", async
 test("a limit below those signed up keeps them, and takes no one new", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Lowered"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true, guests: true });
 
-  const bob = await signedIn(browser, "bob@example.com");
+  const bob = await signedIn(browser, dexUsers.bob);
   await new EventPage(bob).goto(event.id);
   const member = new Attendance(bob);
   await member.attend();
@@ -136,7 +137,7 @@ test("a limit below those signed up keeps them, and takes no one new", async ({
   await editor.fillMaxAttendees(1);
   await editor.publish();
   await editor.reload();
-  await editor.attendees.expectText("bob@example.com");
+  await editor.attendees.expectText(dexUsers.bob);
   await editor.attendees.expectText("Gina");
 
   const other = await visitor(browser);

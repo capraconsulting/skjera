@@ -1,4 +1,5 @@
 import { imagePathPattern, imagesPath } from "@skjera/documents/api";
+import { dexUsers } from "@skjera/test";
 import { cleanUp } from "../fixtures/cleanUp.ts";
 import { signedIn, uniqueTeamName, visitor } from "../fixtures/support.ts";
 import { expect, test } from "../fixtures/test.ts";
@@ -13,10 +14,10 @@ import { EventPage } from "../pom/site/EventPage.ts";
 import { EventEditor } from "../pom/studio/EventEditor.ts";
 import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
 
-test("an image upload waits for a server that is starting (AC-4)", async ({
+test("an image upload waits for a server that is starting (OPS-06 AC-4)", async ({
   browser,
 }) => {
-  const page = await signedIn(browser, "alice@example.com");
+  const page = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(page).create(uniqueTeamName("Starting"));
   const editor = new EventEditor(page);
   const event = await editor.createPublished({ public: true });
@@ -34,10 +35,10 @@ test("an image upload waits for a server that is starting (AC-4)", async ({
   await cleanUp(page, team, event.id);
 });
 
-test("images are uploaded into the body and shown on the site (AC-1, AC-7)", async ({
+test("images are uploaded into the body and shown on the site (STU-08 AC-1, STU-08 AC-7)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Images"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true });
@@ -95,10 +96,10 @@ test("images are uploaded into the body and shown on the site (AC-1, AC-7)", asy
   await cleanUp(alice, team, event.id);
 });
 
-test("images pasted or dropped into the body are uploaded (AC-2, AC-8)", async ({
+test("images pasted or dropped into the body are uploaded (STU-08 AC-2, STU-08 AC-8)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Paste"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true });
@@ -131,10 +132,10 @@ test("images pasted or dropped into the body are uploaded (AC-2, AC-8)", async (
   await cleanUp(alice, team, event.id);
 });
 
-test("the email texts' editor has no choices for an image (AC-1)", async ({
+test("the email texts' editor has no choices for an image (MAIL-06 AC-1)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Emails"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true });
@@ -148,7 +149,7 @@ test("the email texts' editor has no choices for an image (AC-1)", async ({
 });
 
 test("an event's cover image is shown on the site", async ({ browser }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Cover"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true });
@@ -181,10 +182,10 @@ test("an event's cover image is shown on the site", async ({ browser }) => {
   await cleanUp(alice, team, event.id);
 });
 
-test("the organiser crops the cover, and the site shows the cropped part (AC-1, AC-2)", async ({
+test("the organiser crops the cover, and the site shows the cropped part (STU-25 AC-1, STU-25 AC-2)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Crop"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true });
@@ -212,10 +213,10 @@ test("the organiser crops the cover, and the site shows the cropped part (AC-1, 
   await cleanUp(alice, team, event.id);
 });
 
-test("the organiser sets the cover's focal point, and resets it (AC-1, AC-8)", async ({
+test("the organiser sets the cover's focal point, and resets it (STU-25 AC-1, STU-25 AC-8)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Focus"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true });
@@ -237,10 +238,10 @@ test("the organiser sets the cover's focal point, and resets it (AC-1, AC-8)", a
   await cleanUp(alice, team, event.id);
 });
 
-test("the cover offers to pick an image already in Skjera (AC-1)", async ({
+test("the cover offers to pick an image already in Skjera (STU-22 AC-1)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("Pick cover"),
   );
@@ -255,10 +256,10 @@ test("the cover offers to pick an image already in Skjera (AC-1)", async ({
   await cleanUp(alice, team, event.id);
 });
 
-test("the Image dialog of the body and of an email text offers to pick an image already in Skjera (AC-1)", async ({
+test("the Image dialog of the body and of an email text offers to pick an image already in Skjera (STU-22 AC-1)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Pick text"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true });
@@ -276,10 +277,10 @@ test("the Image dialog of the body and of an email text offers to pick an image 
   await cleanUp(alice, team, event.id);
 });
 
-test("an image picked for the cover is used without uploading it again (AC-4)", async ({
+test("an image picked for the cover is used without uploading it again (STU-22 AC-4)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(
     uniqueTeamName("Pick cover"),
   );
@@ -297,10 +298,10 @@ test("an image picked for the cover is used without uploading it again (AC-4)", 
   await cleanUp(alice, team, event.id);
 });
 
-test("an image picked in the Image dialog is added without uploading it again, also after a file was chosen (AC-4)", async ({
+test("an image picked in the Image dialog is added without uploading it again, also after a file was chosen (STU-22 AC-4)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Pick body"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true });
@@ -339,10 +340,10 @@ test("an image picked in the Image dialog is added without uploading it again, a
   await cleanUp(alice, team, event.id);
 });
 
-test("the list of images loads more as it is scrolled (AC-3)", async ({
+test("the list of images loads more as it is scrolled (STU-22 AC-3)", async ({
   browser,
 }) => {
-  const alice = await signedIn(browser, "alice@example.com");
+  const alice = await signedIn(browser, dexUsers.alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Pick more"));
   const editor = new EventEditor(alice);
   const event = await editor.createPublished({ public: true });
