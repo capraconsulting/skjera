@@ -1,12 +1,12 @@
 import { createServer, type Socket } from "node:net";
 import { PgClient } from "@effect/sql-pg";
+import { databaseServerUrl } from "@skjera/test/database";
 import { Layer, Redacted } from "effect";
 import { HttpRouter } from "effect/http";
 import { describe, expect, it } from "vitest";
 import { Health } from "../src/health.ts";
 
-const serverUrl =
-  process.env.DATABASE_URL ?? "postgres://skjera:skjera@localhost:5433/skjera";
+const serverUrl = databaseServerUrl(process.env);
 
 /** Asks the health routes for `path`, with a database at `url` behind them. */
 const ask = async (url: string, path: string) => {

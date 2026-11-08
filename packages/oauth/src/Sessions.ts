@@ -7,7 +7,9 @@ import {
   Effect,
   Layer,
   Option,
+  Schedule,
   Schema,
+  Semaphore,
 } from "effect";
 import { KeyValueStore } from "effect/persistence";
 import { Identity } from "./Identity.ts";
@@ -33,12 +35,15 @@ export class LoginAttempt extends Schema.Class<LoginAttempt>(
 
 export class Session extends Schema.Class<Session>("@skjera/oauth/Session")({
   identity: Identity,
-  accessToken: Schema.Redacted(Schema.String),
-  refreshToken: Schema.optional(Schema.Redacted(Schema.String)),
   idToken: Schema.optional(Schema.String),
-  accessTokenExpiresAt: Schema.optional(Schema.Number),
   expiresAt: Schema.Number,
 }) {}
+
+const Expiration = Schema.Struct({
+  kind: Schema.Literals(["login", "session"]),
+  key: Schema.String,
+  expiresAt: Schema.Number,
+});
 
 /**
  * Server-side storage for sessions and in-flight logins, on top of any
@@ -70,6 +75,12 @@ export class Sessions extends Context.Service<
     Effect.gen(function* () {
       const config = yield* OAuthConfig;
       const store = yield* KeyValueStore.KeyValueStore;
+      const storageVersionKey = "oauth/storage-version";
+      const storageVersion = "1";
+      if ((yield* store.get(storageVersionKey)) !== storageVersion) {
+        yield* store.clear;
+        yield* store.set(storageVersionKey, storageVersion);
+      }
       const logins = KeyValueStore.toSchemaStore(
         KeyValueStore.prefix(store, "oauth/login/"),
         LoginAttempt,
@@ -78,14 +89,56 @@ export class Sessions extends Context.Service<
         KeyValueStore.prefix(store, "oauth/session/"),
         Session,
       );
+      const expirations = KeyValueStore.toSchemaStore(
+        store,
+        Schema.Array(Expiration),
+      );
+      const expirationsKey = "oauth/expirations";
 
       const newId = () => randomBytes(32).toString("base64url");
       const key = (id: string) =>
         createHash("sha256").update(id).digest("base64url");
       const storeError = (cause: unknown) => new SessionStoreError({ cause });
+      const expirationLock = yield* Semaphore.make(1);
 
-      // Expired entries are dropped when read. A persistent store should also
-      // sweep them periodically.
+      const registerExpiration = (expiration: typeof Expiration.Type) =>
+        expirationLock.withPermit(
+          Effect.gen(function* () {
+            const registered = yield* expirations.get(expirationsKey);
+            yield* expirations.set(expirationsKey, [
+              ...Option.getOrElse(registered, () => []),
+              expiration,
+            ]);
+          }),
+        );
+
+      const sweepExpired = expirationLock
+        .withPermit(
+          Effect.gen(function* () {
+            const registered = yield* expirations.get(expirationsKey);
+            if (Option.isNone(registered)) return;
+            const now = yield* Clock.currentTimeMillis;
+            const remaining = [];
+            for (const expiration of registered.value) {
+              if (expiration.expiresAt > now) {
+                remaining.push(expiration);
+              } else if (expiration.kind === "login") {
+                yield* logins.remove(expiration.key);
+              } else {
+                yield* sessions.remove(expiration.key);
+              }
+            }
+            yield* expirations.set(expirationsKey, remaining);
+          }),
+        )
+        .pipe(Effect.mapError(storeError));
+
+      yield* sweepExpired.pipe(
+        Effect.retry(Schedule.spaced(Duration.minutes(1))),
+        Effect.repeat(Schedule.spaced(Duration.days(1))),
+        Effect.forkScoped,
+      );
+
       const getUnexpired = <A extends { readonly expiresAt: number }>(
         get: Effect.Effect<Option.Option<A>, unknown>,
         remove: Effect.Effect<void, unknown>,
@@ -104,17 +157,20 @@ export class Sessions extends Context.Service<
         challenge: LoginChallenge & { readonly returnTo: string },
       ) {
         const id = newId();
+        const hashedId = key(id);
         const now = yield* Clock.currentTimeMillis;
+        const expiresAt = now + Duration.toMillis(loginAttemptTtl);
         yield* logins.set(
-          key(id),
+          hashedId,
           new LoginAttempt({
             state: challenge.state,
             codeVerifier: challenge.codeVerifier,
             nonce: challenge.nonce,
             returnTo: challenge.returnTo,
-            expiresAt: now + Duration.toMillis(loginAttemptTtl),
+            expiresAt,
           }),
         );
+        yield* registerExpiration({ kind: "login", key: hashedId, expiresAt });
         return id;
       }, Effect.mapError(storeError));
 
@@ -130,18 +186,22 @@ export class Sessions extends Context.Service<
         tokens: Tokens,
       ) {
         const id = newId();
+        const hashedId = key(id);
         const now = yield* Clock.currentTimeMillis;
+        const expiresAt = now + Duration.toMillis(config.sessionTtl);
         yield* sessions.set(
-          key(id),
+          hashedId,
           new Session({
             identity,
-            accessToken: tokens.accessToken,
-            refreshToken: Option.getOrUndefined(tokens.refreshToken),
             idToken: Option.getOrUndefined(tokens.idToken),
-            accessTokenExpiresAt: Option.getOrUndefined(tokens.expiresAt),
-            expiresAt: now + Duration.toMillis(config.sessionTtl),
+            expiresAt,
           }),
         );
+        yield* registerExpiration({
+          kind: "session",
+          key: hashedId,
+          expiresAt,
+        });
         return id;
       }, Effect.mapError(storeError));
 

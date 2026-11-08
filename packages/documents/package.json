@@ -22,6 +22,7 @@
     "@skjera/paths": "workspace:*",
     "@skjera/slack": "workspace:*",
     "@skjera/snapsync": "workspace:*",
+    "@skjera/test": "workspace:*",
     "aws4fetch": "catalog:",
     "bs58check": "catalog:",
     "cbor-x": "catalog:",

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { dexIssuerUrl } from "@skjera/test";
 import { DemoPage } from "../pom/DemoPage.ts";
 import { LoginPage } from "../pom/LoginPage.ts";
 
@@ -38,7 +39,7 @@ test("returns to the requested page after login", async ({ page }) => {
   await new LoginPage(page).signIn("bob@example.com");
   await demo.expectAt("/api/me");
   expect(JSON.parse(await demo.bodyText())).toMatchObject({
-    issuer: "http://localhost:5556/dex",
+    issuer: dexIssuerUrl(process.env),
     email: "bob@example.com",
     name: "bob",
   });

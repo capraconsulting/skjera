@@ -64,9 +64,6 @@ export class OAuthClient extends Context.Service<
       { readonly identity: Identity; readonly tokens: Tokens },
       OAuthError | AccessDenied
     >;
-    readonly refresh: (
-      refreshToken: Redacted.Redacted<string>,
-    ) => Effect.Effect<Tokens, OAuthError>;
     /** Where to send the browser to also end the session at the provider, if supported and configured. */
     readonly endSessionUrl: (
       idToken: Option.Option<string>,
@@ -345,25 +342,6 @@ export class OAuthClient extends Context.Service<
         return { identity, tokens };
       });
 
-      const refresh = Effect.fn("OAuthClient.refresh")(function* (
-        refreshToken: Redacted.Redacted<string>,
-      ) {
-        const response = yield* tryPromise("Refresh request failed", async () =>
-          oauth.processRefreshTokenResponse(
-            as,
-            client,
-            await oauth.refreshTokenGrantRequest(
-              as,
-              client,
-              clientAuth,
-              Redacted.value(refreshToken),
-              httpOptions,
-            ),
-          ),
-        );
-        return yield* toTokens(response);
-      });
-
       const endSessionUrl = (idToken: Option.Option<string>) => {
         const endpoint = as.end_session_endpoint;
         if (
@@ -388,7 +366,6 @@ export class OAuthClient extends Context.Service<
         authorizationServer: as,
         startLogin,
         completeLogin,
-        refresh,
         endSessionUrl,
       });
     }),

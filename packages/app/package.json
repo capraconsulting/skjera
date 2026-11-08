@@ -26,6 +26,7 @@
     "@skjera/paths": "workspace:*",
     "@skjera/server": "workspace:*",
     "@skjera/snapsync": "workspace:*",
+    "@skjera/test": "workspace:*",
     "@tanstack/react-db": "catalog:",
     "downshift": "catalog:",
     "effect": "catalog:",

@@ -1,8 +1,10 @@
 // Bundles the server into dist/, for its image (see the Dockerfile): one
 // file with only the code it runs, so no node_modules, and no tsx. Run with
 // `pnpm build`.
+import { readFileSync } from "node:fs";
 import { cp, rm } from "node:fs/promises";
 import { build, type Plugin } from "esbuild";
+import { snapsyncBuildContract } from "./src/buildContract.ts";
 
 /**
  * Automerge's Node build loads its WebAssembly from a file next to it; its
@@ -46,4 +48,10 @@ await build({
 });
 // Read at run time by snapsync's install (`../extension/` from its module,
 // so from dist/main.js too).
-await cp("../snapsync/extension", "extension", { recursive: true });
+const contract = snapsyncBuildContract({
+  packageJson: readFileSync("../snapsync/package.json", "utf8"),
+  control: readFileSync("../snapsync/extension/snapsync.control", "utf8"),
+  server: readFileSync("../snapsync/src/server.ts", "utf8"),
+  dockerfile: readFileSync("../../Dockerfile", "utf8"),
+});
+await cp(contract.extensionDirectory, "extension", { recursive: true });

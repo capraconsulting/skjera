@@ -16,6 +16,7 @@
   "dependencies": {
     "@aws-sdk/client-sesv2": "catalog:",
     "@react-email/render": "catalog:",
+    "@skjera/test": "workspace:*",
     "effect": "catalog:",
     "nodemailer": "catalog:",
     "react": "catalog:",

@@ -32,6 +32,16 @@ const succeeds: CompleteLogin = () =>
       expiresAt: Option.none(),
     },
   });
+const succeedsWithIdToken: CompleteLogin = () =>
+  Effect.succeed({
+    identity,
+    tokens: {
+      accessToken: Redacted.make("access"),
+      refreshToken: Option.none(),
+      idToken: Option.some("identity-token"),
+      expiresAt: Option.none(),
+    },
+  });
 const refused: CompleteLogin = () =>
   Effect.fail(new AccessDenied({ message: "outside the domain" }));
 const unusable: CompleteLogin = () =>
@@ -48,12 +58,15 @@ const withRoutes = <A, E, R>(
     readonly request: (
       path: string,
       cookie?: string,
+      method?: string,
     ) => Effect.Effect<Response>;
     readonly shown: ReadonlyArray<LoginFailure>;
+    readonly endedWith: ReadonlyArray<Option.Option<string>>;
   }) => Effect.Effect<A, E, R>,
 ) =>
   Effect.gen(function* () {
     const shown: Array<LoginFailure> = [];
+    const endedWith: Array<Option.Option<string>> = [];
     const client = Layer.succeed(
       OAuthClient,
       OAuthClient.of({
@@ -63,8 +76,10 @@ const withRoutes = <A, E, R>(
           challenge: { state: "state", codeVerifier: "verifier" },
         }),
         completeLogin,
-        refresh: () => Effect.fail(new OAuthError({ message: "unused" })),
-        endSessionUrl: () => Option.none(),
+        endSessionUrl: (idToken) => {
+          endedWith.push(idToken);
+          return Option.none();
+        },
       }),
     );
     const page = Layer.succeed(LoginFailurePage, (failure) => {
@@ -84,10 +99,12 @@ const withRoutes = <A, E, R>(
     yield* Effect.addFinalizer(() => Effect.promise(dispose));
     return yield* use({
       shown,
-      request: (path, cookie) =>
+      endedWith,
+      request: (path, cookie, method) =>
         Effect.promise(() =>
           handler(
             new Request(`https://app.example${path}`, {
+              ...(method === undefined ? {} : { method }),
               headers: cookie === undefined ? {} : { cookie },
             }),
           ),
@@ -116,6 +133,25 @@ const login = (
 const callback = "/auth/callback?code=x&state=state";
 
 describe("AuthRoutes", () => {
+  it.effect("passes the ID token to provider logout (AC-3)", () =>
+    withRoutes(succeedsWithIdToken, ({ request, endedWith }) =>
+      Effect.gen(function* () {
+        const started = yield* login(request, "/");
+        const loggedIn = yield* request(
+          callback,
+          cookieHeader(started, loginCookie, returnCookie),
+        );
+
+        yield* request(
+          "/auth/logout",
+          cookieHeader(loggedIn, sessionCookie),
+          "POST",
+        );
+        assert.deepStrictEqual(endedWith, [Option.some("identity-token")]);
+      }),
+    ),
+  );
+
   it.effect(
     "refuses an account that is not allowed, with no session (AC-1, AC-5)",
     () =>

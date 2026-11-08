@@ -1,4 +1,3 @@
-import { randomBytes } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import * as A from "@automerge/automerge";
 import { PgClient } from "@effect/sql-pg";
@@ -14,6 +13,11 @@ import {
   Teams,
   ZonedDateTime as ZonedDateTimeSchema,
 } from "@skjera/documents";
+import {
+  databaseName,
+  databaseServerUrl,
+  databaseUrl,
+} from "@skjera/test/database";
 import { Effect, Redacted, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { Temporal } from "temporal-polyfill";
@@ -42,8 +46,7 @@ import {
 } from "../testdata/fill.ts";
 import { layerOn, localDatabase, people, run, teamsAt } from "../testdata.ts";
 
-const serverUrl =
-  process.env.DATABASE_URL ?? "postgres://skjera:skjera@localhost:5433/skjera";
+const serverUrl = databaseServerUrl(process.env);
 const issuer = process.env.OAUTH_ISSUER ?? "http://localhost:5556/dex";
 const { alice } = people(issuer);
 
@@ -150,11 +153,9 @@ const onServer = <A, E>(
   );
 
 const newDatabase = async () => {
-  const name = `skjera_testdata_${randomBytes(6).toString("hex")}`;
+  const name = databaseName("skjera_testdata");
   await onServer((sql) => sql.unsafe(`CREATE DATABASE ${name}`));
-  const url = new URL(serverUrl);
-  url.pathname = `/${name}`;
-  return { name, url: url.href };
+  return { name, url: databaseUrl(serverUrl, name) };
 };
 
 const dropDatabase = (name: string) =>
