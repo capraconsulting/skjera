@@ -3,6 +3,15 @@ import { type KeyboardEvent, type PointerEvent, useRef, useState } from "react";
 import { Button } from "../components/Button.tsx";
 import { Dialog, dialogStyles } from "../components/Dialog.tsx";
 import styles from "./CoverCrop.module.css";
+
+export const coverCropStyles = {
+  area: styles.area,
+  focus: styles.focus,
+  hint: styles.hint,
+  marker: styles.marker,
+  picture: styles.picture,
+};
+
 import {
   drawFrame,
   type Frame,

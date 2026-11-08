@@ -11,7 +11,7 @@ import { Button } from "../../components/Button.tsx";
 import { Input } from "../../components/Input.tsx";
 import type { AppError } from "../../site/client.ts";
 import { invitations, invite } from "../../sync/tables.ts";
-import styles from "./Attendees.module.css";
+import { attendeeStyles as styles } from "./Attendees.tsx";
 import { invitationsHeading, invitedAs } from "./invitations.ts";
 
 /**

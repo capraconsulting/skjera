@@ -12,8 +12,7 @@ import { useId, useMemo, useRef, useSyncExternalStore } from "react";
 import { Temporal } from "temporal-polyfill";
 import { Button } from "../components/Button.tsx";
 import { Field } from "../components/Field.tsx";
-import inputStyles from "../components/Input.module.css";
-import { Input } from "../components/Input.tsx";
+import { Input, Select } from "../components/Input.tsx";
 import { placeUnder } from "../components/popover.ts";
 import { localTimeZone } from "../time.ts";
 import styles from "./DateTimeField.module.css";
@@ -302,9 +301,9 @@ function TimeZoneSelect(props: {
     return known.includes(props.value) ? known : [props.value, ...known];
   }, [props.value]);
   return (
-    <select
+    <Select
       aria-label={m.editor_time_zone()}
-      className={`${inputStyles.input} ${styles.zone}`}
+      className={styles.zone}
       value={props.value}
       onChange={(event) => props.onChange(event.currentTarget.value)}
     >
@@ -313,7 +312,7 @@ function TimeZoneSelect(props: {
           {zone.replaceAll("_", " ")}
         </option>
       ))}
-    </select>
+    </Select>
   );
 }
 

@@ -12,6 +12,9 @@ import {
   type Removal,
 } from "../../sync/tables.ts";
 import styles from "./Attendees.module.css";
+
+export const attendeeStyles = styles;
+
 import { searchAttendees } from "./attendeeSearch.ts";
 import {
   adSourceText,

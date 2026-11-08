@@ -6,7 +6,7 @@ import { Input } from "../../components/Input.tsx";
 import { sayWhy } from "../../problems.ts";
 import { requestCancelByEmail } from "../../site/guestSignups.ts";
 import { signupFields } from "../../site/signupForm.ts";
-import styles from "./Attend.module.css";
+import { attendStyles as styles } from "./Attend.tsx";
 import { HoneypotInput } from "./AttendInputs.tsx";
 
 /**

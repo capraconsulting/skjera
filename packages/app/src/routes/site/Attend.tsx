@@ -32,6 +32,9 @@ import {
 import { attendees, type GuestCancel } from "../../sync/tables.ts";
 import { formatDateTime } from "../../time.ts";
 import styles from "./Attend.module.css";
+
+export const attendStyles = styles;
+
 import {
   AttendanceInput,
   ConsentInput,

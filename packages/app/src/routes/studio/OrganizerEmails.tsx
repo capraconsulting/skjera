@@ -14,7 +14,7 @@ import { Input } from "../../components/Input.tsx";
 import type { AppError } from "../../site/client.ts";
 import { emailAttendees, organizerEmails } from "../../sync/tables.ts";
 import { formatClockIn, formatDateIn, localTimeZone } from "../../time.ts";
-import styles from "./Attendees.module.css";
+import { attendeeStyles as styles } from "./Attendees.tsx";
 
 /**
  * The button that writes to everyone signed up, and the form it opens: a

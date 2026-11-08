@@ -5,8 +5,7 @@ import { choiceQuestionMinimum } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { useMemo, useSyncExternalStore } from "react";
 import { Button } from "../components/Button.tsx";
-import inputStyles from "../components/Input.module.css";
-import { Input } from "../components/Input.tsx";
+import { Input, Select } from "../components/Input.tsx";
 import styles from "./QuestionsField.module.css";
 
 // The questions asked of everyone signing up. Texts are Automerge text,
@@ -127,9 +126,8 @@ export function QuestionsField(props: {
             return (
               <li key={question.id} className={styles.question}>
                 <div className={styles.row}>
-                  <select
+                  <Select
                     aria-label={m.editor_q_type({ n })}
-                    className={inputStyles.input}
                     value={question.type}
                     onChange={(event) =>
                       setType(
@@ -143,7 +141,7 @@ export function QuestionsField(props: {
                         {label()}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                   <label className={styles.required}>
                     <input
                       type="checkbox"
@@ -192,7 +190,6 @@ export function QuestionsField(props: {
                 </div>
                 <Input
                   aria-label={m.editor_q_name({ n })}
-                  className={inputStyles.input}
                   placeholder={
                     question.type === "checkbox"
                       ? m.editor_q_tick_placeholder()
@@ -209,7 +206,6 @@ export function QuestionsField(props: {
                 {question.type !== "checkbox" ? null : (
                   <Input
                     aria-label={m.editor_q_label({ n })}
-                    className={inputStyles.input}
                     placeholder={m.editor_q_label_placeholder()}
                     value={question.label ?? ""}
                     onChange={(event) => {
@@ -275,7 +271,6 @@ function Options(props: {
         <li key={option.id} className={styles.option}>
           <Input
             aria-label={m.editor_q_option({ n, option: index + 1 })}
-            className={inputStyles.input}
             placeholder={m.editor_q_option_placeholder({ option: index + 1 })}
             value={option.text}
             onChange={(event) => {

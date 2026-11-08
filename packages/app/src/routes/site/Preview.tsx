@@ -24,8 +24,7 @@ import { usePageTitle } from "../../pageTitle.ts";
 import { fetchMe } from "../../site/client.ts";
 import { hasHubSpot, loadAfresh } from "../../site/hubSpot.ts";
 import { attendees, documents, events, teams } from "../../sync/tables.ts";
-import eventStyles from "./EventPage.module.css";
-import { EventView, useSignups } from "./EventPage.tsx";
+import { EventView, eventPageStyles, useSignups } from "./EventPage.tsx";
 import styles from "./Preview.module.css";
 
 const isDocumentId = Schema.is(DocumentId);
@@ -120,7 +119,7 @@ export function Preview() {
   usePageTitle({ page: "event", title: event?.title ?? "" });
   // The draft was deleted while its preview was open.
   if (row === undefined || team === undefined) {
-    return <p className={eventStyles.missing}>{m.site_event_missing()}</p>;
+    return <p className={eventPageStyles.missing}>{m.site_event_missing()}</p>;
   }
   return (
     <div className={styles.preview}>

@@ -1,8 +1,8 @@
 import type { TeamId } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { lower, useLiveQuery } from "@tanstack/react-db";
-import inputStyles from "../../components/Input.module.css";
-import styles from "../../editor/CheckboxField.module.css";
+import { Select } from "../../components/Input.tsx";
+import { checkboxFieldStyles } from "../../editor/CheckboxField.tsx";
 import { teams } from "../../sync/tables.ts";
 
 /**
@@ -23,10 +23,9 @@ export function OrganizerField(props: {
   ).data;
   return (
     <div>
-      <div className={styles.label}>{m.site_organizer()}</div>
-      <select
+      <div className={checkboxFieldStyles.label}>{m.site_organizer()}</div>
+      <Select
         aria-label={m.site_organizer()}
-        className={inputStyles.input}
         value={props.teamId}
         disabled={props.locked || props.moving}
         onChange={(event) => {
@@ -39,9 +38,11 @@ export function OrganizerField(props: {
             {team.name}
           </option>
         ))}
-      </select>
+      </Select>
       {props.locked ? (
-        <span className={styles.hint}>{m.studio_organizer_locked()}</span>
+        <span className={checkboxFieldStyles.hint}>
+          {m.studio_organizer_locked()}
+        </span>
       ) : null}
     </div>
   );
