@@ -16,7 +16,7 @@ WHEN an event is published for the first time, the site SHALL show it on open fr
 - **When** you click **Publish**
 - **Then** «AC-1: New» appears on the front page within a few seconds
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-2: A change, published again, follows
 
@@ -40,7 +40,7 @@ WHEN a published event is deleted, the site SHALL take it off open front pages, 
 - **When** you delete it in the studio with **Delete**
 - **Then** within a few seconds it is gone from the front page, and its page says «This event doesn't exist, or isn't published.»
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-4: The count follows sign-ups
 
@@ -60,4 +60,4 @@ WHEN someone signs up for an event or cancels, its open pages SHALL show the new
 
 IF the server doesn't answer for a while, as when it restarts, THEN the site SHALL keep asking, and carry on once it answers.
 
-**Automated only:** a server that answers with errors for a moment is hard to make by hand. `packages/app/e2e/specs/site.spec.ts`, `packages/snapsync/test/client.test.ts`
+**Automated only:** a server that answers with errors for a moment is hard to make by hand. `packages/app/e2e/specs/site/site.spec.ts`, `packages/snapsync/test/client.test.ts`

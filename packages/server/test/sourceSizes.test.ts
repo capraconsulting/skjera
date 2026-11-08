@@ -51,32 +51,32 @@ const movedTests = [
   },
   {
     page: "docs/acceptance/EXT-06-hubspot.md",
-    destination: "packages/app/e2e/specs/siteHubSpot.spec.ts",
+    destination: "packages/app/e2e/specs/site/siteHubSpot.spec.ts",
     marker: "HubSpot",
   },
   {
     page: "docs/acceptance/STU-02-organiser-logo.md",
-    destination: "packages/app/e2e/specs/siteOrganizers.spec.ts",
+    destination: "packages/app/e2e/specs/site/siteOrganizers.spec.ts",
     marker: "organizer",
   },
   {
     page: "docs/acceptance/ACC-05-account-settings.md",
-    destination: "packages/app/e2e/specs/siteAccount.spec.ts",
+    destination: "packages/app/e2e/specs/site/siteAccount.spec.ts",
     marker: "account menu",
   },
   {
     page: "docs/acceptance/ACC-01-login.md",
-    destination: "packages/app/e2e/specs/siteAccount.spec.ts",
+    destination: "packages/app/e2e/specs/site/siteAccount.spec.ts",
     marker: "await header.logOut()",
   },
   {
     page: "docs/acceptance/SITE-01-header-and-footer.md",
-    destination: "packages/app/e2e/specs/siteAccount.spec.ts",
+    destination: "packages/app/e2e/specs/site/siteAccount.spec.ts",
     marker: "account menu shows the picture",
   },
   {
     page: "docs/acceptance/STU-07-text-formatting.md",
-    destination: "packages/app/e2e/specs/siteStudioLinks.spec.ts",
+    destination: "packages/app/e2e/specs/site/siteStudioLinks.spec.ts",
     marker: "editor refuses a link",
   },
 ] as const;

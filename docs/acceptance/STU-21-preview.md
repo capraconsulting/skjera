@@ -29,7 +29,7 @@ The studio SHALL show a button **Preview** for each event that opens a preview o
 - **When** you open «AC-1 to AC-5: Never published» and click **Preview**
 - **Then** its preview opens in a new tab too
 
-**Automated:** `packages/app/e2e/specs/preview.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/preview.spec.ts`
 
 ## AC-2: The site's own page, with the draft as it is
 
@@ -43,7 +43,7 @@ WHEN an organiser opens the preview, Skjera SHALL show the event's page as it wi
 - **When** you publish the event and compare the preview with the site's page
 - **Then** the two look the same: spacing, cover and the organiser's logo in both themes
 
-**Automated:** `packages/documents/test/events/preview.test.ts`, `packages/app/e2e/specs/preview.spec.ts`
+**Automated:** `packages/documents/test/events/preview.test.ts`, `packages/app/e2e/specs/studio/preview.spec.ts`
 
 ## AC-3: It follows the draft
 
@@ -55,7 +55,7 @@ WHEN the draft changes while the preview is open, the preview SHALL show the cha
 - **When** you change the title in the studio
 - **Then** the preview shows the new title without being reloaded
 
-**Automated:** `packages/app/e2e/specs/preview.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/preview.spec.ts`
 
 ## AC-4: A fixed notice
 
@@ -70,7 +70,7 @@ WHILE a preview is shown, the page SHALL say in a fixed notice that it is a prev
 - **When** you open the preview of «AC-1 to AC-5: Never published»
 - **Then** the notice says the same, with no link
 
-**Automated:** `packages/app/e2e/specs/preview.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/preview.spec.ts`
 
 ## AC-5: An event never published
 
@@ -86,7 +86,7 @@ WHEN an organiser opens the preview of an event that has never been published, S
 - **When** you pick a start and an end in the studio
 - **Then** the page is shown, without a reload
 
-**Automated:** `packages/documents/test/events/preview.test.ts`, `packages/app/e2e/specs/preview.spec.ts`
+**Automated:** `packages/documents/test/events/preview.test.ts`, `packages/app/e2e/specs/studio/preview.spec.ts`
 
 ## AC-6: Only those logged in
 
@@ -102,7 +102,7 @@ IF someone not logged in opens the address of a preview, THEN Skjera SHALL say �
 - **When** you delete the event in the studio while its preview is open
 - **Then** the preview says the same
 
-**Automated:** `packages/app/e2e/specs/preview.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/preview.spec.ts`
 
 ## AC-7: No sign-up on the preview
 
@@ -115,7 +115,7 @@ WHILE a preview is shown, the page SHALL NOT let anyone sign up, cancel or chang
 - **When** you click it or tab to it
 - **Then** nothing happens, and nobody is added to the event
 
-**Automated:** `packages/app/e2e/specs/preview.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/preview.spec.ts`
 
 ## AC-8: Described here
 

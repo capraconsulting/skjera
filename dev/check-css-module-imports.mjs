@@ -26,7 +26,7 @@ export function findComponentBoundaryViolations(filePath, source) {
     );
   }
 
-  if (!filePath.endsWith("/components/Input.tsx")) {
+  if (!filePath.endsWith("/components/controls/Input.tsx")) {
     for (const match of source.matchAll(rawSelectPattern)) {
       violations.push(
         `${filePath}:${lineAt(source, match.index)}: use Select instead of a raw <select>`,

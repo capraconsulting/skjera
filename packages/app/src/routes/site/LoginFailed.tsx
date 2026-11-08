@@ -1,7 +1,7 @@
 import { m } from "@skjera/i18n/messages";
 import { appPaths, appQuery } from "@skjera/paths";
 import { Link, redirect, useSearchParams } from "react-router";
-import { Button } from "../../components/Button.tsx";
+import { Button } from "../../components/controls/Button.tsx";
 import { loginUrl } from "../../site/client.ts";
 import {
   loginFailedPath,

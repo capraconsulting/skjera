@@ -16,7 +16,7 @@ Where the server is configured with a HubSpot account id, every page of the site
 - **When** you visit the front page, the event, `/account` and `/privacy`
 - **Then** each fetches `js-eu1.hs-scripts.com/<id>.js`
 
-**Automated:** `packages/app/e2e/specs/siteHubSpot.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/siteHubSpot.spec.ts`
 
 ## AC-2: Not the embed page or the studio
 
@@ -28,7 +28,7 @@ The page at `/embed`, the preview at `/events/<id>/preview` and the studio shall
 - **When** you visit `/embed`, the preview of an event and the studio
 - **Then** nothing is fetched from HubSpot
 
-**Automated:** `packages/app/e2e/specs/embed.spec.ts`, `packages/app/e2e/specs/siteHubSpot.spec.ts`, `packages/documents/test/site/Embed.test.ts`
+**Automated:** `packages/app/e2e/specs/site/embed.spec.ts`, `packages/app/e2e/specs/site/siteHubSpot.spec.ts`, `packages/documents/test/site/Embed.test.ts`
 
 ## AC-3: Without an account, nothing from HubSpot
 
@@ -40,7 +40,7 @@ Where no HubSpot account id is configured, no page shall load anything from HubS
 - **When** you visit the same pages as in AC-1
 - **Then** nothing is fetched from HubSpot on any of them
 
-**Automated:** `packages/app/e2e/specs/siteHubSpot.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/siteHubSpot.spec.ts`
 
 ## AC-4: The guest form's field names
 
@@ -64,7 +64,7 @@ Where a HubSpot account id is configured, the privacy page shall say, in Norwegi
 - **When** you open `/privacy` in each language
 - **Then** «7. Who we share personal data with» names HubSpot, and «2. Your rights» has a **Cookie settings** button, which opens HubSpot's banner
 
-**Automated:** `packages/app/e2e/specs/siteHubSpot.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/siteHubSpot.spec.ts`
 
 ## AC-6: Without an account, the privacy page as before
 
@@ -76,4 +76,4 @@ Where no HubSpot account id is configured, the privacy page shall read as it doe
 - **When** you open `/privacy`
 - **Then** it doesn't name HubSpot, «9. Cookies» says «Nothing tracks you.», and there is no **Cookie settings** button
 
-**Automated:** `packages/app/e2e/specs/siteHubSpot.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/siteHubSpot.spec.ts`

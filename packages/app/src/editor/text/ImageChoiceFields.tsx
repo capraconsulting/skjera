@@ -1,6 +1,6 @@
 import { m } from "@skjera/i18n/messages";
-import { dialogStyles } from "../../components/Dialog.tsx";
-import { Input, Select } from "../../components/Input.tsx";
+import { dialogStyles } from "../../components/controls/Dialog.tsx";
+import { Input, Select } from "../../components/controls/Input.tsx";
 import { richTextToolbarStyles } from "./RichTextToolbar.tsx";
 import { type ImageChoices, imagePlacements, imageSizes } from "./richText.ts";
 

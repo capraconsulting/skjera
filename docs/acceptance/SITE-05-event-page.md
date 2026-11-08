@@ -24,7 +24,7 @@ The event page SHALL show the day and the hours of the event in its own time zon
 - **When** you set **Time zone** to «Europe/Oslo» in the studio, **Publish**, and reload
 - **Then** it shows «6:00 – 8:00 PM», with no zone
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-2: Title, cover, tags and text
 
@@ -36,7 +36,7 @@ The event page SHALL show the event's title, cover image, tags and text as forma
 - **When** you open it on the site
 - **Then** it shows the title, the cover, «Workshop», and the text with its heading, bold words, list and link as written
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/app/e2e/specs/images.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`, `packages/app/e2e/specs/studio/images.spec.ts`
 
 ## AC-3: What's served
 
@@ -62,7 +62,7 @@ The event page SHALL have an **All events** link to the front page.
 - **When** you open it, and click **All events**
 - **Then** the front page opens
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-5: An event that isn't there
 
@@ -74,4 +74,4 @@ IF the address names no published event, as when it is unknown, a draft never pu
 - **When** you open http://localhost:5173/events/<id> with each one's id, and http://localhost:5173/events/nothing
 - **Then** each says «This event doesn't exist, or isn't published.»
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/app/e2e/specs/attendance/emails.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`, `packages/app/e2e/specs/attendance/emails.spec.ts`

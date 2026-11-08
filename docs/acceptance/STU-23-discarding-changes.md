@@ -19,7 +19,7 @@ WHILE a published event has changes not yet published, the studio SHALL offer **
 - **When** you add an exclamation mark to the title
 - **Then** there is a **Discard changes** button, as soon as the footer says «Saved»
 
-**Automated:** `packages/app/e2e/specs/discarding.spec.ts`, `packages/app/test/publishState.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/discarding.spec.ts`, `packages/app/test/studio/publishState.test.ts`
 
 ## AC-2: Nothing to discard
 
@@ -32,7 +32,7 @@ WHILE an event has never been published, or has no changes since it was, the stu
 - **Given** «AC-1 to AC-2: Up to date» open in the studio
 - **Then** there is no **Discard changes** button
 
-**Automated:** `packages/app/test/publishState.test.ts`, `packages/app/e2e/specs/discarding.spec.ts`
+**Automated:** `packages/app/test/studio/publishState.test.ts`, `packages/app/e2e/specs/studio/discarding.spec.ts`
 
 ## AC-3: Asked before discarding
 
@@ -46,7 +46,7 @@ WHEN an organiser clicks **Discard changes**, the studio SHALL ask first, and SH
 - **When** you click **Cancel**
 - **Then** the changed title is still there, also after you reload the page
 
-**Automated:** `packages/app/e2e/specs/discarding.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/discarding.spec.ts`
 
 ## AC-4: The draft is the published version again
 
@@ -96,4 +96,4 @@ WHEN changes are discarded, the editor's footer SHALL say that the event is publ
 
 The time the footer shows is the time of the discard, not the time of the earlier publishing: discarding publishes the event again at the draft's new version, in the name of whoever published it last. A calendar invitation sent later carries a higher sequence number for the same reason.
 
-**Automated:** `packages/app/e2e/specs/discarding.spec.ts`, `packages/app/test/publishState.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/discarding.spec.ts`, `packages/app/test/studio/publishState.test.ts`

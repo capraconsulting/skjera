@@ -70,7 +70,7 @@ The section SHALL list those invited as «Name - email», or the email alone, un
 - **When** you open `http://localhost:5173/api/events/<the event's id>/invitations` in a private window
 - **Then** you get a refusal, not the list
 
-**Automated:** `packages/app/e2e/specs/attendance/invitations.spec.ts`, `packages/app/test/invitations.test.ts`, `packages/documents/test/attendance/invitations.test.ts`
+**Automated:** `packages/app/e2e/specs/attendance/invitations.spec.ts`, `packages/app/test/studio/invitations.test.ts`, `packages/documents/test/attendance/invitations.test.ts`
 
 ## AC-6: Nothing is sent
 

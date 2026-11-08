@@ -25,7 +25,7 @@ The front page SHALL list under «Upcoming events» every event coming up or goi
 - **When** you open the front page, and click **Show more events** under each list until it is gone
 - **Then** «AC-1 to AC-6: Coming» and «AC-1 to AC-2: Later» are under «Upcoming events», and the «AC-1 to AC-7: Past …» events under «Past events»
 
-**Automated:** `packages/app/e2e/specs/tags.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/tags.spec.ts`
 
 ## AC-2: Soonest first, latest first
 
@@ -37,7 +37,7 @@ The front page SHALL list upcoming events the soonest first, and past events the
 - **When** you open http://localhost:5173, and click **Show more events** under each list until it is gone
 - **Then** «AC-1 to AC-6: Coming» is above «AC-1 to AC-2: Later», and among the past events «AC-1 to AC-7: Past 7» is above «AC-1 to AC-7: Past 6», and so on down to «AC-1 to AC-7: Past 1»
 
-**Automated:** `packages/app/test/frontPage.test.ts`
+**Automated:** `packages/app/test/site/frontPage.test.ts`
 
 ## AC-3: Who it's for, on each row
 
@@ -49,7 +49,7 @@ WHILE guests can sign up for an event, the front page SHALL mark it «For alle»
 - **When** bob opens the front page
 - **Then** «AC-3 to AC-6: Signed up» says «Open to all» on its row and on its page, «AC-1 to AC-6: Coming» and «AC-3: Members only» say «Internal only» on theirs, and «AC-3 to AC-4: Today» shows «#Workshop»
 
-**Automated:** `packages/app/test/frontPage.test.ts`, `packages/app/test/audience.test.ts`, `packages/app/e2e/specs/attendance/members.spec.ts`
+**Automated:** `packages/app/test/site/frontPage.test.ts`, `packages/app/test/site/audience.test.ts`, `packages/app/e2e/specs/attendance/members.spec.ts`
 
 ## AC-4: The day, or today's time
 
@@ -61,7 +61,7 @@ The front page SHALL show the day each upcoming event starts, in its own time zo
 - **When** you open the front page
 - **Then** «AC-3 to AC-4: Today» says «Today at» and its start time, and «AC-1 to AC-6: Coming» says tomorrow's date
 
-**Automated:** `packages/app/test/frontPage.test.ts`
+**Automated:** `packages/app/test/site/frontPage.test.ts`
 
 ## AC-5: An event going on now
 
@@ -73,7 +73,7 @@ WHILE an event is going on, the front page SHALL keep it under «Upcoming events
 - **When** you open the front page
 - **Then** it is under «Upcoming events», marked «Happening now», and «AC-1 to AC-6: Coming» isn't
 
-**Automated:** `packages/app/test/frontPage.test.ts`
+**Automated:** `packages/app/test/site/frontPage.test.ts`
 
 ## AC-6: Your own sign-ups are marked
 
@@ -101,7 +101,7 @@ The front page SHALL show past events as cards with their cover image, six at fi
 - **When** you click **Show more events**
 - **Then** six more show, and the button is gone
 
-**Automated:** `packages/app/test/frontPage.test.ts` (the paging rule)
+**Automated:** `packages/app/test/site/frontPage.test.ts` (the paging rule)
 
 ## AC-8: Nothing to show
 
@@ -117,7 +117,7 @@ The development database has events from earlier tests, so this one is tested on
 - **When** you publish one event that is over, at http://localhost:8801/studio, and reload
 - **Then** «Upcoming events» still says «No upcoming events found in this category 😭», with the event under «Past events»
 
-**Automated:** `packages/app/e2e/specs/tags.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/tags.spec.ts`
 
 ## AC-9: Upcoming events six at a time
 
@@ -133,4 +133,4 @@ The front page SHALL show the upcoming events as rows, six at first, and six mor
 - **When** you click **Internal only**
 - **Then** six rows show again, and **Show more events** is under them
 
-**Automated:** `packages/app/test/frontPage.test.ts` (the paging rule), `packages/app/e2e/specs/tags.spec.ts`
+**Automated:** `packages/app/test/site/frontPage.test.ts` (the paging rule), `packages/app/e2e/specs/studio/tags.spec.ts`

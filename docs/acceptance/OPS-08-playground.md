@@ -14,7 +14,7 @@ Skjera SHALL serve a page at `/playground` with two copies of a draft, «Replica
 - **When** you open http://localhost:5173/playground
 - **Then** it shows «Replica 1» and «Replica 2», each with **Title**, **Body** and what it holds, and **Replicas connected** ticked
 
-**Automated:** `packages/app/e2e/specs/playground.spec.ts`
+**Automated:** `packages/app/e2e/specs/tooling/playground.spec.ts`
 
 ## AC-2: Edits show in the other copy
 
@@ -26,7 +26,7 @@ WHILE **Replicas connected** is ticked, what is typed in one copy SHALL show in 
 - **When** you type «Hello there» in Replica 1's **Title**
 - **Then** Replica 2's **Title** shows «Hello there», and you can go on typing in either
 
-**Automated:** `packages/app/e2e/specs/playground.spec.ts`
+**Automated:** `packages/app/e2e/specs/tooling/playground.spec.ts`
 
 ## AC-3: Edits made apart are merged
 
@@ -39,7 +39,7 @@ WHEN the copies are connected again after being edited apart, Skjera SHALL merge
 - **And** you tick **Replicas connected** again
 - **Then** both **Body** fields say «right Hello left», and both copies hold the same
 
-**Automated:** `packages/app/e2e/specs/playground.spec.ts`
+**Automated:** `packages/app/e2e/specs/tooling/playground.spec.ts`
 
 ## AC-4: Plain text, line breaks kept
 
@@ -52,7 +52,7 @@ The draft SHALL hold the title on one line and the body with its line breaks, as
 - **And** you type «First», press Enter and type «Second» in its **Body**
 - **Then** what Replica 2 holds reads `{"title":"One line","body":"First\nSecond"}`
 
-**Automated:** `packages/app/e2e/specs/playground.spec.ts`
+**Automated:** `packages/app/e2e/specs/tooling/playground.spec.ts`
 
 ## AC-5: Not in production
 
@@ -64,4 +64,4 @@ The production build SHALL NOT serve the page at `/playground`, and the path SHA
 - **When** you open `/playground` and `/no-such-page`
 - **Then** both show the same: the app's page for an unknown path, and no «Replica 1» or «Replica 2»
 
-**Automated:** `packages/app/test/playground.test.ts`
+**Automated:** `packages/app/test/structure/playground.test.ts`

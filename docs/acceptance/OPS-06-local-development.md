@@ -39,7 +39,7 @@ WHEN an image is uploaded in the studio, Skjera SHALL store it in the S3-compati
 - **When** you open the event on the site, and run `curl -sI` on the image's address, `http://localhost:5173/api/images/…`
 - **Then** it has `content-type: image/png` and `x-content-type-options: nosniff`
 
-**Automated:** `packages/app/e2e/specs/images.spec.ts`, `packages/documents/test/events/Images.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/images.spec.ts`, `packages/documents/test/events/Images.test.ts`
 
 ## AC-4: Table syncing comes with the migrations
 

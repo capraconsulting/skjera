@@ -14,7 +14,7 @@ WHILE two organisers have the same event open, the studio SHALL show each of the
 - **When** alice writes in **Title**, and bob writes in **Body**
 - **Then** each sees the other's text appear as it is typed
 
-**Automated:** `packages/app/e2e/specs/collaboration.spec.ts`, `packages/documents/test/events/drafts.test.ts`, `packages/documents/test/events/DraftSync.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/collaboration.spec.ts`, `packages/documents/test/events/drafts.test.ts`, `packages/documents/test/events/DraftSync.test.ts`
 
 ## AC-2: Typing at once, nothing lost
 
@@ -26,7 +26,7 @@ WHEN two organisers type in the same text at the same time, Skjera SHALL keep ev
 - **When** alice types a sentence at the start of the body while bob types another at its end, both at the same time
 - **Then** both see the same text, with both sentences whole and no letter lost or doubled
 
-**Automated:** `packages/app/e2e/specs/typing.spec.ts`, `packages/app/e2e/specs/collaboration.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/typing.spec.ts`, `packages/app/e2e/specs/studio/collaboration.spec.ts`
 
 ## AC-3: Other fields too
 
@@ -38,7 +38,7 @@ WHEN an organiser changes a time, a checkbox or another field, the studio SHALL 
 - **When** alice picks a start date and time, and ticks **Public event**
 - **Then** bob sees the same start, the end two hours later, and **Public event** ticked
 
-**Automated:** `packages/app/e2e/specs/collaboration.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/collaboration.spec.ts`
 
 ## AC-4: Edits that don't fit an event are refused
 

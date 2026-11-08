@@ -18,7 +18,7 @@ WHEN someone signs up after opening an event's page from an address with `utm_so
 - **When** in another private window you open the page with `?utm_source=linkedin&fbclid=F`, go to the front page, log in as bob there, open the event again from the front page and click **Attend**
 - **Then** bob's row says `utm_source: linkedin, fbclid: F`
 
-**Automated:** `packages/app/e2e/specs/attendance/ad-source.spec.ts`, `packages/app/test/adSource.test.ts`, `packages/app/test/signupForm.test.ts`, `packages/documents/test/attendance/guests.test.ts`
+**Automated:** `packages/app/e2e/specs/attendance/ad-source.spec.ts`, `packages/app/test/site/adSource.test.ts`, `packages/app/test/site/signupForm.test.ts`, `packages/documents/test/attendance/guests.test.ts`
 
 ## AC-2: Whatever the visitor said about cookies
 
@@ -73,7 +73,7 @@ WHERE a sign-up has a source, the studio's attendee list and the Excel file SHAL
 - **When** you open the event in the studio, and click **Download Excel**
 - **Then** the list shows `utm_source: linkedin, utm_campaign: spring, li_fat_id: abc` on the first guest's row only, and the file has the columns `utm_source`, `utm_campaign` and `li_fat_id` after the others and before the questions, filled for the first guest and empty for the other
 
-**Automated:** `packages/app/e2e/specs/attendance/ad-source.spec.ts` (the list), `packages/app/test/attendeesSheet.test.ts` (the columns)
+**Automated:** `packages/app/e2e/specs/attendance/ad-source.spec.ts` (the list), `packages/app/test/studio/attendeesSheet.test.ts` (the columns)
 
 ## AC-6: The privacy page says so
 

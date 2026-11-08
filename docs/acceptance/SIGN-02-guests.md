@@ -14,7 +14,7 @@ WHERE an event is open to guests, the event page SHALL offer a visitor who is no
 - **When** it is opened in a private window
 - **Then** the sign-up box has «Your name», «Your email», **Sign up**, and «or log in»
 
-**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/app/e2e/specs/language.spec.ts`
+**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/app/e2e/specs/tooling/language.spec.ts`
 
 ## AC-2: A guest signs up
 
@@ -50,7 +50,7 @@ IF a guest signs up with an email already signed up for the event, in any mix of
 - **When** another private window signs up with `GINA1@example.org`
 - **Then** it is refused with «That email is already signed up for this event»
 
-**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/app/e2e/specs/language.spec.ts`, `packages/documents/test/attendance/guests.test.ts`
+**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/app/e2e/specs/tooling/language.spec.ts`, `packages/documents/test/attendance/guests.test.ts`
 
 ## AC-5: A guest cancels
 
@@ -87,7 +87,7 @@ IF a guest signs up with an email address on a domain members log in with (ACC-0
 - **When** a guest signs up in a private window with a name and `bob@example.com`
 - **Then** the email field says «Log in to sign up for the event!» (in Bokmål and Nynorsk «Logg deg inn for å melde deg på arrangementet!»), and the page still says «Nobody has signed up yet.»
 
-**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/app/test/signupForm.test.ts`, `packages/documents/test/attendance/guests.test.ts`, `packages/documents/test/api/Problems.test.ts`
+**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/app/test/site/signupForm.test.ts`, `packages/documents/test/attendance/guests.test.ts`, `packages/documents/test/api/Problems.test.ts`
 
 ## AC-8: A name has at least two characters
 

@@ -12,7 +12,7 @@ WHILE a visitor is not logged in, the header SHALL not show the **Studio** link.
 - **When** you open http://localhost:5173
 - **Then** the header has **Log in**, and no **Studio**
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-2: The studio sends visitors to log in
 
@@ -26,7 +26,7 @@ WHEN a visitor who is not logged in opens a page of the studio, Skjera SHALL sen
 - **When** you log in as alice
 - **Then** you are at `/studio/teams`
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`, which checks the way to the login page, not the way back
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`, which checks the way to the login page, not the way back
 
 ## AC-3: Account settings send visitors to log in
 
@@ -40,7 +40,7 @@ WHEN a visitor who is not logged in opens **Account settings** at `/account`, Sk
 - **When** you log in as bob
 - **Then** you are on **Account settings**, with bob's name and email
 
-**Automated:** `packages/app/e2e/specs/login.spec.ts`
+**Automated:** `packages/app/e2e/specs/tooling/login.spec.ts`
 
 ## AC-4: The Studio link, marked where you are
 
@@ -54,4 +54,4 @@ WHILE a user is logged in, the header SHALL show the **Studio** link, marked as 
 - **When** you click the site's name, then **Account settings** in the account menu
 - **Then** **Studio** is there on both pages, and not marked
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`

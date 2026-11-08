@@ -1,9 +1,9 @@
 import { m } from "@skjera/i18n/messages";
 import { appPaths } from "@skjera/paths";
 import { NavLink, Outlet, useLoaderData } from "react-router";
-import { Shell } from "../../components/Shell.tsx";
-import { SubscribeLink } from "../../components/SubscribeLink.tsx";
-import { UserMenu } from "../../components/UserMenu.tsx";
+import { Shell } from "../../components/layout/Shell.tsx";
+import { SubscribeLink } from "../../components/menus/SubscribeLink.tsx";
+import { UserMenu } from "../../components/menus/UserMenu.tsx";
 import { setLocalUser } from "../../documents/repo.ts";
 import { requireMe } from "../../site/client.ts";
 import { hasHubSpot, loadAfresh } from "../../site/hubSpot.ts";

@@ -48,7 +48,7 @@ WHEN a visitor clicks an event on the embed page, Skjera SHALL open the event's 
 - **When** you click «AC-3: Opens in a new tab»
 - **Then** the event's page opens in a new tab
 
-**Automated:** `packages/app/e2e/specs/embed.spec.ts`, inside an iframe.
+**Automated:** `packages/app/e2e/specs/site/embed.spec.ts`, inside an iframe.
 
 ## AC-4: No events, an empty list
 
@@ -66,10 +66,10 @@ The embed page SHALL be allowed to be shown in an iframe only on the Capra and L
 - **When** you run `curl -sI http://localhost:3000/embed`
 - **Then** it has `content-security-policy: frame-ancestors http://website.localhost`, the address in `WEBSITE_ORIGINS`, and no other
 
-**Automated:** `packages/app/e2e/specs/embed.spec.ts`, `packages/documents/test/site/Embed.test.ts`
+**Automated:** `packages/app/e2e/specs/site/embed.spec.ts`, `packages/documents/test/site/Embed.test.ts`
 
 ## AC-6: The iframe takes the content's height
 
 WHILE the embed page is shown in an iframe on a page that uses `@open-iframe-resizer`, the iframe SHALL take the height of the embed page's content.
 
-**Automated only:** it needs a website page with the resizer. `packages/app/e2e/specs/embed.spec.ts`, which uses the websites' own script.
+**Automated only:** it needs a website page with the resizer. `packages/app/e2e/specs/site/embed.spec.ts`, which uses the websites' own script.

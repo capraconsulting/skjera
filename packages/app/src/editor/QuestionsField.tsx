@@ -4,8 +4,8 @@ import type { EventContent, Question } from "@skjera/documents/api";
 import { choiceQuestionMinimum } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { useMemo, useSyncExternalStore } from "react";
-import { Button } from "../components/Button.tsx";
-import { Input, Select } from "../components/Input.tsx";
+import { Button } from "../components/controls/Button.tsx";
+import { Input, Select } from "../components/controls/Input.tsx";
 import styles from "./QuestionsField.module.css";
 
 // The questions asked of everyone signing up. Texts are Automerge text,

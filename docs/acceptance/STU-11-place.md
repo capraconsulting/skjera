@@ -14,7 +14,7 @@ The studio SHALL let an organiser write an event's place as free text.
 - **When** you write a place in **Place**, such as «Kantina, 5th floor»
 - **Then** it stays as written, with no list to pick from
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-2: No place, no publishing
 
@@ -26,7 +26,7 @@ IF an event has no place, THEN Skjera SHALL refuse to publish it, naming the pla
 - **When** you click **Publish**
 - **Then** it isn't published, and the message names the place among what to add
 
-**Automated:** `packages/app/e2e/specs/collaboration.spec.ts`, `packages/documents/test/events/publishing.test.ts`, `packages/documents/test/api/Problems.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/collaboration.spec.ts`, `packages/documents/test/events/publishing.test.ts`, `packages/documents/test/api/Problems.test.ts`
 
 ## AC-3: The event page shows the place
 
@@ -38,7 +38,7 @@ The event page SHALL show the event's place.
 - **When** you open it on the site
 - **Then** the place is shown with the time
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-4: Calendar invitations carry the place
 

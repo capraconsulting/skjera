@@ -19,7 +19,7 @@ The editor SHALL offer **History**, listing the event's versions newest first, e
 
 A person Skjera has no name for is shown as «Unknown». What Skjera did on its own, such as moving a recurring event to its next date, is shown as «Skjera».
 
-**Automated:** `packages/documents/test/events/history.test.ts`, `packages/documents/test/events/discarding.test.ts`, `packages/app/e2e/specs/history.spec.ts`
+**Automated:** `packages/documents/test/events/history.test.ts`, `packages/documents/test/events/discarding.test.ts`, `packages/app/e2e/specs/studio/history.spec.ts`
 
 ## AC-2: Looking at a version
 
@@ -36,7 +36,7 @@ WHEN the organiser chooses a version, the studio SHALL show the event as it was 
 - **When** you change `version=` in the tab's address to something that is not a version
 - **Then** the page says the event doesn't exist
 
-**Automated:** `packages/app/e2e/specs/history.spec.ts`, `packages/documents/test/Model.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/history.spec.ts`, `packages/documents/test/Model.test.ts`
 
 ## AC-3: Restoring a version
 
@@ -50,7 +50,7 @@ WHEN the organiser chooses **Restore this version** and confirms, the studio SHA
 - **And** the site still shows what was published before
 - **And** the newest entry in the history has no **Restore this version**, because it is the draft as it is
 
-**Automated:** `packages/documents/test/events/restoring.test.ts`, `packages/app/test/publishState.test.ts`, `packages/app/e2e/specs/history.spec.ts`
+**Automated:** `packages/documents/test/events/restoring.test.ts`, `packages/app/test/studio/publishState.test.ts`, `packages/app/e2e/specs/studio/history.spec.ts`
 
 ## AC-4: Nobody is emailed
 
@@ -111,4 +111,4 @@ WHEN the organiser chooses **Restore this version**, the studio SHALL ask them t
 - **When** you click **Cancel**
 - **Then** the draft is unchanged, also after you reload the page
 
-**Automated:** `packages/app/e2e/specs/history.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/history.spec.ts`

@@ -15,7 +15,7 @@ WHEN someone signs up for an event, Skjera SHALL send the confirmation in the la
 - **And** another guest, in a new private window, picks Nynorsk and signs up
 - **Then** the first gets «Du er påmeldt: AC-1 to AC-4: Languages» and the second «Du er påmeld: AC-1 to AC-4: Languages», each starting «Hei <name>,»
 
-**Automated:** `packages/app/e2e/specs/language.spec.ts`, `packages/documents/test/notices/signups.test.tsx`
+**Automated:** `packages/app/e2e/specs/tooling/language.spec.ts`, `packages/documents/test/notices/signups.test.tsx`
 
 ## AC-2: Later emails stay in that language
 
@@ -51,4 +51,4 @@ WHEN a member has picked a language under **Language** in **Account settings** a
 - **When** bob signs up with **Meld meg på**
 - **Then** he gets «Du er påmeld: AC-1 to AC-4: Languages», in Nynorsk
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/app/test/signupForm.test.ts`, `packages/documents/test/notices/signups.test.tsx`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`, `packages/app/test/site/signupForm.test.ts`, `packages/documents/test/notices/signups.test.tsx`

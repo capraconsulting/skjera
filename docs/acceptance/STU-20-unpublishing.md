@@ -21,7 +21,7 @@ WHILE an event is published, the studio SHALL show an **Unpublish** button to th
 - **When** you open «AC-1 to AC-3: Nobody signed up»
 - **Then** there is an **Unpublish** button
 
-**Automated:** `packages/app/e2e/specs/unpublishing.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/unpublishing.spec.ts`
 
 ## AC-2: Asked before unpublishing
 
@@ -33,7 +33,7 @@ WHEN an organiser clicks **Unpublish**, the studio SHALL ask first, and SHALL ke
 - **When** you click **Unpublish** and then **Cancel**
 - **Then** the event still says it is published, also after you reload the page
 
-**Automated:** `packages/app/e2e/specs/unpublishing.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/unpublishing.spec.ts`
 
 ## AC-3: The question says who is told
 
@@ -50,7 +50,7 @@ WHERE a published event that has not ended has signed-up people who can be email
 - **When** you click **Unpublish**
 - **Then** the browser asks «Unpublish this event? It's taken off the site and kept here as a draft.»
 
-**Automated:** `packages/documents/test/events/notices.test.ts`, `packages/app/test/attendeeNotices.test.ts`, `packages/app/e2e/specs/unpublishing.spec.ts`
+**Automated:** `packages/documents/test/events/notices.test.ts`, `packages/app/test/studio/attendeeNotices.test.ts`, `packages/app/e2e/specs/studio/unpublishing.spec.ts`
 
 ## AC-4: Off the site at once
 
@@ -86,7 +86,7 @@ WHEN an event is unpublished, Skjera SHALL keep it in the studio as a draft with
 - **Given** the unpublished event of AC-4, open in the studio
 - **Then** the footer says «Not published», its title and text are still there, and the team's list shows it as «Draft»
 
-**Automated:** `packages/app/e2e/specs/unpublishing.spec.ts`, `packages/documents/test/events/publishing.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/unpublishing.spec.ts`, `packages/documents/test/events/publishing.test.ts`
 
 ## AC-7: Those signed up are told it's cancelled
 
@@ -99,7 +99,7 @@ WHEN an event that has not ended is unpublished, Skjera SHALL email everyone sig
 - **Then** bob and the guest each have one «Cancelled: AC-3 to AC-14: Signed up», with a calendar cancellation attached (`.ics`, `METHOD:CANCEL`)
 - **And** when the event is open in the studio, its attendee list is empty
 
-**Automated:** `packages/documents/test/events/notices.test.ts`, `packages/app/e2e/specs/unpublishing.spec.ts`
+**Automated:** `packages/documents/test/events/notices.test.ts`, `packages/app/e2e/specs/studio/unpublishing.spec.ts`
 
 ## AC-8: An event that has ended goes quietly
 
@@ -125,7 +125,7 @@ WHEN an event is unpublished, the studio SHALL show other organisers with it ope
 - **When** alice clicks **Unpublish** and **OK**
 - **Then** bob's footer, without reloading, says «Not published» and the **Unpublish** button is gone
 
-**Automated:** `packages/app/e2e/specs/unpublishing.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/unpublishing.spec.ts`
 
 ## AC-10: Not moved on, not posted to Slack
 
@@ -154,7 +154,7 @@ WHEN an unpublished event is published again, Skjera SHALL show it on the site w
 - **When** you publish it again
 - **Then** it comes back with the signup it kept, since its signups were not removed
 
-**Automated:** `packages/documents/test/events/publishing.test.ts`, `packages/app/e2e/specs/unpublishing.spec.ts`
+**Automated:** `packages/documents/test/events/publishing.test.ts`, `packages/app/e2e/specs/studio/unpublishing.spec.ts`
 
 ## AC-12: In three languages
 
@@ -184,7 +184,7 @@ IF someone opens the link of an unpublished event, THEN Skjera SHALL show the pa
 - **When** you open its page on the site
 - **Then** it says «This event doesn't exist, or isn't published.»
 
-**Automated:** `packages/app/e2e/specs/unpublishing.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/unpublishing.spec.ts`
 
 ## AC-15: Each person is told once
 

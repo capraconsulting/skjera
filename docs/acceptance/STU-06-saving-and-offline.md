@@ -14,7 +14,7 @@ WHILE an organiser edits an event, the editor's footer SHALL show «Saving…» 
 - **When** you type in **Body**, and then open the event in another browser
 - **Then** the footer shows «Saving…» and then «Saved», there is no save button, and the other browser shows the text
 
-**Automated:** `packages/app/e2e/specs/typing.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/typing.spec.ts`
 
 ## AC-2: Edits made offline are kept
 
@@ -26,7 +26,7 @@ WHILE an organiser has no connection, the editor SHALL keep their edits and show
 - **When** bob goes offline and adds a sentence to **Body**
 - **Then** bob's footer says «Saving…» and his text stays, while alice doesn't get it
 
-**Automated:** `packages/app/e2e/specs/typing.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/typing.spec.ts`
 
 ## AC-3: Merged once back online
 
@@ -39,7 +39,7 @@ WHEN an organiser's connection is back, Skjera SHALL save the edits they made of
 - **And** bob goes online again and reloads the page
 - **Then** both see both sentences, and bob's footer says «Saved»
 
-**Automated:** `packages/app/e2e/specs/typing.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/typing.spec.ts`
 
 ## AC-4: Edits sent twice are kept once
 

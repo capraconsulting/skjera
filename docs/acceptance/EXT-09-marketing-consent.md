@@ -23,7 +23,7 @@ WHERE an event is a sales event, the sign-up form SHALL have an optional, untick
 - **When** you open its page
 - **Then** the guest form has no such box
 
-**Automated:** `packages/app/test/signupForm.test.ts`
+**Automated:** `packages/app/test/site/signupForm.test.ts`
 
 ## AC-2: Ticked: set in HubSpot
 
@@ -35,7 +35,7 @@ WHEN someone signs up with the box ticked, Skjera SHALL set `invitere_til_arrang
 - **When** a guest signs up with the box ticked, and bob signs up with the box ticked
 - **Then** both contacts in HubSpot have `invitere_til_arrangementer` **Ja** and `sende_nyhetsbrev` **Ja**, and both are registered on the Marketing Event
 
-**Automated:** `packages/documents/test/notices/HubSpotSync.test.ts`, `packages/documents/test/attendance/guests.test.ts`, `packages/app/test/signupForm.test.ts`
+**Automated:** `packages/documents/test/notices/HubSpotSync.test.ts`, `packages/documents/test/attendance/guests.test.ts`, `packages/app/test/site/signupForm.test.ts`
 
 ## AC-3: Not ticked: nothing sent
 
@@ -49,7 +49,7 @@ IF the box is not ticked, THEN Skjera SHALL send nothing about consent to HubSpo
 - **When** someone new signs up without ticking the box
 - **Then** their contact has neither property
 
-**Automated:** `packages/documents/test/notices/HubSpotSync.test.ts`, `packages/app/test/signupForm.test.ts`
+**Automated:** `packages/documents/test/notices/HubSpotSync.test.ts`, `packages/app/test/site/signupForm.test.ts`
 
 ## AC-4: In the studio's list and the Excel file
 
@@ -61,4 +61,4 @@ The studio's attendee list and the Excel file SHALL show whether each person tic
 - **When** you open the event in the studio, and click **Download Excel**
 - **Then** the list shows the mark «Invitasjoner og nyhetsbrev» on the first guest's row only, and the file has a column «Invitasjoner og nyhetsbrev» after the others and before the questions, reading **Ja** for the first guest and **Nei** for the other
 
-**Automated:** `packages/app/test/attendeesSheet.test.ts` (the column), `packages/documents/test/attendance/guests.test.ts` (the value the list shows)
+**Automated:** `packages/app/test/studio/attendeesSheet.test.ts` (the column), `packages/documents/test/attendance/guests.test.ts` (the value the list shows)

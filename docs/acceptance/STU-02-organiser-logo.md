@@ -21,7 +21,7 @@ The studio SHALL let a team be given a logo for the light theme and a logo for t
 - **And** you **Replace image** on one and **Remove image** on the other
 - **Then** each change shows at once in the dialog
 
-**Automated:** `packages/app/e2e/specs/teams.spec.ts`, `packages/documents/test/Teams.test.ts`, `packages/documents/test/Model.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/teams.spec.ts`, `packages/documents/test/Teams.test.ts`, `packages/documents/test/Model.test.ts`
 
 ## AC-2: The front page shows the organiser
 
@@ -33,7 +33,7 @@ The site's list of events SHALL show each event's organiser: its team's logo, or
 - **When** you open the front page
 - **Then** the teams with a logo show it, and the other shows its name, «STU-02: No logo»
 
-**Automated:** `packages/app/e2e/specs/siteOrganizers.spec.ts`, `packages/documents/test/server/Sync.test.ts`
+**Automated:** `packages/app/e2e/specs/site/siteOrganizers.spec.ts`, `packages/documents/test/server/Sync.test.ts`
 
 ## AC-3: The event page shows the organiser
 
@@ -45,7 +45,7 @@ The event page SHALL show the event's organiser in the same way.
 - **When** you open each of them
 - **Then** the organiser shows as on the front page
 
-**Automated:** `packages/app/e2e/specs/siteOrganizers.spec.ts`, `packages/documents/test/server/Sync.test.ts`
+**Automated:** `packages/app/e2e/specs/site/siteOrganizers.spec.ts`, `packages/documents/test/server/Sync.test.ts`
 
 ## AC-4: The dark theme shows the dark logo
 
@@ -57,7 +57,7 @@ WHILE the site is shown in the dark theme, Skjera SHALL show a team's dark-theme
 - **When** he opens the front page
 - **Then** «STU-02: Logo for light and dark» shows its dark logo, and «STU-02: Light logo only» its light one
 
-**Automated:** `packages/app/e2e/specs/siteOrganizers.spec.ts`, `packages/documents/test/Model.test.ts`
+**Automated:** `packages/app/e2e/specs/site/siteOrganizers.spec.ts`, `packages/documents/test/Model.test.ts`
 
 ## AC-5: Invitations name the team as organiser
 
@@ -81,4 +81,4 @@ WHEN a team's name or logo changes, the site SHALL show the change for every eve
 - **When** you rename the team, or give it a logo, without publishing anything
 - **Then** its event on the site shows the new name or logo
 
-**Automated:** `packages/app/e2e/specs/siteOrganizers.spec.ts`, `packages/documents/test/server/Sync.test.ts`
+**Automated:** `packages/app/e2e/specs/site/siteOrganizers.spec.ts`, `packages/documents/test/server/Sync.test.ts`

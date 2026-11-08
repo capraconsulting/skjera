@@ -131,4 +131,4 @@ WHILE sign-up has closed, at the sign-up deadline or otherwise at the event star
 - **When** the sign-up deadline or, without one, the event start has passed, and you reload the site
 - **Then** the sign-up box says «Sign-up has closed.» and the page says nothing of how many places are left
 
-**Automated:** `packages/app/test/signupCount.test.ts`, `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/test/site/signupCount.test.ts`, `packages/app/e2e/specs/site/site.spec.ts`

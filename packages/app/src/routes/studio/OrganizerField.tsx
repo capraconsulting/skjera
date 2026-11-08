@@ -1,7 +1,7 @@
 import type { TeamId } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { lower, useLiveQuery } from "@tanstack/react-db";
-import { Select } from "../../components/Input.tsx";
+import { Select } from "../../components/controls/Input.tsx";
 import { checkboxFieldStyles } from "../../editor/CheckboxField.tsx";
 import { teams } from "../../sync/tables.ts";
 

@@ -12,12 +12,12 @@ import { Effect } from "effect";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Avatars } from "../../components/Avatars.tsx";
-import { Field } from "../../components/Field.tsx";
-import { Input } from "../../components/Input.tsx";
+import { Field } from "../../components/controls/Field.tsx";
+import { Input } from "../../components/controls/Input.tsx";
 import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
 import { useDocumentSession } from "../../documents/session.ts";
 import { CheckboxField, useBooleanField } from "../../editor/CheckboxField.tsx";
-import { CoverField } from "../../editor/CoverField.tsx";
+import { CoverField } from "../../editor/cover/CoverField.tsx";
 import { EventTimes, FoodDeadline } from "../../editor/DateTimeField.tsx";
 import { QuestionsField } from "../../editor/QuestionsField.tsx";
 import { ReminderField } from "../../editor/ReminderField.tsx";
@@ -35,14 +35,14 @@ import {
   deleteDocument,
   documents,
 } from "../../sync/tables.ts";
-import { Attendees } from "./Attendees.tsx";
-import { confirmNotice, deleteQuestion } from "./attendeeNotices.ts";
+import { Attendees } from "./attendance/Attendees.tsx";
+import { confirmNotice, deleteQuestion } from "./attendance/attendeeNotices.ts";
+import { Invitations } from "./attendance/Invitations.tsx";
 import { DraftText } from "./DraftText.tsx";
-import { EditorFooter } from "./EditorFooter.tsx";
-import { EmailTexts } from "./EmailTexts.tsx";
 import styles from "./EventEditor.module.css";
-import { Invitations } from "./Invitations.tsx";
+import { EmailTexts } from "./email-texts/EmailTexts.tsx";
 import { OrganizerField } from "./OrganizerField.tsx";
+import { EditorFooter } from "./publishing/EditorFooter.tsx";
 
 const titlePath = ["title"] as const;
 const bodyPath = ["body"] as const;

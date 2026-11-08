@@ -15,7 +15,7 @@ The body's toolbar SHALL let an organiser upload an image with a description, an
 - **And** you click **Publish**, and open the event on the site
 - **Then** the image is in the body in the studio and on the site, and the site's image has «A pixel» as its alternative text
 
-**Automated:** `packages/app/e2e/specs/images.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/images.spec.ts`
 
 ## AC-2: Images only
 
@@ -27,7 +27,7 @@ IF a file isn't a PNG, JPEG, GIF, WebP or AVIF image, THEN Skjera SHALL refuse i
 - **When** you choose `not-an-image.png` and click **Add image**
 - **Then** the dialog says «Pick a PNG, JPEG, GIF, WebP or AVIF image», and no image is added
 
-**Automated:** `packages/app/e2e/specs/images.spec.ts`, `packages/documents/test/events/Images.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/images.spec.ts`, `packages/documents/test/events/Images.test.ts`
 
 ## AC-3: At most 10 MB
 
@@ -39,7 +39,7 @@ IF an image is larger than 10 MB, THEN Skjera SHALL refuse it with «Images can 
 - **When** you choose the PNG of more than 10 MB and click **Add image**
 - **Then** the dialog says «Images can be at most 10 MB», and no image is added
 
-**Automated:** `packages/app/test/uploadImage.test.ts`, `packages/documents/test/events/Images.test.ts`
+**Automated:** `packages/app/test/editor/uploadImage.test.ts`, `packages/documents/test/events/Images.test.ts`
 
 ## AC-4: Pasted or dropped images are uploaded
 
@@ -51,7 +51,7 @@ WHEN an image is pasted or dropped into the body, the editor SHALL upload it, pu
 - **When** you copy an image and paste it into **Body**, and drag the small PNG from your files into **Body**
 - **Then** each shows «Uploading image…» and then the image, selected, with **Alt text** in the toolbar
 
-**Automated:** `packages/app/e2e/specs/images.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/images.spec.ts`
 
 ## AC-5: Describing an image afterwards
 
@@ -64,7 +64,7 @@ WHILE an image in the body is selected, the toolbar SHALL offer to describe it, 
 - **And** you click **Publish**, and open the event on the site
 - **Then** the site's image has «A screenshot» as its alternative text
 
-**Automated:** `packages/app/e2e/specs/images.spec.ts`, `packages/i18n/test/messages.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/images.spec.ts`, `packages/i18n/test/messages.test.ts`
 
 ## AC-6: A caption, a placement and a size for each image
 
@@ -78,7 +78,7 @@ The **Add image** dialog and the dialog **Alt text** opens SHALL let an organise
 - **Then** the dialog shows «A caption», «Float left» and «Small»
 - **And** the **Image** dialog of an email's text, opened from **Emails**, has no **Caption**, **Placement** or **Size**
 
-**Automated:** `packages/app/e2e/specs/images.spec.ts`, `packages/app/test/richTextImages.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/images.spec.ts`, `packages/app/test/editor/richTextImages.test.ts`
 
 ## AC-7: Full width and medium unless chosen
 
@@ -91,7 +91,7 @@ WHEN no placement or size is chosen for an image, the event page SHALL show it f
 - **Then** the dialog of **Alt text** on that image shows «Full width» and «Medium»
 - **And** on the event page the image is as wide as the text, at most 36 rem
 
-**Automated:** `packages/app/e2e/specs/images.spec.ts`, `packages/app/test/richTextImages.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/images.spec.ts`, `packages/app/test/editor/richTextImages.test.ts`
 
 ## AC-8: Three sizes
 
@@ -140,7 +140,7 @@ WHERE a caption is given, the event page SHALL show it under the image. A captio
 - **When** you publish, and open the event on the site
 - **Then** «A caption» is under the image
 
-**Automated:** `packages/app/e2e/specs/images.spec.ts`, `packages/app/test/richTextImages.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/images.spec.ts`, `packages/app/test/editor/richTextImages.test.ts`
 
 ## AC-12: An alternative text when there is none
 
@@ -152,7 +152,7 @@ IF an image has no description, THEN the event page SHALL give it «Illustration
 - **When** you publish, and open the event on the site
 - **Then** the site's image has «Illustration in the event description» as its alternative text
 
-**Automated:** `packages/app/e2e/specs/images.spec.ts`, `packages/app/test/richTextImages.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/images.spec.ts`, `packages/app/test/editor/richTextImages.test.ts`
 
 ## AC-13: Older images look as before
 
@@ -164,4 +164,4 @@ WHEN an event whose images were placed before there were choices is shown, the e
 - **When** you open the event on the site, and in the studio open **Alt text** on the image and click **Save** without changing anything
 - **Then** the image looks the same in both cases
 
-**Automated:** `packages/app/test/richTextImages.test.ts`
+**Automated:** `packages/app/test/editor/richTextImages.test.ts`

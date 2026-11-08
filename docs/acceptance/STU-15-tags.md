@@ -21,7 +21,7 @@ The studio SHALL let an organiser add a tag by typing it and pressing Enter, off
 - **When** you press Enter
 - **Then** it is shown as a pill above the field, and the field is empty again
 
-**Automated:** `packages/app/e2e/specs/tags.spec.ts`, `packages/app/e2e/specs/language.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/tags.spec.ts`, `packages/app/e2e/specs/tooling/language.spec.ts`
 
 ## AC-2: A tag is removed
 
@@ -33,7 +33,7 @@ The studio SHALL let an organiser take a tag off an event.
 - **When** you click **×** on its pill
 - **Then** the tag is gone
 
-**Automated:** `packages/app/e2e/specs/tags.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/tags.spec.ts`
 
 ## AC-3: Each tag once, whatever the letters
 
@@ -59,7 +59,7 @@ The studio SHALL suggest the tags of every published event, matching what is typ
 - **When** you pick it
 - **Then** the event gets «Workshop», spelled as on the other event
 
-**Automated:** `packages/app/e2e/specs/tags.spec.ts`, `packages/documents/test/events/content.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/tags.spec.ts`, `packages/documents/test/events/content.test.ts`
 
 ## AC-5: Only published tags are suggested
 
@@ -83,4 +83,4 @@ The event page SHALL show the event's published tags, each a link to the front p
 - **When** you open it on the site and click «Workshop»
 - **Then** the front page shows only upcoming events tagged «Workshop»
 
-**Automated:** `packages/app/e2e/specs/tags.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/tags.spec.ts`

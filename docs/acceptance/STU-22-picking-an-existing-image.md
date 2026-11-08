@@ -25,7 +25,7 @@ Wherever the studio lets the organiser choose an image, it SHALL offer to pick a
 - **When** you cancel it, open **Emails**, click in the text of one email and click **Image**
 - **Then** that dialog shows **Pick an existing image** too
 
-**Automated:** `packages/app/e2e/specs/images.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/images.spec.ts`
 
 ## AC-2: Every image, newest first
 
@@ -50,7 +50,7 @@ WHILE the organiser scrolls the list, the studio SHALL load more images until al
 - **When** you open the list and scroll to its end
 - **Then** more pictures appear, and when you scroll on, the rest come, until every image has been shown
 
-**Automated:** `packages/app/e2e/specs/images.spec.ts`, `packages/documents/test/events/Images.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/images.spec.ts`, `packages/documents/test/events/Images.test.ts`
 
 ## AC-4: Picking without uploading
 
@@ -69,7 +69,7 @@ WHEN the organiser picks an image from the list, the studio SHALL use it for the
 - **Then** the picked image is the one added, not the file
 - **And** the browser's network list shows no upload when you pick
 
-**Automated:** `packages/app/e2e/specs/images.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/images.spec.ts`
 
 ## AC-5: The list needs a login
 

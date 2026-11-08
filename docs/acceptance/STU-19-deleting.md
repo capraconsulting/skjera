@@ -20,7 +20,7 @@ WHEN an organiser clicks **Delete**, the studio SHALL ask first, and SHALL keep 
 - **When** you click **Cancel**
 - **Then** the event is still open and listed in the team
 
-**Automated:** `packages/app/e2e/specs/collaboration.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/collaboration.spec.ts`
 
 ## AC-2: The question says who is told
 
@@ -34,7 +34,7 @@ WHERE a published event that has not ended has signed-up people who can be email
 - **When** you click **Cancel**
 - **Then** the event is still there, for AC-3
 
-**Automated:** `packages/documents/test/events/notices.test.ts`, `packages/app/test/attendeeNotices.test.ts`, `packages/app/e2e/specs/attendance/emails.spec.ts`
+**Automated:** `packages/documents/test/events/notices.test.ts`, `packages/app/test/studio/attendeeNotices.test.ts`, `packages/app/e2e/specs/attendance/emails.spec.ts`
 
 ## AC-3: Gone from the studio and the site
 
@@ -46,7 +46,7 @@ WHEN an event is deleted, Skjera SHALL take it out of the studio and off the sit
 - **When** alice clicks **Delete** and **OK**
 - **Then** it leaves the team's list, and the site's page, reloaded, says «This event doesn't exist, or isn't published.»
 
-**Automated:** `packages/app/e2e/specs/attendance/emails.spec.ts`, `packages/app/e2e/specs/site.spec.ts`, `packages/documents/test/events/drafts.test.ts`, `packages/documents/test/events/notices.test.ts`
+**Automated:** `packages/app/e2e/specs/attendance/emails.spec.ts`, `packages/app/e2e/specs/site/site.spec.ts`, `packages/documents/test/events/drafts.test.ts`, `packages/documents/test/events/notices.test.ts`
 
 ## AC-4: Others with it open are told
 
@@ -58,7 +58,7 @@ WHEN an event is deleted, the studio SHALL tell other organisers with it open th
 - **When** you look at bob's studio, without reloading
 - **Then** it says «This event was deleted.» in place of the event
 
-**Automated:** `packages/app/e2e/specs/collaboration.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/collaboration.spec.ts`
 
 ## AC-5: Those signed up are told it's cancelled
 

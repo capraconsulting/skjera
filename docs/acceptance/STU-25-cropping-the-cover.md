@@ -28,7 +28,7 @@ The studio SHALL let the organiser crop the cover image and set its focal point.
 - **When** you click **Focal point**, click the point that must stay in view and click **Apply**
 - **Then** the dialog closes and the point is kept
 
-**Automated:** `packages/app/e2e/specs/images.spec.ts`, `packages/app/test/cropFrame.test.ts`, `packages/app/test/coverEdits.test.ts`, `packages/documents/test/Model.test.ts`, `packages/documents/test/events/publishing.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/images.spec.ts`, `packages/app/test/editor/cropFrame.test.ts`, `packages/app/test/editor/coverEdits.test.ts`, `packages/documents/test/Model.test.ts`, `packages/documents/test/events/publishing.test.ts`
 
 ## AC-2: The cropped part is shown
 
@@ -41,7 +41,7 @@ WHERE a crop is set, Skjera SHALL show only the cropped part of the cover wherev
 - **And** a link to the event pasted into Slack, or into a LinkedIn post, shows the cropped part
 - **And** the embed page shows no cover, as before
 
-**Automated:** `packages/app/e2e/specs/images.spec.ts`, `packages/documents/test/Model.test.ts`, `packages/documents/test/events/preview.test.ts`, `packages/documents/test/site/Sharing.test.ts`, `packages/documents/test/notices/SlackChannel.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/images.spec.ts`, `packages/documents/test/Model.test.ts`, `packages/documents/test/events/preview.test.ts`, `packages/documents/test/site/Sharing.test.ts`, `packages/documents/test/notices/SlackChannel.test.ts`
 
 ## AC-3: Cut around the focal point
 
@@ -78,7 +78,7 @@ WHEN the organiser chooses a new picture, the studio SHALL reset the crop and th
 - **When** you choose another picture with **Replace cover image**, or drop one onto the cover, or paste one, or pick one with **Pick an existing image**
 - **Then** the cover shows the whole new picture, **Reset crop and focal point** is gone, and the description is still «A full room»
 
-**Automated:** `packages/app/test/coverEdits.test.ts`
+**Automated:** `packages/app/test/editor/coverEdits.test.ts`
 
 ## AC-6: Published with the other fields
 
@@ -112,7 +112,7 @@ WHEN the organiser resets the crop and the focal point, Skjera SHALL show the wh
 - **When** you publish
 - **Then** the event page shows the whole photo, cut around its centre
 
-**Automated:** `packages/app/e2e/specs/images.spec.ts`, `packages/app/test/coverEdits.test.ts`, `packages/documents/test/Model.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/images.spec.ts`, `packages/app/test/editor/coverEdits.test.ts`, `packages/documents/test/Model.test.ts`
 
 ## AC-9: The uploaded file is kept
 
@@ -125,4 +125,4 @@ WHEN a crop or focal point is set, Skjera SHALL keep the uploaded file unchanged
 - **Then** it is the photo you chose, exactly as before you cropped it
 - **And** **Pick an existing image** lists the photo as well as the cropped part
 
-**Automated:** `packages/app/test/coverEdits.test.ts`
+**Automated:** `packages/app/test/editor/coverEdits.test.ts`

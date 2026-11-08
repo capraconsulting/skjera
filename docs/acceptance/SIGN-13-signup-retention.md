@@ -50,7 +50,7 @@ The privacy page shall say, in Norwegian Bokmål, Nynorsk and English, that sign
 - **When** you open http://localhost:5173/privacy, and pick each language in the header
 - **Then** «5. Purpose, legal basis and storage» says, in each language, that sign-up data is deleted 30 days after the event has ended, with the list of what people can't eat and the list of who was invited
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-8: The list of those invited goes
 

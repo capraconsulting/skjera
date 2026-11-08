@@ -20,7 +20,7 @@ The front page SHALL offer «All» and a filter for each tag of the events comin
 - **When** you open the front page
 - **Then** «Filter by tag» has «All» and «#Pottery 7», and no «#Weaving 7»
 
-**Automated:** `packages/app/e2e/specs/tags.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/tags.spec.ts`
 
 ## AC-2: A tag filters the upcoming events
 
@@ -32,7 +32,7 @@ WHEN a tag is chosen, the front page SHALL show only the upcoming events with th
 - **When** you click «#Pottery 7»
 - **Then** it is marked as chosen, «AC-1 to AC-5: Coming» shows under «Upcoming events» and «AC-1 to AC-2: Untagged» doesn't, and «AC-1 to AC-5: Was» and every other past event show under «Past events»
 
-**Automated:** `packages/app/test/frontPage.test.ts`, `packages/app/e2e/specs/tags.spec.ts`
+**Automated:** `packages/app/test/site/frontPage.test.ts`, `packages/app/e2e/specs/studio/tags.spec.ts`
 
 ## AC-3: The tag is kept in the address
 
@@ -46,7 +46,7 @@ The front page SHALL keep the chosen tag in its address, so that opening that ad
 - **When** you open http://localhost:5173/?tag=Weaving%207
 - **Then** «#Weaving 7» is marked as chosen, «Upcoming events» says «No upcoming events found in this category 😭», and «AC-1 to AC-5: Was» shows under «Past events»
 
-**Automated:** `packages/app/e2e/specs/tags.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/tags.spec.ts`
 
 ## AC-4: Choosing it again, or All, removes it
 
@@ -60,7 +60,7 @@ WHEN the chosen tag or «All» is clicked, the front page SHALL remove the tag a
 - **When** you choose «#Pottery 7», then click «All»
 - **Then** the same
 
-**Automated:** `packages/app/e2e/specs/tags.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/tags.spec.ts`
 
 ## AC-5: A tag in any case
 
@@ -72,7 +72,7 @@ WHEN a tag is given in the address in other capitals than it is written with, th
 - **When** you open http://localhost:5173/?tag=pottery%207
 - **Then** «#Pottery 7» is marked as chosen, and «AC-1 to AC-5: Coming» and «AC-1 to AC-5: Was» show
 
-**Automated:** `packages/app/test/frontPage.test.ts`
+**Automated:** `packages/app/test/site/frontPage.test.ts`
 
 ## AC-6: Nothing tagged coming up
 
@@ -84,4 +84,4 @@ IF no event with the chosen tag is coming up, THEN the front page SHALL say «No
 - **When** you open http://localhost:5173/?tag=Weaving%207
 - **Then** «Upcoming events» says «No upcoming events found in this category 😭»
 
-**Automated:** `packages/app/e2e/specs/tags.spec.ts` (with a guest filter chosen beside the tag)
+**Automated:** `packages/app/e2e/specs/studio/tags.spec.ts` (with a guest filter chosen beside the tag)

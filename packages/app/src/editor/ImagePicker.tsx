@@ -1,8 +1,8 @@
 import type { ImagePage } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button } from "../components/Button.tsx";
-import { Dialog, dialogStyles } from "../components/Dialog.tsx";
+import { Button } from "../components/controls/Button.tsx";
+import { Dialog, dialogStyles } from "../components/controls/Dialog.tsx";
 import { formatDateTime, localTimeZone } from "../time.ts";
 import styles from "./ImagePicker.module.css";
 import { listImages } from "./uploadImage.ts";

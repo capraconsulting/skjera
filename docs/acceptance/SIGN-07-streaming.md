@@ -68,7 +68,7 @@ The studio's list of attendees SHALL show, for a streamed event, whether each at
 - **When** you look at **Attendees** in the studio, and **Download Excel**
 - **Then** the list shows «In person» for bob and «Online» for the guest, and the file has «No» under Online for bob and «Yes» for the guest
 
-**Automated:** `packages/app/e2e/specs/attendance/streaming.spec.ts`, `packages/app/test/attendeesSheet.test.ts`
+**Automated:** `packages/app/e2e/specs/attendance/streaming.spec.ts`, `packages/app/test/studio/attendeesSheet.test.ts`
 
 ## AC-6: Only those in person count against the limit
 

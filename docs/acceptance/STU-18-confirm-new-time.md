@@ -56,7 +56,7 @@ WHERE more than one signed-up person can be emailed, the question SHALL say how 
 - **When** you change the start time and click **Publish**
 - **Then** the browser asks «Publish the new time? The 2 people signed up are emailed about it.»
 
-**Automated:** `packages/documents/test/events/notices.test.ts`, `packages/app/test/attendeeNotices.test.ts`, `packages/app/e2e/specs/attendance/emails.spec.ts`
+**Automated:** `packages/documents/test/events/notices.test.ts`, `packages/app/test/studio/attendeeNotices.test.ts`, `packages/app/e2e/specs/attendance/emails.spec.ts`
 
 ## AC-5: A new place is asked about too
 
@@ -84,4 +84,4 @@ IF nobody is signed up, or only something other than the time and place has chan
 - **When** you open «AC-6: A new title», add a word to its title, and click **Publish**
 - **Then** it is published at once, with no question, and the guest gets no email
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/documents/test/events/notices.test.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`, `packages/documents/test/events/notices.test.ts`

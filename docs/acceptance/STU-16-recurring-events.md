@@ -24,7 +24,7 @@ The studio shall let an organiser mark an event as recurring, every 1 to 7 days,
 - **When** you tick **The event repeats**, and look at **Repeat every** and **Repeat unit**
 - **Then** they offer 1 to 7, and days, weeks, months or years; unticked, the event doesn't repeat
 
-**Automated:** `packages/app/e2e/specs/collaboration.spec.ts`, `packages/documents/test/events/content.test.ts`, `packages/documents/test/events/recurring/moving.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/collaboration.spec.ts`, `packages/documents/test/events/content.test.ts`, `packages/documents/test/events/recurring/moving.test.ts`
 
 ## AC-2: Moved on and published again
 

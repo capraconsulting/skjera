@@ -45,7 +45,7 @@ WHEN a public event is made members-only and published again, the site SHALL tak
 - **When** you tick **Public event** again, and **Publish**
 - **Then** it comes back the same way
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/documents/test/server/Sync.test.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`, `packages/documents/test/server/Sync.test.ts`
 
 ## AC-4: Its address opens it, asking to log in
 

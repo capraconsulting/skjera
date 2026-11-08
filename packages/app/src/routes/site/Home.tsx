@@ -7,8 +7,8 @@ import { ArrowDown, ArrowRight } from "lucide-react";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { useEffect, useId, useState } from "react";
 import { Link } from "react-router";
-import { Badge } from "../../components/Badge.tsx";
-import { Button } from "../../components/Button.tsx";
+import { Badge } from "../../components/controls/Badge.tsx";
+import { Button } from "../../components/controls/Button.tsx";
 import { Organizer } from "../../components/Organizer.tsx";
 import { usePageTitle } from "../../pageTitle.ts";
 import {

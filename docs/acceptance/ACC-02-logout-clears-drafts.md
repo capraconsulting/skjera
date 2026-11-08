@@ -17,7 +17,7 @@ WHEN a user logs out, Skjera SHALL delete the local copies of the drafts they op
 - **When** alice clicks **Log out** in the account menu
 - **Then** the `documents` store has no entries
 
-**Automated:** `packages/app/e2e/specs/typing.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/typing.spec.ts`
 
 ## AC-2: The drafts are still on the server
 
@@ -29,4 +29,4 @@ WHEN a user logs in again after logging out, the studio SHALL show their drafts 
 - **When** she logs in again and opens «AC-1 to AC-2: Kept on the server»
 - **Then** its **Body** has the line of text written before
 
-**Automated:** `packages/app/e2e/specs/typing.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/typing.spec.ts`

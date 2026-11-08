@@ -10,10 +10,10 @@ import { m } from "@skjera/i18n/messages";
 import { getLocale } from "@skjera/i18n/runtime";
 import { useId, useMemo, useRef, useSyncExternalStore } from "react";
 import { Temporal } from "temporal-polyfill";
-import { Button } from "../components/Button.tsx";
-import { Field } from "../components/Field.tsx";
-import { Input, Select } from "../components/Input.tsx";
-import { placeUnder } from "../components/popover.ts";
+import { Button } from "../components/controls/Button.tsx";
+import { Field } from "../components/controls/Field.tsx";
+import { Input, Select } from "../components/controls/Input.tsx";
+import { placeUnder } from "../components/controls/popover.ts";
 import { localTimeZone } from "../time.ts";
 import styles from "./DateTimeField.module.css";
 

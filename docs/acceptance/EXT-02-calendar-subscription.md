@@ -14,7 +14,7 @@ When anyone requests `GET /api/subscribe`, without being logged in, the server s
 - **When** you run `curl -si http://localhost:3000/api/subscribe`
 - **Then** it has `content-type: text/calendar` and `X-WR-CALNAME:Skjera`
 
-**Automated:** `packages/app/e2e/specs/siteAccount.spec.ts`, `packages/documents/test/site/Calendar.test.ts`, `packages/documents/test/site/CalendarFeed.test.ts`
+**Automated:** `packages/app/e2e/specs/site/siteAccount.spec.ts`, `packages/documents/test/site/Calendar.test.ts`, `packages/documents/test/site/CalendarFeed.test.ts`
 
 ## AC-2: Every coming published event
 
@@ -26,7 +26,7 @@ The feed shall contain every published event whose end is in the future, both th
 - **When** you look for the coming events
 - **Then** the public and the members-only ones are both there
 
-**Automated:** `packages/app/e2e/specs/siteAccount.spec.ts`, `packages/documents/test/site/CalendarFeed.test.ts`
+**Automated:** `packages/app/e2e/specs/site/siteAccount.spec.ts`, `packages/documents/test/site/CalendarFeed.test.ts`
 
 ## AC-3: Not ended, unpublished or deleted ones
 
@@ -38,7 +38,7 @@ The feed shall not contain an event that has ended, an event that is not publish
 - **When** you look for the ended, the unpublished and the deleted event
 - **Then** none of them are there
 
-**Automated:** `packages/app/e2e/specs/siteAccount.spec.ts`, `packages/documents/test/site/CalendarFeed.test.ts`
+**Automated:** `packages/app/e2e/specs/site/siteAccount.spec.ts`, `packages/documents/test/site/CalendarFeed.test.ts`
 
 ## AC-4: What each event carries
 
@@ -74,4 +74,4 @@ While a user is signed in, the page header shall show an «Abonner» link with a
 - **When** he looks at the header, also with the window narrow, and clicks the link
 - **Then** «Subscribe» («Abonner» in Norwegian) with a calendar icon stands beside the account menu, and opens Google Calendar with the address above
 
-**Automated:** `packages/app/e2e/specs/siteAccount.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/siteAccount.spec.ts`

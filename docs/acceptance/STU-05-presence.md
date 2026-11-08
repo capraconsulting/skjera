@@ -14,7 +14,7 @@ WHILE others have the same event open, the editor SHALL show an avatar for each 
 - **When** bob opens it, and alice hovers the avatar over her editor
 - **Then** alice sees one avatar, and hovering it shows «bob»; bob sees one for «alice»
 
-**Automated:** `packages/app/e2e/specs/presence.spec.ts`, `packages/documents/test/events/DraftSync.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/presence.spec.ts`, `packages/documents/test/events/DraftSync.test.ts`
 
 ## AC-2: One avatar per person
 
@@ -26,7 +26,7 @@ The editor SHALL show one avatar for a person however many tabs they have the ev
 - **When** bob opens it in two tabs
 - **Then** alice still sees one avatar for «bob»
 
-**Automated:** `packages/app/e2e/specs/presence.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/presence.spec.ts`
 
 ## AC-3: Where the others write
 
@@ -38,7 +38,7 @@ WHILE another person is writing in a text field of the event, the editor SHALL s
 - **When** bob types at the end of **Title**
 - **Then** alice sees a cursor marked «bob» where he types
 
-**Automated:** `packages/app/e2e/specs/presence.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/presence.spec.ts`
 
 ## AC-4: The cursor stays in another window
 
@@ -51,7 +51,7 @@ WHEN a person switches to another window, the editor SHALL keep showing their cu
 - **And** he comes back, and clicks into **Place**
 - **Then** alice still sees his cursor while he is in the other app, and it leaves **Title** once he clicks into **Place**
 
-**Automated:** `packages/app/e2e/specs/presence.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/presence.spec.ts`
 
 ## AC-5: Leaving the event
 
@@ -63,7 +63,7 @@ WHEN a person leaves the event, the editor SHALL take away their avatar and curs
 - **When** bob clicks the team in the **Teams** column
 - **Then** his avatar and cursor go from alice's editor
 
-**Automated:** `packages/app/e2e/specs/presence.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/presence.spec.ts`
 
 ## AC-6: Shown under the name they logged in with
 

@@ -14,7 +14,7 @@ The header SHALL show Capra's and Liflig's animated logo, and it SHALL lead to t
 - **When** you open an event, then click the logo in the header
 - **Then** the header shows the animated logo, turning from Capra to Liflig and back, without «Skjera» beside it, and the click leads to the front page
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-2: The dark theme shows the light logo
 
@@ -26,7 +26,7 @@ WHILE the site is shown in the dark theme, the header SHALL show the logo's vers
 - **When** you pick **Dark** in the theme menu in the header
 - **Then** the logo changes to its version in white
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-3: A still logo for less motion
 
@@ -38,7 +38,7 @@ WHILE the visitor's device asks for reduced motion, the header SHALL show the st
 - **When** you open the front page
 - **Then** the header shows the still logo, in either theme
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-4: The tab's icon
 
@@ -62,7 +62,7 @@ WHERE a footer is configured, the site's pages SHALL show its line of text and i
 - **When** you open the front page and look at the footer
 - **Then** it says «<this year> © Capra | Torggata 2-4, 0180 Oslo | post@capraconsulting.no», and the «Capra logo» and «Liflig logo» lead to https://www.capraconsulting.no/ and https://www.liflig.no/
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-6: The footer's logos in the dark theme
 
@@ -74,7 +74,7 @@ WHILE the site is shown in the dark theme, the footer SHALL show each logo's dar
 - **When** you click **Switch to dark mode** in the header
 - **Then** the logos in the footer change to their versions for a dark background (the Capra logo turns white), as the header's logo does
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-7: The footer always links to privacy
 
@@ -86,7 +86,7 @@ The footer SHALL always have a **Privacy policy** link, whatever else is configu
 - **When** you click **Privacy policy** in the footer
 - **Then** the privacy page opens ([SITE-10](SITE-10-privacy-page.md))
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-8: The site's own files
 
@@ -98,7 +98,7 @@ WHERE a directory of the site's own files is configured, Skjera SHALL serve each
 - **When** you open http://localhost:5173/site-assets/logo.svg
 - **Then** the logo is shown
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-9: Small logos for Safari
 
@@ -110,7 +110,7 @@ WHERE the visitor's browser is Safari, or any browser on an iPhone or iPad, the 
 - **When** you right-click the logo and pick **Open Image in New Tab**
 - **Then** the image's address has `logo-dark-sm` in it (`logo-light-sm` in the dark theme)
 
-**Automated:** `packages/app/test/smallLogo.test.ts`
+**Automated:** `packages/app/test/site/smallLogo.test.ts`
 
 ## AC-10: The tab's title
 
@@ -122,7 +122,7 @@ The browser tab SHALL be titled as in Skjer: the front page with the site's name
 - **When** you open the front page, then an event, then **Privacy policy** in the footer
 - **Then** the tab reads «Skjera | Capra Liflig», then the event's title, then «Privacy policy | Skjera»
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/app/test/pageTitle.test.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`, `packages/app/test/site/pageTitle.test.ts`
 
 ## AC-11: The footer's heading and groups
 
@@ -134,7 +134,7 @@ WHERE the footer is set with a heading and groups of logos, the footer SHALL sho
 - **When** you open the front page and look at the footer
 - **Then** it says «We are part of the Capra Group», then the title «Certifications» over the «Eco-Lighthouse certification» and «DNV certification» logos, then the Capra and Liflig logos without a title, then **Privacy policy**, then the line of text
 
-**Automated:** `packages/app/test/footerView.test.ts`, `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/test/site/footerView.test.ts`, `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-12: A logo without a link is an image only
 
@@ -146,7 +146,7 @@ WHERE a logo in the footer has a link, the footer SHALL link the logo; WHERE it 
 - **When** you hover over the certification logos and the Capra logo in the footer
 - **Then** the Capra logo is a link and the certification logos are not
 
-**Automated:** `packages/app/test/footerView.test.ts`, `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/test/site/footerView.test.ts`, `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-13: The year and the addresses in the footer's text
 
@@ -158,7 +158,7 @@ WHEN the footer shows a line of text, it SHALL replace `{year}` with the current
 - **When** you open the front page and click **post@capraconsulting.no** in the footer
 - **Then** the line starts with this year, and the click opens a new email to post@capraconsulting.no
 
-**Automated:** `packages/app/test/footerView.test.ts`, `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/test/site/footerView.test.ts`, `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-14: A footer text per language
 
@@ -170,7 +170,7 @@ WHERE a text in the footer is given per language, the footer SHALL show the one 
 - **When** you open **Language**, the globe in the header, and pick **Bokmål**, then **Nynorsk**, then **English**
 - **Then** the heading reads «Vi er en del av Capra-gruppen», then «Vi er ein del av Capra-gruppa», then «We are part of the Capra Group»
 
-**Automated:** `packages/app/test/footerView.test.ts`
+**Automated:** `packages/app/test/site/footerView.test.ts`
 
 ## AC-15: A footer that is not valid stops the server
 
@@ -196,4 +196,4 @@ WHILE someone is logged in with a Google profile picture, the account menu in th
 - **Given** the local login, which has no pictures
 - **Then** the menu shows the initials
 
-**Automated:** `packages/app/e2e/specs/siteAccount.spec.ts`, `packages/oauth/test/OAuthClient.domains.test.ts`
+**Automated:** `packages/app/e2e/specs/site/siteAccount.spec.ts`, `packages/oauth/test/OAuthClient.domains.test.ts`

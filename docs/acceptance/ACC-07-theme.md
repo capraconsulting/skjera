@@ -14,7 +14,7 @@ WHILE a visitor has not picked a theme, Skjera SHALL show the site in the light 
 - **When** you set the computer to a light appearance
 - **Then** the site is light
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-2: The header button switches theme
 
@@ -28,7 +28,7 @@ WHEN a visitor clicks the theme button in the header, Skjera SHALL switch betwee
 - **When** you click it
 - **Then** the site is dark
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-3: The choice is remembered
 
@@ -40,7 +40,7 @@ WHEN a visitor who has picked a theme comes back to the site in the same browser
 - **When** you reload the page
 - **Then** the site is still light
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-4: Back to the computer's theme
 
@@ -54,4 +54,4 @@ WHEN a user picks **Same as the system** under **Theme** in **Account settings**
 - **When** he reloads the page
 - **Then** it is still light, and **Same as the system** is picked
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`

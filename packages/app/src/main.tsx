@@ -6,39 +6,43 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, Outlet, redirect } from "react-router";
 import { RouterProvider } from "react-router/dom";
-import { Loading } from "./components/Loading.tsx";
+import { Loading } from "./components/controls/Loading.tsx";
 import { loadSite } from "./i18n.ts";
 import { Account, accountLoader } from "./routes/account/Account.tsx";
 import { Privacy, privacyLoader } from "./routes/privacy/Privacy.tsx";
 import {
   CancelSignup,
   cancelSignupLoader,
-} from "./routes/site/CancelSignup.tsx";
+} from "./routes/site/attendance/CancelSignup.tsx";
 import {
   EventError,
   EventPage,
   eventLoader,
-} from "./routes/site/EventPage.tsx";
+} from "./routes/site/event-page/EventPage.tsx";
+import {
+  Preview,
+  previewLoader,
+  previewSiteLoader,
+} from "./routes/site/event-page/Preview.tsx";
 import { Home, homeLoader } from "./routes/site/Home.tsx";
 import {
   LoginFailed,
   loginFailedRedirect,
 } from "./routes/site/LoginFailed.tsx";
-import {
-  Preview,
-  previewLoader,
-  previewSiteLoader,
-} from "./routes/site/Preview.tsx";
 import { SiteLayout, siteLoader } from "./routes/site/SiteLayout.tsx";
 import { EventEditor } from "./routes/studio/EventEditor.tsx";
-import { StudioLayout, studioLoader } from "./routes/studio/StudioLayout.tsx";
 import {
   NoEventSelected,
   Team,
   TeamError,
   teamLoader,
-} from "./routes/studio/Team.tsx";
-import { NoTeamSelected, Teams, teamsLoader } from "./routes/studio/Teams.tsx";
+} from "./routes/studio/lists/Team.tsx";
+import {
+  NoTeamSelected,
+  Teams,
+  teamsLoader,
+} from "./routes/studio/lists/Teams.tsx";
+import { StudioLayout, studioLoader } from "./routes/studio/StudioLayout.tsx";
 import { loginCallbackPathInHead } from "./site/loginFailure.ts";
 import "@fontsource-variable/inter";
 import "./global.css";

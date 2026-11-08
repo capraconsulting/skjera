@@ -87,4 +87,4 @@ WHEN an organiser changes who sees an event, or whether guests can sign up, Skje
 - **When** you click **Publish**
 - **Then** within a few seconds it leaves the private window's front page, without reloading
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/documents/test/server/Sync.test.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`, `packages/documents/test/server/Sync.test.ts`

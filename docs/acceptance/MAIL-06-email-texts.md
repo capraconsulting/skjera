@@ -54,7 +54,7 @@ If the organiser has left a subject or a text empty, then Skjera shall use the s
 - **When** bob signs up, and a guest signs up after picking Bokmål in the header
 - **Then** bob's email has the standard English subject and text, «You're signed up: …», and the guest's the Bokmål one
 
-**Automated:** `packages/app/e2e/specs/language.spec.ts`, `packages/documents/test/events/emails.test.ts`, `packages/documents/test/notices/signups.test.tsx`, `packages/documents/test/notices/texts.test.tsx`
+**Automated:** `packages/app/e2e/specs/tooling/language.spec.ts`, `packages/documents/test/events/emails.test.ts`, `packages/documents/test/notices/signups.test.tsx`, `packages/documents/test/notices/texts.test.tsx`
 
 ## AC-5: Details, invitation and links stay
 
@@ -90,4 +90,4 @@ When an event is opened in the studio, the signed-up email's subject and text sh
 - **When** you open it in the studio
 - **Then** the signed-up email's subject and text are shown, the other three emails are closed, and the footer still says «Published»; after you type in the signed-up subject, it no longer does
 
-**Automated:** `packages/app/e2e/specs/attendance/emails.spec.ts`, `packages/app/test/emailTexts.test.ts`
+**Automated:** `packages/app/e2e/specs/attendance/emails.spec.ts`, `packages/app/test/studio/emailTexts.test.ts`

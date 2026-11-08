@@ -14,7 +14,7 @@ The front page SHALL offer two filters: «Åpent for alle» for events guests ca
 - **When** you open the front page
 - **Then** «Filter by who can sign up» has «Open to all» and «Internal only»
 
-**Automated:** `packages/app/e2e/specs/tags.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/tags.spec.ts`
 
 ## AC-2: A filter applies to the upcoming events
 
@@ -26,7 +26,7 @@ WHEN one of the two filters is chosen, the front page SHALL show only the upcomi
 - **When** you choose «Open to all»
 - **Then** only upcoming events open to guests show, and the past events are all still there
 
-**Automated:** `packages/app/test/frontPage.test.ts`, `packages/app/e2e/specs/tags.spec.ts`
+**Automated:** `packages/app/test/site/frontPage.test.ts`, `packages/app/e2e/specs/studio/tags.spec.ts`
 
 ## AC-3: At most one is chosen
 
@@ -40,7 +40,7 @@ WHEN the chosen filter is chosen again, or the other one is chosen, the front pa
 - **When** you choose «Internal only» again
 - **Then** no filter is chosen, and all events show
 
-**Automated:** `packages/app/e2e/specs/tags.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/tags.spec.ts`
 
 ## AC-4: A filter and a tag together
 
@@ -52,7 +52,7 @@ WHILE one of the two filters and a tag are chosen, the front page SHALL show onl
 - **When** you choose a filter and a tag
 - **Then** only upcoming events that match both show, and the past events are all still there
 
-**Automated:** `packages/app/e2e/specs/tags.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/tags.spec.ts`
 
 ## AC-5: The filter is kept in the address
 
@@ -64,7 +64,7 @@ The front page SHALL keep the chosen filter in its address, so that opening that
 - **When** you copy the address and open it in a new window
 - **Then** the same filter is chosen, with the same lists
 
-**Automated:** `packages/app/e2e/specs/tags.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/tags.spec.ts`
 
 ## AC-6: The filters are named in every language
 
@@ -76,4 +76,4 @@ The two filters SHALL be named in English, Bokmål and Nynorsk, as the rest of t
 - **When** you pick Bokmål, then Nynorsk, in the site's header
 - **Then** the filters are named in each
 
-**Automated:** `packages/app/e2e/specs/tags.spec.ts`, `packages/i18n/test/messages.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/tags.spec.ts`, `packages/i18n/test/messages.test.ts`

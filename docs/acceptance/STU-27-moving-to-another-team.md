@@ -19,7 +19,7 @@ The editor SHALL show **Organizer** with the event's team chosen.
 - **Then** the editor has **Organizer** above the title, with «STU-27: Moving an event» chosen
 - **And** the choice lists every team, «STU-27: The other team» among them
 
-**Automated:** `packages/app/e2e/specs/moving.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/moving.spec.ts`
 
 ## AC-2: Until the first publish, the organiser can be changed
 
@@ -47,7 +47,7 @@ WHEN another team is chosen, the studio SHALL move the event to that team's list
 - **When** you click **Preview**
 - **Then** the preview shows «STU-27: The other team» as the organiser, with its logo if it has one
 
-**Automated:** `packages/app/e2e/specs/moving.spec.ts`, `packages/documents/test/server/Sync.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/moving.spec.ts`, `packages/documents/test/server/Sync.test.ts`
 
 ## AC-4: After the first publish, the organiser is fixed
 
@@ -63,7 +63,7 @@ WHILE an event has been published at least once, the studio SHALL NOT let the or
 - **When** you publish the event again
 - **Then** **Organizer** still cannot be changed
 
-**Automated:** `packages/app/e2e/specs/moving.spec.ts`, `packages/documents/test/events/moving.test.ts`, `packages/documents/test/server/migrations.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/moving.spec.ts`, `packages/documents/test/events/moving.test.ts`, `packages/documents/test/server/migrations.test.ts`
 
 ## AC-5: The old address leads to the new team
 
@@ -78,7 +78,7 @@ WHEN a moved event is opened from its old address, the studio SHALL open it in i
 - **When** you delete the team «STU-27: The wrong team», which has no events now, and open the copied address again
 - **Then** the editor opens the event under «STU-27: The other team»'s address, and not «This team doesn't exist anymore.»
 
-**Automated:** `packages/app/e2e/specs/teams.spec.ts`, `packages/app/e2e/specs/moving.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/teams.spec.ts`, `packages/app/e2e/specs/studio/moving.spec.ts`
 
 ## AC-6: This page
 
@@ -97,4 +97,4 @@ WHEN an event is moved to another team, the studio SHALL keep the editor open on
 - **Then** Alice's editor stays open on the event under the new team's address
 - **And** within a few seconds Bob's editor is on the new team's address too, without a reload, with **Organizer** showing the new team and what he had typed still there
 
-**Automated:** `packages/app/e2e/specs/moving.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/moving.spec.ts`

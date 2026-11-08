@@ -19,7 +19,7 @@ import { Effect, Fiber } from "effect";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { DraftPresence } from "../presence/presence.ts";
 import { sayWhy } from "../problems.ts";
-import { confirmNotice } from "../routes/studio/attendeeNotices.ts";
+import { confirmNotice } from "../routes/studio/attendance/attendeeNotices.ts";
 import {
   cancellingNotice,
   copyDocument,

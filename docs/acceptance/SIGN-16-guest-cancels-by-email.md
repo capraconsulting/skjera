@@ -28,7 +28,7 @@ WHILE the sign-up deadline has passed, the event page SHALL NOT show the form, a
 - **When** it is opened in a private window
 - **Then** the box says «Sign-up has closed.», and there is no region «Want to cancel your signup?»
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/documents/test/attendance/signups.test.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`, `packages/documents/test/attendance/signups.test.ts`
 
 ## AC-3: An email with a link is sent, and the page says so
 

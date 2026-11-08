@@ -31,7 +31,7 @@ WHEN the organiser types in «Søk» on a team's list, the studio SHALL show onl
 - **When** you pick another team and come back
 - **Then** the field is empty and the whole list is shown
 
-**Automated:** `packages/app/test/eventList.test.ts`, `packages/documents/test/events/drafts.test.ts`, `packages/documents/test/server/migrations.test.ts`, `packages/app/e2e/specs/teams.spec.ts`
+**Automated:** `packages/app/test/studio/eventList.test.ts`, `packages/documents/test/events/drafts.test.ts`, `packages/documents/test/server/migrations.test.ts`, `packages/app/e2e/specs/studio/teams.spec.ts`
 
 ## AC-2: Choose the order of a team's list
 
@@ -46,7 +46,7 @@ The studio SHALL let the organiser order a team's list by «Sist endret», «Opp
 - **When** you choose «Dato for arrangementet»
 - **Then** «AC-2: Sommerfest», the latest start, is first, and «AC-2: No date» is last
 
-**Automated:** `packages/app/test/eventList.test.ts`, including that the offered options come from the order catalogue; `packages/app/e2e/specs/teams.spec.ts`
+**Automated:** `packages/app/test/studio/eventList.test.ts`, including that the offered options come from the order catalogue; `packages/app/e2e/specs/studio/teams.spec.ts`
 
 ## AC-3: Search every team
 
@@ -62,7 +62,7 @@ WHEN the organiser searches on the page that lists the teams, the studio SHALL s
 - **When** you empty the field
 - **Then** the teams are listed again
 
-**Automated:** `packages/app/e2e/specs/teams.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/teams.spec.ts`
 
 ## AC-4: Nothing found
 
@@ -75,7 +75,7 @@ IF a search matches no event, THEN the studio SHALL say that nothing was found.
 - **When** you type «finnes ikke» in «Søk i alle team»
 - **Then** the column says «Fant ingen arrangementer.»
 
-**Automated:** `packages/app/test/eventList.test.ts`, `packages/app/e2e/specs/teams.spec.ts`
+**Automated:** `packages/app/test/studio/eventList.test.ts`, `packages/app/e2e/specs/studio/teams.spec.ts`
 
 ## AC-5: The order is kept
 
@@ -88,7 +88,7 @@ WHILE the organiser moves around the studio, the studio SHALL keep the order the
 - **Then** the order choice still says «Opprettet» and the list is ordered so
 - **And** the results of «Søk i alle team» are in the same order
 
-**Automated:** `packages/app/test/eventList.test.ts`, `packages/app/e2e/specs/teams.spec.ts`
+**Automated:** `packages/app/test/studio/eventList.test.ts`, `packages/app/e2e/specs/studio/teams.spec.ts`
 
 ## AC-6: The lists follow others live
 
@@ -100,7 +100,7 @@ WHILE a search or an order is in use, the list SHALL keep following other people
 - **When** bob makes an event in the team and titles it with the word
 - **Then** alice's team list shows it first, and her results across teams list it, without reloading
 
-**Automated:** `packages/app/e2e/specs/teams.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/teams.spec.ts`
 
 ## AC-7: This page
 

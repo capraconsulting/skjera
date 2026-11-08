@@ -18,7 +18,7 @@ The studio SHALL offer **Make a copy** in the editor's footer for every event.
 - **Given** «AC-1: Not published» open in the studio
 - **Then** the footer has a **Make a copy** button
 
-**Automated:** `packages/app/e2e/specs/copying.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/copying.spec.ts`
 
 ## AC-2: The copy has the event's content
 
@@ -61,7 +61,7 @@ WHEN a copy is made, the studio SHALL open the copy in the editor.
 - **Then** the editor shows another event in the same team, with the original's title, and the footer says «Not published»
 - **And** the copy is first in the team's list
 
-**Automated:** `packages/app/e2e/specs/copying.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/copying.spec.ts`
 
 ## AC-5: The event that was copied is unchanged
 

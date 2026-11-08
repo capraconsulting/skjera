@@ -18,7 +18,7 @@ WHILE sign-up is open, the sign-up form SHALL ask the event's questions in their
 - **When** it is opened in a private window
 - **Then** the form has «Where did you hear of it? (optional)» with a text field, a box to tick, «I accept the risks of swimming», and «Towel size» with a choice of «Small» or «Large», «Small» chosen
 
-**Automated:** `packages/app/e2e/specs/attendance/questions.spec.ts`, `packages/app/test/signupForm.test.ts`, `packages/documents/test/attendance/signups.test.ts`
+**Automated:** `packages/app/e2e/specs/attendance/questions.spec.ts`, `packages/app/test/site/signupForm.test.ts`, `packages/documents/test/attendance/signups.test.ts`
 
 ## AC-2: Members and guests answer the same questions
 
@@ -88,4 +88,4 @@ WHERE a checkbox question has an **Answer option**, the sign-up form SHALL show 
 - **When** the guest ticks both boxes, picks a towel size and signs up
 - **Then** the studio's **Attendees** shows «Yes» for «Will you swim?», and so does its column in the Excel file
 
-**Automated:** `packages/app/e2e/specs/attendance/questions.spec.ts`, `packages/app/test/signupForm.test.ts`, `packages/documents/test/events/preview.test.ts`, `packages/app/test/attendeesSheet.test.ts`
+**Automated:** `packages/app/e2e/specs/attendance/questions.spec.ts`, `packages/app/test/site/signupForm.test.ts`, `packages/documents/test/events/preview.test.ts`, `packages/app/test/studio/attendeesSheet.test.ts`

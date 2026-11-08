@@ -20,7 +20,7 @@ WHILE an event has people signed up, the studio's attendee list SHALL offer «Em
 - **When** you click **Email those signed up**
 - **Then** a form opens with **Subject**, **Message** and «Goes to 2 signed up»
 
-**Automated:** `packages/app/e2e/specs/attendance/organizer-email.spec.ts`, `packages/app/test/organizerEmails.test.ts`, `packages/documents/test/notices/organizerEmails.test.ts`
+**Automated:** `packages/app/e2e/specs/attendance/organizer-email.spec.ts`, `packages/app/test/studio/organizerEmails.test.ts`, `packages/documents/test/notices/organizerEmails.test.ts`
 
 ## AC-2: One email to each, from the organiser
 
@@ -48,7 +48,7 @@ IF the subject or the text is empty, THEN the studio SHALL NOT send.
 - **When** you click **Send** with the subject empty, and then with a subject and only spaces as the message
 - **Then** «Write a subject» is shown, and then «Write a message», no question is asked and Mailpit has nothing new
 
-**Automated:** `packages/app/test/organizerEmails.test.ts`, `packages/documents/test/notices/organizerEmails.test.ts`, `packages/documents/test/api/Problems.test.ts`
+**Automated:** `packages/app/test/studio/organizerEmails.test.ts`, `packages/documents/test/notices/organizerEmails.test.ts`, `packages/documents/test/api/Problems.test.ts`
 
 ## AC-4: The list of emails sent
 

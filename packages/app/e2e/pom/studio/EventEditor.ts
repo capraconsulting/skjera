@@ -5,22 +5,31 @@ import { Mailbox } from "../Mailbox.ts";
 import { EventPage } from "../site/EventPage.ts";
 import { TextField } from "../TextField.ts";
 import { Attendees } from "./Attendees.ts";
-import { BodyImages } from "./BodyImages.ts";
-import { BodyToolbar } from "./BodyToolbar.ts";
-import { Cover } from "./Cover.ts";
-import { type EventEmail, EventEmailFields } from "./EventEmails.ts";
-import { EventHistory } from "./EventHistory.ts";
-import type { EventSettings, PublishedEvent } from "./EventLifecycle.ts";
-import { EventSettingsControls } from "./EventSettings.ts";
 import { EventsColumn } from "./EventsColumn.ts";
-import { EventTimes } from "./EventTimes.ts";
+import { BodyImages } from "./event-editor/BodyImages.ts";
+import { BodyToolbar } from "./event-editor/BodyToolbar.ts";
+import { Cover } from "./event-editor/Cover.ts";
+import {
+  type EventEmail,
+  EventEmailFields,
+} from "./event-editor/EventEmails.ts";
+import { EventHistory } from "./event-editor/EventHistory.ts";
+import type {
+  EventSettings,
+  PublishedEvent,
+} from "./event-editor/EventLifecycle.ts";
+import { EventSettingsControls } from "./event-editor/EventSettings.ts";
+import { EventTimes } from "./event-editor/EventTimes.ts";
+import { Questions } from "./event-editor/Questions.ts";
+import { Repeat } from "./event-editor/Repeat.ts";
 import { Presence } from "./Presence.ts";
-import { Questions } from "./Questions.ts";
-import { Repeat } from "./Repeat.ts";
 import { TagInput } from "./TagInput.ts";
 
-export type { EventEmail } from "./EventEmails.ts";
-export type { EventSettings, PublishedEvent } from "./EventLifecycle.ts";
+export type { EventEmail } from "./event-editor/EventEmails.ts";
+export type {
+  EventSettings,
+  PublishedEvent,
+} from "./event-editor/EventLifecycle.ts";
 
 /** Where events are, unless a test says otherwise. */
 const defaultPlace = "Kantina";

@@ -16,7 +16,7 @@ The page is only served by the built app, not by `pnpm dev`. Test it on a test s
 - **When** you click the link to the front page
 - **Then** the header still shows **Log in**
 
-**Automated:** `packages/app/e2e/specs/login.spec.ts`, `packages/oauth/test/AuthRoutes.test.ts`, `packages/oauth/e2e/specs/login.spec.ts`, `packages/oauth/test/OAuthClient.domains.test.ts`, `packages/oauth/test/allowedDomains.test.ts`
+**Automated:** `packages/app/e2e/specs/tooling/login.spec.ts`, `packages/oauth/test/AuthRoutes.test.ts`, `packages/oauth/e2e/specs/login.spec.ts`, `packages/oauth/test/OAuthClient.domains.test.ts`, `packages/oauth/test/allowedDomains.test.ts`
 
 ## AC-2: An account in the domains logs in
 

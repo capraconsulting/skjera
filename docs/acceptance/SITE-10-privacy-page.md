@@ -19,7 +19,7 @@ The privacy page SHALL have a section for each of: who is responsible, your righ
 - **Then** the page is headed «Privacy policy», and has «1. Data controller», «2. Your rights», «3. Whose personal data we process», «4. How we collect personal data», «5. Purpose, legal basis and storage», «6. How we process personal data», «7. Who we share personal data with», «8. Security», «9. Cookies» and «10. Contact us»
 - **And** it ends «This privacy policy was last updated»
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-2: Where to write
 
@@ -31,7 +31,7 @@ WHERE a contact address is configured, the privacy page SHALL give it as a link 
 - **When** you open `/privacy`
 - **Then** «10. Contact us» ends with privacy@skjera.localhost, and the address opens a new email to it
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-3: Without an address, ask the operator
 
@@ -45,7 +45,7 @@ IF no contact address is configured, or it is blank, THEN the privacy page SHALL
 - **When** you change it to `SITE_CONTACT_EMAIL = " "`, and restart `pnpm dev`
 - **Then** «10. Contact us» still ends «Ask Skjera.», with no address
 
-**Automated:** `packages/documents/test/Model.test.ts`, `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/documents/test/Model.test.ts`, `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-4: The operator, or the site's name
 
@@ -59,7 +59,7 @@ The privacy page SHALL name the configured operator as the one who answers for t
 - **When** you change it to `SITE_OPERATOR = false`, add `SITE_NAME = "Example Events"`, and restart `pnpm dev`
 - **Then** it says «Example Events, represented by its managing director, is the data controller»
 
-**Automated:** `packages/documents/test/Model.test.ts`, `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/documents/test/Model.test.ts`, `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-5: A link from the guest form
 
@@ -85,7 +85,7 @@ WHERE a privacy policy address is configured, the footer's **Privacy policy** li
 - **When** you open `/privacy` directly
 - **Then** the browser ends at https://example.com/privacy, and Back leaves it for the page you came from
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-7: A blank setting is no setting
 
@@ -111,4 +111,4 @@ WHERE an organisation number or an address is configured, «1. Data controller»
 - **When** you add `SITE_OPERATOR_ORG_NUMBER = false` and `SITE_OPERATOR_ADDRESS = false` in `mise.local.toml`, and restart `pnpm dev`
 - **Then** neither line is there, and nor is the address in «10. Contact us»
 
-**Automated:** `packages/documents/test/Model.test.ts`, `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/documents/test/Model.test.ts`, `packages/app/e2e/specs/site/site.spec.ts`

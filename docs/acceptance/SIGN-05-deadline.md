@@ -16,7 +16,7 @@ WHILE sign-up is open, the event page SHALL say when it closes: at the sign-up d
 - **When** you set **Sign-up deadline** to the day before at 12:00 in the studio, **Publish**, and reload
 - **Then** it says «Sign-up closes …» with that day and «12:00 PM»
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-2: Closed, with no buttons
 
@@ -29,7 +29,7 @@ WHILE sign-up has closed, the event page SHALL say so and offer no way to sign u
 - **And** the page is reloaded as bob, as the guest, and in a new private window
 - **Then** all three say «Sign-up has closed.» with no buttons and no form; bob's also says «You're attending.», and the guest's «You're signed up.»
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/documents/test/attendance/signups.test.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`, `packages/documents/test/attendance/signups.test.ts`
 
 ## AC-3: The server refuses late changes
 

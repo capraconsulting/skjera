@@ -7,7 +7,7 @@ import {
 } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { useSyncExternalStore } from "react";
-import { Select } from "../components/Input.tsx";
+import { Select } from "../components/controls/Input.tsx";
 import { checkboxFieldStyles } from "./CheckboxField.tsx";
 
 const choices: Record<ReminderChoice, () => string> = {

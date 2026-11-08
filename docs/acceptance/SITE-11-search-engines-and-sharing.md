@@ -19,7 +19,7 @@ What the server tells is only served by the built app, not by `pnpm dev`. Test A
 
 Once deployed, check that each service still shows a preview of an event's address: LinkedIn's Post Inspector, Facebook's Sharing Debugger, and a message to yourself in Slack and Teams.
 
-**Automated:** `packages/app/test/searchAndSharing.test.ts`
+**Automated:** `packages/app/test/site/searchAndSharing.test.ts`
 
 ## AC-2: The site can be added to the home screen
 
@@ -33,7 +33,7 @@ Skjera SHALL serve a web app manifest with the site's name, `display: standalone
 - **And** `curl -s http://localhost:8801/` has `<link rel="manifest" href="/manifest.webmanifest">` in its head
 - **And** in `pnpm dev`, http://localhost:5173/manifest.webmanifest gives the manifest, not the page
 
-**Automated:** `packages/documents/test/site/Manifest.test.ts`, `packages/app/test/searchAndSharing.test.ts`
+**Automated:** `packages/documents/test/site/Manifest.test.ts`, `packages/app/test/site/searchAndSharing.test.ts`
 
 ## AC-3: An event page has its own address
 
@@ -45,7 +45,7 @@ An event page's head SHALL have its canonical address, `{SITE_URL}/events/{id}`.
 - **When** you run `curl -s http://localhost:8801/events/<id>`
 - **Then** the head has `<link rel="canonical" href="http://localhost:8801/events/<id>">`
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/documents/test/site/Sharing.test.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`, `packages/documents/test/site/Sharing.test.ts`
 
 ## AC-4: The Twitter handle, author and publisher
 
@@ -83,4 +83,4 @@ Every page of the app SHALL have the site's description in its head, from `SITE_
 - **Then** the head has `<meta name="description" content="Skjer | Capra Liflig">`
 - **And** SITE-08's event page, which has a summary, has the summary as its description and no other
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/documents/test/site/Sharing.test.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`, `packages/documents/test/site/Sharing.test.ts`

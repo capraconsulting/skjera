@@ -16,7 +16,7 @@ WHERE an event is open to guests and `HUBSPOT_ACCESS_TOKEN` is set, the studio S
 - **When** you make a new event, and tick **Public** and **Guests can sign up**
 - **Then** under the visibility there is a **Sales event (send to HubSpot)** checkbox, unticked; untick **Guests can sign up** and it goes
 
-**Automated:** `packages/app/test/salesEvent.test.ts`, `packages/documents/test/events/content.test.ts`, `packages/documents/test/events/preview.test.ts`
+**Automated:** `packages/app/test/editor/salesEvent.test.ts`, `packages/documents/test/events/content.test.ts`, `packages/documents/test/events/preview.test.ts`
 
 ## AC-2: The setting creates a Marketing Event
 
@@ -100,7 +100,7 @@ WHERE an event is a sales event, the guest form SHALL have an optional field for
 - **When** you look at the guest form
 - **Then** it has an optional **Your job title** field, named `jobtitle`, and an event that is not a sales event has none
 
-**Automated:** `packages/app/test/signupForm.test.ts`, `packages/documents/test/Model.test.ts`
+**Automated:** `packages/app/test/site/signupForm.test.ts`, `packages/documents/test/Model.test.ts`
 
 ## AC-9: HubSpot's collected forms leave the form alone
 
@@ -112,7 +112,7 @@ WHERE an event is a sales event, the guest form SHALL NOT be read by HubSpot's c
 - **When** a guest signs up to a sales event and another to an event that is not one
 - **Then** under collected forms in HubSpot only the second sign-up is found
 
-**Automated:** `packages/app/test/signupForm.test.ts` (that the form carries `data-hs-do-not-collect="true"`)
+**Automated:** `packages/app/test/site/signupForm.test.ts` (that the form carries `data-hs-do-not-collect="true"`)
 
 ## AC-10: A failing call is tried again
 
@@ -130,4 +130,4 @@ IF `HUBSPOT_ACCESS_TOKEN` is not set, THEN Skjera SHALL send nothing to HubSpot,
 - **When** you start `pnpm dev` and open the studio for an event open to guests
 - **Then** the log says that nothing is sent to HubSpot, and there is no **Sales event (send to HubSpot)** checkbox
 
-**Automated:** `packages/documents/test/notices/HubSpotFailures.test.ts`, `packages/app/test/salesEvent.test.ts`
+**Automated:** `packages/documents/test/notices/HubSpotFailures.test.ts`, `packages/app/test/editor/salesEvent.test.ts`

@@ -2,8 +2,8 @@ import * as A from "@automerge/automerge/slim";
 import { type DocHandle, Repo } from "@automerge/automerge-repo/slim";
 import { MessageChannelNetworkAdapter } from "@automerge/automerge-repo-network-messagechannel";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { Field } from "../components/Field.tsx";
-import { Shell } from "../components/Shell.tsx";
+import { Field } from "../components/controls/Field.tsx";
+import { Shell } from "../components/layout/Shell.tsx";
 import { TextEditor } from "../editor/text/TextEditor.tsx";
 import styles from "./Playground.module.css";
 

@@ -114,7 +114,7 @@ WHILE anyone is signed up for an event, the studio SHALL show a «Search» field
 - **When** you type «initech» in it
 - **Then** the guest's row is shown and bob's is not
 
-**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/app/test/attendeeSearch.test.ts`
+**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/app/test/studio/attendeeSearch.test.ts`
 
 ## AC-10: The count and the Excel file cover everyone
 

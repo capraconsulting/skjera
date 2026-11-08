@@ -16,7 +16,7 @@ The studio SHALL let an organiser write an event's summary as plain text.
 - **When** you write in **Summary**
 - **Then** it takes plain text, with no formatting buttons
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/documents/test/events/content.test.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`, `packages/documents/test/events/content.test.ts`
 
 ## AC-2: The page shows it under the title
 
@@ -28,7 +28,7 @@ WHERE an event has a summary, the event page SHALL show it under the title.
 - **When** you open it on the site
 - **Then** the summary is under the title
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/documents/test/events/content.test.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`, `packages/documents/test/events/content.test.ts`
 
 ## AC-3: Invitations carry it as their description
 
@@ -52,7 +52,7 @@ WHEN `/events/:id` is fetched for an event shown to everyone, the server SHALL a
 - **When** you run `curl -s http://localhost:8801/events/<id>`, with its id from its address
 - **Then** `og:title`, `og:description` and `og:image` have its title, summary and cover
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/documents/test/site/Sharing.test.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`, `packages/documents/test/site/Sharing.test.ts`
 
 ## AC-5: A members-only event shares as a public one does
 
@@ -76,7 +76,7 @@ IF `/events/:id` names no published event, THEN the server SHALL answer with onl
 - **When** you fetch `/events/` with an id that doesn't exist
 - **Then** only the site's name is there
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/documents/test/site/Sharing.test.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`, `packages/documents/test/site/Sharing.test.ts`
 
 ## AC-7: The page still works in the browser
 
@@ -88,4 +88,4 @@ The page fetched from `/events/:id` SHALL work in the browser as it does today.
 - **When** you open http://localhost:8801/events/<id> in a browser and sign up
 - **Then** the page works as it does with `pnpm dev`
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/app/e2e/specs/attendance/dietary.spec.ts`, `packages/app/e2e/specs/attendance/emails.spec.ts`, `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/app/e2e/specs/attendance/limit.spec.ts`, `packages/app/e2e/specs/attendance/members.spec.ts`, `packages/app/e2e/specs/attendance/questions.spec.ts`, `packages/app/e2e/specs/attendance/streaming.spec.ts`, `packages/app/e2e/specs/attendance/whos-coming.spec.ts`, `packages/documents/test/site/Sharing.test.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`, `packages/app/e2e/specs/attendance/dietary.spec.ts`, `packages/app/e2e/specs/attendance/emails.spec.ts`, `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/app/e2e/specs/attendance/limit.spec.ts`, `packages/app/e2e/specs/attendance/members.spec.ts`, `packages/app/e2e/specs/attendance/questions.spec.ts`, `packages/app/e2e/specs/attendance/streaming.spec.ts`, `packages/app/e2e/specs/attendance/whos-coming.spec.ts`, `packages/documents/test/site/Sharing.test.ts`

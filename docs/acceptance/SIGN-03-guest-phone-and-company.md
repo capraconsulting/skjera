@@ -50,7 +50,7 @@ The studio's list of attendees and the exported Excel file SHALL show each guest
 - **When** you click **Download Excel** in the studio
 - **Then** the guest's phone number and company are in the columns Phone and Company
 
-**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/app/e2e/specs/attendance/limit.spec.ts`, `packages/app/test/attendeesSheet.test.ts`
+**Automated:** `packages/app/e2e/specs/attendance/guests.spec.ts`, `packages/app/e2e/specs/attendance/limit.spec.ts`, `packages/app/test/studio/attendeesSheet.test.ts`
 
 ## AC-5: Members aren't asked
 

@@ -1,7 +1,7 @@
 import { type Site, signupRetentionDays } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import type { ReactNode } from "react";
-import { Button } from "../../components/Button.tsx";
+import { Button } from "../../components/controls/Button.tsx";
 import { currentSite } from "../../i18n.ts";
 import { usePageTitle } from "../../pageTitle.ts";
 import { sharesWithHubSpot, showCookieSettings } from "../../site/hubSpot.ts";

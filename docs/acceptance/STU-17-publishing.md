@@ -22,7 +22,7 @@ WHEN an organiser clicks **Publish**, Skjera SHALL put the event on the site as 
 - **When** you click **View on site**
 - **Then** the event page shows it as written
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/app/e2e/specs/teams.spec.ts`, `packages/documents/test/events/publishing.test.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`, `packages/app/e2e/specs/studio/teams.spec.ts`, `packages/documents/test/events/publishing.test.ts`
 
 ## AC-2: A title and times are needed
 
@@ -36,7 +36,7 @@ IF an event has no title, start time or end time, THEN Skjera SHALL refuse to pu
 - **When** you write the title «AC-2 and AC-3: Refused» and click **Publish** again
 - **Then** the title is no longer named
 
-**Automated:** `packages/app/e2e/specs/collaboration.spec.ts`, `packages/documents/test/events/publishing.test.ts`, `packages/documents/test/api/Problems.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/collaboration.spec.ts`, `packages/documents/test/events/publishing.test.ts`, `packages/documents/test/api/Problems.test.ts`
 
 ## AC-3: The times must fit together
 
@@ -52,7 +52,7 @@ IF an event ends before it starts, has a sign-up deadline after it starts, or a 
 - **When** you set the deadline before the start, tick **Food is served**, set the food deadline after the sign-up deadline, and click **Publish**
 - **Then** it says «The food deadline can't be after sign-up closes»
 
-**Automated:** `packages/app/e2e/specs/collaboration.spec.ts`, `packages/documents/test/events/publishing.test.ts`
+**Automated:** `packages/app/e2e/specs/studio/collaboration.spec.ts`, `packages/documents/test/events/publishing.test.ts`
 
 ## AC-4: Edits stay off the site until published
 
@@ -66,7 +66,7 @@ WHILE a published event has edits not yet published, the site SHALL show the eve
 - **When** you click **Publish** and reload the site
 - **Then** the site shows the new title, and the list says «Published»
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`, `packages/app/e2e/specs/teams.spec.ts`, `packages/documents/test/events/publishing.test.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`, `packages/app/e2e/specs/studio/teams.spec.ts`, `packages/documents/test/events/publishing.test.ts`
 
 ## AC-5: Others see it published
 
@@ -78,7 +78,7 @@ WHEN an event is published, the studio SHALL show it as published to other organ
 - **When** bob clicks **Publish**
 - **Then** alice's footer and team list say it is published, without reloading
 
-**Automated:** `packages/app/e2e/specs/teams.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/teams.spec.ts`
 
 ## AC-6: Unsaved edits are not published
 
@@ -92,7 +92,7 @@ IF the server has not received every edit within 10 seconds of **Publish** being
 - **When** you start `pnpm dev` again and reload the site
 - **Then** the site still shows the old title
 
-**Automated:** `packages/app/test/savedVersion.test.ts`, which checks the wait, not that **Publish** uses it
+**Automated:** `packages/app/test/studio/savedVersion.test.ts`, which checks the wait, not that **Publish** uses it
 
 ## AC-7: What was seen is what is published
 

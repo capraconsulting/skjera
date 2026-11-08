@@ -2,7 +2,7 @@ import { m } from "@skjera/i18n/messages";
 import { getLocale, isLocale } from "@skjera/i18n/runtime";
 import { useId } from "react";
 import { type LoaderFunctionArgs, useLoaderData } from "react-router";
-import { displayName } from "../../components/UserMenu.tsx";
+import { displayName } from "../../components/menus/UserMenu.tsx";
 import { languages, setLocale } from "../../i18n.ts";
 import { requireMe } from "../../site/client.ts";
 import { type ThemeChoice, useThemeChoice } from "../../theme.ts";

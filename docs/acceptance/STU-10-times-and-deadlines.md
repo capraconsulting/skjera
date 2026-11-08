@@ -15,7 +15,7 @@ The studio SHALL let an organiser set an event's start and end as a day and a ti
 - **And** you change **Start time** to 18:00
 - **Then** it starts at 17:00 and ends at 19:00 the same day; then it starts at 18:00 and ends at 20:00
 
-**Automated:** `packages/app/e2e/specs/collaboration.spec.ts`, `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/studio/collaboration.spec.ts`, `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-2: The time zone is the organiser's own
 
@@ -27,7 +27,7 @@ The studio SHALL put a new event in the organiser's own time zone.
 - **When** you look at **Time zone**, then publish it and open it on the site
 - **Then** it says «Europe/Oslo», and the site shows the hours without naming a zone
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-3: Another zone keeps the clock
 
@@ -39,7 +39,7 @@ WHEN an organiser picks another time zone, the studio SHALL keep the event's tim
 - **When** you pick «America/New York» in **Time zone**
 - **Then** **Start time** is still 18:00 and **End time** 20:00
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-4: An optional sign-up deadline
 
@@ -52,7 +52,7 @@ The studio SHALL let an organiser set a sign-up deadline, and clear it again.
 - **And** you click **Clear** beside it
 - **Then** the deadline is set at 12:00 on the day picked, and is empty again after **Clear**, with «Pick a date» shown
 
-**Automated:** `packages/app/e2e/specs/site.spec.ts`
+**Automated:** `packages/app/e2e/specs/site/site.spec.ts`
 
 ## AC-5: An optional food deadline
 
