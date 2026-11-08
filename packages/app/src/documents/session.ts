@@ -33,10 +33,7 @@ import {
   unpublishDocument,
 } from "../sync/tables.ts";
 import { forgetLocal, openDraft } from "./repo.ts";
-import {
-  savedVersion as versionOnceSaved,
-  versionToPublish,
-} from "./savedVersion.ts";
+import { savedVersion as versionOnceSaved } from "./savedVersion.ts";
 
 export interface SessionState {
   /** The local copy being edited, once it's open. */
@@ -184,10 +181,7 @@ const session = (id: DocumentId, store: SessionStore) =>
 
     // Publishes what this copy shows, once the server has all of it.
     const publish = (confirm: (notice: PublishingNotice) => boolean) =>
-      versionToPublish({
-        saved,
-        version: () => A.getHeads(handle.doc()),
-      }).pipe(
+      savedVersion(() => m.studio_publish_unsaved()).pipe(
         Effect.flatMap((heads) =>
           Effect.tryPromise({
             try: async () => {

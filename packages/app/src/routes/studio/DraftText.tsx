@@ -1,19 +1,22 @@
 import * as A from "@automerge/automerge/slim";
 import type { DocHandle } from "@automerge/automerge-repo/slim";
 import type { EmailField, EventContent } from "@skjera/documents/api";
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { EmptyTextEditor, TextEditor } from "../../editor/text/TextEditor.tsx";
 import type { DraftPresence } from "../../presence/presence.ts";
 
-/** The collaborative texts kept in a draft under a key of their own. */
-export const textPaths = {
-  summary: ["summary"],
-  place: ["place"],
-  streamLink: ["streamLink"],
-  salesEventType: ["salesEventType"],
-} as const;
-
-type DraftTextField = keyof typeof textPaths | EmailField;
+type DraftTextField =
+  | "summary"
+  | "place"
+  | "streamLink"
+  | "salesEventType"
+  | EmailField;
 
 /**
  * Collaborative text kept under `field`, which a draft from before it
@@ -34,6 +37,7 @@ export function DraftText(props: {
   readonly createOnFocus?: boolean;
 }) {
   const { handle, field } = props;
+  const path = useMemo(() => [field], [field]);
   const createOnFocus = props.createOnFocus === true;
   // Set once the organizer's focus created the key, so the editor made then
   // takes the focus over.
@@ -76,11 +80,7 @@ export function DraftText(props: {
     <TextEditor
       key={text}
       handle={handle}
-      path={
-        field in textPaths
-          ? textPaths[field as keyof typeof textPaths]
-          : [field]
-      }
+      path={path}
       label={props.label}
       {...(props.rich === true ? { rich: true } : {})}
       presence={props.presence}

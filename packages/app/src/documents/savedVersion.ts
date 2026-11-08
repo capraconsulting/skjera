@@ -1,5 +1,4 @@
 import type * as A from "@automerge/automerge/slim";
-import { m } from "@skjera/i18n/messages";
 import { Effect, Schedule } from "effect";
 
 /** How long publishing, discarding, restoring and copying wait for the server to have every edit. */
@@ -28,7 +27,3 @@ export const savedVersion = (
       orElse: () => Effect.fail(new Error(unsaved())),
     }),
   );
-
-/** What **Publish** waits for: the saved version, else «your edits haven't been saved yet». */
-export const versionToPublish = (copy: Parameters<typeof savedVersion>[0]) =>
-  savedVersion(copy, () => m.studio_publish_unsaved());

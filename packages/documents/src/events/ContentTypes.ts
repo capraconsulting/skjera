@@ -258,82 +258,79 @@ export interface Requirement<Content> {
   readonly met: (content: Content) => boolean;
 }
 
-export const contentTypes = {
-  event: {
-    schema: EventContent,
-    initial: {
-      title: "",
-      summary: "",
-      body: "",
-      start: null,
-      end: null,
-      deadline: null,
-      public: false,
-      guests: false,
-      dietary: false,
-      food: "",
-      foodDeadline: null,
-      questions: [],
-      tags: [],
-      place: "",
-    } satisfies EventContent,
-    toPublish: [
-      { field: "title", met: (event) => event.title.trim() !== "" },
-      { field: "start", met: (event) => event.start !== null },
-      { field: "end", met: (event) => event.end !== null },
-      { field: "place", met: (event) => (event.place ?? "").trim() !== "" },
-    ] satisfies ReadonlyArray<Requirement<EventContent>>,
-    checks: [
-      (event) =>
-        event.start !== null &&
-        event.end !== null &&
-        compare(event.end, event.start) <= 0
-          ? { _tag: "EndsBeforeStart" }
-          : null,
-      (event) =>
-        event.start !== null &&
-        event.deadline !== null &&
-        compare(event.deadline, event.start) > 0
-          ? { _tag: "DeadlineAfterStart" }
-          : null,
-      (event) => {
-        const closes = signupClosesAt(event.deadline, event.start);
-        return event.foodDeadline !== null &&
-          closes !== null &&
-          compare(event.foodDeadline, closes) > 0
-          ? { _tag: "FoodDeadlineAfterClose" }
-          : null;
-      },
-      (event) =>
-        event.questions.some((question) => question.text.trim() === "")
-          ? { _tag: "QuestionWithoutText" }
-          : null,
-      (event) =>
-        event.questions.some(
-          (question) =>
-            question.type === "choice" &&
-            (question.options.length < choiceQuestionMinimum ||
-              question.options.some((option) => option.text.trim() === "")),
-        )
-          ? { _tag: "ChoiceWithoutOptions" }
-          : null,
-      (event) =>
-        new Set(
-          [event.start, event.end, event.deadline, event.foodDeadline]
-            .filter((time) => time !== null)
-            .map((time) => Temporal.ZonedDateTime.from(time).timeZoneId),
-        ).size > 1
-          ? { _tag: "MixedTimeZones" }
-          : null,
-      (event) => {
-        const link = (event.streamLink ?? "").trim();
-        return event.streamed === true && link !== "" && !isWebAddress(link)
-          ? { _tag: "StreamLinkNotWeb" }
-          : null;
-      },
-    ] satisfies ReadonlyArray<Check<EventContent>>,
+export const eventInitial = {
+  title: "",
+  summary: "",
+  body: "",
+  start: null,
+  end: null,
+  deadline: null,
+  public: false,
+  guests: false,
+  dietary: false,
+  food: "",
+  foodDeadline: null,
+  questions: [],
+  tags: [],
+  place: "",
+} satisfies EventContent;
+
+export const eventToPublish = [
+  { field: "title", met: (event) => event.title.trim() !== "" },
+  { field: "start", met: (event) => event.start !== null },
+  { field: "end", met: (event) => event.end !== null },
+  { field: "place", met: (event) => (event.place ?? "").trim() !== "" },
+] satisfies ReadonlyArray<Requirement<EventContent>>;
+
+export const eventChecks = [
+  (event) =>
+    event.start !== null &&
+    event.end !== null &&
+    compare(event.end, event.start) <= 0
+      ? { _tag: "EndsBeforeStart" }
+      : null,
+  (event) =>
+    event.start !== null &&
+    event.deadline !== null &&
+    compare(event.deadline, event.start) > 0
+      ? { _tag: "DeadlineAfterStart" }
+      : null,
+  (event) => {
+    const closes = signupClosesAt(event.deadline, event.start);
+    return event.foodDeadline !== null &&
+      closes !== null &&
+      compare(event.foodDeadline, closes) > 0
+      ? { _tag: "FoodDeadlineAfterClose" }
+      : null;
   },
-};
+  (event) =>
+    event.questions.some((question) => question.text.trim() === "")
+      ? { _tag: "QuestionWithoutText" }
+      : null,
+  (event) =>
+    event.questions.some(
+      (question) =>
+        question.type === "choice" &&
+        (question.options.length < choiceQuestionMinimum ||
+          question.options.some((option) => option.text.trim() === "")),
+    )
+      ? { _tag: "ChoiceWithoutOptions" }
+      : null,
+  (event) =>
+    new Set(
+      [event.start, event.end, event.deadline, event.foodDeadline]
+        .filter((time) => time !== null)
+        .map((time) => Temporal.ZonedDateTime.from(time).timeZoneId),
+    ).size > 1
+      ? { _tag: "MixedTimeZones" }
+      : null,
+  (event) => {
+    const link = (event.streamLink ?? "").trim();
+    return event.streamed === true && link !== "" && !isWebAddress(link)
+      ? { _tag: "StreamLinkNotWeb" }
+      : null;
+  },
+] satisfies ReadonlyArray<Check<EventContent>>;
 
 /** Something else that must hold to publish: why not, or null. */
 export type Check<Content> = (content: Content) => Problem | null;
@@ -372,7 +369,5 @@ export const missingToPublish = <Content>(
     : { _tag: "MissingToPublish", fields: [first, ...rest] };
 };
 
-export type ContentTypeName = keyof typeof contentTypes;
-export const ContentTypeName = Schema.Literals(
-  Object.keys(contentTypes) as Array<ContentTypeName>,
-);
+export type ContentTypeName = "event";
+export const ContentTypeName = Schema.Literal("event");

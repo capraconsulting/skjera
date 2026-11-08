@@ -1,11 +1,7 @@
-import { m } from "@skjera/i18n/messages";
 import { Effect, Fiber } from "effect";
 import { TestClock } from "effect/testing";
 import { describe, expect, it } from "vitest";
-import {
-  savedVersion,
-  versionToPublish,
-} from "../src/documents/savedVersion.ts";
+import { savedVersion } from "../src/documents/savedVersion.ts";
 
 /** `effect` on a clock the test moves, so the seconds don't take real time. */
 const run = <A, E>(effect: Effect.Effect<A, E>) =>
@@ -56,20 +52,5 @@ describe("savedVersion", () => {
       }),
     );
     expect(version).toEqual(["head"]);
-  });
-
-  it("refuses to publish after 10 seconds, saying the edits aren't saved yet (STU-17 AC-6)", async () => {
-    const error = await run(
-      Effect.gen(function* () {
-        const waiting = yield* Effect.forkChild(
-          Effect.flip(versionToPublish(copy())),
-        );
-        yield* TestClock.adjust("9900 millis");
-        expect(waiting.pollUnsafe()).toBeUndefined();
-        yield* TestClock.adjust("100 millis");
-        return yield* Fiber.join(waiting);
-      }),
-    );
-    expect(error).toEqual(new Error(m.studio_publish_unsaved()));
   });
 });

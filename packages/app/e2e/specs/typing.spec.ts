@@ -10,6 +10,28 @@ import { TeamsColumn } from "../pom/studio/TeamsColumn.ts";
 /** Characters in `text`, sorted, to compare text regardless of interleaving. */
 const letters = (text: string) => [...text].sort().join("");
 
+test("a top-level text field keeps focus when its edit starts saving", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, "alice@example.com");
+  const team = await new TeamsColumn(alice).create(uniqueTeamName("Focus"));
+  const id = await new EventsColumn(alice).newEvent();
+  const editor = new EventEditor(alice);
+  await editor.expectSaved();
+  const network = await connection(alice);
+  await network.offline();
+
+  await editor.summary.focus();
+  await editor.summary.typeKeys("Coffee", 15);
+  await editor.expectStatus("Saving");
+  await editor.summary.typeKeys(" and a talk", 15);
+  await editor.summary.expectText("Coffee and a talk");
+
+  network.online();
+  await editor.expectSaved();
+  await cleanUp(alice, team, id);
+});
+
 test("no keystroke is lost when two people type at once", async ({
   browser,
 }) => {

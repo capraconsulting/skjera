@@ -6,8 +6,8 @@ import { Effect, Ref } from "effect";
 import { SqlClient } from "effect/sql";
 import { Attendance } from "../../src/attendance/Attendance.ts";
 import {
-  contentTypes,
   type EventContent,
+  eventInitial,
 } from "../../src/events/ContentTypes.ts";
 import {
   restorePublished,
@@ -39,7 +39,7 @@ import {
 } from "../helpers.ts";
 
 const newDraft = () =>
-  A.from<EventContent>({ ...contentTypes.event.initial } as EventContent);
+  A.from<EventContent>({ ...eventInitial } as EventContent);
 
 /** The draft as it is published, with a value of every kind the schema has. */
 const published = () => A.change(newDraft(), fillEveryKindOfField);

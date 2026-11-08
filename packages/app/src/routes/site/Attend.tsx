@@ -389,7 +389,9 @@ export function Attend(props: {
     id: string,
     status: string,
     given: Given,
-    asGuest = false,
+    attendee:
+      | { readonly kind: "member" }
+      | { readonly kind: "guest"; readonly signup: GuestSignup },
   ) =>
     editing ? (
       <form
@@ -397,7 +399,7 @@ export function Attend(props: {
         onSubmit={(submitted) => change(submitted, id)}
         aria-label={m.attend_your_answers()}
       >
-        {asGuest ? (
+        {attendee.kind === "guest" ? (
           <GuestContactInputs given={given} messages={messages} />
         ) : null}
         {asked(given)}
@@ -408,7 +410,7 @@ export function Attend(props: {
           <Button onClick={() => setEditing(false)}>{m.attend_keep()}</Button>
         </div>
       </form>
-    ) : asGuest ? (
+    ) : attendee.kind === "guest" ? (
       // A form, so the cancel carries the hidden field for bots.
       <form
         className={styles.row}
@@ -419,11 +421,7 @@ export function Attend(props: {
         }}
       >
         <p className={styles.status}>{status}</p>
-        <Button
-          onClick={() =>
-            guest !== null ? changeAsGuest(guest) : setEditing(true)
-          }
-        >
+        <Button onClick={() => changeAsGuest(attendee.signup)}>
           {m.attend_change_answers()}
         </Button>
         <HoneypotInput />
@@ -449,18 +447,23 @@ export function Attend(props: {
     return box(
       <>
         {mine !== undefined ? (
-          signedUp(mine.id, signedUpNow ?? m.attend_you_attending(), {
-            ...(given ?? {
-              answers: Object.fromEntries(
-                (mine.details?.answers ?? []).map((answer) => [
-                  answer.id,
-                  answer.value,
-                ]),
-              ),
-            }),
-            // The row holds the choice whether or not this browser remembered it.
-            online: mine.online,
-          })
+          signedUp(
+            mine.id,
+            signedUpNow ?? m.attend_you_attending(),
+            {
+              ...(given ?? {
+                answers: Object.fromEntries(
+                  (mine.details?.answers ?? []).map((answer) => [
+                    answer.id,
+                    answer.value,
+                  ]),
+                ),
+              }),
+              // The row holds the choice whether or not this browser remembered it.
+              online: mine.online,
+            },
+            { kind: "member" },
+          )
         ) : noMore ? null : (
           <form
             className={styles.form}
@@ -553,7 +556,7 @@ export function Attend(props: {
                 online: signups.find((signup) => signup.id === guest.id)
                   ?.online,
               },
-              true,
+              { kind: "guest", signup: guest },
             )
           )}
           {failure}

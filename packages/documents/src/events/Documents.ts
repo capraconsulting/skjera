@@ -38,8 +38,10 @@ import { pgCode, pgMessage } from "../server/PostgresError.ts";
 import {
   type ContentTypeName,
   cantPublish,
-  contentTypes,
-  type EventContent,
+  EventContent,
+  eventChecks,
+  eventInitial,
+  eventToPublish,
 } from "./ContentTypes.ts";
 import {
   copyContent,
@@ -240,7 +242,7 @@ export class Documents extends Context.Service<
       ) {
         // The initial state gets an actor id of its own, which no editor
         // will ever use.
-        const draft = A.save(A.from({ ...contentTypes[type].initial }));
+        const draft = A.save(A.from({ ...eventInitial }));
         const [row] = yield* sql<{ id: DocumentId }>`
           INSERT INTO documents (id, type, team_id, draft, created_by_issuer, created_by_subject)
           VALUES (coalesce(${id ?? null}::uuid, uuidv7()), ${type}, ${team},
@@ -326,10 +328,7 @@ export class Documents extends Context.Service<
         // A new draft, as `create` builds one, with the source's content
         // written into it: none of the source's history comes along.
         const original = A.load<EventContent>(row.draft);
-        const made = copyContent(
-          A.from({ ...contentTypes[row.type].initial }),
-          original,
-        );
+        const made = copyContent(A.from({ ...eventInitial }), original);
         if (!sameContentAs(made, original)) {
           return yield* Effect.die(
             `The copy of ${source} does not have the content of its source`,
@@ -349,10 +348,9 @@ export class Documents extends Context.Service<
           yield* rememberName(author);
           // The server's draft must fit the schema, as an editor's must; the
           // transaction rolls back and nothing is stored if it does not.
-          yield* Schema.decodeUnknownEffect(contentTypes[row.type].schema)(
-            inserted.content,
-            { onExcessProperty: "error" },
-          );
+          yield* Schema.decodeUnknownEffect(EventContent)(inserted.content, {
+            onExcessProperty: "error",
+          });
         }).pipe(sql.withTransaction, Effect.orDie);
         return id;
       }, Effect.uninterruptible);
@@ -455,10 +453,9 @@ export class Documents extends Context.Service<
             SELECT merge(draft, ${bytes}::bytea)::jsonb AS content
             FROM documents WHERE id = ${id}
           `;
-          yield* Schema.decodeUnknownEffect(contentTypes[current.type].schema)(
-            merged?.content,
-            { onExcessProperty: "error" },
-          ).pipe(
+          yield* Schema.decodeUnknownEffect(EventContent)(merged?.content, {
+            onExcessProperty: "error",
+          }).pipe(
             Effect.mapError(
               (error) => new InvalidContent({ message: error.message }),
             ),
@@ -506,79 +503,73 @@ export class Documents extends Context.Service<
           return { before, rows, after: rows[0] };
         });
 
-      const publishers = {
-        event: (
-          id: DocumentId,
-          heads: Heads,
-          user: Identity,
-          confirmed?: PublishingNotice,
-        ) =>
-          Effect.gen(function* () {
-            const { before, rows, after } = yield* publishRow(id, heads, user);
-            const signups = yield* sql<Signup>`
+      const publishDocument = (
+        id: DocumentId,
+        heads: Heads,
+        user: Identity,
+        confirmed?: PublishingNotice,
+      ) =>
+        Effect.gen(function* () {
+          const { before, rows, after } = yield* publishRow(id, heads, user);
+          const signups = yield* sql<Signup>`
               SELECT ${signupColumns(sql)} FROM attendees WHERE event_id = ${id}
             `;
-            const answer = publishingAnswer(before, after, signups);
-            if (
-              confirmed !== undefined &&
-              !samePublishingNotice(confirmed, answer)
-            ) {
-              return yield* Effect.fail(new NoticeMismatch(answer));
-            }
-            if (after !== undefined) {
-              yield* rememberName(user);
-            }
-            // Published for the first time: the channel is told, once.
-            if (before === undefined && after !== undefined) {
-              yield* announcements.eventPublished(id);
-            }
-            const change = changeToTell(before, after);
-            // Moved, or somewhere else: its attendees are told, in one
-            // email, and get the new time and place for their calendars.
-            if (
-              before !== undefined &&
-              after !== undefined &&
-              change !== null
-            ) {
-              yield* tell(signups, (attendee) =>
-                notifications.eventChanged({
-                  event: id,
-                  attendee,
-                  version: String(after.published_at.getTime()),
-                  ...(change.moved
-                    ? {
-                        previously: {
-                          startsAt: before.starts_at.toISOString(),
-                          endsAt: before.ends_at.toISOString(),
-                        },
-                      }
-                    : {}),
-                  ...(change.newPlace
-                    ? { previousPlace: before.place ?? "" }
-                    : {}),
-                }),
-              );
-            }
-            // HubSpot reads the prior off-site state before it is cleared.
-            if (after !== undefined) {
-              yield* salesEvents.published(id);
-            }
-            // Unpublished before: back on the site. Never a document deleted
-            // meanwhile.
-            yield* sql`
+          const answer = publishingAnswer(before, after, signups);
+          if (
+            confirmed !== undefined &&
+            !samePublishingNotice(confirmed, answer)
+          ) {
+            return yield* Effect.fail(new NoticeMismatch(answer));
+          }
+          if (after !== undefined) {
+            yield* rememberName(user);
+          }
+          // Published for the first time: the channel is told, once.
+          if (before === undefined && after !== undefined) {
+            yield* announcements.eventPublished(id);
+          }
+          const change = changeToTell(before, after);
+          // Moved, or somewhere else: its attendees are told, in one
+          // email, and get the new time and place for their calendars.
+          if (before !== undefined && after !== undefined && change !== null) {
+            yield* tell(signups, (attendee) =>
+              notifications.eventChanged({
+                event: id,
+                attendee,
+                version: String(after.published_at.getTime()),
+                ...(change.moved
+                  ? {
+                      previously: {
+                        startsAt: before.starts_at.toISOString(),
+                        endsAt: before.ends_at.toISOString(),
+                      },
+                    }
+                  : {}),
+                ...(change.newPlace
+                  ? { previousPlace: before.place ?? "" }
+                  : {}),
+              }),
+            );
+          }
+          // HubSpot reads the prior off-site state before it is cleared.
+          if (after !== undefined) {
+            yield* salesEvents.published(id);
+          }
+          // Unpublished before: back on the site. Never a document deleted
+          // meanwhile.
+          yield* sql`
               UPDATE events e SET deleted_at = NULL
               FROM documents d
               WHERE e.id = ${id} AND d.id = e.id
                 AND e.deleted_at IS NOT NULL AND d.deleted_at IS NULL
             `;
-            return rows;
-          }).pipe(
-            sql.withTransaction,
-            Effect.catchTag("NoticeMismatch", ({ notice }) =>
-              Effect.succeed(new NoticeChanged({ notice })),
-            ),
+          return rows;
+        }).pipe(
+          sql.withTransaction,
+          Effect.catchTag("NoticeMismatch", ({ notice }) =>
+            Effect.succeed(new NoticeChanged({ notice })),
           ),
-      } satisfies Record<ContentTypeName, unknown>;
+        );
 
       const unknownVersion = (error: SqlError.SqlError) =>
         pgCode(error) === "22023"
@@ -591,19 +582,21 @@ export class Documents extends Context.Service<
         id: DocumentId,
         heads: Heads,
       ) {
-        const type = yield* typeOf(id);
+        yield* typeOf(id);
         const [version] = yield* sql<{ content: unknown }>`
           SELECT automerge_to_jsonb(draft, ${heads}::text[]) AS content
           FROM documents WHERE id = ${id}
         `.pipe(Effect.catchIf(SqlError.isSqlError, unknownVersion));
-        const content = yield* Schema.decodeUnknownEffect(
-          contentTypes[type].schema,
-        )(version?.content).pipe(Effect.orDie);
-        const missing = cantPublish(contentTypes[type], content);
+        const content = yield* Schema.decodeUnknownEffect(EventContent)(
+          version?.content,
+        ).pipe(Effect.orDie);
+        const missing = cantPublish(
+          { toPublish: eventToPublish, checks: eventChecks },
+          content,
+        );
         if (missing !== null) {
           return yield* new PublishRejected(refused(missing));
         }
-        return type;
       });
 
       const publishingNotice = Effect.fn("Documents.publishingNotice")(
@@ -634,9 +627,9 @@ export class Documents extends Context.Service<
         user: Identity,
         confirmed?: PublishingNotice,
       ) {
-        const type = yield* publishable(id, heads);
+        yield* publishable(id, heads);
 
-        const published = yield* publishers[type](
+        const published = yield* publishDocument(
           id,
           heads,
           user,
@@ -779,7 +772,7 @@ export class Documents extends Context.Service<
             yield* claimActor(id, A.getActorId(restored), user);
             yield* rememberName(user);
             yield* applyServerChange(sql, id, change, (content) =>
-              Schema.decodeUnknownEffect(contentTypes.event.schema)(content, {
+              Schema.decodeUnknownEffect(EventContent)(content, {
                 onExcessProperty: "error",
               }),
             );
@@ -872,10 +865,9 @@ export class Documents extends Context.Service<
             SELECT merge(draft, ${change}::bytea)::jsonb AS content
             FROM documents WHERE id = ${id}
           `;
-          yield* Schema.decodeUnknownEffect(contentTypes.event.schema)(
-            merged?.content,
-            { onExcessProperty: "error" },
-          ).pipe(Effect.orDie);
+          yield* Schema.decodeUnknownEffect(EventContent)(merged?.content, {
+            onExcessProperty: "error",
+          }).pipe(Effect.orDie);
           yield* claimActor(id, A.getActorId(restored), user);
           yield* rememberName(user);
           // The draft only: the published version, the signups and the site
