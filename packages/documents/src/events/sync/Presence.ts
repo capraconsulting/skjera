@@ -7,7 +7,7 @@ import {
   type Scope,
   type Stream,
 } from "effect";
-import { listenTo } from "../server/channel.ts";
+import { listenTo } from "../../server/channel.ts";
 
 const channel = "draft_ephemeral";
 

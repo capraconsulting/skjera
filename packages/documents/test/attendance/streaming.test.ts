@@ -1,7 +1,7 @@
 import { assert, layer } from "@effect/vitest";
 import { Effect, Option } from "effect";
 import { Attendance } from "../../src/attendance/Attendance.ts";
-import { Documents } from "../../src/events/Documents.ts";
+import { Documents } from "../../src/events/documents/index.ts";
 import {
   alice,
   bob,

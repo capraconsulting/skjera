@@ -12,8 +12,8 @@ import {
 import {
   restorePublished,
   sameContent,
-} from "../../src/events/DiscardChanges.ts";
-import { Documents } from "../../src/events/Documents.ts";
+} from "../../src/events/documents/DiscardChanges.ts";
+import { Documents } from "../../src/events/documents/index.ts";
 import { AnnouncementsKept } from "../../src/notices/Announcements.ts";
 import { NoticesKept } from "../../src/notices/Notifications.ts";
 import {

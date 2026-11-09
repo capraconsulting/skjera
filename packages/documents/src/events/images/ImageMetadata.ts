@@ -1,5 +1,5 @@
 import { Effect, Option, Stream } from "effect";
-import type { ImageType } from "../api/ImagesApi.ts";
+import type { ImageType } from "../../api/ImagesApi.ts";
 
 // Uploaded images, in an S3-compatible bucket. The bucket stays private:
 // the server serves the images, under ids too long to guess.

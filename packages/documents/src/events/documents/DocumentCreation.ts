@@ -2,14 +2,14 @@ import * as A from "@automerge/automerge";
 import { type Identity, nameOf } from "@skjera/oauth/api";
 import { Effect, Schema } from "effect";
 import { type SqlClient, SqlError } from "effect/sql";
-import { DocumentNotFound, TeamNotFound } from "../api/errors.ts";
-import type { DocumentId, Heads, TeamId } from "../Model.ts";
-import { pgCode } from "../server/PostgresError.ts";
+import { DocumentNotFound, TeamNotFound } from "../../api/errors.ts";
+import type { DocumentId, Heads, TeamId } from "../../Model.ts";
+import { pgCode } from "../../server/PostgresError.ts";
 import {
   type ContentTypeName,
   EventContent,
   eventInitial,
-} from "./ContentTypes.ts";
+} from "../ContentTypes.ts";
 import { copyContent, sameContentAs } from "./DiscardChanges.ts";
 
 export interface DocumentSnapshot {

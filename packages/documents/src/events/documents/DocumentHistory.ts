@@ -2,10 +2,10 @@ import * as A from "@automerge/automerge";
 import type { Identity } from "@skjera/oauth/api";
 import { Effect, Schema } from "effect";
 import { type SqlClient, SqlError } from "effect/sql";
-import { DocumentNotFound, RestoreRejected } from "../api/errors.ts";
-import { refused } from "../api/Problems.ts";
-import { type DocumentId, type Heads, isVersion } from "../Model.ts";
-import { EventContent } from "./ContentTypes.ts";
+import { DocumentNotFound, RestoreRejected } from "../../api/errors.ts";
+import { refused } from "../../api/Problems.ts";
+import { type DocumentId, type Heads, isVersion } from "../../Model.ts";
+import { EventContent } from "../ContentTypes.ts";
 import {
   discardedMessage,
   restoredMessage,

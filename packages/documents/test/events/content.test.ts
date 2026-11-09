@@ -13,7 +13,7 @@ import {
   salesEventFields,
   signupTakesPlace,
 } from "../../src/events/ContentTypes.ts";
-import { Documents } from "../../src/events/Documents.ts";
+import { Documents } from "../../src/events/documents/index.ts";
 import type { DocumentId } from "../../src/Model.ts";
 import { Sync } from "../../src/server/Sync.ts";
 import {

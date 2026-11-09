@@ -1,28 +1,28 @@
 import type { Identity } from "@skjera/oauth/api";
 import { Effect, Schema } from "effect";
 import { type SqlClient, SqlError } from "effect/sql";
-import { DocumentNotFound, PublishRejected } from "../api/errors.ts";
-import { refused } from "../api/Problems.ts";
+import { DocumentNotFound, PublishRejected } from "../../api/errors.ts";
+import { refused } from "../../api/Problems.ts";
 import {
   type DocumentId,
   type Heads,
   NoticeChanged,
   type Publication,
   type PublishingNotice,
-} from "../Model.ts";
+} from "../../Model.ts";
 import {
   type ChangeNotice,
   type Signup,
   signupColumns,
   tell,
-} from "../notices/Notifications.ts";
-import { pgCode } from "../server/PostgresError.ts";
+} from "../../notices/Notifications.ts";
+import { pgCode } from "../../server/PostgresError.ts";
 import {
   cantPublish,
   EventContent,
   eventChecks,
   eventToPublish,
-} from "./ContentTypes.ts";
+} from "../ContentTypes.ts";
 import { publishEvent } from "./EventPublishing.ts";
 import {
   changeToTell,

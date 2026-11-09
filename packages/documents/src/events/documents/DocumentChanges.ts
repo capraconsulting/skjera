@@ -7,10 +7,10 @@ import {
   DocumentNotFound,
   InvalidChanges,
   InvalidContent,
-} from "../api/errors.ts";
-import type { DocumentId, Heads } from "../Model.ts";
-import { pgCode, pgMessage } from "../server/PostgresError.ts";
-import { type ContentTypeName, EventContent } from "./ContentTypes.ts";
+} from "../../api/errors.ts";
+import type { DocumentId, Heads } from "../../Model.ts";
+import { pgCode, pgMessage } from "../../server/PostgresError.ts";
+import { type ContentTypeName, EventContent } from "../ContentTypes.ts";
 
 export const documentChanges = (
   sql: SqlClient.SqlClient,

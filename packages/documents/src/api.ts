@@ -10,6 +10,6 @@ export * from "./api/PublicApi.ts";
 export * from "./api/SyncApi.ts";
 export * from "./api/TeamsApi.ts";
 export * from "./events/ContentTypes.ts";
-export * from "./events/DraftSyncProtocol.ts";
 export * from "./events/Preview.ts";
+export * from "./events/sync/DraftSyncProtocol.ts";
 export * from "./Model.ts";

@@ -3,7 +3,7 @@ import { assert, layer } from "@effect/vitest";
 import { m } from "@skjera/i18n/messages";
 import { Effect } from "effect";
 import { Attendance } from "../../src/attendance/Attendance.ts";
-import { Documents } from "../../src/events/Documents.ts";
+import { Documents } from "../../src/events/documents/index.ts";
 import type { DocumentId } from "../../src/Model.ts";
 import {
   alice,

@@ -9,9 +9,9 @@ import {
   type EventContent,
   organizerEmails,
 } from "../src/events/ContentTypes.ts";
-import { DocumentEvents } from "../src/events/DocumentEvents.ts";
-import { Documents } from "../src/events/Documents.ts";
-import { Presence } from "../src/events/Presence.ts";
+import { Documents } from "../src/events/documents/index.ts";
+import { DocumentEvents } from "../src/events/sync/DocumentEvents.ts";
+import { Presence } from "../src/events/sync/Presence.ts";
 import { type Audience, type DocumentId, SiteSettings } from "../src/Model.ts";
 import { Announcements } from "../src/notices/Announcements.ts";
 import { Notifications } from "../src/notices/Notifications.ts";

@@ -2,8 +2,8 @@ import * as A from "@automerge/automerge";
 import { assert, layer } from "@effect/vitest";
 import { Effect, Exit, Fiber, Stream } from "effect";
 import { SqlClient } from "effect/sql";
-import { DocumentEvents } from "../../src/events/DocumentEvents.ts";
-import { Documents } from "../../src/events/Documents.ts";
+import { Documents } from "../../src/events/documents/index.ts";
+import { DocumentEvents } from "../../src/events/sync/DocumentEvents.ts";
 import { alice, newTeam, openEditor, TestLayer } from "../helpers.ts";
 
 // Real clock: these tests talk to a real database.

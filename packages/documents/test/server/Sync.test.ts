@@ -2,7 +2,7 @@ import { assert, layer } from "@effect/vitest";
 import { Identity } from "@skjera/oauth/api";
 import { Deferred, Effect, Fiber, Layer, Option, Schema } from "effect";
 import { SqlClient } from "effect/sql";
-import { Documents } from "../../src/events/Documents.ts";
+import { Documents } from "../../src/events/documents/index.ts";
 import { DocumentId, type TeamId } from "../../src/Model.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
 import { Notifications } from "../../src/notices/Notifications.ts";

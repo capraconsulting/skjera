@@ -9,7 +9,7 @@ import {
   repeatDefaults,
   salesEventFields,
 } from "../../src/events/ContentTypes.ts";
-import { Documents } from "../../src/events/Documents.ts";
+import { Documents } from "../../src/events/documents/index.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
 import { Notifications } from "../../src/notices/Notifications.ts";
 import { SalesEvents } from "../../src/notices/SalesEvents.ts";

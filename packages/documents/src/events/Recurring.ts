@@ -8,8 +8,8 @@ import type { DocumentId, Heads, ZonedDateTime } from "../Model.ts";
 import { Announcements } from "../notices/Announcements.ts";
 import { SalesEvents } from "../notices/SalesEvents.ts";
 import { EventContent, type RepeatUnit } from "./ContentTypes.ts";
-import { applyServerChange } from "./DocumentChange.ts";
-import { publishEvent } from "./EventPublishing.ts";
+import { applyServerChange } from "./documents/DocumentChange.ts";
+import { publishEvent } from "./documents/EventPublishing.ts";
 
 // A recurring event moves on to its next date when it has ended: a daily job
 // moves its times in its draft and in the published copy, publishes it

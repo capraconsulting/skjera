@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import type { SqlClient } from "effect/sql";
-import type { DocumentId } from "../Model.ts";
+import type { DocumentId } from "../../Model.ts";
 
 export const applyServerChange = <E, R>(
   sql: SqlClient.SqlClient,

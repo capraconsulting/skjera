@@ -11,7 +11,7 @@ import {
   type EventContent,
   organizerEmails,
 } from "../../src/events/ContentTypes.ts";
-import { Documents } from "../../src/events/Documents.ts";
+import { Documents } from "../../src/events/documents/index.ts";
 import { type DocumentId, type Locale, SiteSettings } from "../../src/Model.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
 import * as Mail from "../../src/notices/Mail.tsx";

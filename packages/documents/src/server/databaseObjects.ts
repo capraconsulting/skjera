@@ -5,7 +5,7 @@ import {
   repeatDefaults,
   salesEventFields,
 } from "../events/ContentTypes.ts";
-import { channel } from "../events/DocumentEvents.ts";
+import { channel } from "../events/sync/DocumentEvents.ts";
 
 const publishedOrganizerEmailFields = organizerEmails.flatMap(
   ({ subject, text }) => [subject, text],

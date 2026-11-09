@@ -11,7 +11,7 @@ import { SqlClient } from "effect/sql";
 import { Attendance } from "../../src/attendance/Attendance.ts";
 import * as SignupRetention from "../../src/attendance/SignupRetention.ts";
 import type { EventContent } from "../../src/events/ContentTypes.ts";
-import { Documents } from "../../src/events/Documents.ts";
+import { Documents } from "../../src/events/documents/index.ts";
 import {
   type DocumentId,
   SiteSettings,

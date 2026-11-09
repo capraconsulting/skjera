@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, Schema } from "effect";
-import { DocumentId, Heads } from "../Model.ts";
-import { type Channel, listenTo } from "../server/channel.ts";
+import { DocumentId, Heads } from "../../Model.ts";
+import { type Channel, listenTo } from "../../server/channel.ts";
 
 export const channel = "documents_changed";
 

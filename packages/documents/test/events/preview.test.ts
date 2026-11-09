@@ -2,7 +2,7 @@ import * as A from "@automerge/automerge";
 import { assert, layer } from "@effect/vitest";
 import { Effect } from "effect";
 import type { EventContent } from "../../src/events/ContentTypes.ts";
-import { Documents } from "../../src/events/Documents.ts";
+import { Documents } from "../../src/events/documents/index.ts";
 import { eventPreview } from "../../src/events/Preview.ts";
 import type { DocumentId, Organizer, RichText } from "../../src/Model.ts";
 import {

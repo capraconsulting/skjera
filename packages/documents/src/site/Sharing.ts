@@ -11,7 +11,11 @@ import {
 } from "effect/http";
 import { SqlClient } from "effect/sql";
 import { imagesPath } from "../api/ImagesApi.ts";
-import { type ImageSize, Images, readImageSize } from "../events/Images.ts";
+import {
+  type ImageSize,
+  Images,
+  readImageSize,
+} from "../events/images/index.ts";
 import {
   type Cover,
   DocumentId,

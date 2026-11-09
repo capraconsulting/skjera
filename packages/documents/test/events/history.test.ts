@@ -5,9 +5,9 @@ import { Effect } from "effect";
 import {
   discardedMessage,
   restoredMessage,
-} from "../../src/events/DiscardChanges.ts";
-import { Documents } from "../../src/events/Documents.ts";
-import { historyOf } from "../../src/events/History.ts";
+} from "../../src/events/documents/DiscardChanges.ts";
+import { historyOf } from "../../src/events/documents/History.ts";
+import { Documents } from "../../src/events/documents/index.ts";
 import { alice, newTeam, openEditor, TestLayer } from "../helpers.ts";
 
 // The grouping, ordering and naming of the history, on changes made up for

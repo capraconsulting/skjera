@@ -8,7 +8,7 @@ import {
   pageOf,
   readImageSize,
   sniffImageType,
-} from "../../src/events/Images.ts";
+} from "../../src/events/images/index.ts";
 
 // The smallest valid PNG: one transparent pixel.
 const png = Uint8Array.from(

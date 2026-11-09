@@ -8,7 +8,7 @@ import { Identity } from "@skjera/oauth/api";
 import { ConfigProvider, Effect, Exit, FileSystem, Layer } from "effect";
 import { HttpRouter, HttpStaticServer } from "effect/http";
 import { SqlClient } from "effect/sql";
-import { Documents } from "../../src/events/Documents.ts";
+import { Documents } from "../../src/events/documents/index.ts";
 import { type DocumentId, SiteSettings } from "../../src/Model.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
 import { Notifications } from "../../src/notices/Notifications.ts";

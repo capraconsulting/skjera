@@ -1,17 +1,10 @@
 import { AwsClient } from "aws4fetch";
 import { Config, Context, Data, Effect, Layer, Option, Redacted } from "effect";
-import { InvalidImage } from "../api/errors.ts";
-import { imagesPath, maxImageBytes } from "../api/ImagesApi.ts";
-import { refused } from "../api/Problems.ts";
+import { InvalidImage } from "../../api/errors.ts";
+import { imagesPath, maxImageBytes } from "../../api/ImagesApi.ts";
+import { refused } from "../../api/Problems.ts";
 
 import { sniffImageType } from "./ImageMetadata.ts";
-
-export {
-  type ImageSize,
-  imageSize,
-  readImageSize,
-  sniffImageType,
-} from "./ImageMetadata.ts";
 
 /** 128 random bits, URL safe. */
 const newId = () =>

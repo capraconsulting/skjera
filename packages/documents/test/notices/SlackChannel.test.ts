@@ -8,7 +8,7 @@ import { ConfigProvider, Cron, Effect, Layer, Logger, Schedule } from "effect";
 import { SingleRunner } from "effect/cluster";
 import { SqlClient } from "effect/sql";
 import type { EventContent } from "../../src/events/ContentTypes.ts";
-import { Documents } from "../../src/events/Documents.ts";
+import { Documents } from "../../src/events/documents/index.ts";
 import { type DocumentId, SiteSettings } from "../../src/Model.ts";
 import { Announcements } from "../../src/notices/Announcements.ts";
 import { formatAt } from "../../src/notices/emails/format.ts";

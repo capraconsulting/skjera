@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import type { SqlClient } from "effect/sql";
-import type { DocumentId, Heads } from "../Model.ts";
+import type { DocumentId, Heads } from "../../Model.ts";
 
 export interface PublishedEventRow {
   readonly published_heads: Heads;

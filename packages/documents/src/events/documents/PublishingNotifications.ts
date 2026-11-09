@@ -1,5 +1,5 @@
-import { type CancellingNotice, PublishingNotice } from "../Model.ts";
-import { recipients, type Signup } from "../notices/Notifications.ts";
+import { type CancellingNotice, PublishingNotice } from "../../Model.ts";
+import { recipients, type Signup } from "../../notices/Notifications.ts";
 
 export interface WhenAndWhere {
   readonly starts_at: Date;

@@ -3,7 +3,7 @@ import { Identity } from "@skjera/oauth/api";
 import { Effect, Option, Ref } from "effect";
 import { SqlClient } from "effect/sql";
 import { Attendance } from "../../src/attendance/Attendance.ts";
-import { Documents } from "../../src/events/Documents.ts";
+import { Documents } from "../../src/events/documents/index.ts";
 import type { Answers, DocumentId } from "../../src/Model.ts";
 import { NoticesKept } from "../../src/notices/Notifications.ts";
 import {

@@ -1,8 +1,8 @@
 import * as A from "@automerge/automerge";
 import { Effect } from "effect";
 import type { SqlClient } from "effect/sql";
-import type { DocumentId } from "../Model.ts";
-import { HistoryEntry } from "../Model.ts";
+import type { DocumentId } from "../../Model.ts";
+import { HistoryEntry } from "../../Model.ts";
 import { discardedMessage, restoredMessage } from "./DiscardChanges.ts";
 
 // An event's history, built from the changes its draft keeps (who made each,

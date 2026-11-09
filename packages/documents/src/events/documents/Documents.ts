@@ -10,8 +10,8 @@ import {
   type PublishRejected,
   type RestoreRejected,
   TeamNotFound,
-} from "../api/errors.ts";
-import { refused } from "../api/Problems.ts";
+} from "../../api/errors.ts";
+import { refused } from "../../api/Problems.ts";
 import {
   type CancellingNotice,
   type DocumentId,
@@ -21,17 +21,14 @@ import {
   Publication,
   type PublishingNotice,
   type TeamId,
-} from "../Model.ts";
-import { Announcements } from "../notices/Announcements.ts";
-import { Notifications } from "../notices/Notifications.ts";
-import { SalesEvents } from "../notices/SalesEvents.ts";
-import { pgCode } from "../server/PostgresError.ts";
-import type { ContentTypeName } from "./ContentTypes.ts";
-import { type DocumentSnapshot, documentCreation } from "./DocumentCreation.ts";
-
-export type { DocumentSnapshot } from "./DocumentCreation.ts";
-
+} from "../../Model.ts";
+import { Announcements } from "../../notices/Announcements.ts";
+import { Notifications } from "../../notices/Notifications.ts";
+import { SalesEvents } from "../../notices/SalesEvents.ts";
+import { pgCode } from "../../server/PostgresError.ts";
+import type { ContentTypeName } from "../ContentTypes.ts";
 import { documentChanges } from "./DocumentChanges.ts";
+import { type DocumentSnapshot, documentCreation } from "./DocumentCreation.ts";
 import { documentDeletion } from "./DocumentDeletion.ts";
 import { documentHistory } from "./DocumentHistory.ts";
 import { documentPublishing } from "./DocumentPublishing.ts";

@@ -8,7 +8,7 @@ import { SingleRunner } from "effect/cluster";
 import { SqlClient } from "effect/sql";
 import { Attendance } from "../../../src/attendance/Attendance.ts";
 import type { EventContent } from "../../../src/events/ContentTypes.ts";
-import { Documents } from "../../../src/events/Documents.ts";
+import { Documents } from "../../../src/events/documents/index.ts";
 import * as Recurring from "../../../src/events/Recurring.ts";
 import { type DocumentId, SiteSettings } from "../../../src/Model.ts";
 import { formatAt } from "../../../src/notices/emails/format.ts";

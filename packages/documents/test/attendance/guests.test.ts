@@ -2,7 +2,7 @@ import { assert, layer } from "@effect/vitest";
 import { ConfigProvider, Effect, Layer, Option, Ref } from "effect";
 import { SqlClient } from "effect/sql";
 import { Attendance } from "../../src/attendance/Attendance.ts";
-import { Documents } from "../../src/events/Documents.ts";
+import { Documents } from "../../src/events/documents/index.ts";
 import { type DocumentId, SiteSettings } from "../../src/Model.ts";
 import { type Kept, NoticesKept } from "../../src/notices/Notifications.ts";
 import {

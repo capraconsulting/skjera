@@ -1,16 +1,20 @@
 import type { Identity } from "@skjera/oauth/api";
 import { Effect } from "effect";
 import { type SqlClient, SqlError, type Statement } from "effect/sql";
-import { DocumentNotFound } from "../api/errors.ts";
-import { removeSignups } from "../attendance/RemoveSignups.ts";
-import { CancellingNotice, type DocumentId, NoticeChanged } from "../Model.ts";
+import { DocumentNotFound } from "../../api/errors.ts";
+import { removeSignups } from "../../attendance/RemoveSignups.ts";
+import {
+  CancellingNotice,
+  type DocumentId,
+  NoticeChanged,
+} from "../../Model.ts";
 import {
   type Notice,
   recipients,
   type Signup,
   signupColumns,
   tell,
-} from "../notices/Notifications.ts";
+} from "../../notices/Notifications.ts";
 import { sameCancellingNotice } from "./PublishingNotifications.ts";
 
 class NoticeMismatch<N> {

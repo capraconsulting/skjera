@@ -7,9 +7,9 @@ import { decode, encode } from "cbor-x";
 import { Effect, Layer, Option, Queue, Result, Stream } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import { Socket } from "effect/socket";
-import type { DocumentId, PresenceUser } from "../Model.ts";
+import type { DocumentId, PresenceUser } from "../../Model.ts";
+import { Documents } from "../documents/index.ts";
 import { type DocumentEvent, DocumentEvents } from "./DocumentEvents.ts";
-import { Documents } from "./Documents.ts";
 import { type SyncRefused, serverStorageId } from "./DraftSyncProtocol.ts";
 import { Presence, Relayed, type RelayReconnected } from "./Presence.ts";
 
