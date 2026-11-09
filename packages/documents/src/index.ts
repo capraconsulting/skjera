@@ -47,6 +47,7 @@ export * as Cluster from "./server/Cluster.ts";
 export * as Database from "./server/Database.ts";
 export * from "./server/SignupLimits.ts";
 export * from "./server/Sync.ts";
+export * from "./server/siteSettings.ts";
 export * as CalendarFeed from "./site/CalendarFeed.ts";
 export * as Embed from "./site/Embed.ts";
 export * as Manifest from "./site/Manifest.ts";

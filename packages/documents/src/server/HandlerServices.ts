@@ -14,4 +14,5 @@ export * as HubSpotSync from "../notices/HubSpotSync.ts";
 export * as Mail from "../notices/Mail.tsx";
 export * from "../notices/OrganizerEmails.ts";
 export * from "../server/Sync.ts";
+export * from "../server/siteSettings.ts";
 export * from "../Teams.ts";

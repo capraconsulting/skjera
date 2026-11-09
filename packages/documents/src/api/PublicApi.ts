@@ -1,5 +1,5 @@
 import { Authentication, Identity } from "@skjera/oauth/api";
-import { Effect, Schema } from "effect";
+import { Schema } from "effect";
 import { HttpApi, HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
 import {
   AdSource,
@@ -11,10 +11,7 @@ import {
   GuestSignup,
   Locale,
   Site,
-  SiteSettings,
 } from "../Model.ts";
-import * as HubSpotSync from "../notices/HubSpotSync.ts";
-import * as Mail from "../notices/Mail.tsx";
 import {
   DocumentNotFound,
   EventNotFound,
@@ -53,17 +50,6 @@ export const publicWriteLimits = {
   requestCancel: "guest",
   confirmCancel: "guest",
 } as const;
-
-export const siteSettings = Effect.gen(function* () {
-  const config = yield* SiteSettings;
-  const sendsEmail = yield* Mail.emailsSent;
-  const salesEvents = yield* HubSpotSync.configured;
-  return Site.make({
-    ...config,
-    sendsEmail,
-    ...(salesEvents ? { salesEvents } : {}),
-  });
-});
 
 // The site's API for signing up to published events. Public events are
 // there for anyone; with a session, members-only events too. The events
