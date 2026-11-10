@@ -71,12 +71,26 @@ def restore_keys():
     print("Restored sealing keys. Restart sealed-secrets-controller if it is already running.")
 
 
-def app(client_id, key):
-    run("gh", "variable", "set", "DEPLOY_APP_CLIENT_ID", "--repo", REPOSITORY,
-        "--body", client_id)
-    run("gh", "secret", "set", "DEPLOY_APP_PRIVATE_KEY", "--repo", REPOSITORY,
+def writer():
+    LOCAL.mkdir(mode=0o700, exist_ok=True)
+    key = LOCAL / "ci-deploy.key"
+    if not key.exists():
+        subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C",
+                        "skjera-preview-ci-write", "-f", str(key)], check=True)
+    key.chmod(0o600)
+    public = key.with_suffix(".key.pub").read_text().strip()
+    keys = json.loads(run("gh", "api", "repos/capraconsulting/skjera-deploy/keys"))
+    matches = [item for item in keys if item["key"].split()[:2] == public.split()[:2]]
+    if matches:
+        if matches[0]["read_only"]:
+            raise ValueError("CI key exists without write access; correct its repository enrollment")
+    else:
+        run("gh", "api", "--method", "POST", "repos/capraconsulting/skjera-deploy/keys",
+            "--input", "-", data=json.dumps({"title": "skjera preview CI (write)",
+                                             "key": public, "read_only": False}).encode())
+    run("gh", "secret", "set", "DEPLOY_REPO_SSH_KEY", "--repo", REPOSITORY,
         data=key.read_bytes())
-    print("Configured the deployment App identifier and private key in GitHub.")
+    print("Configured the dedicated deployment-repository write key in GitHub Actions.")
 
 
 def login():
@@ -105,9 +119,7 @@ if __name__ == "__main__":
     commands.add_parser("login")
     commands.add_parser("backup-keys")
     commands.add_parser("restore-keys")
-    application = commands.add_parser("app")
-    application.add_argument("client_id")
-    application.add_argument("private_key", type=Path)
+    commands.add_parser("writer")
     args = parser.parse_args()
     if args.command == "repository":
         repository()
@@ -118,4 +130,4 @@ if __name__ == "__main__":
     elif args.command == "restore-keys":
         restore_keys()
     else:
-        app(args.client_id, args.private_key)
+        writer()

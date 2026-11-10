@@ -4,7 +4,6 @@ Default is a local dry run. --push is only for the dedicated GitHub workflow.
 """
 
 import argparse
-import base64
 import json
 import os
 from pathlib import Path
@@ -106,15 +105,12 @@ def reconcile(directory, event, push=False):
         git(directory, "-c", "user.name=skjera-preview[bot]", "-c",
             "user.email=skjera-preview[bot]@users.noreply.github.com",
             "commit", "-m", "Reconcile Skjera PR previews")
-        authorization = base64.b64encode(("x-access-token:" + os.environ["DEPLOY_TOKEN"]).encode()).decode()
-        environment = {**os.environ, "GIT_CONFIG_COUNT": "1",
-                       "GIT_CONFIG_KEY_0": "http.https://github.com/.extraheader",
-                       "GIT_CONFIG_VALUE_0": "AUTHORIZATION: basic " + authorization}
-        result = subprocess.run(["git", "-C", str(directory), "push", "origin", "HEAD:main"], env=environment)
+        # Checkout configures this repository's dedicated SSH deploy key.
+        result = subprocess.run(["git", "-C", str(directory), "push", "origin", "HEAD:main"])
         if result.returncode == 0:
             return deployed
         if attempt < 2:
-            git(directory, "fetch", "origin", "main", env=environment)
+            git(directory, "fetch", "origin", "main")
             git(directory, "reset", "--hard", "origin/main")
     raise RuntimeError("Deployment repository changed repeatedly; retry reconciliation")
 
