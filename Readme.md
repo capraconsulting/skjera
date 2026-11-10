@@ -51,6 +51,10 @@ pnpm test        # unit and integration tests, against the local Postgres and Ma
 pnpm test:e2e    # Playwright, against a test server of its own (the first free port of 8806–8802, a new database each run)
 ```
 
+`pnpm test` and `pnpm check` start Postgres, RustFS and Mailpit once through a shared Turbo task and wait for them to
+be ready before running the test packages in parallel. Docker must be running. Before running a package's Vitest
+command directly, start the same services with `pnpm --filter @skjera/test services`.
+
 The browser tests are in `packages/app/e2e/specs`, and work the pages through page objects in `packages/app/e2e/pom`, one class per page or part of one: a test calls `new EventEditor(page).publish()`, not Playwright's locators. A page object missing what a test needs gets it added there. Setting a test up (browsers signed in or not, unique names, cleaning up after) is in `packages/app/e2e/fixtures`.
 
 The browser tests' test server runs with `SIGNUP_LIMITS=off`, since they sign up far more often than the limits on signing up allow; `on` (the default) is everywhere else, and another value stops the server at start.

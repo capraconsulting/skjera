@@ -1,5 +1,3 @@
-import { execFileSync } from "node:child_process";
-
 export type Env = Readonly<Record<string, string | undefined>>;
 
 export const e2ePorts = [8806, 8805, 8804, 8803, 8802] as const;
@@ -51,10 +49,3 @@ export const dexIssuerUrl = (env: Env): string =>
 
 export const dexDiscoveryUrl = (port = dexPort): string =>
   `http://localhost:${port}/dex/.well-known/openid-configuration`;
-
-export const startComposeServices = (services: ReadonlyArray<string>): void => {
-  execFileSync("docker", ["compose", "up", "--detach", "--wait", ...services], {
-    cwd: new URL("../../..", import.meta.url),
-    stdio: "inherit",
-  });
-};

@@ -9,7 +9,8 @@
   },
   "scripts": {
     "typecheck": "tsc",
-    "test": "vitest run"
+    "test": "vitest run",
+    "services": "node src/services.ts"
   },
   "dependencies": {
     "@effect/sql-pg": "catalog:",
