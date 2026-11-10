@@ -6,3 +6,5 @@ After CI passes, the preview workflow publishes the app through Argo CD with its
 PostgreSQL database and S3 bucket. The workflow reports the preview URL when ready.
 
 Close this PR when finished to remove the preview and its resources automatically.
+
+A healthy preview now adds a **View deployment** link directly to this PR.
