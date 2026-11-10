@@ -19,11 +19,11 @@ test("a top-level text field keeps focus when its edit starts saving", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, dexUsers.alice);
+  const network = await connection(alice);
   const team = await new TeamsColumn(alice).create(uniqueTeamName("Focus"));
   const id = await new EventsColumn(alice).newEvent();
   const editor = new EventEditor(alice);
   await editor.expectSaved();
-  const network = await connection(alice);
   await network.offline();
 
   await editor.summary.focus();
