@@ -4,6 +4,7 @@ import { getLocale } from "@skjera/i18n/runtime";
 import { appPaths } from "@skjera/paths";
 import { useEffect, useState } from "react";
 import { Button } from "../../../components/controls/Button.tsx";
+import { useConfirm } from "../../../components/controls/ConfirmDialog.tsx";
 import { Dialog, dialogStyles } from "../../../components/controls/Dialog.tsx";
 import { eventHistory } from "../../../sync/tables.ts";
 import { timeAgo } from "../../../time.ts";
@@ -41,6 +42,7 @@ export function History(props: {
     null,
   );
   const [error, setError] = useState<string | null>(null);
+  const { confirm, confirmation } = useConfirm();
 
   // `version` is read again when the draft changes: it is not used inside.
   // biome-ignore lint/correctness/useExhaustiveDependencies: a changed draft is a reason to read again
@@ -66,64 +68,71 @@ export function History(props: {
     if (!open) setEntries(null);
   }, [open]);
 
-  const restore = (heads: ReadonlyArray<string>) => {
-    if (!window.confirm(m.studio_confirm_restore())) return;
+  const restore = async (heads: ReadonlyArray<string>) => {
+    const yes = await confirm({
+      question: m.studio_confirm_restore(),
+      action: m.studio_restore_version(),
+    });
+    if (!yes) return;
     props.onRestore(heads);
     onClose();
   };
 
   return (
-    <Dialog open={open} title={m.studio_history()} onClose={onClose}>
-      {error === null ? null : (
-        <p role="alert" className={dialogStyles.error}>
-          {error}
-        </p>
-      )}
-      {entries === null ? (
-        error === null && (
-          <p className={styles.status}>{m.studio_history_loading()}</p>
-        )
-      ) : (
-        <ul className={styles.list}>
-          {entries.map((entry) => {
-            const key = `${entry.kind}:${entry.at.getTime()}:${entry.heads.join(",")}`;
-            return (
-              <li key={key} className={styles.entry}>
-                <span className={styles.kind}>{kinds[entry.kind]()}</span>
-                <span
-                  className={styles.meta}
-                  title={entry.at.toLocaleString(getLocale())}
-                >
-                  {m.studio_history_by({ name: whoMade(entry) })} ·{" "}
-                  {timeAgo(entry.at)}
-                </span>
-                <div className={styles.actions}>
-                  <Button
-                    as="a"
-                    className={styles.view}
-                    href={appPaths.preview(id, entry.heads.join(","))}
-                    target="_blank"
-                    rel="noopener noreferrer"
+    <>
+      <Dialog open={open} title={m.studio_history()} onClose={onClose}>
+        {error === null ? null : (
+          <p role="alert" className={dialogStyles.error}>
+            {error}
+          </p>
+        )}
+        {entries === null ? (
+          error === null && (
+            <p className={styles.status}>{m.studio_history_loading()}</p>
+          )
+        ) : (
+          <ul className={styles.list}>
+            {entries.map((entry) => {
+              const key = `${entry.kind}:${entry.at.getTime()}:${entry.heads.join(",")}`;
+              return (
+                <li key={key} className={styles.entry}>
+                  <span className={styles.kind}>{kinds[entry.kind]()}</span>
+                  <span
+                    className={styles.meta}
+                    title={entry.at.toLocaleString(getLocale())}
                   >
-                    {m.studio_history_view()}
-                  </Button>
-                  {!isDraft(entry.heads, version) && (
+                    {m.studio_history_by({ name: whoMade(entry) })} ·{" "}
+                    {timeAgo(entry.at)}
+                  </span>
+                  <div className={styles.actions}>
                     <Button
-                      onClick={() => restore(entry.heads)}
-                      disabled={props.restoring}
+                      as="a"
+                      className={styles.view}
+                      href={appPaths.preview(id, entry.heads.join(","))}
+                      target="_blank"
+                      rel="noopener noreferrer"
                     >
-                      {m.studio_restore_version()}
+                      {m.studio_history_view()}
                     </Button>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      <div className={dialogStyles.actions}>
-        <Button onClick={onClose}>{m.common_close()}</Button>
-      </div>
-    </Dialog>
+                    {!isDraft(entry.heads, version) && (
+                      <Button
+                        onClick={() => void restore(entry.heads)}
+                        disabled={props.restoring}
+                      >
+                        {m.studio_restore_version()}
+                      </Button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <div className={dialogStyles.actions}>
+          <Button onClick={onClose}>{m.common_close()}</Button>
+        </div>
+      </Dialog>
+      {confirmation}
+    </>
   );
 }

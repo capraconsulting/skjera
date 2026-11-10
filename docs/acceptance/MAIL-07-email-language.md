@@ -24,7 +24,7 @@ WHEN Skjera emails someone again about an event they are signed up for, the emai
 **Test**
 
 - **Given** the Bokmål guest from AC-1, who then picks English in the header
-- **When** you change **Start time** in the studio, click **Publish** and answer OK
+- **When** you change **Start time** in the studio, click **Publish** and confirm with **Publish**
 - **Then** the guest gets «Nytt tidspunkt: AC-1 to AC-4: Languages», in Bokmål
 
 **Automated:** `packages/documents/test/notices/signups.test.tsx`

@@ -11,7 +11,7 @@ WHEN a published event is published again with another start or end time, Skjera
 **Test**
 
 - **Given** «Moved», with bob and the guest signed up
-- **When** you change **Start time** in the studio, click **Publish**, and answer OK to «Publish the new time? The 2 people signed up are emailed about it.»
+- **When** you change **Start time** in the studio, click **Publish**, and confirm with **Publish** in the dialog that asks «Publish the new time? The 2 people signed up are emailed about it.»
 - **Then** bob and the guest each get «New time: AC-1 to AC-5: Moved» in Mailpit
 
 **Automated:** `packages/app/e2e/specs/attendance/emails.spec.ts`, `packages/documents/test/events/notices.test.ts`, `packages/documents/test/notices/changes.test.tsx`

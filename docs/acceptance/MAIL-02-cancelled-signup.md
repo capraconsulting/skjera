@@ -47,7 +47,7 @@ WHEN an organiser takes someone off an event that has not ended, Skjera SHALL se
 **Test**
 
 - **Given** «AC-4: Taken off», and a guest signed up in a private window
-- **When** you click **Remove** on the guest's row in the studio, and say OK
+- **When** you click **Remove** on the guest's row in the studio, and confirm with **Remove**
 - **Then** the guest gets «Signup cancelled: AC-4: Taken off» in Mailpit, with the same cancellation and link as in AC-1 to AC-3, and saying «The organizers of AC-4: Taken off on … took you off the event.» in place of «You cancelled your signup for …»
 
 **Automated:** `packages/documents/test/attendance/signups.test.ts`, `packages/documents/test/notices/signups.test.tsx`, `packages/documents/test/notices/texts.test.tsx`

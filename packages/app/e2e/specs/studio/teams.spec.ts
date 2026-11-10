@@ -1,4 +1,4 @@
-import type { Dialog } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { m } from "@skjera/i18n/messages";
 import { dexUsers } from "@skjera/test";
 import { signedIn, uniqueTeamName } from "../../fixtures/support.ts";
@@ -67,18 +67,11 @@ test("a failed cancellation answer shows no delete question and keeps the event 
 
   const answer = new RegExp(`/api/documents/${id}/cancellation-notice$`);
   await alice.route(answer, (route) => route.fulfill({ status: 500 }));
-  let asked = false;
-  const onDialog = async (dialog: Dialog) => {
-    asked = true;
-    await dialog.dismiss();
-  };
-  alice.on("dialog", onDialog);
   await alice
     .getByRole("button", { name: m.common_delete(), exact: true })
     .click();
   await editor.expectRefused("Deleting the event failed");
-  expect(asked).toBe(false);
-  alice.off("dialog", onDialog);
+  await expect(alice.getByRole("alertdialog")).toHaveCount(0);
   await editor.expectAt(team, id);
   await editor.title.expectText("Still here");
 
@@ -87,7 +80,7 @@ test("a failed cancellation answer shows no delete question and keeps the event 
   await teams.delete(team);
 });
 
-test("events are created in a team and a refused team deletion shows the server reason (STU-03 AC-3)", async ({
+test("events are created in a team, and Delete team is disabled for a team with events (STU-01 AC-5, STU-03 AC-3)", async ({
   browser,
 }) => {
   const alice = await signedIn(browser, dexUsers.alice);
@@ -124,7 +117,7 @@ test("events are created in a team and a refused team deletion shows the server 
   await new EventsColumn(alice).expectEvent("Red news");
   // A team with events can't be deleted.
   await teams.openMenu(red);
-  await teams.expectDeleteRefused();
+  await teams.expectDeleteDisabled();
   await teams.closeMenu();
   await teams.goto(blue);
   await new EventsColumn(alice).expectEmpty();
@@ -133,6 +126,90 @@ test("events are created in a team and a refused team deletion shows the server 
   await bobsEditor.delete(event);
   await teams.delete(red);
   await teams.delete(blue);
+});
+
+test("deleting a team asks first, and Cancel or Escape keeps it (STU-01 AC-7)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, dexUsers.alice);
+  const teams = new TeamsColumn(alice);
+  const name = uniqueTeamName("Asked first");
+  const team = await teams.create(name);
+
+  const cancelled = await teams.askDelete(team);
+  expect(await cancelled.question()).toBe(
+    m.studio_confirm_delete_team({ name }),
+  );
+  await cancelled.dismiss();
+  await cancelled.expectClosed();
+  await teams.expectSelected(name);
+
+  const escaped = await teams.askDelete(team);
+  await escaped.dismissWithEscape();
+  await escaped.expectClosed();
+  await teams.expectSelected(name);
+
+  await teams.delete(team);
+});
+
+/**
+ * Alice has the delete question for a new team open when Bob adds an event
+ * to it, so the server refuses her answer.
+ */
+const refusedDeletion = async (alice: Page, bob: Page, name: string) => {
+  const teams = new TeamsColumn(alice);
+  const team = await teams.create(name);
+  const question = await teams.askDelete(team);
+  await new TeamsColumn(bob).goto(team);
+  const event = await new EventsColumn(bob).newEvent();
+  await question.accept(m.studio_delete_team());
+  await teams.expectRefusal();
+  return { teams, team, event };
+};
+
+const cleanUp = async (
+  bob: Page,
+  teams: TeamsColumn,
+  team: string,
+  event: string,
+) => {
+  const editor = new EventEditor(bob);
+  await editor.goto(team, event);
+  await editor.delete(event);
+  await teams.delete(team);
+};
+
+test("a refused team deletion shows the reason until the next action in the list (STU-01 AC-8)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, dexUsers.alice);
+  const bob = await signedIn(browser, dexUsers.bob);
+  const name = uniqueTeamName("Refused");
+  const { teams, team, event } = await refusedDeletion(alice, bob, name);
+
+  await teams.clickTeam(name);
+  await teams.expectNoRefusal();
+
+  await cleanUp(bob, teams, team, event);
+});
+
+test("a refused team deletion is cleared by New team (STU-01 AC-8)", async ({
+  browser,
+}) => {
+  const alice = await signedIn(browser, dexUsers.alice);
+  const bob = await signedIn(browser, dexUsers.bob);
+  const { teams, team, event } = await refusedDeletion(
+    alice,
+    bob,
+    uniqueTeamName("Refused again"),
+  );
+
+  const dialog = await teams.openNewTeamDialog();
+  await teams.expectNoRefusal();
+  await dialog.clickCancel();
+  await dialog.expectClosed();
+
+  await cleanUp(bob, teams, team, event);
 });
 
 test("the events column shows the team picked, switching without a reload", async ({

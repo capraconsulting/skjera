@@ -1,6 +1,6 @@
 # STU-20: Unpublishing an event
 
-An organiser takes a published event off the site with **Unpublish** in the studio and keeps it there as a draft, to edit and publish again. Those signed up to a coming event are told it is cancelled. The question before unpublishing is the browser's own, answered with **OK** or **Cancel**.
+An organiser takes a published event off the site with **Unpublish** in the studio and keeps it there as a draft, to edit and publish again. Those signed up to a coming event are told it is cancelled. The question before unpublishing is the studio's own dialog, answered with **Unpublish** or **Cancel**.
 
 **Events:** in team «STU-20: Unpublishing», public events open to guests:
 
@@ -43,12 +43,12 @@ WHERE a published event that has not ended has signed-up people who can be email
 
 - **Given** «AC-3 to AC-14: Signed up» open in the studio
 - **When** you click **Unpublish**
-- **Then** the browser asks «Unpublish this event? It's taken off the site and kept here as a draft, and the 2 people signed up are emailed that it's cancelled.»
+- **Then** the studio asks «Unpublish this event? It's taken off the site and kept here as a draft, and the 2 people signed up are emailed that it's cancelled.»
 - **When** you click **Cancel**
 - **Then** the event is still published, for AC-4
 - **Given** «AC-1 to AC-3: Nobody signed up» open in the studio
 - **When** you click **Unpublish**
-- **Then** the browser asks «Unpublish this event? It's taken off the site and kept here as a draft.»
+- **Then** the studio asks «Unpublish this event? It's taken off the site and kept here as a draft.»
 
 **Automated:** `packages/documents/test/events/notices.test.ts`, `packages/app/test/studio/attendeeNotices.test.ts`, `packages/app/e2e/specs/studio/unpublishing.spec.ts`
 
@@ -59,7 +59,7 @@ WHEN an event is unpublished, Skjera SHALL take it off the front page, the event
 **Test**
 
 - **Given** «AC-3 to AC-14: Signed up», open on the site in a private window
-- **When** alice clicks **Unpublish** and **OK**
+- **When** alice clicks **Unpublish** and confirms with **Unpublish**
 - **Then** the event is gone from the front page, `/embed`, `/api/public/events` and the calendar subscription `/api/subscribe`
 - **And** the event's page, reloaded, no longer shows it, for AC-14
 
@@ -109,8 +109,8 @@ IF an event has ended when it is unpublished, THEN Skjera SHALL email nobody, ke
 
 - **Given** «AC-8 to AC-11: Ended», after it has ended, open in the studio
 - **When** you click **Unpublish**
-- **Then** the browser asks «Unpublish this event? It's taken off the site and kept here as a draft.»
-- **When** you click **OK**
+- **Then** the studio asks «Unpublish this event? It's taken off the site and kept here as a draft.»
+- **When** you confirm with **Unpublish**
 - **Then** the guest gets no «Cancelled: …» in Mailpit
 
 **Automated:** `packages/documents/test/events/notices.test.ts`
@@ -122,7 +122,7 @@ WHEN an event is unpublished, the studio SHALL show other organisers with it ope
 **Test**
 
 - **Given** «AC-3 to AC-14: Signed up» open in the studio as alice and as bob
-- **When** alice clicks **Unpublish** and **OK**
+- **When** alice clicks **Unpublish** and confirms with **Unpublish**
 - **Then** bob's footer, without reloading, says «Not published» and the **Unpublish** button is gone
 
 **Automated:** `packages/app/e2e/specs/studio/unpublishing.spec.ts`

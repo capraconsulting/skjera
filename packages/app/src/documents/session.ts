@@ -55,8 +55,12 @@ export interface SessionState {
   readonly error: string | null;
   /** Someone deleted the document; the session has stopped. */
   readonly deleted: boolean;
-  readonly publish: (confirm: (notice: PublishingNotice) => boolean) => void;
-  readonly unpublish: (confirm: (notice: CancellingNotice) => boolean) => void;
+  readonly publish: (
+    confirm: (notice: PublishingNotice) => Promise<boolean>,
+  ) => void;
+  readonly unpublish: (
+    confirm: (notice: CancellingNotice) => Promise<boolean>,
+  ) => void;
   readonly discard: () => void;
   /** Makes the draft the version at `heads`, without publishing. */
   readonly restore: (heads: ReadonlyArray<string>) => void;
@@ -180,7 +184,7 @@ const session = (id: DocumentId, store: SessionStore) =>
       );
 
     // Publishes what this copy shows, once the server has all of it.
-    const publish = (confirm: (notice: PublishingNotice) => boolean) =>
+    const publish = (confirm: (notice: PublishingNotice) => Promise<boolean>) =>
       savedVersion(() => m.studio_publish_unsaved()).pipe(
         Effect.flatMap((heads) =>
           Effect.tryPromise({
@@ -228,7 +232,9 @@ const session = (id: DocumentId, store: SessionStore) =>
       );
 
     // Takes the published version off the site; the draft stays.
-    const unpublish = (confirm: (notice: CancellingNotice) => boolean) =>
+    const unpublish = (
+      confirm: (notice: CancellingNotice) => Promise<boolean>,
+    ) =>
       Effect.tryPromise({
         try: async () => {
           const first = await Effect.runPromise(cancellingNotice(id));

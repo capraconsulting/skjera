@@ -31,7 +31,7 @@ WHEN the organiser confirms the sending, Skjera SHALL send one email to each per
 - **Given** the form open on «Signed up»
 - **When** you write «Nytt rom» as the subject and «Vi er i rom 3.» as the message, click **Send**, and answer Cancel to «Send the email to 2 signed up?»
 - **Then** the form is still open and Mailpit at http://localhost:8025 has no «Nytt rom»
-- **When** you click **Send** again and answer OK
+- **When** you click **Send** again and confirm with **Send** in the dialog
 - **Then** the form closes, the studio says «The email is being sent to 2 signed up», and bob and the guest each get one email «Nytt rom» in Mailpit
 - **When** you open bob's email
 - **Then** it has «Vi er i rom 3.», followed by «AC-1 to AC-5: Signed up» and a button «See the event» to the event's page, and it is from the site's address with your name and email as reply-to

@@ -14,7 +14,7 @@ WHEN a published event that has not ended is deleted, Skjera SHALL email everyon
 **Test**
 
 - **Given** «Cancelled», with bob and the guest signed up
-- **When** you click **Delete** in the studio, and answer OK to «Delete this event? It's taken off the site, and the 2 people signed up are emailed that it's cancelled.»
+- **When** you click **Delete** in the studio, and confirm with **Delete** in the dialog that asks «Delete this event? It's taken off the site, and the 2 people signed up are emailed that it's cancelled.»
 - **Then** bob and the guest each get «Cancelled: AC-1 to AC-3: Cancelled» in Mailpit, saying «AC-1 to AC-3: Cancelled, …, which you signed up for, is cancelled.»
 
 **Automated:** `packages/app/e2e/specs/attendance/emails.spec.ts`, `packages/documents/test/events/notices.test.ts`, `packages/documents/test/notices/changes.test.tsx`

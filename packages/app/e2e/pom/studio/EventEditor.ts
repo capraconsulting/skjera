@@ -5,6 +5,7 @@ import { Mailbox } from "../Mailbox.ts";
 import { EventPage } from "../site/EventPage.ts";
 import { TextField } from "../TextField.ts";
 import { Attendees } from "./Attendees.ts";
+import { Confirmation } from "./Confirmation.ts";
 import { EventsColumn } from "./EventsColumn.ts";
 import { BodyImages } from "./event-editor/BodyImages.ts";
 import { BodyToolbar } from "./event-editor/BodyToolbar.ts";
@@ -183,23 +184,28 @@ export class EventEditor {
    * dismissing it. Returns the question.
    */
   async clickPublishAnswering(answer: "accept" | "dismiss"): Promise<string> {
-    return this.clickAnswering(answer, () => this.clickPublish()).question;
+    return this.clickAnswering(answer, m.studio_publish(), () =>
+      this.clickPublish(),
+    ).question;
   }
 
+  /** Clicks, then answers the question the studio asks: the button named `action`, or Cancel. */
   private clickAnswering(
     answer: "accept" | "dismiss",
+    action: string,
     click: () => Promise<unknown>,
     waitForDone: () => Promise<unknown> = () => Promise.resolve(),
   ): { readonly question: Promise<string>; readonly done: Promise<unknown> } {
-    const question = new Promise<string>((resolve) => {
-      this.page.once("dialog", (dialog) => {
-        resolve(dialog.message());
-        return answer === "accept" ? dialog.accept() : dialog.dismiss();
-      });
-    });
+    const confirmation = new Confirmation(this.page);
     const done = waitForDone();
-    const clicked = click();
-    return { question: clicked.then(() => question), done };
+    const question = click().then(async () => {
+      const asked = await confirmation.question();
+      await (answer === "accept"
+        ? confirmation.accept(action)
+        : confirmation.dismiss());
+      return asked;
+    });
+    return { question, done };
   }
 
   async expectPublishEnabled(): Promise<void> {
@@ -287,6 +293,7 @@ export class EventEditor {
   } {
     return this.clickAnswering(
       answer,
+      m.common_delete(),
       () =>
         this.page
           .getByRole("button", { name: m.common_delete(), exact: true })
@@ -311,6 +318,7 @@ export class EventEditor {
   } {
     return this.clickAnswering(
       answer,
+      m.studio_unpublish(),
       () =>
         this.page
           .getByRole("button", { name: m.studio_unpublish(), exact: true })
@@ -339,6 +347,7 @@ export class EventEditor {
   } {
     return this.clickAnswering(
       answer,
+      m.studio_discard_changes(),
       () =>
         this.page
           .getByRole("button", {
@@ -377,6 +386,7 @@ export class EventEditor {
   } {
     return this.clickAnswering(
       answer,
+      m.studio_restore_version(),
       () =>
         this.historyEntries(kind)
           .first()

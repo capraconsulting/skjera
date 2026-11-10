@@ -2,6 +2,7 @@ import { expect, type Locator, type Page } from "@playwright/test";
 import { teamPath } from "@skjera/documents/api";
 import { m } from "@skjera/i18n/messages";
 import { pixel } from "../images.ts";
+import { Confirmation } from "./Confirmation.ts";
 
 /** The studio's teams column, with each team's menu and dialogs. */
 export class TeamsColumn {
@@ -16,6 +17,8 @@ export class TeamsColumn {
   /** A team's link, which is marked while the team is selected. */
   private readonly link = (name: string) =>
     this.region().getByRole("link", { name });
+  private readonly refusal = () =>
+    this.page.getByRole("alert").getByText(m.studio_only_empty_teams());
   private readonly linkTo = (id: string) =>
     this.page.locator(`a[href="/studio/teams/${id}"]`);
 
@@ -91,19 +94,32 @@ export class TeamsColumn {
     await this.page.keyboard.press("Escape");
   }
 
-  async expectDeleteRefused(): Promise<void> {
-    const done = this.page.waitForResponse(
-      (response) =>
-        response.request().method() === "DELETE" &&
-        teamPath.itemPattern.test(new URL(response.url()).pathname),
-    );
+  /** With a team's menu open: Delete team can't be chosen, and says why. */
+  async expectDeleteDisabled(): Promise<void> {
+    await expect(
+      this.page.getByRole("button", { name: m.studio_delete_team() }),
+    ).toBeDisabled();
+    await expect(
+      this.page.getByText(m.studio_only_empty_teams()),
+    ).toBeVisible();
+  }
+
+  /** Chooses Delete team in a team's menu, and returns the question it asks. */
+  async askDelete(id: string): Promise<Confirmation> {
+    await this.openMenu(id);
     await this.page
       .getByRole("button", { name: m.studio_delete_team() })
       .click();
-    await done;
-    await expect(
-      this.page.getByRole("alert").getByText(m.studio_only_empty_teams()),
-    ).toBeVisible();
+    return new Confirmation(this.page);
+  }
+
+  /** The server's refusal to delete a team is shown above the list. */
+  async expectRefusal(): Promise<void> {
+    await expect(this.refusal()).toBeVisible();
+  }
+
+  async expectNoRefusal(): Promise<void> {
+    await expect(this.refusal()).toHaveCount(0);
   }
 
   /** Opens the rename dialog from the team's menu. */
@@ -180,7 +196,7 @@ export class TeamsColumn {
   /** Deletes a team that has no events left, and checks it's gone. */
   async delete(id: string): Promise<void> {
     await this.goto(id);
-    await this.openMenu(id);
+    const question = await this.askDelete(id);
     // The studio shows the delete before the server has done it, and
     // leaving the page would cut the request off.
     const done = this.page.waitForResponse(
@@ -188,9 +204,7 @@ export class TeamsColumn {
         response.request().method() === "DELETE" &&
         new URL(response.url()).pathname === teamPath.item(id),
     );
-    await this.page
-      .getByRole("button", { name: m.studio_delete_team() })
-      .click();
+    await question.accept(m.studio_delete_team());
     await this.expectAt();
     await expect(this.linkTo(id)).toHaveCount(0);
     await done;

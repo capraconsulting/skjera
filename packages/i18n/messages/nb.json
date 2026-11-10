@@ -160,6 +160,7 @@
   "studio_rename_team_menu": "Gi nytt navn …",
   "studio_delete_team": "Slett team",
   "studio_only_empty_teams": "Bare team uten arrangementer kan slettes.",
+  "studio_confirm_delete_team": "Slett teamet «{name}»?",
   "studio_rename_team": "Gi teamet nytt navn",
   "studio_team_name": "Navn på teamet",
   "studio_create_team": "Opprett team",

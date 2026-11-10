@@ -4,6 +4,7 @@ import { eq, useLiveQuery } from "@tanstack/react-db";
 import { useEffect, useState } from "react";
 import { Badge } from "../../../components/controls/Badge.tsx";
 import { Button } from "../../../components/controls/Button.tsx";
+import { useConfirm } from "../../../components/controls/ConfirmDialog.tsx";
 import { Input } from "../../../components/controls/Input.tsx";
 import {
   attendees as attendeesTable,
@@ -47,9 +48,15 @@ export function Attendees(props: { readonly id: DocumentId }) {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [latest, setLatest] = useState<SentEmail | null>(null);
+  const { confirm, confirmation } = useConfirm();
 
-  const remove = (attendee: string, name: string) => {
-    if (!window.confirm(m.studio_take_off({ name }))) return;
+  const remove = async (attendee: string, name: string) => {
+    const yes = await confirm({
+      question: m.studio_take_off({ name }),
+      action: m.common_remove(),
+      danger: true,
+    });
+    if (!yes) return;
     setError(null);
     const removal: Removal = { asOrganizer: true };
     attendeesTable.collection
@@ -144,7 +151,7 @@ export function Attendees(props: { readonly id: DocumentId }) {
                         variant="ghost"
                         className={styles.remove}
                         aria-label={m.studio_remove_name({ name: who.name })}
-                        onClick={() => remove(id, who.name)}
+                        onClick={() => void remove(id, who.name)}
                       >
                         {m.common_remove()}
                       </Button>
@@ -167,6 +174,7 @@ export function Attendees(props: { readonly id: DocumentId }) {
       </section>
       <SentEmails id={id} latest={latest} />
       <DietaryPreferences id={id} asks={event?.askDietary === true} />
+      {confirmation}
     </>
   );
 }

@@ -8,6 +8,8 @@ import styles from "./Dialog.module.css";
 export function Dialog(props: {
   readonly open: boolean;
   readonly title: string;
+  /** `alertdialog` for a question that needs an answer. */
+  readonly role?: "alertdialog";
   /** Called when the dialog closes itself, e.g. on Escape. */
   readonly onClose: () => void;
   readonly children: ReactNode;
@@ -26,6 +28,7 @@ export function Dialog(props: {
     <dialog
       ref={ref}
       className={styles.dialog}
+      role={props.role}
       aria-labelledby={titleId}
       onClose={props.onClose}
     >

@@ -160,6 +160,7 @@
   "studio_rename_team_menu": "Rename team…",
   "studio_delete_team": "Delete team",
   "studio_only_empty_teams": "Only teams without events can be deleted.",
+  "studio_confirm_delete_team": "Delete the team «{name}»?",
   "studio_rename_team": "Rename team",
   "studio_team_name": "Team name",
   "studio_create_team": "Create team",

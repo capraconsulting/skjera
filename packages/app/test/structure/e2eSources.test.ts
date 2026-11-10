@@ -152,17 +152,19 @@ describe("browser-test source contracts", () => {
   });
 
   it("shares past-event creation and confirmation coordination (AC-4)", () => {
-    const editor = readFileSync(
-      join(e2eRoot, "pom/studio/EventEditor.ts"),
-      "utf8",
-    );
     expect(
       readFileSync(
         join(e2eRoot, "pom/studio/event-editor/EventLifecycle.ts"),
         "utf8",
       ),
     ).toContain("readonly past?: boolean");
-    expect([...editor.matchAll(/page\.once\("dialog"/g)]).toHaveLength(1);
+    expect(
+      sourceFiles(join(e2eRoot, "pom"))
+        .filter((file) =>
+          readFileSync(file, "utf8").includes('getByRole("alertdialog")'),
+        )
+        .map((file) => relative(e2eRoot, file)),
+    ).toEqual(["pom/studio/Confirmation.ts"]);
     expect(
       readFileSync(join(e2eRoot, "specs/site/embed.spec.ts"), "utf8"),
     ).not.toContain("pickPastStart()");

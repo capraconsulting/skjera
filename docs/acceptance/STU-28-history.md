@@ -1,6 +1,6 @@
 # STU-28: History
 
-An organiser can see an event's history in the studio with **History**: who changed it and when, an earlier version as it was, and **Restore this version** to make the draft that version again. The question before restoring is the browser's own, answered with **OK** or **Cancel**.
+An organiser can see an event's history in the studio with **History**: who changed it and when, an earlier version as it was, and **Restore this version** to make the draft that version again. The question before restoring is the studio's own dialog, answered with **Restore this version** or **Cancel**.
 
 **Events:** in team «STU-28: History», public events open to guests:
 
@@ -45,7 +45,7 @@ WHEN the organiser chooses **Restore this version** and confirms, the studio SHA
 **Test**
 
 - **Given** the history of «AC-1 to AC-8: Edited by two» open
-- **When** you click **Restore this version** on alice's publishing and **OK**
+- **When** you click **Restore this version** on alice's publishing and confirm with **Restore this version**
 - **Then** without reloading, the editor shows the summary «Published by alice.», and every other field is as it was: the text with its image, the cover with its crop and focal point, the tags, the times and the questions
 - **And** the site still shows what was published before
 - **And** the newest entry in the history has no **Restore this version**, because it is the draft as it is
@@ -107,7 +107,7 @@ WHEN the organiser chooses **Restore this version**, the studio SHALL ask them t
 
 - **Given** the history of «AC-1 to AC-8: Edited by two» open
 - **When** you click **Restore this version**
-- **Then** the browser asks «Restore this version? The draft becomes as it was then. Nothing is published until you publish.»
+- **Then** the studio asks «Restore this version? The draft becomes as it was then. Nothing is published until you publish.»
 - **When** you click **Cancel**
 - **Then** the draft is unchanged, also after you reload the page
 

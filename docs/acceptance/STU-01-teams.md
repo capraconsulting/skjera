@@ -77,3 +77,33 @@ WHEN someone else creates, renames or deletes a team, the studio SHALL show it i
 - **Then** alice's **Teams** column follows each change without reloading
 
 **Automated:** `packages/app/e2e/specs/studio/teams.spec.ts`
+
+## AC-7: Deleting a team asks first
+
+WHEN an organiser chooses **Delete team** for a team without events, the studio SHALL ask «Delete the team «STU-01: Asked first»?» in a dialog of its own, and SHALL keep the team when the organiser chooses **Cancel** or presses Escape.
+
+**Test**
+
+- **Given** the empty team «STU-01: Asked first», open in the studio
+- **When** you open its **⋯** menu and click **Delete team**
+- **Then** a dialog in the middle of the page asks «Delete the team «STU-01: Asked first»?» with **Cancel** and **Delete team**
+- **When** you click **Cancel**, and then do the same again and press Escape
+- **Then** the team is still listed and still open
+- **When** you do the same once more and click **Delete team** in the dialog
+- **Then** the team is gone from the list
+
+**Automated:** `packages/app/e2e/specs/studio/teams.spec.ts`
+
+## AC-8: A refused team deletion is shown, and cleared at the next action
+
+IF the server refuses to delete a team because it has got an event meanwhile, THEN the studio SHALL show the refusal above the team list, and SHALL clear it at the organiser's next action in the list.
+
+**Test**
+
+- **Given** alice with the delete question open for the empty team «STU-01: Asked first», and bob adding an event to that team in his browser
+- **When** alice clicks **Delete team** in the dialog
+- **Then** the team is back in the list, and «Only teams without events can be deleted.» is shown above the list
+- **When** alice opens a team in the list, or opens **New team** from **Team list options**, or chooses **Rename team…**, **Team logo…** or **Delete team** in a team's menu
+- **Then** the message is gone
+
+**Automated:** `packages/app/e2e/specs/studio/teams.spec.ts`

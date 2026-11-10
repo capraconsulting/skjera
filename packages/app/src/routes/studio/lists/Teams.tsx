@@ -5,10 +5,15 @@ import { count, eq, lower, useLiveQuery } from "@tanstack/react-db";
 import { type FormEvent, useState } from "react";
 import { NavLink, Outlet, useNavigate, useParams } from "react-router";
 import { Button } from "../../../components/controls/Button.tsx";
+import {
+  type Question,
+  useConfirm,
+} from "../../../components/controls/ConfirmDialog.tsx";
 import { Dialog, dialogStyles } from "../../../components/controls/Dialog.tsx";
 import {
   Dropdown,
   DropdownItem,
+  DropdownNote,
 } from "../../../components/controls/Dropdown.tsx";
 import { Input } from "../../../components/controls/Input.tsx";
 import { Pane, PanePlaceholder } from "../../../components/Pane.tsx";
@@ -87,6 +92,7 @@ export function Teams() {
   const { widths, resize } = useColumnWidths();
   const [dialog, setDialog] = useState<DialogState>(null);
   const [failure, setFailure] = useState<string | null>(null);
+  const { confirm, confirmation } = useConfirm();
   // Kept while the organiser moves between teams and events: this column
   // stays mounted.
   const [search, setSearch] = useState("");
@@ -124,6 +130,7 @@ export function Teams() {
               <DropdownItem
                 onClick={() => {
                   close();
+                  setFailure(null);
                   setDialog({ kind: "create" });
                 }}
               >
@@ -139,7 +146,10 @@ export function Teams() {
             aria-label={m.studio_search_all()}
             placeholder={m.studio_search_all()}
             value={search}
-            onChange={(event) => setSearch(event.currentTarget.value)}
+            onChange={(event) => {
+              setFailure(null);
+              setSearch(event.currentTarget.value);
+            }}
           />
         </div>
         {failure === null ? null : (
@@ -159,12 +169,14 @@ export function Teams() {
                 team={team}
                 onRename={() => setDialog({ kind: "rename", team })}
                 onLogos={() => setDialog({ kind: "logos", team })}
+                confirm={confirm}
                 onFailure={setFailure}
               />
             ))}
           </ul>
         )}
       </Pane>
+      {confirmation}
       <TeamDialog state={dialog} onClose={() => setDialog(null)} />
       <TeamLogosDialog
         teamId={dialog?.kind === "logos" ? dialog.team.id : null}
@@ -179,14 +191,23 @@ function TeamRow(props: {
   readonly team: Team;
   readonly onRename: () => void;
   readonly onLogos: () => void;
-  /** Deleting was refused, and the team is back. */
-  readonly onFailure: (message: string) => void;
+  readonly confirm: (asked: Question) => Promise<boolean>;
+  /** Deleting was refused, and the team is back; `null` clears the message. */
+  readonly onFailure: (message: string | null) => void;
 }) {
   const { team, onFailure } = props;
   const { teamId } = useParams();
   const navigate = useNavigate();
+  const hasEvents = team.documentCount > 0;
 
-  const deleteTeam = () => {
+  const deleteTeam = async () => {
+    onFailure(null);
+    const yes = await props.confirm({
+      question: m.studio_confirm_delete_team({ name: team.name }),
+      action: m.studio_delete_team(),
+      danger: true,
+    });
+    if (!yes) return;
     const deleted = teams.collection.delete(team.id);
     if (teamId === team.id) navigate(appPaths.studioTeams);
     deleted.isPersisted.promise.catch((error: Error) =>
@@ -198,6 +219,7 @@ function TeamRow(props: {
     <li className={styles.row}>
       <NavLink
         to={appPaths.studioTeam(team.id)}
+        onClick={() => onFailure(null)}
         className={({ isActive }) =>
           isActive ? `${styles.item} ${styles.active}` : styles.item
         }
@@ -211,6 +233,7 @@ function TeamRow(props: {
               <DropdownItem
                 onClick={() => {
                   close();
+                  onFailure(null);
                   props.onRename();
                 }}
               >
@@ -219,6 +242,7 @@ function TeamRow(props: {
               <DropdownItem
                 onClick={() => {
                   close();
+                  onFailure(null);
                   props.onLogos();
                 }}
               >
@@ -226,13 +250,17 @@ function TeamRow(props: {
               </DropdownItem>
               <DropdownItem
                 danger
+                disabled={hasEvents}
                 onClick={() => {
                   close();
-                  deleteTeam();
+                  void deleteTeam();
                 }}
               >
                 {m.studio_delete_team()}
               </DropdownItem>
+              {hasEvents ? (
+                <DropdownNote>{m.studio_only_empty_teams()}</DropdownNote>
+              ) : null}
             </>
           )}
         </Dropdown>

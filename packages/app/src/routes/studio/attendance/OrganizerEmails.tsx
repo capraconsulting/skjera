@@ -9,6 +9,7 @@ import {
 import { m } from "@skjera/i18n/messages";
 import { type FormEvent, useEffect, useId, useState } from "react";
 import { Button } from "../../../components/controls/Button.tsx";
+import { useConfirm } from "../../../components/controls/ConfirmDialog.tsx";
 import { Dialog, dialogStyles } from "../../../components/controls/Dialog.tsx";
 import { Input } from "../../../components/controls/Input.tsx";
 import type { AppError } from "../../../site/client.ts";
@@ -38,6 +39,7 @@ export function EmailAttendees(props: {
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  const { confirm, confirmation } = useConfirm();
   const messageId = useId();
   const subjectId = useId();
   const textId = useId();
@@ -48,7 +50,7 @@ export function EmailAttendees(props: {
     setError(null);
   };
 
-  const send = (event: FormEvent) => {
+  const send = async (event: FormEvent) => {
     event.preventDefault();
     setRefusal(null);
     setError(null);
@@ -64,7 +66,11 @@ export function EmailAttendees(props: {
       });
       return;
     }
-    if (!window.confirm(m.studio_email_confirm({ count: recipients }))) return;
+    const yes = await confirm({
+      question: m.studio_email_confirm({ count: recipients }),
+      action: m.studio_email_send(),
+    });
+    if (!yes) return;
     setBusy(true);
     emailAttendees(id, { subject, text }).then(
       (sent) => {
@@ -106,7 +112,11 @@ export function EmailAttendees(props: {
         </p>
       )}
       <Dialog open={open} title={m.studio_email_attendees()} onClose={close}>
-        <form className={styles.emailForm} onSubmit={send} noValidate>
+        <form
+          className={styles.emailForm}
+          onSubmit={(event) => void send(event)}
+          noValidate
+        >
           <p className={styles.hint}>
             {m.studio_email_goes_to({ count: recipients })}
           </p>
@@ -160,6 +170,7 @@ export function EmailAttendees(props: {
           </div>
         </form>
       </Dialog>
+      {confirmation}
     </>
   );
 }

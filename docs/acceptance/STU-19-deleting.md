@@ -1,6 +1,6 @@
 # STU-19: Deleting an event
 
-An organiser deletes an event with **Delete** in the studio. It leaves the studio and the site at once, and those signed up to a coming event are told it is cancelled. The question before deleting is the browser's own, answered with **OK** or **Cancel**.
+An organiser deletes an event with **Delete** in the studio. It leaves the studio and the site at once, and those signed up to a coming event are told it is cancelled. The question before deleting is the studio's own dialog, answered with **Delete** or **Cancel**.
 
 **Events:** in team «STU-19: Deleting an event», public events open to guests:
 
@@ -16,7 +16,7 @@ WHEN an organiser clicks **Delete**, the studio SHALL ask first, and SHALL keep 
 
 - **Given** «AC-1: Not published» open in the studio
 - **When** you click **Delete**
-- **Then** the browser asks «Delete this event? It is also taken off the site.»
+- **Then** the studio asks «Delete this event? It is also taken off the site.»
 - **When** you click **Cancel**
 - **Then** the event is still open and listed in the team
 
@@ -30,7 +30,7 @@ WHERE a published event that has not ended has signed-up people who can be email
 
 - **Given** «AC-2 to AC-5: Signed up» open in the studio
 - **When** you click **Delete**
-- **Then** the browser asks «Delete this event? It's taken off the site, and the 2 people signed up are emailed that it's cancelled.»
+- **Then** the studio asks «Delete this event? It's taken off the site, and the 2 people signed up are emailed that it's cancelled.»
 - **When** you click **Cancel**
 - **Then** the event is still there, for AC-3
 
@@ -43,7 +43,7 @@ WHEN an event is deleted, Skjera SHALL take it out of the studio and off the sit
 **Test**
 
 - **Given** «AC-2 to AC-5: Signed up», open on the site in a private window, and in the studio as bob
-- **When** alice clicks **Delete** and **OK**
+- **When** alice clicks **Delete** and confirms with **Delete**
 - **Then** it leaves the team's list, and the site's page, reloaded, says «This event doesn't exist, or isn't published.»
 
 **Automated:** `packages/app/e2e/specs/attendance/emails.spec.ts`, `packages/app/e2e/specs/site/site.spec.ts`, `packages/documents/test/events/drafts.test.ts`, `packages/documents/test/events/notices.test.ts`
@@ -80,8 +80,8 @@ IF an event has ended when it is deleted, THEN Skjera SHALL email nobody, and th
 
 - **Given** «AC-6: Ended», after it has ended, open in the studio
 - **When** you click **Delete**
-- **Then** the browser asks «Delete this event? It is also taken off the site.»
-- **When** you click **OK**
+- **Then** the studio asks «Delete this event? It is also taken off the site.»
+- **When** you confirm with **Delete**
 - **Then** the guest gets no «Cancelled: …» in Mailpit
 
 **Automated:** `packages/documents/test/events/notices.test.ts`

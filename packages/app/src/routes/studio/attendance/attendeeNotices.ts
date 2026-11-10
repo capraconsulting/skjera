@@ -28,13 +28,13 @@ type Changed<N> = { readonly _tag: "NoticeChanged"; readonly notice: N };
 export const confirmNotice = async <N>(
   first: N,
   question: (notice: N) => string | null,
-  ask: (question: string) => boolean,
+  ask: (question: string) => Promise<boolean>,
   act: (confirmed: N) => Promise<undefined | Changed<N>>,
 ): Promise<boolean> => {
   let notice = first;
   for (;;) {
     const text = question(notice);
-    if (text !== null && !ask(text)) return false;
+    if (text !== null && !(await ask(text))) return false;
     const result = await act(notice);
     if (result === undefined) return true;
     notice = result.notice;

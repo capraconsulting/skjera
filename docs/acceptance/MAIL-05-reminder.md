@@ -39,7 +39,7 @@ WHEN an event is moved to another day after its reminder was sent, Skjera SHALL 
 **Test**
 
 - **Given** «Reminded», with bob's reminder from AC-1
-- **When** you change **Start date** one day later in the studio, click **Publish**, answer OK, and wait until the 07:05 UTC run on the morning before the new day has passed
+- **When** you change **Start date** one day later in the studio, click **Publish**, confirm with **Publish**, and wait until the 07:05 UTC run on the morning before the new day has passed
 - **Then** bob has a second «Reminder: AC-1 to AC-3: Reminded», with the new time
 
 **Automated:** `packages/documents/test/notices/changes.test.tsx`

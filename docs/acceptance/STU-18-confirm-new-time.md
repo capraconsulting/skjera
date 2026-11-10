@@ -1,6 +1,6 @@
 # STU-18: Confirming a new time before publishing it
 
-Publishing a new time or place for an event people have signed up for emails them, so the studio asks first. The question is the browser's own, answered with **OK** or **Cancel**.
+Publishing a new time or place for an event people have signed up for emails them, so the studio asks first. The question is the studio's own dialog, answered with **Publish** or **Cancel**.
 
 **Events:** in team «STU-18: Confirming a new time before publishing it», public events open to guests, published with a time and a place:
 
@@ -18,7 +18,7 @@ WHEN an organiser publishes a new start or end for an event someone is signed up
 
 - **Given** «AC-1 to AC-3: One signed up» open in the studio
 - **When** you change the start time and click **Publish**
-- **Then** the browser asks «Publish the new time? The person signed up is emailed about it.»
+- **Then** the studio asks «Publish the new time? The person signed up is emailed about it.»
 
 **Automated:** `packages/app/e2e/specs/attendance/emails.spec.ts`
 
@@ -41,7 +41,7 @@ WHEN the organiser answers yes, Skjera SHALL publish the new time and email thos
 **Test**
 
 - **Given** the question from AC-1
-- **When** you click **OK**
+- **When** you confirm with **Publish**
 - **Then** the site shows the new time, and the guest gets «New time: AC-1 to AC-3: One signed up» with the new time, the old one, and an updated invitation
 
 **Automated:** `packages/app/e2e/specs/attendance/emails.spec.ts`, `packages/documents/test/notices/changes.test.tsx`, `packages/documents/test/events/notices.test.ts`
@@ -54,7 +54,7 @@ WHERE more than one signed-up person can be emailed, the question SHALL say how 
 
 - **Given** «AC-4: Two signed up» open in the studio
 - **When** you change the start time and click **Publish**
-- **Then** the browser asks «Publish the new time? The 2 people signed up are emailed about it.»
+- **Then** the studio asks «Publish the new time? The 2 people signed up are emailed about it.»
 
 **Automated:** `packages/documents/test/events/notices.test.ts`, `packages/app/test/studio/attendeeNotices.test.ts`, `packages/app/e2e/specs/attendance/emails.spec.ts`
 
@@ -66,7 +66,7 @@ WHEN an organiser publishes a new place, or a new time and place together, for a
 
 - **Given** «AC-5: A new place» open in the studio
 - **When** you change the place and click **Publish**
-- **Then** the browser asks «Publish the new place? The person signed up is emailed about it.»
+- **Then** the studio asks «Publish the new place? The person signed up is emailed about it.»
 - **When** you click **Cancel**, change the start time too, and click **Publish**
 - **Then** it asks «Publish the new time and place? The person signed up is emailed about it.»
 

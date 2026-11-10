@@ -12,6 +12,7 @@ import { eq, useLiveQuery } from "@tanstack/react-db";
 import { useState } from "react";
 import { Link } from "react-router";
 import { Button } from "../../../components/controls/Button.tsx";
+import { useConfirm } from "../../../components/controls/ConfirmDialog.tsx";
 import { useVersion } from "../../../documents/version.ts";
 import { events } from "../../../sync/tables.ts";
 import { timeAgo } from "../../../time.ts";
@@ -36,9 +37,11 @@ export function EditorFooter(props: {
   readonly discarding: boolean;
   readonly restoring: boolean;
   readonly copying: boolean;
-  readonly onPublish: (confirm: (notice: PublishingNotice) => boolean) => void;
+  readonly onPublish: (
+    confirm: (notice: PublishingNotice) => Promise<boolean>,
+  ) => void;
   readonly onUnpublish: (
-    confirm: (notice: CancellingNotice) => boolean,
+    confirm: (notice: CancellingNotice) => Promise<boolean>,
   ) => void;
   readonly onDiscard: () => void;
   readonly onRestore: (heads: ReadonlyArray<string>) => void;
@@ -61,17 +64,32 @@ export function EditorFooter(props: {
     version,
     saving: props.saving,
   });
+  const { confirm, confirmation } = useConfirm();
   const publish = () =>
-    props.onPublish((notice) => {
+    props.onPublish(async (notice) => {
       const question = publishQuestion(notice);
-      return question === null || window.confirm(question);
+      return (
+        question === null ||
+        (await confirm({ question, action: m.studio_publish() }))
+      );
     });
 
   const unpublish = () =>
-    props.onUnpublish((notice) => window.confirm(unpublishQuestion(notice)));
+    props.onUnpublish((notice) =>
+      confirm({
+        question: unpublishQuestion(notice),
+        action: m.studio_unpublish(),
+        danger: true,
+      }),
+    );
 
-  const discard = () => {
-    if (window.confirm(m.studio_confirm_discard())) props.onDiscard();
+  const discard = async () => {
+    const yes = await confirm({
+      question: m.studio_confirm_discard(),
+      action: m.studio_discard_changes(),
+      danger: true,
+    });
+    if (yes) props.onDiscard();
   };
 
   return (
@@ -127,7 +145,7 @@ export function EditorFooter(props: {
           </Button>
           {changed && (
             <Button
-              onClick={discard}
+              onClick={() => void discard()}
               disabled={
                 props.publishing || props.unpublishing || props.discarding
               }
@@ -167,6 +185,7 @@ export function EditorFooter(props: {
         onRestore={props.onRestore}
         onClose={() => setHistoryOpen(false)}
       />
+      {confirmation}
     </footer>
   );
 }

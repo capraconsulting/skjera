@@ -12,6 +12,7 @@ import { Effect } from "effect";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Avatars } from "../../components/Avatars.tsx";
+import { useConfirm } from "../../components/controls/ConfirmDialog.tsx";
 import { Field } from "../../components/controls/Field.tsx";
 import { Input } from "../../components/controls/Input.tsx";
 import { Pane, PanePlaceholder } from "../../components/Pane.tsx";
@@ -65,6 +66,7 @@ function EventSession({ id }: { readonly id: DocumentId }) {
   const owner = session.teamId;
   const here = useDraftPresence(session.presence);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const { confirm, confirmation } = useConfirm();
 
   // A link with the wrong team: go to where the event actually is.
   useEffect(() => {
@@ -93,7 +95,8 @@ function EventSession({ id }: { readonly id: DocumentId }) {
       const deleted = await confirmNotice(
         await Effect.runPromise(cancellingNotice(id)),
         deleteQuestion,
-        (question) => window.confirm(question),
+        (question) =>
+          confirm({ question, action: m.common_delete(), danger: true }),
         async (confirmed) => {
           const result = await deleteDocument(id, confirmed);
           return result === undefined
@@ -140,6 +143,7 @@ function EventSession({ id }: { readonly id: DocumentId }) {
         />
       }
     >
+      {confirmation}
       <div className={styles.content}>
         {session.error === null && deleteError === null ? null : (
           <p role="alert" className={styles.error}>

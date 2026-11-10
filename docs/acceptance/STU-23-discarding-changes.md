@@ -1,6 +1,6 @@
 # STU-23: Discarding changes
 
-An organiser who has edited a published event and changed their mind can go back to the published version with **Discard changes** in the studio, instead of putting every field back by hand. The question before discarding is the browser's own, answered with **OK** or **Cancel**.
+An organiser who has edited a published event and changed their mind can go back to the published version with **Discard changes** in the studio, instead of putting every field back by hand. The question before discarding is the studio's own dialog, answered with **Discard changes** or **Cancel**.
 
 **Events:** in team «STU-23: Discarding changes», public events open to guests:
 
@@ -42,7 +42,7 @@ WHEN an organiser clicks **Discard changes**, the studio SHALL ask first, and SH
 
 - **Given** «AC-3 to AC-7: Changed» open in the studio
 - **When** you click **Discard changes**
-- **Then** the browser asks «Discard the changes that aren't published? The event goes back to how it is published, and the changes are lost.»
+- **Then** the studio asks «Discard the changes that aren't published? The event goes back to how it is published, and the changes are lost.»
 - **When** you click **Cancel**
 - **Then** the changed title is still there, also after you reload the page
 
@@ -55,7 +55,7 @@ WHEN the organiser confirms, the studio SHALL make the event's draft equal to it
 **Test**
 
 - **Given** «AC-3 to AC-7: Changed» open in the studio
-- **When** you click **Discard changes** and **OK**
+- **When** you click **Discard changes** and confirm with **Discard changes**
 - **Then** the title, the summary, the tags and the times are as published
 - **And** the text is as published: the bold word, the link and the image with its placement, size and caption
 - **When** you type right after the link's last letter
@@ -72,7 +72,7 @@ WHEN changes are discarded, Skjera SHALL send no email to the event's attendees.
 **Test**
 
 - **Given** «AC-3 to AC-7: Changed», after you moved it to another day and another place, with Mailpit open
-- **When** you click **Discard changes** and **OK**
+- **When** you click **Discard changes** and confirm with **Discard changes**
 - **Then** Mailpit gets no email about the event, and its two signups are still on the attendee list
 
 **Automated:** `packages/documents/test/events/discarding.test.ts`
@@ -90,7 +90,7 @@ WHEN changes are discarded, the editor's footer SHALL say that the event is publ
 **Test**
 
 - **Given** «AC-3 to AC-7: Changed» open in the studio
-- **When** you click **Discard changes** and **OK**
+- **When** you click **Discard changes** and confirm with **Discard changes**
 - **Then** without reloading, the editor shows the published title, the footer says «Published just now», the Publish button reads **Published** and can't be clicked, and **Discard changes** is gone
 - **And** the team's list shows the event as «Published», not «Changed»
 

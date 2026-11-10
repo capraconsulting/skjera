@@ -61,7 +61,7 @@ WHEN an organiser removes an attendee and confirms, Skjera SHALL take them off t
 **Test**
 
 - **Given** a guest signed up in a private window
-- **When** you click **Remove** on the guest's row in the studio, and say OK to «Take Gina off this event?» (with the guest's name)
+- **When** you click **Remove** on the guest's row in the studio, and confirm with **Remove** in the dialog that asks «Take Gina off this event?» (with the guest's name)
 - **Then** the guest is gone from the list, and the guest's page, reloaded, shows the form again
 
 **Automated:** `packages/app/e2e/specs/attendance/questions.spec.ts`, `packages/app/e2e/specs/attendance/dietary.spec.ts`, `packages/documents/test/attendance/signups.test.ts`
@@ -85,7 +85,7 @@ WHEN an organiser takes someone off an event that has not ended, Skjera SHALL em
 **Test**
 
 - **Given** a guest signed up in a private window
-- **When** you click **Remove** on the guest's row in the studio, and say OK
+- **When** you click **Remove** on the guest's row in the studio, and confirm with **Remove**
 - **Then** the guest gets «Signup cancelled: …» in Mailpit, saying that the organisers took them off the event, and its attached cancellation (`.ics`) has `METHOD:CANCEL`
 
 **Automated:** `packages/documents/test/attendance/signups.test.ts`, `packages/documents/test/notices/signups.test.tsx`
@@ -97,7 +97,7 @@ IF an organiser takes someone off an event that has ended, THEN Skjera SHALL not
 **Test**
 
 - **Given** «AC-8: Ended», after it has ended, open in the studio
-- **When** you click **Remove** on the guest's row, and say OK
+- **When** you click **Remove** on the guest's row, and confirm with **Remove**
 - **Then** the guest is gone from the list, and has no «Signup cancelled: …» in Mailpit
 
 **Automated:** `packages/documents/test/attendance/signups.test.ts`

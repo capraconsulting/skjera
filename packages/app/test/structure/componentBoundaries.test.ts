@@ -52,6 +52,22 @@ describe("component boundaries", () => {
     ]);
   });
 
+  it("rejects window.confirm and globalThis.confirm but not a local confirm (AC-1)", () => {
+    const file = "packages/app/src/routes/studio/lists/Team.tsx";
+    expect(
+      findComponentBoundaryViolations(file, 'window.confirm("Sure?");'),
+    ).toEqual([`${file}:1: use useConfirm instead of window.confirm`]);
+    expect(
+      findComponentBoundaryViolations(file, 'globalThis.confirm("Sure?");'),
+    ).toEqual([`${file}:1: use useConfirm instead of window.confirm`]);
+    expect(
+      findComponentBoundaryViolations(
+        file,
+        'const yes = await confirm({ question: "Sure?" });',
+      ),
+    ).toEqual([]);
+  });
+
   it("allows owned and package CSS but identifies foreign local CSS (AC-3)", () => {
     expect(
       findComponentBoundaryViolations(

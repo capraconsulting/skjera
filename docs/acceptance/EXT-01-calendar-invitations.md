@@ -2,7 +2,7 @@
 
 The emails about a sign-up carry a calendar invitation, or a cancellation, that calendar apps add, update or remove. The place in it is in STU-11 AC-4, the summary in SITE-08 AC-3, the team as organiser in STU-02 AC-5, and the calendar to subscribe to in EXT-02.
 
-**Events:** «AC-1 to AC-7: Invited», public and open to guests. Sign up bob; then change **Start time** in the studio, click **Publish** and answer OK; then cancel bob's sign-up with **Cancel attendance**. That gives three emails in Mailpit: «You're signed up: …», «New time: …» and «Signup cancelled: …».
+**Events:** «AC-1 to AC-7: Invited», public and open to guests. Sign up bob; then change **Start time** in the studio, click **Publish** and confirm with **Publish**; then cancel bob's sign-up with **Cancel attendance**. That gives three emails in Mailpit: «You're signed up: …», «New time: …» and «Signup cancelled: …».
 
 ## AC-1: One id for the event
 

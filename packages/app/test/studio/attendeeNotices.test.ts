@@ -32,7 +32,7 @@ describe("attendee notices", () => {
   it("asks again before retrying an action whose answer changed (AC-1)", async () => {
     const first = { told: 1 } as CancellingNotice;
     const changed = { told: 2 } as CancellingNotice;
-    const ask = vi.fn(() => true);
+    const ask = vi.fn(() => Promise.resolve(true));
     const act = vi
       .fn()
       .mockResolvedValueOnce({ _tag: "NoticeChanged", notice: changed })
@@ -44,5 +44,21 @@ describe("attendee notices", () => {
     expect(ask).toHaveBeenNthCalledWith(2, "2");
     expect(act).toHaveBeenNthCalledWith(1, first);
     expect(act).toHaveBeenNthCalledWith(2, changed);
+  });
+
+  it("does nothing when the answer, given later, is no (AC-1)", async () => {
+    const first = { told: 1 } as CancellingNotice;
+    const ask = vi.fn(() => Promise.resolve(false));
+    const act = vi.fn().mockResolvedValue(undefined);
+
+    const result = await confirmNotice(
+      first,
+      ({ told }) => String(told),
+      ask,
+      act,
+    );
+
+    expect(result).toBe(false);
+    expect(act).not.toHaveBeenCalled();
   });
 });

@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const importPattern = /(?:from\s+|import\s+)["']([^"']+\.module\.css)["']/g;
 const rawSelectPattern = /<select(?:\s|>)/g;
+const windowConfirmPattern = /\b(?:window|globalThis)\.confirm\s*\(/g;
 
 const lineAt = (source, index) => source.slice(0, index).split("\n").length;
 
@@ -32,6 +33,12 @@ export function findComponentBoundaryViolations(filePath, source) {
         `${filePath}:${lineAt(source, match.index)}: use Select instead of a raw <select>`,
       );
     }
+  }
+
+  for (const match of source.matchAll(windowConfirmPattern)) {
+    violations.push(
+      `${filePath}:${lineAt(source, match.index)}: use useConfirm instead of window.confirm`,
+    );
   }
   return violations;
 }

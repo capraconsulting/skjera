@@ -1,6 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 import { m } from "@skjera/i18n/messages";
 import readExcelFile from "read-excel-file/node";
+import { Confirmation } from "./Confirmation.ts";
 
 /** The Excel file of the attendees, as downloaded and read. */
 export interface AttendeesExcel {
@@ -134,15 +135,14 @@ export class Attendees {
 
   /** Presses Send, answering the question that follows; returns what it asked. */
   async sendEmailAnswering(answer: "accept" | "dismiss"): Promise<string> {
-    const asked = new Promise<string>((resolve) =>
-      this.page.once("dialog", (dialog) => {
-        resolve(dialog.message());
-        return answer === "accept" ? dialog.accept() : dialog.dismiss();
-      }),
-    );
     await this.emailForm()
       .getByRole("button", { name: m.studio_email_send() })
       .click();
+    const confirmation = new Confirmation(this.page);
+    const asked = await confirmation.question();
+    await (answer === "accept"
+      ? confirmation.accept(m.studio_email_send())
+      : confirmation.dismiss());
     return asked;
   }
 
@@ -177,10 +177,10 @@ export class Attendees {
 
   /** Takes the attendee called `name` off, saying yes when asked. */
   async remove(name: string): Promise<void> {
-    this.page.once("dialog", (dialog) => dialog.accept());
     await this.region()
       .getByRole("button", { name: `Remove ${name}` })
       .click();
+    await new Confirmation(this.page).accept(m.common_remove());
   }
 
   /** What people can't eat: how many said, and what, without names. */
