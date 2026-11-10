@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: skjera-previews
+spec:
+  sourceRepos:
+    - git@github.com:capraconsulting/skjera-deploy.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: skjera-pr-*
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - { group: '', kind: Service }
+    - { group: '', kind: ServiceAccount }
+    - { group: apps, kind: Deployment }
+    - { group: gateway.networking.k8s.io, kind: HTTPRoute }
+    - { group: postgresql.cnpg.io, kind: Cluster }
+    - { group: postgresql.cnpg.io, kind: Database }
+    - { group: eks.aws.m.upbound.io, kind: PodIdentityAssociation }
+    - { group: s3.aws.m.upbound.io, kind: Bucket }
+    - { group: s3.aws.m.upbound.io, kind: BucketPublicAccessBlock }
+    - { group: s3.aws.m.upbound.io, kind: BucketServerSideEncryptionConfiguration }
+    - { group: bitnami.com, kind: SealedSecret }

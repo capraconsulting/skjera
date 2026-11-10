@@ -30,9 +30,14 @@ No kubeconfig is required by OpenTofu. Your public IP must be in common's
 `api_access_cidrs` to reach the Kubernetes API.
 
 Change `values.yaml` or the pinned chart version in `main.tf`, review a plan,
-then apply. OpenTofu owns the Argo CD installation; Argo CD can manage app
-resources later. No application, repository credentials or Git synchronization
-is configured by this project. Do not also have Argo CD manage its own Helm
+then apply. OpenTofu owns Argo CD and the Sealed Secrets controller (chart
+`2.22.0`, controller `0.41.2`). Setting `enable_preview_gitops=true` in the tracked
+`preview.auto.tfvars.json` also installs the restricted preview AppProject and
+Git-file ApplicationSet. Private repository credentials are enrolled outside
+OpenTofu to keep private keys out of state. Follow the
+[PR automation runbook](../../deploy/automation/Readme.md) before enabling it.
+Disabling/removing the ApplicationSet cascades deletion of its previews.
+Do not also have Argo CD manage its own Helm
 release without first arranging an ownership migration.
 
 ## Access

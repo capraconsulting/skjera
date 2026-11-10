@@ -17,13 +17,13 @@ WORKDIR /repo
 
 # Dependencies first, from the lockfile alone: cached until it changes.
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm fetch
+# Keep the store in this layer: GitHub's exported BuildKit cache does not
+# preserve cache mounts. The store stays out of the final runtime image.
+RUN pnpm fetch
 
 COPY . .
 # Only what the app and the server need, not the dev tooling at the root.
-RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm install --offline --frozen-lockfile \
+RUN pnpm install --offline --frozen-lockfile \
       --filter "@skjera/app..." --filter "@skjera/server..."
 RUN pnpm --filter @skjera/app build && pnpm --filter @skjera/server build
 

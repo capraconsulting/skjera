@@ -45,14 +45,23 @@ uses `pull_request`, never `pull_request_target`, for PR code. The workflow
 conditions are part of this boundary; repository administrators should preserve
 the normal restrictions on write tokens for fork/Dependabot runs.
 
-Tags contain `sha-<commit>-<run-id>-<attempt>`, allowing retries without
+Tags contain `pr-N-sha-<commit>-<run-id>-<attempt>` or
+`main-sha-<commit>-<run-id>-<attempt>`, allowing retries without
 replacing immutable ECR tags. The job summary records the deployment reference
 `440027025698.dkr.ecr.eu-north-1.amazonaws.com/skjera-dev@sha256:...`.
 For PRs, the checked revision is GitHub's tested merge commit, not the PR head
-SHA. Future deployment automation should use the recorded image digest.
-Publishing alone does not deploy an app or update a GitOps repository.
+SHA. The separate trusted [PR deployment workflow](../../deploy/automation/Readme.md)
+validates the published metadata and writes the immutable digest to private
+`skjera-deploy`. Its GitHub App credential is separate from AWS OIDC.
 
-No AWS secrets or GitHub repository variables need to be added. The role ARN,
+Common also owns `skjera-dev-github-ecr-cleanup`. Only the immutable **main**
+subject may assume it; PR builds cannot. It can describe/delete images in the
+app repository and has no publishing or Kubernetes access. The trusted cleanup
+workflow removes only exact PR-tagged images after confirming the PR is closed.
+IAM cannot restrict ECR image deletion by tag prefix, so preserve that selection
+logic and the default-branch checkout when editing automation.
+
+Image publishing needs no AWS secrets or GitHub repository variables. The role ARN,
 region and repository name in the workflow are public identifiers; review them
 if creating another environment. These local workflow changes take effect
 only once committed and pushed. An actual OIDC exchange can only be verified

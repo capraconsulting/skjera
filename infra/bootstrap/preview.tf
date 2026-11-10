@@ -32,7 +32,7 @@ resource "aws_iam_role_policy" "preview_app" {
       },
       {
         Effect   = "Allow"
-        Action   = ["s3:GetObject", "s3:PutObject"]
+        Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
         Resource = "arn:${data.aws_partition.current.partition}:s3:::${local.app_bucket_prefix}$${aws:PrincipalTag/kubernetes-service-account}-images/*"
       },
     ]

@@ -72,6 +72,7 @@ class PreviewRendering(unittest.TestCase):
         self.assertEqual(environment["DATABASE_URL"]["valueFrom"]["secretKeyRef"], {"name": "postgres-app", "key": "uri"})
         self.assertEqual(environment["SIGNING_SECRET"]["valueFrom"]["secretKeyRef"]["name"], "preview-app")
         self.assertEqual(environment["S3_CREATE_BUCKET"]["value"], "false")
+        self.assertEqual(environment["APP_IMAGE"]["value"], image)
         self.assertNotIn("S3_ACCESS_KEY_ID", environment)
         self.assertEqual(environment["OAUTH_ISSUER"]["value"], "https://pr-123.skjera.capraconsulting.no/dex")
         association = keyed[("PodIdentityAssociation", "app")]["spec"]["forProvider"]

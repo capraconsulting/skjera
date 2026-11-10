@@ -142,8 +142,8 @@ run "preview_workload_isolation" {
     condition = (
       jsondecode(aws_iam_role_policy.preview_app.policy).Statement[0].Resource == "arn:aws:s3:::skjera-dev-app-123456789012-$${aws:PrincipalTag/kubernetes-service-account}-images" &&
       jsondecode(aws_iam_role_policy.preview_app.policy).Statement[1].Resource == "arn:aws:s3:::skjera-dev-app-123456789012-$${aws:PrincipalTag/kubernetes-service-account}-images/*" &&
-      jsondecode(aws_iam_role_policy.preview_app.policy).Statement[1].Action == ["s3:GetObject", "s3:PutObject"]
+      jsondecode(aws_iam_role_policy.preview_app.policy).Statement[1].Action == ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
     )
-    error_message = "App access must be scoped by session tag to its own bucket and must not manage bucket/object deletion."
+    error_message = "App access must be scoped by session tag to its own bucket's objects and must not manage bucket creation or deletion."
   }
 }

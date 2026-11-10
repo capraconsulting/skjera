@@ -90,6 +90,7 @@ function(config)
         { name: name, value: settings[name] }
         for settings in [{
           NODE_ENV: 'production',
+          APP_IMAGE: config.image,
           PORT: '3000',
           HOST: '0.0.0.0',
           SITE_URL: config.siteUrl,

@@ -102,8 +102,8 @@ jobs:
           push: false
           load: true
           tags: skjera
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=skjera-app
+          cache-to: type=gha,scope=skjera-app,mode=max
       # A new runner has no volume: the database starts empty. Compose's
       # healthcheck asks over the socket, which answers while Postgres is
       # still setting up; the server connects over TCP.
@@ -126,6 +126,7 @@ jobs:
           --env OAUTH_TOKEN_ENDPOINT=http://localhost:5556/dex/token
           --env S3_ENDPOINT=http://localhost:9000
           --env S3_BUCKET=skjera-images
+          --env S3_CREATE_BUCKET=true
           --env S3_ACCESS_KEY_ID=skjera
           --env S3_SECRET_ACCESS_KEY=skjera-dev-secret
           --env SIGNING_SECRET=skjera-ci-signing-secret
@@ -157,9 +158,35 @@ jobs:
         if: failure() && steps.start.outcome == 'success'
         run: docker logs skjera
 
+  preview-infra:
+    name: Preview infrastructure and automation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+        with:
+          install_args: go-jsonnet kubeseal opentofu
+      - name: Bcrypt tool for secret encryption tests
+        run: |
+          if ! command -v htpasswd >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install --yes apache2-utils
+          fi
+      - run: mise run preview:test
+      - run: mise exec actionlint@1.7.12 -- actionlint
+      - run: mise exec helm@4.3.0 -- helm lint infra/argocd/charts/previews
+      - name: Check OpenTofu without cloud credentials
+        run: |
+          mise exec -- tofu fmt -check -recursive infra
+          mise exec -- tofu -chdir=infra/bootstrap init -backend=false -input=false -lockfile=readonly
+          mise exec -- tofu -chdir=infra/bootstrap test
+          mise exec -- tofu -chdir=infra/common init -backend=false -input=false -lockfile=readonly
+          mise exec -- tofu -chdir=infra/common test
+
   publish:
     name: Publish image to ECR
-    needs: [checks, e2e, image]
+    needs: [checks, e2e, image, preview-infra]
     # Fork and Dependabot PRs remain build-only. Never use pull_request_target
     # to run PR code with publishing credentials.
     if: >-
@@ -194,12 +221,37 @@ jobs:
           context: .
           push: true
           # Include the run/attempt so reruns work with immutable ECR tags.
-          tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:sha-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'main' }}-sha-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          cache-from: type=gha,scope=skjera-app
+          cache-to: type=gha,scope=skjera-app,mode=max
       - name: Record immutable image reference
         env:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
           IMAGE_DIGEST: ${{ steps.publish.outputs.digest }}
         run: |
           printf 'Published image: `%s/%s@%s`\n' "$REGISTRY" "$ECR_REPOSITORY" "$IMAGE_DIGEST" >> "$GITHUB_STEP_SUMMARY"
+      # The privileged deployment workflow runs trusted code from main. This
+      # artifact is data only, validated against the run and the current PR.
+      - name: Record PR image for deployment
+        if: github.event_name == 'pull_request'
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}@${{ steps.publish.outputs.digest }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          Path("preview-image.json").write_text(json.dumps({
+              "prNumber": os.environ["PR_NUMBER"], "image": os.environ["IMAGE"],
+              "headSha": os.environ["HEAD_SHA"], "runId": os.environ["GITHUB_RUN_ID"],
+              "runAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+          }))
+          PY
+      - name: Upload PR image metadata
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: preview-image
+          path: preview-image.json
+          retention-days: 7

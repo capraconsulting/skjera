@@ -1,0 +1,52 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: skjera-previews
+spec:
+  goTemplate: true
+  goTemplateOptions: [missingkey=error]
+  generators:
+    - git:
+        repoURL: git@github.com:capraconsulting/skjera-deploy.git
+        revision: main
+        requeueAfterSeconds: 60
+        files:
+          - path: previews/pr-*/config.json
+  syncPolicy:
+    preserveResourcesOnDeletion: false
+  template:
+    metadata:
+      name: 'skjera-pr-{{ "{{ .prNumber }}" }}'
+      finalizers: [resources-finalizer.argocd.argoproj.io]
+      annotations:
+        skjera.capraconsulting.no/head-sha: '{{ "{{ .headSha }}" }}'
+    spec:
+      project: skjera-previews
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: 'skjera-pr-{{ "{{ .prNumber }}" }}'
+      sources:
+        - repoURL: git@github.com:capraconsulting/skjera-deploy.git
+          targetRevision: main
+          path: templates/preview
+          directory:
+            include: main.jsonnet
+            jsonnet:
+              tlas:
+                - name: prNumber
+                  value: '{{ "{{ .prNumber }}" }}'
+                - name: image
+                  value: '{{ "{{ .image }}" }}'
+        - repoURL: git@github.com:capraconsulting/skjera-deploy.git
+          targetRevision: main
+          path: 'previews/pr-{{ "{{ .prNumber }}" }}'
+          directory:
+            include: sealed-secret.json
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        retry:
+          limit: 5
+          backoff: { duration: 10s, factor: 2, maxDuration: 3m }
+        syncOptions: [PruneLast=true]

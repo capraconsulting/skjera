@@ -70,8 +70,9 @@ Crossplane's EKS provider creates/deletes each `PodIdentityAssociation`.
 The shared app IAM role is managed by bootstrap. EKS session tags restrict it to
 the bucket matching service account `pr-N`; its trust policy also requires
 namespace `skjera-pr-N` in the correct cluster. There is no IAM role per PR to
-leak during cleanup. The app can read/write objects and list its own bucket,
-but cannot create/delete buckets, delete objects or access other previews.
+leak during cleanup. The app can read/write/delete objects and list its own
+bucket for the image manager, but cannot create/delete
+buckets or access other previews.
 Do not reuse either Crossplane provider's identity for application pods.
 
 The app uses the AWS credential chain and refreshes temporary Pod Identity
@@ -140,9 +141,9 @@ a verification screenshot. A lock prevents concurrent runs. The test password
 is scrubbed and registry credentials removed after cleanup; never commit this
 directory. Interrupted runs use the same journal to resume cleanup.
 
-## Cleanup and future PR automation
+## Cleanup and PR automation
 
-Closing a PR should eventually remove its Argo Application using cascading
+Closing a PR removes its desired state and Argo Application using cascading
 deletion. Crossplane empties/deletes the bucket, CNPG removes the database and
 PVC, EKS removes the EBS volume, and Crossplane deletes the Pod Identity
 association. The Namespace owns the generated secret and Dex state. Keep all
@@ -153,9 +154,10 @@ then removes temporary Argo credentials/project and its published ECR artifacts.
 Shared platform infrastructure and roles remain. Preview data is deliberately
 disposable; production requires separate retention, availability and backups.
 
-The remaining PR automation is image publishing plus desired-state updates,
-repository authentication, and an ApplicationSet. The current manual smoke test
-does not create a GitHub PR or implement that automation.
+The [automation runbook](../automation/Readme.md) covers the CI-to-GitOps flow,
+GitHub App/repository enrollment, Sealed Secrets, the ApplicationSet, readiness
+checks and close-event recovery. The manual smoke test remains independent of
+GitHub PR events; it does not prove that the automated pipeline is activated.
 
 References: [Argo Jsonnet](https://argo-cd.readthedocs.io/en/stable/user-guide/jsonnet/),
 [Argo OCI sources](https://argo-cd.readthedocs.io/en/stable/user-guide/oci/).

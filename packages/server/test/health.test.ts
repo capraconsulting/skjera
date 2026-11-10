@@ -1,7 +1,7 @@
 import { createServer, type Socket } from "node:net";
 import { PgClient } from "@effect/sql-pg";
 import { databaseServerUrl } from "@skjera/test/database";
-import { Layer, Redacted } from "effect";
+import { ConfigProvider, Layer, Redacted } from "effect";
 import { HttpRouter } from "effect/http";
 import { describe, expect, it } from "vitest";
 import { Health } from "../src/health.ts";
@@ -9,12 +9,15 @@ import { Health } from "../src/health.ts";
 const serverUrl = databaseServerUrl(process.env);
 
 /** Asks the health routes for `path`, with a database at `url` behind them. */
-const ask = async (url: string, path: string) => {
+const ask = async (url: string, path: string, image = "") => {
   // `ready` reads the client for each request, so it goes in the context the
   // handler runs requests with: provideMerge, not provide.
   const { handler, dispose } = HttpRouter.toWebHandler(
     Health.pipe(
       Layer.provideMerge(PgClient.layer({ url: Redacted.make(url) })),
+      Layer.provideMerge(
+        ConfigProvider.layer(ConfigProvider.fromUnknown({ APP_IMAGE: image })),
+      ),
     ),
     { disableLogger: true },
   );
@@ -24,6 +27,8 @@ const ask = async (url: string, path: string) => {
     return {
       status: response.status,
       body: await response.text(),
+      image: response.headers.get("X-Skjera-Image"),
+      cacheControl: response.headers.get("Cache-Control"),
       seconds: (Date.now() - started) / 1000,
     };
   } finally {
@@ -67,6 +72,15 @@ describe("health checks", () => {
     const answer = await ask(serverUrl, "/health/ready");
     expect(answer.status).toBe(200);
     expect(answer.body).toBe("ok");
+  });
+
+  it("identifies the running image without caching readiness across deployments", async () => {
+    const image = `example.invalid/app@sha256:${"a".repeat(64)}`;
+    const ready = await ask(serverUrl, "/health/ready", image);
+    expect(ready.status).toBe(200);
+    expect(ready.image).toBe(image);
+    expect(ready.cacheControl).toBe("no-store");
+    expect((await ask(serverUrl, "/health/ready")).image).toBeNull();
   });
 
   it("answers 503 unavailable on /health/ready when the database does not answer, and ok on /health (AC-3)", async () => {
