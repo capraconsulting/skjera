@@ -48,6 +48,7 @@ test("a visitor who came from an ad keeps it through logging in and signing up a
   const bob = await visitor(browser);
   const page = new EventPage(bob);
   await page.gotoLink(`/events/${event.id}?utm_source=linkedin&fbclid=F`);
+  await page.expectHeading(event.title);
   await new HomePage(bob).goto();
   await new Header(bob).clickLogIn();
   await new LoginPage(bob).signIn(dexUsers.bob);

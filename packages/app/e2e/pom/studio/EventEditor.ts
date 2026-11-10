@@ -173,6 +173,7 @@ export class EventEditor {
     await this.expectSaved();
     await this.clickPublish();
     await this.expectPublished();
+    await this.expectPublishedButtonDisabled();
   }
 
   async clickPublish(): Promise<void> {

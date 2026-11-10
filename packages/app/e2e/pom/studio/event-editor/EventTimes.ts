@@ -94,13 +94,21 @@ export class EventTimes {
   /** Sets a sign-up deadline at midnight on the 1st of last month. */
   async setPassedDeadline(): Promise<void> {
     // Exact: the food deadline's date and time have these words in theirs.
-    await this.page
-      .getByRole("button", { name: m.editor_deadline_date(), exact: true })
-      .click();
+    const date = this.page.getByRole("button", {
+      name: m.editor_deadline_date(),
+      exact: true,
+    });
+    await date.click();
     const now = new Date();
-    await this.pickCalendarDay(
-      new Date(now.getFullYear(), now.getMonth() - 1, 1),
-      "previous",
+    const day = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    await this.pickCalendarDay(day, "previous");
+    await expect(date).toHaveText(
+      day.toLocaleDateString("en-US", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }),
     );
     await this.page
       .getByLabel(m.editor_deadline_time(), { exact: true })
@@ -141,11 +149,11 @@ export class EventTimes {
     await target.click();
   }
 
-  /** Sets the food deadline to midnight on the 1st of this month, which has passed. */
+  /** Sets the food deadline to the same past day as setPassedDeadline. */
   async setPassedFoodDeadline(towards: "next" | "previous"): Promise<void> {
     const now = new Date();
     await this.pickFoodDeadline(
-      new Date(now.getFullYear(), now.getMonth(), 1),
+      new Date(now.getFullYear(), now.getMonth() - 1, 1),
       towards,
     );
     await this.page.getByLabel(m.editor_food_deadline_time()).fill("00:00");
