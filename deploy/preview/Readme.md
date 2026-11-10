@@ -8,7 +8,7 @@ Without an image, rendering produces the existing five bucket/database resources
 
 ```bash
 mise run preview:render 123
-python3 deploy/preview/tests/render.py
+pnpm --filter @skjera/deploy test:infra
 ```
 
 Pass a digest-pinned image to include the Namespace, workload identity, app
@@ -129,11 +129,11 @@ The default command attempts cleanup even after a failed check. For diagnosis,
 individual stages preserve the preview until explicit cleanup:
 
 ```bash
-python3 deploy/preview/smoke.py publish
-python3 deploy/preview/smoke.py deploy
-python3 deploy/preview/smoke.py wait
-python3 deploy/preview/smoke.py verify
-python3 deploy/preview/smoke.py cleanup
+node deploy/preview/smoke.ts publish
+node deploy/preview/smoke.ts deploy
+node deploy/preview/smoke.ts wait
+node deploy/preview/smoke.ts verify
+node deploy/preview/smoke.ts cleanup
 ```
 
 The ignored `.local/` directory contains a mode-0600 journal, private logs and

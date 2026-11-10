@@ -144,18 +144,18 @@ run = [
 
 [tasks."preview:smoke"]
 description = "Publish, verify and clean up one disposable Argo CD preview (AWS login required)"
-run = "python3 deploy/preview/smoke.py"
+run = "node deploy/preview/smoke.ts"
 
 [tasks."preview:prepare"]
 description = "Prepare the local skjera-deploy checkout without pushing"
 usage = 'arg "[directory]" default="../skjera-deploy" help="Local deployment repository checkout"'
-run = 'python3 deploy/automation/prepare.py "$usage_directory"'
+run = 'node deploy/automation/prepare.ts "$usage_directory"'
 
 [tasks."preview:certificate"]
 description = "Export the cluster public sealing certificate to skjera-deploy (AWS login required)"
 usage = 'arg "[directory]" default="../skjera-deploy" help="Local deployment repository checkout"'
-run = 'python3 deploy/automation/prepare.py "$usage_directory" --certificate'
+run = 'node deploy/automation/prepare.ts "$usage_directory" --certificate'
 
 [tasks."preview:test"]
 description = "Check preview manifests and PR reconciliation without AWS access"
-run = ["python3 deploy/preview/tests/render.py", "python3 -m unittest discover -s deploy/automation/tests"]
+run = ["pnpm --filter @skjera/deploy test:infra", "pnpm --filter @skjera/deploy test"]
