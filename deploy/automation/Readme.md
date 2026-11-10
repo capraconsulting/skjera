@@ -113,7 +113,9 @@ and the privileged workflow skips its jobs. Existing image publishing remains.
    Open/update a same-repository PR. CI will publish, commit the image digest
    into `skjera-deploy`, and wait for
    `https://pr-N.skjera.capraconsulting.no/health/ready` to return the exact image
-   digest in `X-Skjera-Image`. The workflow summary links to the preview. Readiness
+   digest in `X-Skjera-Image`. GitHub deployment status adds a **View deployment** link to the PR once ready;
+   the workflow summary also links to it. Closed or superseded deployments are
+   marked inactive on close events and reconciliation runs. Readiness
    confirms the new image and database; browser login/upload need the acceptance
    verification below. Automation does not seed test data or send real emails.
 

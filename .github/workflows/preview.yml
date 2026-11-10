@@ -21,6 +21,7 @@ jobs:
     permissions:
       contents: read
       actions: write
+      deployments: write
       pull-requests: read
     # Do not hold this lock while waiting for an environment to become ready.
     concurrency:
@@ -69,6 +70,10 @@ jobs:
             sudo apt-get install --yes apache2-utils
           fi
           mise exec -- python3 deploy/automation/reconcile.py .preview-deploy --push
+      - name: Retire closed or superseded preview links
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 deploy/automation/deployments.py
       # PR-close OIDC subjects cannot assume the main-only deletion role.
       # Dispatch a trusted main run after committing resource removal instead.
       - name: Queue main-branch cleanup after a PR closes
@@ -78,6 +83,10 @@ jobs:
         run: gh workflow run preview.yml --repo capraconsulting/skjera --ref main
 
   ready:
+    permissions:
+      contents: read
+      pull-requests: read
+      deployments: write
     needs: reconcile
     if: needs.reconcile.outputs.pr != ''
     concurrency:

@@ -11,9 +11,11 @@ REPOSITORY = "capraconsulting/skjera"
 IMAGE = re.compile(r"440027025698\.dkr\.ecr\.eu-north-1\.amazonaws\.com/skjera-dev@sha256:[a-f0-9]{64}")
 
 
-def api(path):
-    request = urllib.request.Request("https://api.github.com/" + path, headers={
+def api(path, data=None):
+    request = urllib.request.Request("https://api.github.com/" + path,
+        data=json.dumps(data).encode() if data is not None else None, headers={
         "Authorization": "Bearer " + os.environ["GH_TOKEN"],
+        "Content-Type": "application/json",
         "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28",
     })
     with urllib.request.urlopen(request, timeout=30) as response:

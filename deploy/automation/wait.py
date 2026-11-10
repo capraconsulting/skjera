@@ -6,9 +6,24 @@ import urllib.error
 import urllib.request
 
 from github import REPOSITORY, api, eligible
+from deployments import create, status
 
 
 def wait(pr, image, head, timeout=1500):
+    current = api(f"repos/{REPOSITORY}/pulls/{pr}")
+    if not eligible(current) or current["head"]["sha"] != head:
+        return
+    deployment = create(pr, head)
+    try:
+        ready = wait_ready(pr, image, head, timeout)
+    except Exception:
+        status(deployment, "failure", "Preview readiness failed; inspect the workflow and Argo CD")
+        raise
+    status(deployment, "success" if ready else "inactive",
+           "Preview is ready" if ready else "Preview closed or superseded")
+
+
+def wait_ready(pr, image, head, timeout=1500):
     deadline = time.monotonic() + timeout
     url = f"https://pr-{pr}.skjera.capraconsulting.no"
     while time.monotonic() < deadline:
@@ -23,7 +38,7 @@ def wait(pr, image, head, timeout=1500):
                     if os.environ.get("GITHUB_STEP_SUMMARY"):
                         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as output:
                             output.write(f"Preview ready: [{url}]({url})\n\nLogin: `preview@example.com` (password in PREVIEW_DEX_PASSWORD).\n")
-                    return
+                    return True
         except (urllib.error.URLError, TimeoutError):
             pass  # Argo CD and Auto Mode can take time to provision dependencies.
         time.sleep(10)
