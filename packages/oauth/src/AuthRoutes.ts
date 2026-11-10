@@ -6,7 +6,12 @@ import {
   HttpServerRequest,
   HttpServerResponse,
 } from "effect/http";
-import { Authentication, CurrentUser, Unauthorized } from "./Authentication.ts";
+import {
+  Authentication,
+  CurrentUser,
+  ForbiddenOrigin,
+  Unauthorized,
+} from "./Authentication.ts";
 import type { Identity } from "./Identity.ts";
 import { sanitizeReturnTo } from "./internal/returnTo.ts";
 import type { LoginFailure, LoginFailureKind } from "./LoginFailure.ts";
@@ -264,6 +269,16 @@ export const AuthenticationLive = Layer.effect(
         const identity = yield* authenticator.fromCookies(request.cookies);
         if (Option.isNone(identity)) {
           return yield* new Unauthorized({ message: "Not logged in" });
+        }
+        const origin = request.headers.origin;
+        if (
+          !["GET", "HEAD", "OPTIONS"].includes(request.method) &&
+          origin !== undefined &&
+          origin !== authenticator.origin
+        ) {
+          return yield* new ForbiddenOrigin({
+            message: "Request origin is not allowed",
+          });
         }
         return yield* Effect.provideService(
           httpEffect,

@@ -9,6 +9,7 @@ import { TeamsColumn } from "./pom/studio/TeamsColumn.ts";
 const journal = process.argv[2];
 if (!journal) throw new Error("Pass the private preview journal path");
 const state = JSON.parse(readFileSync(journal, "utf8"));
+const email = state.email ?? "alice@example.com";
 const browser = await chromium.launch({ headless: true });
 let stage = "login";
 try {
@@ -17,7 +18,7 @@ try {
   expect((await anonymous.request.get("/api/me")).status()).toBe(401);
   const page = await context.newPage();
   await page.goto("/studio/teams");
-  await page.locator("#login").fill("alice@example.com");
+  await page.locator("#login").fill(email);
   await page.locator("#password").fill(state.password);
   await page.locator("#submit-login").click();
   await expect(page).toHaveURL(`${state.url}/studio/teams`, {
@@ -25,7 +26,7 @@ try {
   });
   const me = await context.request.get("/api/me");
   expect(me.status()).toBe(200);
-  expect((await me.json()).email).toBe("alice@example.com");
+  expect((await me.json()).email).toBe(email);
   const session = (await context.cookies()).find((cookie) => cookie.httpOnly);
   expect(session?.secure).toBe(true);
   console.log(
@@ -47,7 +48,7 @@ try {
     "base64",
   );
   const options = {
-    headers: { Origin: state.url, "Content-Type": "image/png" },
+    headers: { Origin: state.url, "Content-Type": "application/octet-stream" },
     data: png,
   };
   expect((await anonymous.request.post("/api/images", options)).status()).toBe(
