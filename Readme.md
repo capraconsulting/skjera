@@ -7,6 +7,13 @@
 - [Test servers](#test-servers)
 - [What's where](#whats-where)
 - [Deploying](#deploying)
+  - [Branding](#branding)
+  - [Website integration](#website-integration)
+  - [Calendar subscription](#calendar-subscription)
+  - [Slack](#slack)
+  - [HubSpot tracking](#hubspot-tracking)
+  - [HubSpot server API](#hubspot-server-api)
+  - [Kubernetes](#kubernetes)
 - [Languages](#languages)
 
 ---
@@ -95,31 +102,43 @@ Signing up and cancelling are limited per visitor (guests: 20 an hour from an ad
 
 The counts are kept in the server's memory: a restart clears them, and each replica counts its own.
 
-Branding, all optional:
+### Branding
+
+All settings are optional.
 
 - `SITE_FOOTER`: JSON for footer text, links and logos. Optional fields: `heading`, `groups` (each with optional `title` and a `logos` array), `links` and `text`. Logos use `label`, `src`, optional `darkSrc` and optional `href`; links use `label`, `href` and an optional `logo`. Text can be a string or translations keyed by `nb` (required), `nn` and `en`. In `text`, `{year}` becomes the current year and email and web addresses become links. The footer always links to privacy. Invalid values stop the server at start. See [mise.toml](mise.toml) for Capra's configuration.
 - `SITE_OPERATOR` (who answers for the personal data kept; the site's name if not set), `SITE_OPERATOR_ORG_NUMBER`, `SITE_OPERATOR_ADDRESS` (one line, e.g. `Torggata 2-4, 0180 Oslo`) and `SITE_CONTACT_EMAIL`, for the built-in privacy page at `/privacy`, which leaves out a line whose setting is not set; or `SITE_PRIVACY_URL` to link a policy elsewhere instead.
 - `SITE_DESCRIPTION` (the description search engines show under the site, e.g. `Skjer | Capra Liflig`; in the head of every page of the app, and of an event page without a summary), `SITE_TWITTER` (e.g. `@capraconsulting`, as `twitter:site` on event pages), `SITE_AUTHOR` and `SITE_PUBLISHER` (e.g. `Capra Consulting`, as the author and publisher of event pages). A setting that is not set leaves its tag out. [mise.toml](mise.toml) sets Capra's values; a deployment gets them only once they are set there too.
 - `SITE_ASSETS_DIR`: a directory served at `/site-assets/`, e.g. a ConfigMap mounted into the pod, so a footer logo can be `/site-assets/logo.webp`. In development, `dev/site-assets`.
 
-Also optional, for websites that show the next events (`/embed`) in an iframe, or read the coming events shown to everyone from the browser (`/api/public/events`: JSON in Skjer's format, served when `SITE_URL` is set; an event of the team "Capra Gruppen" is organised by "Alle", others by their team's name):
+### Website integration
+
+Optional, for websites that show the next events (`/embed`) in an iframe, or read the coming events shown to everyone from the browser (`/api/public/events`: JSON in Skjer's format, served when `SITE_URL` is set; an event of the team "Capra Gruppen" is organised by "Alle", others by their team's name):
 
 - `WEBSITE_ORIGINS`: the websites that may do so, each address they are served at, separated by spaces or commas, e.g. `https://www.capraconsulting.no, https://capraconsulting.no, https://www.liflig.no, https://liflig.no`. List the address with `www.` and the one without when a website answers at both. Without it, no website may. A value that is not such an address (no path, query or user; `http:` or `https:`) stops the server at start.
 
+### Calendar subscription
+
 `GET /api/subscribe` is a calendar of every coming event, those shown only to members too, that «Abonner», beside the account menu, adds to Google Calendar. It is open to anyone with the address, served when `SITE_URL` is set, named after the site (`SITE_NAME`), and says where to sign up in `SITE_LOCALE`.
 
-Also optional, Slack: `SLACK_BOT_TOKEN`, the bot token of an app made from [packages/slack/manifest.yaml](packages/slack/manifest.yaml), and `SLACK_CHANNEL`, the id of a channel the bot has been invited to (e.g. `C0123ABC`). With both, and `SITE_URL`, Skjera posts each event the first time it is published, with `@here`, and each recurring event when it has moved on to its next date, with `@here` and `:repeat:`, and at 07:00 UTC the events whose sign-up deadline runs out within a day, with `@channel`: every event, those shown only to members too, with times in Norwegian time. Slack fetches the cover from `SITE_URL`; when it cannot, the event is posted without it. Without them nothing is posted, with a warning at start.
+### Slack
 
-Also optional, HubSpot: `HUBSPOT_ACCOUNT_ID`, the account id as HubSpot shows it (digits). With it, every page of the site but `/embed` and the studio loads HubSpot's script for that account from `js-eu1.hs-scripts.com`, and the privacy page says so, with a button for HubSpot's cookie settings. What HubSpot does with the page (statistics, cookie banner, collected forms) is set up in the HubSpot account. Without it, or blank, nothing is loaded from HubSpot. A value that is not digits stops the server at start.
+Optional: `SLACK_BOT_TOKEN`, the bot token of an app made from [packages/slack/manifest.yaml](packages/slack/manifest.yaml), and `SLACK_CHANNEL`, the id of a channel the bot has been invited to (e.g. `C0123ABC`). With both, and `SITE_URL`, Skjera posts each event the first time it is published, with `@here`, and each recurring event when it has moved on to its next date, with `@here` and `:repeat:`, and at 07:00 UTC the events whose sign-up deadline runs out within a day, with `@channel`: every event, those shown only to members too, with times in Norwegian time. Slack fetches the cover from `SITE_URL`; when it cannot, the event is posted without it. Without them nothing is posted, with a warning at start.
 
-Also optional, HubSpot's server API:
+### HubSpot tracking
+
+Optional: `HUBSPOT_ACCOUNT_ID`, the account id as HubSpot shows it (digits). With it, every page of the site but `/embed` and the studio loads HubSpot's script for that account from `js-eu1.hs-scripts.com`, and the privacy page says so, with a button for HubSpot's cookie settings. What HubSpot does with the page (statistics, cookie banner, collected forms) is set up in the HubSpot account. Without it, or blank, nothing is loaded from HubSpot. A value that is not digits stops the server at start.
+
+### HubSpot server API
+
+Optional:
 
 - **Setup:** set `HUBSPOT_ACCESS_TOKEN` to a private app's token, with `crm.objects.marketing_events.read`, `crm.objects.marketing_events.write`, `crm.objects.contacts.read` and `crm.objects.contacts.write`. `SITE_URL` is also required. Without both settings, nothing is sent and the studio hides the sales-event setting.
 - **Sales events:** enable «Salgsarrangement (send til HubSpot)» on a public event open to guests. Publishing updates its Marketing Event in HubSpot, overwriting manual edits there. Unpublishing or deleting it before it ends cancels it. Sign-ups and cancellations update attendance and contacts by email, including name, company and job title. The guest form is excluded from HubSpot's collected forms to avoid duplicates.
 - **Contact properties:** marketing must first create `arr_utm_source`, `arr_utm_medium`, `arr_utm_campaign`, `arr_utm_content`, `arr_utm_term`, `arr_li_fat_id`, `arr_fbclid` and `arr_utm_arrangement` for ad sources and the event title. Also create `invitere_til_arrangementer` and `sende_nyhetsbrev`, allowing `Ja`, for the consent checkbox. An unchecked box preserves earlier consent. Missing properties cause updates to be rejected and logged; they are not sent again, but registration is preserved.
 - **Delivery:** messages are stored in the database and sent in order. Downtime, rate limiting and token rejection are retried; rejected data is logged and dropped. Messages are deleted with sign-ups 30 days after the event ends.
 
-In Kubernetes:
+### Kubernetes
 
 - Liveness: `GET /health`. Readiness: `GET /health/ready`, which checks the database.
 - One replica for now: background work (emails, reminders, Slack messages, moving recurring events) runs on an Effect cluster in single-runner mode. More need its runners set up to find each other.
