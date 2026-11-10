@@ -15,6 +15,12 @@ export class Unauthorized extends Schema.TaggedError<Unauthorized>()(
   { httpApiStatus: 401 },
 ) {}
 
+export class ForbiddenOrigin extends Schema.TaggedError<ForbiddenOrigin>()(
+  "ForbiddenOrigin",
+  { message: Schema.String },
+  { httpApiStatus: 403 },
+) {}
+
 /**
  * Requires a valid session cookie and provides the `CurrentUser` to the
  * endpoints it is applied to.
@@ -25,5 +31,5 @@ export class Authentication extends HttpApiMiddleware.Service<
     provides: CurrentUser;
   }
 >()("@skjera/oauth/Authentication", {
-  error: Unauthorized,
+  error: [Unauthorized, ForbiddenOrigin],
 }) {}

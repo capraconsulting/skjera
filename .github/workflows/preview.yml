@@ -18,6 +18,10 @@ permissions:
 
 jobs:
   reconcile:
+    permissions:
+      contents: read
+      actions: write
+      pull-requests: read
     # Do not hold this lock while waiting for an environment to become ready.
     concurrency:
       group: skjera-preview-desired-state
@@ -65,6 +69,13 @@ jobs:
             sudo apt-get install --yes apache2-utils
           fi
           mise exec -- python3 deploy/automation/reconcile.py .preview-deploy --push
+      # PR-close OIDC subjects cannot assume the main-only deletion role.
+      # Dispatch a trusted main run after committing resource removal instead.
+      - name: Queue main-branch cleanup after a PR closes
+        if: github.event_name == 'pull_request_target'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run preview.yml --repo capraconsulting/skjera --ref main
 
   ready:
     needs: reconcile
@@ -89,7 +100,7 @@ jobs:
 
   cleanup-images:
     needs: reconcile
-    if: needs.reconcile.result == 'success'
+    if: needs.reconcile.result == 'success' && github.event_name != 'pull_request_target'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
