@@ -312,7 +312,8 @@ export const description = (
 
 /**
  * `teams`, with each event given the text `description` makes. An event that
- * has a text of its own keeps it, and an empty event stays empty.
+ * has a text of its own keeps it, with the test steps after it, and an empty event
+ * stays empty.
  */
 export const withSteps = (
   teams: ReadonlyArray<TeamSpec>,
@@ -322,12 +323,15 @@ export const withSteps = (
   return teams.map((team) => ({
     ...team,
     events: team.events.map((spec) => {
-      if (spec.body !== undefined || spec.state === "empty") return spec;
+      if (spec.state === "empty") return spec;
       const id = featureOf(team, spec);
       const feature = id === undefined ? undefined : features.get(id);
       if (id === undefined || feature === undefined) return spec;
       const numbers = criteriaOf(feature, spec.title, titles.get(id) ?? []);
-      return { ...spec, body: description(feature, numbers) };
+      return {
+        ...spec,
+        body: [...(spec.body ?? []), ...description(feature, numbers)],
+      };
     }),
   }));
 };

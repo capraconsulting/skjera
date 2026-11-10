@@ -315,7 +315,7 @@ describe("withSteps", () => {
     expect(without).toEqual([]);
   });
 
-  it("keeps the text the catalogue gives an event, and leaves the empty event empty (AC-5)", () => {
+  it("keeps the text the catalogue gives an event, with the test steps after it, and leaves the empty event empty (AC-5)", () => {
     const own = given.flatMap((team) =>
       team.events
         .filter((each) => each.body !== undefined)
@@ -333,8 +333,20 @@ describe("withSteps", () => {
       const after = steps
         .find((each) => each.name === team)
         ?.events.find((each) => each.title === spec.title);
-      expect(after?.body).toEqual(spec.body);
+      const own = spec.body ?? [];
+      expect(after?.body?.slice(0, own.length)).toEqual(own);
+      expect(after?.body?.[own.length]?.text).toMatch(/^Test steps for /);
     }
+    expect(
+      eventNamed(steps, "ACC-02", "AC-1 to AC-2: Kept on the server").body?.map(
+        (block) => block.text,
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        "A line of text, written before logging out.",
+        "Test steps for ACC-02 AC-1 and AC-2.",
+      ]),
+    );
     const empty = steps
       .flatMap((team) => team.events)
       .filter((each) => each.state === "empty");

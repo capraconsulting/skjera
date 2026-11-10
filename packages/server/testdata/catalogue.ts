@@ -7,7 +7,7 @@
 // section leaves unnamed is titled after the criterion it is for. A title
 // starts with the criteria whose test uses the event, «AC-n: …» or
 // «AC-n to AC-m: …», and the event's text lists them with their test steps
-// from docs/acceptance, unless the event has a text of its own. Signups are
+// from docs/acceptance, after the event's own text if it has one. Signups are
 // made without emails: a criterion that reads the email sent when someone
 // signs up has bob, or the guest, cancel and sign up again first.
 import type { Temporal } from "temporal-polyfill";
