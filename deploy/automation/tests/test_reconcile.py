@@ -140,8 +140,7 @@ class DesiredState(unittest.TestCase):
         git("push", "origin", "main")
         metadata, run, pr = fixture()
         with patch("reconcile.candidates", return_value=[(metadata, run)]), \
-                patch("reconcile.api", return_value=pr), patch("reconcile.ensure_secret"), \
-                patch.dict("os.environ", {"DEPLOY_TOKEN": "test-token"}):
+                patch("reconcile.api", return_value=pr), patch("reconcile.ensure_secret"):
             reconcile(self.root, {}, push=True)
             first = git("rev-parse", "HEAD").stdout
             reconcile(self.root, {}, push=True)

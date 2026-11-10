@@ -26,11 +26,12 @@ build, and retries Git conflicts without force-pushing. A scheduled job repairs
 missed events and removes stale environments. Closed-PR image tags are removed
 separately using a default-branch-only AWS role; main images remain.
 
-Argo CD uses a read-only SSH deploy key. CI uses a GitHub App installation token
-limited to Contents: write for this repository. The App key itself is stored in
-GitHub Actions secrets in the application repository. Repository permissions
-still let that App write other paths: keep its credentials in trusted automation
-and review changes to templates/platform configuration.
+Argo CD uses a read-only SSH deploy key. CI uses a separate write deploy key
+restricted to this repository, with its private half in the application
+repository's `DEPLOY_REPO_SSH_KEY` Actions secret. Only trusted main-branch
+automation receives it. Checkout removes temporary credentials after each job.
+Deploy keys have no expiry; rotate this key manually. The write key can modify
+any path in this repository, so review template/platform changes carefully.
 
 No plaintext passwords, signing secrets, cloud keys or private sealing keys
 belong in this repository. Sealed Secrets uses strict name/namespace scope.
