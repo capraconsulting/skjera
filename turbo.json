@@ -31,6 +31,10 @@
     "test": {
       "dependsOn": ["compile", "^compile", "@skjera/test#services"]
     },
+    "@skjera/deploy#test": {
+      "dependsOn": [],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/mise.toml"]
+    },
     "@skjera/app#test": {
       "dependsOn": ["compile", "^compile", "@skjera/test#services"],
       "inputs": [

@@ -1,5 +1,9 @@
 # PR deployment automation
 
+The automation is TypeScript, executed directly by the pinned Node 24 runtime.
+`@skjera/deploy` participates in workspace type checking and unit tests.
+`mise run preview:test` also runs Jsonnet rendering and real Sealed Secrets encryption tests.
+
 The pipeline has four stages:
 
 1. `CI` runs checks, sharded browser tests and a container startup test. A
@@ -50,7 +54,7 @@ and the privileged workflow skips its jobs. Existing image publishing remains.
    ```bash
    mise run preview:prepare ../skjera-deploy
    mise run preview:certificate ../skjera-deploy
-   python3 deploy/automation/configure.py backup-keys
+   node deploy/automation/configure.ts backup-keys
    ```
 
    Review/commit its contents on `main`, then push when ready. No preview entries
@@ -60,15 +64,15 @@ and the privileged workflow skips its jobs. Existing image publishing remains.
    encrypted, versioned state bucket at `argocd/sealed-secrets-keys.json`; it does
    not put them in local files, OpenTofu state or Git. Repeat it after controller
    key renewal and before teardown. On cluster recovery, run
-   `python3 deploy/automation/configure.py restore-keys` before installing the
+   `node deploy/automation/configure.ts restore-keys` before installing the
    controller (or restart it afterwards) to preserve existing ciphertext.
 
 3. Enroll CI's dedicated repository write key (requires repository admin access,
    without organization App-registration privileges):
 
    ```bash
-   python3 deploy/automation/configure.py writer
-   python3 deploy/automation/configure.py login
+   node deploy/automation/configure.ts writer
+   node deploy/automation/configure.ts login
    ```
 
    This registers a write deploy key only on `skjera-deploy` and stores its private
@@ -88,7 +92,7 @@ and the privileged workflow skips its jobs. Existing image publishing remains.
    AWS admin login), then enable the ApplicationSet:
 
    ```bash
-   python3 deploy/automation/configure.py repository
+   node deploy/automation/configure.ts repository
    # Set enable_preview_gitops=true in the tracked
    # infra/argocd/preview.auto.tfvars.json before planning.
    mise exec -- tofu -chdir=infra/argocd plan -out=argocd.tfplan
@@ -113,7 +117,9 @@ and the privileged workflow skips its jobs. Existing image publishing remains.
    Open/update a same-repository PR. CI will publish, commit the image digest
    into `skjera-deploy`, and wait for
    `https://pr-N.skjera.capraconsulting.no/health/ready` to return the exact image
-   digest in `X-Skjera-Image`. The workflow summary links to the preview. Readiness
+   digest in `X-Skjera-Image`. GitHub deployment status adds a **View deployment** link to the PR once ready;
+   the workflow summary also links to it. Closed or superseded deployments are
+   marked inactive on close events and reconciliation runs. Readiness
    confirms the new image and database; browser login/upload need the acceptance
    verification below. Automation does not seed test data or send real emails.
 
