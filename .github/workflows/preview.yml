@@ -44,28 +44,20 @@ jobs:
       - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
         with:
           install_args: kubeseal
-      - name: Create token for the deployment repository only
-        id: deploy-token
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
-        with:
-          client-id: ${{ vars.DEPLOY_APP_CLIENT_ID }}
-          private-key: ${{ secrets.DEPLOY_APP_PRIVATE_KEY }}
-          owner: capraconsulting
-          repositories: skjera-deploy
-          permission-contents: write
       - name: Check out deployment state
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: capraconsulting/skjera-deploy
           ref: main
           path: .preview-deploy
-          token: ${{ steps.deploy-token.outputs.token }}
-          persist-credentials: false
+          ssh-key: ${{ secrets.DEPLOY_REPO_SSH_KEY }}
+          # Keep SSH authentication for reconciliation pushes; checkout removes
+          # the temporary key and Git authentication configuration after the job.
+          persist-credentials: true
       - name: Reconcile previews
         id: reconcile
         env:
           GH_TOKEN: ${{ github.token }}
-          DEPLOY_TOKEN: ${{ steps.deploy-token.outputs.token }}
           PREVIEW_DEX_PASSWORD: ${{ secrets.PREVIEW_DEX_PASSWORD }}
         run: |
           if ! command -v htpasswd >/dev/null; then

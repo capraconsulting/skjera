@@ -8,7 +8,7 @@ The pipeline has four stages:
    downloaded. The image digest and tested PR head are uploaded as data.
 2. `PR previews` runs trusted code from `main` after successful CI. It validates
    the artifact against the GitHub run and current PR, then writes desired state
-   to private `capraconsulting/skjera-deploy` using a GitHub App token. PR code,
+   to private `capraconsulting/skjera-deploy` using a dedicated SSH write deploy key. PR code,
    artifact scripts and fork code are never executed by this workflow.
 3. Argo CD's Git-file ApplicationSet renders reviewed Jsonnet plus a per-preview
    SealedSecret. Crossplane owns the bucket and Pod Identity association; CNPG
@@ -61,21 +61,26 @@ and the privileged workflow skips its jobs. Existing image publishing remains.
    `python3 deploy/automation/configure.py restore-keys` before installing the
    controller (or restart it afterwards) to preserve existing ciphertext.
 
-3. Register a private Capra GitHub App, with **Contents: read and write** only,
-   webhooks disabled, installed only on `skjera-deploy`. An organization owner
-   may need to register/install it. Download its private key and enroll the App
-   Client ID and key into the application repository:
+3. Enroll CI's dedicated repository write key (requires repository admin access,
+   without organization App-registration privileges):
 
    ```bash
-   python3 deploy/automation/configure.py app <client-id> /path/to/app.private-key.pem
+   python3 deploy/automation/configure.py writer
    python3 deploy/automation/configure.py login
    ```
 
-   This sets variable `DEPLOY_APP_CLIENT_ID` and secrets `DEPLOY_APP_PRIVATE_KEY`
-   and `PREVIEW_DEX_PASSWORD`. The login password is generated once, saved in
-   ignored mode-0600 `deploy/automation/.local/preview-login.json`, and never
-   printed. An existing GitHub login secret is preserved. App keys stay out of
-   OpenTofu state and Git. Rotate the GitHub App key through GitHub when needed.
+   This registers a write deploy key only on `skjera-deploy` and stores its private
+   half in the application repository's `DEPLOY_REPO_SSH_KEY` Actions secret.
+   The ignored mode-0600 local key is separate from Argo's read-only key. Checkout
+   configures SSH for this repository and removes its temporary credentials after
+   the job. Keep the key limited to trusted main-branch automation. It has no
+   expiry: rotate it by registering a replacement, updating the Actions secret,
+   verifying access, then deleting the old deploy key. No personal token or
+   GitHub App is required. Organization policies can still restrict deploy keys.
+
+   `login` sets `PREVIEW_DEX_PASSWORD` once and saves the generated password in
+   ignored mode-0600 `deploy/automation/.local/preview-login.json`. An existing
+   GitHub login secret is preserved; no password is printed.
 
 4. Give Argo its own **read-only** deploy key (requires GitHub repo admin and
    AWS admin login), then enable the ApplicationSet:
@@ -141,4 +146,4 @@ otherwise use the two-stage activation above.
 
 References: [Argo Git generators](https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/Generators-Git/),
 [Sealed Secrets](https://github.com/bitnami/sealed-secrets),
-[GitHub App tokens](https://github.com/actions/create-github-app-token).
+[GitHub deploy keys](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys).

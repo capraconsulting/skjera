@@ -52,7 +52,7 @@ replacing immutable ECR tags. The job summary records the deployment reference
 For PRs, the checked revision is GitHub's tested merge commit, not the PR head
 SHA. The separate trusted [PR deployment workflow](../../deploy/automation/Readme.md)
 validates the published metadata and writes the immutable digest to private
-`skjera-deploy`. Its GitHub App credential is separate from AWS OIDC.
+`skjera-deploy`. Its dedicated SSH write deploy key is separate from AWS OIDC.
 
 Common also owns `skjera-dev-github-ecr-cleanup`. Only the immutable **main**
 subject may assume it; PR builds cannot. It can describe/delete images in the
