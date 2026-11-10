@@ -51,8 +51,11 @@ export class EventTimes {
   /** Sets the event to start on the 15th of last month. */
   async pickPastStart(): Promise<void> {
     await this.startDate().click();
-    await this.page.getByRole("button", { name: /previous month/i }).click();
-    await this.page.getByRole("button", { name: /15th, \d{4}/ }).click();
+    const now = new Date();
+    await this.pickCalendarDay(
+      new Date(now.getFullYear(), now.getMonth() - 1, 15),
+      "previous",
+    );
   }
 
   /** Opens the start date's calendar, by its label in the page's language. */
@@ -88,16 +91,17 @@ export class EventTimes {
     await expect(this.page.getByLabel(m.editor_end_time())).toHaveValue(time);
   }
 
-  /** Sets a sign-up deadline at midnight on the 1st, which has passed. */
+  /** Sets a sign-up deadline at midnight on the 1st of last month. */
   async setPassedDeadline(): Promise<void> {
     // Exact: the food deadline's date and time have these words in theirs.
     await this.page
       .getByRole("button", { name: m.editor_deadline_date(), exact: true })
       .click();
-    await this.page
-      .getByRole("button", { name: /1st, \d{4}/ })
-      .first()
-      .click();
+    const now = new Date();
+    await this.pickCalendarDay(
+      new Date(now.getFullYear(), now.getMonth() - 1, 1),
+      "previous",
+    );
     await this.page
       .getByLabel(m.editor_deadline_time(), { exact: true })
       .fill("00:00");
@@ -114,13 +118,20 @@ export class EventTimes {
     day: Date,
     towards: "next" | "previous",
   ): Promise<void> {
+    await this.foodDate().click();
+    await this.pickCalendarDay(day, towards);
+  }
+
+  private async pickCalendarDay(
+    day: Date,
+    towards: "next" | "previous",
+  ): Promise<void> {
     const month = day.toLocaleDateString("en-US", { month: "long" });
     const target = this.page.getByRole("button", {
       name: new RegExp(
         `${month} ${ordinal(day.getDate())}, ${day.getFullYear()}`,
       ),
     });
-    await this.foodDate().click();
     const move = this.page.getByRole("button", {
       name: towards === "next" ? /next month/i : /previous month/i,
     });

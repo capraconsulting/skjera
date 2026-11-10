@@ -14,9 +14,11 @@ import { Schema } from "effect";
 import { useMemo } from "react";
 import {
   data,
+  isRouteErrorResponse,
   Link,
   type LoaderFunctionArgs,
   useLoaderData,
+  useRouteError,
 } from "react-router";
 import { openDraft, setLocalUser } from "../../../documents/repo.ts";
 import { useVersion } from "../../../documents/version.ts";
@@ -72,6 +74,18 @@ export const previewLoader = async ({
   });
   return { id, handle, me, heads };
 };
+
+/** A missing draft stays a 404; other failures explain that its preview failed. */
+export function PreviewError() {
+  const error = useRouteError();
+  return (
+    <p className={eventPageStyles.missing}>
+      {isRouteErrorResponse(error) && error.status === 404
+        ? m.site_event_missing()
+        : m.preview_open_failed()}
+    </p>
+  );
+}
 
 /** The page the draft would give when published, with the notice. */
 export function Preview() {

@@ -156,9 +156,15 @@ test("a draft that cannot be opened gets the preview-failed message (STU-21 AC-9
   const bob = await signedIn(browser, dexUsers.bob);
   const network = await connection(bob);
   await network.offline();
-  await bob.evaluate(() => {
-    IDBDatabase.prototype.transaction = () => {
-      throw new Error("Draft storage failed");
+  await bob.addInitScript(() => {
+    const transaction = IDBDatabase.prototype.transaction;
+    IDBDatabase.prototype.transaction = function (...args) {
+      // Fail only Automerge's draft store, leaving the synced table cache
+      // available so the loader can first establish that this draft exists.
+      if (this.name.startsWith("skjera ")) {
+        throw new Error("Draft storage failed");
+      }
+      return transaction.apply(this, args);
     };
   });
   const preview = new PreviewPage(bob);

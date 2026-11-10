@@ -141,7 +141,15 @@ export class Header {
   async clickSubscribeOpening(url: string): Promise<void> {
     const popup = this.page.waitForEvent("popup");
     await this.subscribe().click();
-    await expect(await popup).toHaveURL(url);
+    await expect(await popup).toHaveURL((actual) => {
+      const expected = new URL(url);
+      return (
+        actual.origin === expected.origin &&
+        actual.pathname === expected.pathname &&
+        actual.searchParams.toString() === expected.searchParams.toString() &&
+        actual.hash === expected.hash
+      );
+    });
   }
 
   /** The Subscribe link and the account menu fit the window, whole. */
