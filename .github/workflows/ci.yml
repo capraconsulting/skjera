@@ -174,7 +174,7 @@ jobs:
             sudo apt-get install --yes apache2-utils
           fi
       - run: mise run preview:test
-      - run: mise exec actionlint@1.7.12 -- actionlint
+      - run: mise exec shellcheck@0.11.0 actionlint@1.7.12 -- actionlint
       - run: mise exec helm@4.3.0 -- helm lint infra/argocd/charts/previews
       - name: Check OpenTofu without cloud credentials
         run: |
@@ -229,7 +229,7 @@ jobs:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
           IMAGE_DIGEST: ${{ steps.publish.outputs.digest }}
         run: |
-          printf 'Published image: `%s/%s@%s`\n' "$REGISTRY" "$ECR_REPOSITORY" "$IMAGE_DIGEST" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Published image: %s/%s@%s\n' "$REGISTRY" "$ECR_REPOSITORY" "$IMAGE_DIGEST" >> "$GITHUB_STEP_SUMMARY"
       # The privileged deployment workflow runs trusted code from main. This
       # artifact is data only, validated against the run and the current PR.
       - name: Record PR image for deployment

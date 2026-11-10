@@ -114,7 +114,7 @@ and the privileged workflow skips its jobs. Existing image publishing remains.
 
 ```bash
 mise run preview:test
-mise exec actionlint@1.7.12 -- actionlint
+mise exec shellcheck@0.11.0 actionlint@1.7.12 -- actionlint
 mise exec -- tofu -chdir=infra/common test
 ```
 
