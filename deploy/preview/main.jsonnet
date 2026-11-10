@@ -1,8 +1,9 @@
+local app = import 'lib/app.libsonnet';
 local postgres = import 'lib/postgres.libsonnet';
 local storage = import 'lib/storage.libsonnet';
 
 // Argo CD supplies these as Jsonnet top-level arguments (TLAs).
-function(prNumber, namespace=null, awsAccountId='440027025698', awsRegion='eu-north-1', environment='dev', postgresStorageSize='5Gi')
+function(prNumber, namespace=null, awsAccountId='440027025698', awsRegion='eu-north-1', environment='dev', postgresStorageSize='5Gi', image=null, appSecretName='preview-app', oidcIssuer=null, oidcClientId='skjera-preview', oidcAllowedDomains='example.com')
   local digits = '0123456789';
   local lower = 'abcdefghijklmnopqrstuvwxyz';
   local containsOnly(value, allowed) =
@@ -19,6 +20,14 @@ function(prNumber, namespace=null, awsAccountId='440027025698', awsRegion='eu-no
     awsRegion: awsRegion,
     environment: environment,
     postgresStorageSize: postgresStorageSize,
+    image: image,
+    appSecretName: appSecretName,
+    hostname: 'pr-' + prNumber + '.skjera.capraconsulting.no',
+    siteUrl: 'https://pr-' + prNumber + '.skjera.capraconsulting.no',
+    useDex: oidcIssuer == null,
+    oidcIssuer: if oidcIssuer == null then self.siteUrl + '/dex' else oidcIssuer,
+    oidcClientId: oidcClientId,
+    oidcAllowedDomains: oidcAllowedDomains,
   };
   assert std.type(prNumber) == 'string' && std.length(prNumber) > 0 && std.length(prNumber) <= 9 &&
          containsOnly(prNumber, digits) && prNumber[0] != '0'
@@ -31,4 +40,9 @@ function(prNumber, namespace=null, awsAccountId='440027025698', awsRegion='eu-no
          : 'environment must start with a lowercase letter and contain at most ten lowercase letters, digits or hyphens';
   assert std.type(awsRegion) == 'string' && std.length(awsRegion) > 0 : 'awsRegion is required';
   assert std.type(postgresStorageSize) == 'string' && std.length(postgresStorageSize) > 0 : 'postgresStorageSize is required';
-  storage(config) + postgres(config)
+  assert image == null || (std.type(image) == 'string' && std.length(std.findSubstr('@sha256:', image)) == 1 && std.length(std.split(image, '@sha256:')[1]) == 64 && containsOnly(std.split(image, '@sha256:')[1], '0123456789abcdef'))
+         : 'image must be pinned to a sha256 digest';
+  assert image == null || ns == 'skjera-' + config.previewId
+         : 'App previews must use namespace skjera-pr-N to match their workload identity';
+  assert isNamespace(appSecretName) : 'appSecretName must be a valid Kubernetes secret name';
+  storage(config) + postgres(config) + if image == null then [] else app(config)

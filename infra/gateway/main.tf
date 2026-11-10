@@ -19,6 +19,8 @@ resource "helm_release" "shared" {
   chart     = "${path.module}/charts/shared"
   version   = "0.1.0"
   values = [yamlencode({
+    certificateArn   = data.aws_acm_certificate.gateway.arn
+    domainName       = trimsuffix(data.aws_route53_zone.skjera.name, ".")
     templateRevision = filesha256("${path.module}/charts/shared/templates/gateway.yaml")
   })]
   timeout = 600

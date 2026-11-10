@@ -99,3 +99,18 @@ bucket. Provider-managed CRDs may remain after Helm uninstall.
 
 References: [Crossplane installation](https://docs.crossplane.io/latest/get-started/install/),
 [AWS provider authentication](https://github.com/crossplane-contrib/provider-upjet-aws/blob/v2.9.0/AUTHENTICATION.md).
+
+## Preview workload identities
+
+The AWS EKS provider is installed alongside S3, using its own stable
+`provider-aws-eks` service account and Pod Identity role. Its AWS permissions
+are limited to Pod Identity association management in this cluster and passing
+the shared preview-app role. The provider readiness step waits for both AWS
+providers and the PodIdentityAssociation CRD. The historical `aws-s3`
+ClusterProviderConfig name is shared by both services; each controller gets
+credentials through its own service account.
+
+[Preview Jsonnet](../../deploy/preview/Readme.md) declares each app association.
+The shared app role uses EKS session tags to scope object access to its own
+bucket and binds service account `pr-N` to namespace `skjera-pr-N`. Crossplane
+deletes the association with the preview; no per-PR IAM role is created.

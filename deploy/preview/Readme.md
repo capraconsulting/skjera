@@ -1,155 +1,161 @@
 # PR preview resources
 
-Argo CD evaluates `main.jsonnet` with a PR number to generate one preview's
-Crossplane bucket and CloudNativePG database resources. The default namespace
-is `skjera-pr-<number>` and the bucket is
-`skjera-dev-app-440027025698-pr-<number>-images`.
+Argo CD evaluates `main.jsonnet` to deploy an isolated preview at
+`https://pr-<number>.skjera.capraconsulting.no`. A shared NLB, wildcard DNS alias
+and ACM certificate serve every preview; no DNS/certificate work is needed per PR.
+
+Without an image, rendering produces the existing five bucket/database resources:
 
 ```bash
-mise install
 mise run preview:render 123
 python3 deploy/preview/tests/render.py
 ```
 
-The render task prints a JSON array of five Kubernetes resources. It does not
-apply them or create AWS resources. Jsonnet is pinned through mise to the Go
-implementation/version used by our deployed Argo CD. No Helm CLI or Jsonnet
-vendor libraries are needed for preview rendering.
+Pass a digest-pinned image to include the Namespace, workload identity, app
+Deployment, Service, HTTPS route and optional Dex login provider:
 
-`lib/storage.libsonnet` defines the three S3 resources;
-`lib/postgres.libsonnet` defines the CNPG Cluster and Database. `main.jsonnet`
-validates inputs and combines them into one resource set. The application
-Deployment and PR ApplicationSet are still to be added.
-
-## Argo CD source
-
-Use a directory source pointing to this folder. Pass the PR number as a string
-top-level argument (TLA); the future PR ApplicationSet can fill it per PR:
-
-```yaml
-spec:
-  source:
-    repoURL: https://github.com/capraconsulting/skjera.git
-    targetRevision: main
-    path: deploy/preview
-    directory:
-      include: main.jsonnet
-      jsonnet:
-        tlas:
-          - name: prNumber
-            value: "123"
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: skjera-pr-123
-  syncPolicy:
-    managedNamespaceMetadata:
-      labels:
-        skjera.capraconsulting.no/preview: "true"
-    syncOptions:
-      - CreateNamespace=true
+```bash
+mise exec -- jsonnet --tla-str prNumber=123 \
+  --tla-str image=440027025698.dkr.ecr.eu-north-1.amazonaws.com/skjera-dev@sha256:<digest> \
+  deploy/preview/main.jsonnet
 ```
 
-This is a source/destination fragment, not a complete Application or
-ApplicationSet. Repository authentication, PR discovery, image publishing and
-application configuration remain separate work. The namespace label permits
-attachment to the [shared gateway](../../infra/gateway/Readme.md). Add the app
-Service and per-PR HTTPRoute once its domain is configured. Jsonnet is supported natively
-by Argo CD; no config-management plugin is required.
-
-Only `main.jsonnet` is an entry point. Imported files use `.libsonnet` so they
-are not evaluated as additional apps. Keep the bucket, database and eventual
-app resources in this same Application: sync-wave ordering does not coordinate
-independent Applications.
+The default deployment contains 14 resources, all in one Argo Application.
+Imported `.libsonnet` files are libraries; configure the directory source with
+`include: main.jsonnet` so they are not independently evaluated.
 
 ## Inputs
 
 | TLA | Default |
 | --- | --- |
-| `prNumber` | Required; positive string of up to nine digits |
-| `namespace` | `skjera-pr-<prNumber>` |
-| `awsAccountId` | `440027025698` |
-| `awsRegion` | `eu-north-1` |
-| `environment` | `dev` |
-| `postgresStorageSize` | `5Gi` |
+| `prNumber` | Required positive string, up to nine digits |
+| `image` | `null`: bucket/database only; otherwise an immutable `@sha256:` image reference |
+| `namespace` | `skjera-pr-<number>`; required to match this pattern when deploying an app |
+| `awsAccountId`, `awsRegion`, `environment` | `440027025698`, `eu-north-1`, `dev` |
+| `postgresStorageSize` | `5Gi`; the smoke test uses `1Gi` |
+| `appSecretName` | `preview-app` |
+| `oidcIssuer` | `null`: deploy isolated Dex at the preview's `/dex` path |
+| `oidcClientId` | `skjera-preview` |
+| `oidcAllowedDomains` | `example.com` for Dex test users |
 
-Overrides use `--tla-str`, for example:
+The app Service listens on port 3000 and its route attaches to the shared
+Gateway's `https` listener. The namespace is labelled to permit attachment.
+Startup/readiness probes use `/health/ready`; liveness uses `/health`.
+Email/Slack integrations are disabled in these previews.
 
-```bash
-mise exec -- jsonnet --tla-str prNumber=123 \
-  --tla-str namespace=custom-preview --tla-str postgresStorageSize=1Gi \
-  deploy/preview/main.jsonnet
-```
+## Database, buckets and workload identity
 
-Namespaces are validated as Kubernetes DNS labels. Account/environment overrides
-change rendered names, not platform permissions: the Crossplane provider must
-be configured and authorized for the target account and bucket prefix.
+| Wave | Resources |
+| --- | --- |
+| -30 | Namespace |
+| -20 | Crossplane S3 Bucket and CNPG Cluster |
+| -15 | App ServiceAccount `pr-N` |
+| -10 | Bucket privacy/encryption, CNPG Database/extension, Pod Identity association |
+| -5 | Dex Deployment, Service and `/dex` route, when enabled |
+| 0 | App Deployment, Service and route |
 
-## Dependencies and application settings
+Argo health customizations wait for Crossplane Ready/Synced and CNPG readiness
+before applying subsequent waves. All resources stay in the same Application;
+sync waves do not coordinate independent Applications.
 
-| Wave | Resources | Readiness |
-| --- | --- | --- |
-| -20 | S3 Bucket, CNPG Cluster | Crossplane ready/synced; PostgreSQL ready |
-| -10 | Bucket privacy/encryption settings, CNPG Database | AWS settings ready; extension applied |
-| 0 | Future app resources | Can start after both dependencies |
+Crossplane exclusively creates and deletes the private, encrypted bucket
+`skjera-dev-app-440027025698-pr-N-images`. CNPG owns PostgreSQL 18 and the
+`pg_automerge` extension. The app consumes the generated `postgres-app` Secret's
+`uri` key as `DATABASE_URL`, connects as the ordinary `skjera` role, and migrates
+its own tables. A historical migration skips a redundant extension upgrade when
+the installed version already matches the available default, so it does not
+require extension ownership. Required extension upgrades still belong to its owner.
 
-[Crossplane](../../infra/crossplane/Readme.md) creates and deletes the bucket.
-The bucket is private, encrypted, and uses `ClusterProviderConfig/aws-s3` with
-EKS Pod Identity. The app's eventual settings are:
+Crossplane's EKS provider creates/deletes each `PodIdentityAssociation`.
+The shared app IAM role is managed by bootstrap. EKS session tags restrict it to
+the bucket matching service account `pr-N`; its trust policy also requires
+namespace `skjera-pr-N` in the correct cluster. There is no IAM role per PR to
+leak during cleanup. The app can read/write objects and list its own bucket,
+but cannot create/delete buckets, delete objects or access other previews.
+Do not reuse either Crossplane provider's identity for application pods.
 
-- `S3_BUCKET=skjera-dev-app-440027025698-pr-123-images` for PR 123.
-- `S3_REGION=eu-north-1` and `S3_ENDPOINT=https://s3.eu-north-1.amazonaws.com`.
-- A separate app workload identity restricted to that PR's bucket. Do not reuse
-  Crossplane's provider identity. The app's current S3 client still needs support
-  for temporary AWS credentials and externally provisioned buckets.
+The app uses the AWS credential chain and refreshes temporary Pod Identity
+credentials. No AWS keys are put in manifests. `S3_CREATE_BUCKET=false` leaves
+all cloud bucket lifecycle work to Crossplane.
 
-[CloudNativePG](../../infra/cloudnativepg/Readme.md) creates and manages
-PostgreSQL 18 on encrypted gp3 storage. It uses the pinned trixie operand and
-`pg_automerge` image-volume extension described in
-[the extension's CNPG guide](https://theknarf.com/pg-automerge/guide/cloudnativepg).
-The Database resource installs `pg_automerge` version `0.1.0` as an administrator,
-so the ordinary `skjera` app role can run its startup migrations.
+## Secrets and login
 
-CNPG generates Secret `postgres-app` and read/write service `postgres-rw`.
-The future app Deployment can consume its connection URI without copying
-credentials into Git or OpenTofu:
+Before syncing, provide Secret `preview-app` (or `appSecretName`) in the target
+namespace with these keys:
 
-```yaml
-env:
-  - name: DATABASE_URL
-    valueFrom:
-      secretKeyRef:
-        name: postgres-app
-        key: uri
-```
+- `signing-secret`: a random, persistent signing secret for this preview.
+- `oidc-client-secret`: the secret registered with the OIDC provider.
+- `dex-config`: Dex YAML/JSON configuration, only when using the bundled Dex.
 
-The PostgreSQL resources use one instance and 2Gi memory with conservative
-connection/extension-memory settings. Tune them against real document sizes.
-These disposable previews have no HA or backup policy.
+Jsonnet contains only secret references. Neither passwords nor client secrets
+are included in Git or the OCI manifest artifact. The verification script
+creates random credentials and a bcrypt hash with cost 10, which Dex requires.
+Dex uses memory storage and exists only for the preview's lifetime. Its only
+client callback is that preview's HTTPS `/auth/callback` URL.
 
-## PR closure and cleanup
+For an external/Google-backed provider, set `oidcIssuer`, `oidcClientId` and
+`oidcAllowedDomains` (for example `capraconsulting.no`), and provide its client
+secret. Dex resources are then omitted. Moving to company Google SSO still
+requires provider/broker setup and callback registration; wildcard application
+TLS/DNS does not grant wildcard OAuth callback registration.
 
-The future ApplicationSet must remove Applications when PRs close, use
-`preserveResourcesOnDeletion: false`, and enable cascading deletion with Argo
-CD's resources finalizer. Removing an Application without cascading deletion
-would leave preview resources running.
+## Full disposable verification
 
-Crossplane's `managementPolicies: ["*"]` and `forceDestroy: true` let it empty
-and delete the preview bucket, including uploaded objects/versions. CNPG's
-`databaseReclaimPolicy: delete` and the preview StorageClass's `Delete` reclaim
-policy allow database/PVC/EBS cleanup. This data is deliberately disposable;
-production needs separate retention and backup policies.
-
-Deletion runs in reverse wave order: app first, database/settings next, then
-cluster/bucket. Keep Crossplane, CNPG and the EKS storage controller available
-until finalizers finish cleanup. Do not bypass finalizers. Namespace separation
-alone does not enforce AWS permissions between previews.
-
-The operator lifecycle smoke tests render this same Jsonnet entry point and
-select only their own resources:
+Provision bootstrap, common, Argo CD, Crossplane (S3 and EKS), CNPG, DNS and
+Gateway first. Sign in with the trusted Capra AWS account. You need Docker,
+the AWS CLI, Python 3, `htpasswd` with bcrypt support, mise and Playwright:
 
 ```bash
-python3 infra/crossplane/tests/smoke.py
-python3 infra/cloudnativepg/tests/smoke.py
+mise install
+mise exec -- pnpm --filter @skjera/app exec playwright install chromium
+mise run preview:smoke
 ```
 
-References: [Argo CD Jsonnet support](https://argo-cd.readthedocs.io/en/stable/user-guide/jsonnet/).
+This publishes the current working tree's linux/amd64 image to ECR and packages
+the Jsonnet libraries as an immutable OCI artifact. Argo CD pulls that artifact
+and performs the actual deployment. No Git push or new Git repository is needed
+for this single-preview test. A temporary, narrowly configured AppProject and
+repository Secret are removed afterwards. The ECR repository token lasts up to
+12 hours; this is a disposable verification path, not permanent repository
+credential rotation or PR automation.
+
+The test uses a real browser to verify Dex login, a secure session, creation of
+a team and publication of an Automerge document. It checks authenticated image
+upload, anonymous image read, CSRF/auth rejection, actual S3 encryption,
+PostgreSQL extension/session persistence and injected Pod Identity credentials.
+
+The default command attempts cleanup even after a failed check. For diagnosis,
+individual stages preserve the preview until explicit cleanup:
+
+```bash
+python3 deploy/preview/smoke.py publish
+python3 deploy/preview/smoke.py deploy
+python3 deploy/preview/smoke.py wait
+python3 deploy/preview/smoke.py verify
+python3 deploy/preview/smoke.py cleanup
+```
+
+The ignored `.local/` directory contains a mode-0600 journal, private logs and
+a verification screenshot. A lock prevents concurrent runs. The test password
+is scrubbed and registry credentials removed after cleanup; never commit this
+directory. Interrupted runs use the same journal to resume cleanup.
+
+## Cleanup and future PR automation
+
+Closing a PR should eventually remove its Argo Application using cascading
+deletion. Crossplane empties/deletes the bucket, CNPG removes the database and
+PVC, EKS removes the EBS volume, and Crossplane deletes the Pod Identity
+association. The Namespace owns the generated secret and Dex state. Keep all
+platform controllers running until their finalizers finish; never bypass them.
+
+The smoke script verifies cloud deletion, waits for asynchronous EBS removal,
+then removes temporary Argo credentials/project and its published ECR artifacts.
+Shared platform infrastructure and roles remain. Preview data is deliberately
+disposable; production requires separate retention, availability and backups.
+
+The remaining PR automation is image publishing plus desired-state updates,
+repository authentication, and an ApplicationSet. The current manual smoke test
+does not create a GitHub PR or implement that automation.
+
+References: [Argo Jsonnet](https://argo-cd.readthedocs.io/en/stable/user-guide/jsonnet/),
+[Argo OCI sources](https://argo-cd.readthedocs.io/en/stable/user-guide/oci/).

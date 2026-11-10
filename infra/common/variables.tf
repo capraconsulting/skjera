@@ -81,3 +81,13 @@ locals {
   name  = "skjera-${var.environment}"
   zones = { for index, zone in var.availability_zones : zone => index }
 }
+
+variable "github_oidc_subject_prefix" {
+  description = "Exact immutable GitHub OIDC repository identity, verified through its OIDC settings API. No wildcard trust."
+  type        = string
+  default     = "repo:capraconsulting@1316242/skjera@1408710589"
+  validation {
+    condition     = can(regex("^repo:[A-Za-z0-9_.-]+@[0-9]+/[A-Za-z0-9_.-]+@[0-9]+$", var.github_oidc_subject_prefix))
+    error_message = "Use the exact immutable repo:OWNER@OWNER-ID/REPO@REPO-ID prefix, without wildcard patterns."
+  }
+}

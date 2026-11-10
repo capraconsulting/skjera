@@ -2,6 +2,7 @@
 go-jsonnet = "0.22.0"
 node = "24.21.0"
 opentofu = "1.13.1"
+oras = "1.3.6"
 pnpm = "12.8.1"
 
 [env]
@@ -15,6 +16,8 @@ OAUTH_ALLOW_INSECURE_REQUESTS = "true"
 S3_ENDPOINT = "http://localhost:9000"
 S3_REGION = "us-east-1"
 S3_BUCKET = "skjera-images"
+# Local RustFS only; cloud buckets are created and deleted by Crossplane.
+S3_CREATE_BUCKET = "true"
 S3_ACCESS_KEY_ID = "skjera"
 S3_SECRET_ACCESS_KEY = "skjera-dev-secret"
 # Where the site is, what it's called, and who emails come from.
@@ -137,3 +140,7 @@ run = [
   "pnpm install",
   "pnpm --filter @skjera/oauth exec playwright install chromium",
 ]
+
+[tasks."preview:smoke"]
+description = "Publish, verify and clean up one disposable Argo CD preview (AWS login required)"
+run = "python3 deploy/preview/smoke.py"

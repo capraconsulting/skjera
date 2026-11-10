@@ -103,6 +103,24 @@ docker build -t skjera .
 
 It's configured by environment variables, as in [mise.toml](mise.toml). Needed: `DATABASE_URL` (Postgres 18 with pg_automerge; migrations run at start), `OAUTH_*` (an OIDC provider), `S3_*` (image storage; the key must be allowed to list the bucket, as well as to read and write it, since the studio lists the images already uploaded), `SITE_URL`, `SITE_NAME`, `SITE_LOCALE` (the language for those who haven't picked one: `en`, `nb` or `nn`), `EMAIL_FROM`, `SIGNING_SECRET` (any long random string, the same across restarts) and `EMAIL_TRANSPORT=ses` (with `AWS_REGION` and AWS credentials) or `smtp` (with `EMAIL_SMTP_URL`). The server starts without the email settings and the secret, warning that emails aren't sent.
 
+Image storage uses an existing private bucket in AWS. Configure it as follows:
+
+| Variable | Purpose |
+| --- | --- |
+| `S3_BUCKET` | Required bucket name; Crossplane owns its lifecycle in EKS. |
+| `S3_REGION` | Signing region; falls back to `AWS_REGION`, then `us-east-1`. |
+| `S3_ENDPOINT` | Optional; defaults to the regional AWS S3 endpoint. Override for RustFS. |
+| `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | Optional pair for local S3-compatible storage. Omit both to use the AWS SDK credential chain, including EKS Pod Identity. |
+| `S3_SESSION_TOKEN` | Optional token for explicitly supplied temporary S3 credentials; requires both keys above. |
+| `S3_CREATE_BUCKET` | Defaults to `false`. Only local development opts in with `true` in `mise.toml`. |
+
+With Pod Identity, the app obtains and refreshes short-lived credentials from
+EKS automatically. Do not put AWS keys in the Deployment. Its role needs
+`GetObject` and `PutObject` for its own bucket's objects, plus `ListBucket` on
+that bucket so S3 can return 404 for missing images. It needs no bucket creation
+or deletion permissions. Cloud deployments leave `S3_CREATE_BUCKET` unset;
+local development retains automatic RustFS bucket creation.
+
 Signing up and cancelling are limited per visitor (guests: 20 an hour from an address, 10 a minute from an address and browser; members: 40 and 20), and the guest forms have a hidden field a bot fills in. The limits count the visitor's address from `X-Forwarded-For`, so set:
 
 - `PROXY_COUNT`: how many proxies stand in front of the server, each appending to `X-Forwarded-For` (1 by default: the ingress). The address that many entries from the right is the visitor's. Use 0 when visitors reach the server directly, 2 with a CDN in front of the ingress. After a deploy, check from two networks that each is counted on its own (SIGN-14 AC-6). A value that is not a whole number of 0 or more stops the server at start.

@@ -38,7 +38,7 @@ resource "helm_release" "aws_providers" {
   timeout = 900
   wait    = true
 
-  depends_on = [aws_eks_pod_identity_association.s3]
+  depends_on = [aws_eks_pod_identity_association.s3, aws_eks_pod_identity_association.eks]
 }
 
 # Provider CRDs are registered asynchronously by Crossplane. Waiting here
@@ -76,4 +76,11 @@ resource "helm_release" "aws_config" {
   wait    = true
 
   depends_on = [terraform_data.providers_ready]
+}
+
+resource "aws_eks_pod_identity_association" "eks" {
+  cluster_name    = data.aws_eks_cluster.main.name
+  namespace       = "crossplane-system"
+  service_account = "provider-aws-eks"
+  role_arn        = "arn:${data.aws_partition.current.partition}:iam::${var.aws_account_id}:role/${local.cluster_name}-crossplane-eks"
 }

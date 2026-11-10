@@ -37,7 +37,7 @@ locals {
   name              = "skjera-${var.environment}"
   state_bucket_name = "${local.name}-tofu-${var.aws_account_id}-${var.aws_region}"
   state_key         = "common/terraform.tfstate"
-  state_keys        = [local.state_key, "argocd/terraform.tfstate", "crossplane/terraform.tfstate", "cloudnativepg/terraform.tfstate", "gateway/terraform.tfstate"]
+  state_keys        = [local.state_key, "argocd/terraform.tfstate", "crossplane/terraform.tfstate", "cloudnativepg/terraform.tfstate", "gateway/terraform.tfstate", "dns/terraform.tfstate"]
   iam_prefix        = "arn:${data.aws_partition.current.partition}:iam::${var.aws_account_id}"
   eks_role_arns = [
     "${local.iam_prefix}:role/${local.name}-eks-cluster",
