@@ -16,7 +16,9 @@ The pipeline has four stages:
 4. A separate job checks public HTTPS until the desired image serves a healthy
    database response. Closing/merging the PR removes desired state, cascading
    deletion of app, bucket, database, secrets and workload identity. A separate
-   main-only AWS role removes closed-PR image tags. Hourly reconciliation repairs
+   main-only AWS role removes closed-PR image tags. PR-close events dispatch a
+   trusted main run for that cleanup, keeping PR OIDC subjects out of the image
+   deletion role. Hourly reconciliation repairs
    missed close/build events; it cannot recreate expired image artifacts.
 
 Dex remains the temporary login provider: `preview@example.com`, with a random
