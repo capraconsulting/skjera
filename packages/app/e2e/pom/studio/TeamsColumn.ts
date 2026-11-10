@@ -100,7 +100,7 @@ export class TeamsColumn {
       this.page.getByRole("button", { name: m.studio_delete_team() }),
     ).toBeDisabled();
     await expect(
-      this.page.getByText(m.studio_only_empty_teams()),
+      this.page.locator(":popover-open").getByText(m.studio_only_empty_teams()),
     ).toBeVisible();
   }
 

@@ -278,7 +278,7 @@ test("the site has its logo, its footer and a privacy page (SITE-01 AC-2, SITE-0
   // The logo for a light background is the dark one.
   await header.expectBrandLogo("logo-dark", true);
   // The tab: the site and its companies, as in Skjer.
-  await new HomePage(page).expectTabTitle("Skjera | Capra Liflig");
+  await new HomePage(page).expectTabTitle("Skjer | Capra Liflig");
 
   // Dark: the logo for a dark background.
   await header.pickTheme("Dark");

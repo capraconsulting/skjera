@@ -111,8 +111,12 @@ export const uploadPng = (page: Page): Promise<string> =>
       const response = await fetch(imagesPath, {
         method: "POST",
         body: bytes,
-        headers: { "Content-Type": "image/png" },
+        headers: { "Content-Type": "application/octet-stream" },
       });
+      if (!response.ok)
+        throw new Error(
+          `Image upload failed (${response.status}): ${await response.text()}`,
+        );
       return ((await response.json()) as { url: string }).url;
     },
     { base64: pixelBase64, imagesPath },

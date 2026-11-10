@@ -21,6 +21,7 @@ import {
 } from "./routes/site/event-page/EventPage.tsx";
 import {
   Preview,
+  PreviewError,
   previewLoader,
   previewSiteLoader,
 } from "./routes/site/event-page/Preview.tsx";
@@ -118,7 +119,7 @@ const router = createBrowserRouter([
             index: true,
             Component: Preview,
             loader: previewLoader,
-            ErrorBoundary: EventError,
+            ErrorBoundary: PreviewError,
           },
         ],
       },
