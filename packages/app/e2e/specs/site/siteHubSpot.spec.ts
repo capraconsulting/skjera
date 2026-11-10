@@ -78,6 +78,7 @@ test("the studio never runs HubSpot's script, however it is entered", async ({
 
   // From a site page that has run it, by Back.
   await header.clickBrand();
+  await new HomePage(alice).expectUpcomingHeading();
   await hubSpot.expectRuns(1);
   await alice.goBack();
   // Only the studio shows its teams: the page that ran HubSpot never does.
@@ -87,6 +88,7 @@ test("the studio never runs HubSpot's script, however it is entered", async ({
 
   // From a site page that has run it, by the "Studio" link.
   await header.clickBrand();
+  await new HomePage(alice).expectUpcomingHeading();
   await hubSpot.expectRuns(1);
   await header.clickStudio();
   await teams.expectShown();
