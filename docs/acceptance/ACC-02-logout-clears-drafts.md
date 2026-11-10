@@ -12,7 +12,7 @@ WHEN a user logs out, Skjera SHALL delete the local copies of the drafts they op
 
 **Test**
 
-- **Given** alice in the studio, with «AC-1 to AC-2: Kept on the server» open and **Saved** showing
+- **Given** alice logged into the studio, with «AC-1 to AC-2: Kept on the server» open and **Saved** showing
 - **And** the `documents` store in the developer tools has entries
 - **When** alice clicks **Log out** in the account menu
 - **Then** the `documents` store has no entries

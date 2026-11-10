@@ -10,7 +10,7 @@ The header SHALL have a language picker, with English, Bokmål and Nynorsk, on t
 
 **Test**
 
-- **Given** http://localhost:5173 in a private window, and alice in the studio
+- **Given** http://localhost:5173 in a private window, and alice logged into the studio
 - **When** you open **Language**, the globe in the header, in each
 - **Then** both offer **English**, **Bokmål** and **Nynorsk**
 
@@ -35,7 +35,7 @@ WHEN an organiser picks a language in the studio, Skjera SHALL show the studio i
 
 **Test**
 
-- **Given** alice in the studio, with «AC-2 to AC-4: Written in English» open
+- **Given** alice logged into the studio, with «AC-2 to AC-4: Written in English» open
 - **When** she picks **Nynorsk** in the header
 - **Then** the editor shows **Tittel**, «Lagra» and **Slett**
 - **When** she clicks **Startdato**

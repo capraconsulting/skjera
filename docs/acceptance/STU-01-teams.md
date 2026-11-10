@@ -10,7 +10,7 @@ The studio SHALL let an organiser create a team, and SHALL show every team to ev
 
 **Test**
 
-- **Given** alice in the studio, and bob in the studio in his browser
+- **Given** alice logged into the studio, and bob logged into the studio in his browser
 - **When** alice opens **Team list options** (**⋯** above the teams), clicks **New team**, writes «STU-01: Created» and clicks **Create team**
 - **Then** the team opens for alice, and shows in bob's **Teams** column too
 
@@ -72,7 +72,7 @@ WHEN someone else creates, renames or deletes a team, the studio SHALL show it i
 
 **Test**
 
-- **Given** alice and bob both in the studio
+- **Given** alice and bob both logged into the studio
 - **When** bob creates a team, renames it, and deletes it
 - **Then** alice's **Teams** column follows each change without reloading
 
