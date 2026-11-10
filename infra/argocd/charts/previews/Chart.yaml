@@ -1,0 +1,5 @@
+apiVersion: v2
+name: skjera-previews
+description: Restricted Argo project and desired-state preview ApplicationSet
+type: application
+version: 0.1.0

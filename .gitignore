@@ -32,6 +32,7 @@ terraform.plan.*
 !/infra/common/bootstrap.auto.tfvars.json
 !/infra/argocd/backend.s3.tfbackend
 !/infra/argocd/bootstrap.auto.tfvars.json
+!/infra/argocd/preview.auto.tfvars.json
 !/infra/crossplane/backend.s3.tfbackend
 !/infra/crossplane/bootstrap.auto.tfvars.json
 !/infra/cloudnativepg/backend.s3.tfbackend
@@ -83,3 +84,5 @@ __pycache__/
 
 # Disposable preview journals and generated secrets
 /deploy/preview/.local/
+/deploy/automation/.local/
+/.preview-deploy/

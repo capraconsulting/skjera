@@ -72,3 +72,19 @@ run "reject_wildcard_repository" {
   }
   expect_failures = [var.github_oidc_subject_prefix]
 }
+
+run "cleanup_is_main_only_and_repository_scoped" {
+  command = plan
+  plan_options {
+    target = [aws_iam_role.github_ecr_cleanup, aws_iam_role_policy.github_ecr_cleanup]
+  }
+  assert {
+    condition = (
+      jsondecode(aws_iam_role.github_ecr_cleanup.assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"] == "repo:capraconsulting@1316242/skjera@1408710589:ref:refs/heads/main" &&
+      jsondecode(aws_iam_role.github_ecr_cleanup.assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:aud"] == "sts.amazonaws.com" &&
+      jsondecode(aws_iam_role_policy.github_ecr_cleanup.policy).Statement[0].Resource == aws_ecr_repository.app.arn &&
+      toset(jsondecode(aws_iam_role_policy.github_ecr_cleanup.policy).Statement[0].Action) == toset(["ecr:DescribeImages", "ecr:BatchDeleteImage"])
+    )
+    error_message = "Only main automation may delete app images, with no publishing or cluster access."
+  }
+}

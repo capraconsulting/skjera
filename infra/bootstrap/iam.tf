@@ -77,7 +77,10 @@ resource "aws_iam_role_policy" "provision" {
           "iam:ListRolePolicies", "iam:GetRolePolicy", "iam:ListAttachedRolePolicies",
           "iam:ListInstanceProfilesForRole", "iam:PutRolePolicy", "iam:DeleteRolePolicy",
         ]
-        Resource = "${local.iam_prefix}:role/${local.name}-github-ecr"
+        Resource = [
+          "${local.iam_prefix}:role/${local.name}-github-ecr",
+          "${local.iam_prefix}:role/${local.name}-github-ecr-cleanup",
+        ]
       },
       {
         Sid      = "AttachEksManagedPolicies"

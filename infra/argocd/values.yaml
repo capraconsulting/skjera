@@ -47,6 +47,19 @@ notifications:
 configs:
   cm:
     resource.customizations: |
+      bitnami.com/SealedSecret:
+        health.lua: |
+          if obj.status and obj.status.observedGeneration == obj.metadata.generation then
+            for _, condition in ipairs(obj.status.conditions or {}) do
+              if condition.type == "Synced" and condition.status == "True" then
+                return { status = "Healthy", message = "Secret is decrypted and synced" }
+              end
+              if condition.type == "Synced" and condition.status == "False" then
+                return { status = "Degraded", message = condition.message or "Secret cannot be decrypted" }
+              end
+            end
+          end
+          return { status = "Progressing", message = "Waiting for secret decryption" }
       "*.aws.m.upbound.io/*":
         health.lua: |
           local health = { status = "Progressing", message = "Waiting for Crossplane" }

@@ -1,6 +1,6 @@
 import { assert, describe, layer, it as plain } from "@effect/vitest";
 import { Effect, Logger, Option, Stream } from "effect";
-import { maxImageBytes } from "../../src/api/ImagesApi.ts";
+import { maxImageBytes } from "../../../src/api/ImagesApi.ts";
 import {
   Images,
   imageSize,
@@ -8,7 +8,7 @@ import {
   pageOf,
   readImageSize,
   sniffImageType,
-} from "../../src/events/images/index.ts";
+} from "../../../src/events/images/index.ts";
 
 // The smallest valid PNG: one transparent pixel.
 const png = Uint8Array.from(

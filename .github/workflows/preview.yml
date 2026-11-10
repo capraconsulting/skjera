@@ -1,0 +1,123 @@
+name: PR previews
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  # This event runs code from main only; never check out or execute PR code here.
+  pull_request_target:
+    types: [closed]
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+
+jobs:
+  reconcile:
+    # Do not hold this lock while waiting for an environment to become ready.
+    concurrency:
+      group: skjera-preview-desired-state
+      cancel-in-progress: false
+    outputs:
+      pr: ${{ steps.reconcile.outputs.prNumber }}
+      image: ${{ steps.reconcile.outputs.image }}
+      head: ${{ steps.reconcile.outputs.headSha }}
+    if: >-
+      vars.PREVIEWS_ENABLED == 'true' &&
+      (github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'pull_request' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       github.event.workflow_run.actor.login != 'dependabot[bot]'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out trusted automation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+        with:
+          install_args: kubeseal
+      - name: Create token for the deployment repository only
+        id: deploy-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.DEPLOY_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DEPLOY_APP_PRIVATE_KEY }}
+          owner: capraconsulting
+          repositories: skjera-deploy
+          permission-contents: write
+      - name: Check out deployment state
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: capraconsulting/skjera-deploy
+          ref: main
+          path: .preview-deploy
+          token: ${{ steps.deploy-token.outputs.token }}
+          persist-credentials: false
+      - name: Reconcile previews
+        id: reconcile
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOY_TOKEN: ${{ steps.deploy-token.outputs.token }}
+          PREVIEW_DEX_PASSWORD: ${{ secrets.PREVIEW_DEX_PASSWORD }}
+        run: |
+          if ! command -v htpasswd >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install --yes apache2-utils
+          fi
+          mise exec -- python3 deploy/automation/reconcile.py .preview-deploy --push
+
+  ready:
+    needs: reconcile
+    if: needs.reconcile.outputs.pr != ''
+    concurrency:
+      group: skjera-preview-ready-${{ needs.reconcile.outputs.pr }}
+      cancel-in-progress: true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Wait for the published image over HTTPS
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ needs.reconcile.outputs.pr }}
+          IMAGE: ${{ needs.reconcile.outputs.image }}
+          HEAD_SHA: ${{ needs.reconcile.outputs.head }}
+        run: python3 deploy/automation/wait.py
+
+  cleanup-images:
+    needs: reconcile
+    if: needs.reconcile.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Authenticate for image cleanup only
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::440027025698:role/skjera-dev-github-ecr-cleanup
+          aws-region: eu-north-1
+          allowed-account-ids: '440027025698'
+          role-session-name: github-preview-cleanup-${{ github.run_id }}
+          role-duration-seconds: 900
+      - name: Remove images for closed PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 deploy/automation/cleanup_images.py --apply

@@ -95,11 +95,21 @@ It installs, builds the app and the server from the working tree, creates a new 
 The shared AWS foundation (EKS Auto Mode, networking, IAM and ECR) is in
 [infra](infra/Readme.md), managed with OpenTofu in `eu-north-1`.
 
+The [PR deployment runbook](deploy/automation/Readme.md) covers GitHub Actions,
+the private deployment repository, Argo CD, preview secrets and cleanup.
+
 The [Dockerfile](Dockerfile) builds one image: the server, serving the built app too, on port 3000.
 
 ```bash
 docker build -t skjera .
 ```
+
+CI builds on GitHub-hosted runners and stores all intermediate build layers in
+GitHub Actions cache (`scope=skjera-app`, `mode=max`). The build and ECR publish
+jobs share this cache, subject to GitHub's branch access rules and cache eviction.
+The pnpm store lives in a cached build layer so fresh runners can install offline;
+only the compiled app and server enter the runtime image. CI does not pull build
+cache from ECR.
 
 It's configured by environment variables, as in [mise.toml](mise.toml). Needed: `DATABASE_URL` (Postgres 18 with pg_automerge; migrations run at start), `OAUTH_*` (an OIDC provider), `S3_*` (image storage; the key must be allowed to list the bucket, as well as to read and write it, since the studio lists the images already uploaded), `SITE_URL`, `SITE_NAME`, `SITE_LOCALE` (the language for those who haven't picked one: `en`, `nb` or `nn`), `EMAIL_FROM`, `SIGNING_SECRET` (any long random string, the same across restarts) and `EMAIL_TRANSPORT=ses` (with `AWS_REGION` and AWS credentials) or `smtp` (with `EMAIL_SMTP_URL`). The server starts without the email settings and the secret, warning that emails aren't sent.
 
@@ -116,7 +126,7 @@ Image storage uses an existing private bucket in AWS. Configure it as follows:
 
 With Pod Identity, the app obtains and refreshes short-lived credentials from
 EKS automatically. Do not put AWS keys in the Deployment. Its role needs
-`GetObject` and `PutObject` for its own bucket's objects, plus `ListBucket` on
+`GetObject`, `PutObject` and `DeleteObject` for its own bucket's objects, plus `ListBucket` on
 that bucket so S3 can return 404 for missing images. It needs no bucket creation
 or deletion permissions. Cloud deployments leave `S3_CREATE_BUCKET` unset;
 local development retains automatic RustFS bucket creation.

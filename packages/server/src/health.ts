@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect";
+import { Config, Effect, Layer } from "effect";
 import { HttpRouter, HttpServerResponse } from "effect/http";
 import { SqlClient } from "effect/sql";
 
@@ -12,7 +12,15 @@ const ready = HttpRouter.add(
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`SELECT 1`;
-    return HttpServerResponse.text("ok");
+    const image = yield* Config.String("APP_IMAGE").pipe(
+      Config.withDefault(""),
+    );
+    return HttpServerResponse.text("ok", {
+      headers: {
+        "Cache-Control": "no-store",
+        ...(image ? { "X-Skjera-Image": image } : {}),
+      },
+    });
   }).pipe(
     Effect.timeout("2 seconds"),
     Effect.catchCause((cause) =>
