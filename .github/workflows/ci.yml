@@ -166,7 +166,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
         with:
-          install_args: go-jsonnet kubeseal opentofu
+          install_args: node pnpm go-jsonnet kubeseal opentofu
+      - run: pnpm install --frozen-lockfile --filter @skjera/deploy
       - name: Bcrypt tool for secret encryption tests
         run: |
           if ! command -v htpasswd >/dev/null; then
@@ -239,15 +240,14 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          python3 - <<'PY'
-          import json, os
-          from pathlib import Path
-          Path("preview-image.json").write_text(json.dumps({
-              "prNumber": os.environ["PR_NUMBER"], "image": os.environ["IMAGE"],
-              "headSha": os.environ["HEAD_SHA"], "runId": os.environ["GITHUB_RUN_ID"],
-              "runAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
-          }))
-          PY
+          node --input-type=module <<'JS'
+          import { writeFileSync } from 'node:fs';
+          const e = process.env;
+          writeFileSync('preview-image.json', JSON.stringify({
+            prNumber: e.PR_NUMBER, image: e.IMAGE, headSha: e.HEAD_SHA,
+            runId: e.GITHUB_RUN_ID, runAttempt: e.GITHUB_RUN_ATTEMPT,
+          }));
+          JS
       - name: Upload PR image metadata
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

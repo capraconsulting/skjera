@@ -1,5 +1,6 @@
 packages:
   - "packages/*"
+  - "deploy"
 
 catalog:
   "@automerge/automerge": 3.5.0
