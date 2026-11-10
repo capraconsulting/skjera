@@ -76,7 +76,11 @@ export function validate(
   if (!metadata || typeof metadata !== "object")
     throw new Error("Invalid image metadata");
   const m = metadata as Metadata;
-  if (typeof m.image !== "string" || !IMAGE.test(m.image))
+  if (
+    typeof m.image !== "string" ||
+    m.image.trim() !== m.image ||
+    !IMAGE.test(m.image)
+  )
     throw new Error("Image must be an app ECR digest");
   if (
     build.event !== "pull_request" ||

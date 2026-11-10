@@ -67,6 +67,9 @@ describe("artifact trust boundaries", () => {
         f.metadata.image += "\nmalicious=value";
       },
       (f: ReturnType<typeof fixture>) => {
+        f.metadata.image += "\n";
+      },
+      (f: ReturnType<typeof fixture>) => {
         f.metadata.prNumber = "../../bad";
       },
       (f: ReturnType<typeof fixture>) => {
