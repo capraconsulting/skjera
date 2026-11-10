@@ -1,6 +1,6 @@
 # AWS infrastructure
 
-Six independent OpenTofu projects targeting Stockholm (`eu-north-1`):
+Seven independent OpenTofu projects. Regional infrastructure targets Stockholm (`eu-north-1`); Route 53 DNS is global:
 
 1. [bootstrap](bootstrap): runs with an existing AWS administrator profile and
    local state. Creates a private, versioned, encrypted S3 state bucket and an
@@ -10,15 +10,20 @@ Six independent OpenTofu projects targeting Stockholm (`eu-north-1`):
 3. [argocd](argocd/Readme.md): installs Argo CD through Helm on the existing
    cluster, using a separate S3 state key and the same OpenTofu role.
 4. [crossplane](crossplane/Readme.md): installs Crossplane and its S3 provider
-   with Pod Identity. Crossplane, not OpenTofu, owns app/preview buckets.
+   with Pod Identity. Crossplane, not OpenTofu, owns app/preview buckets
+   and per-preview app Pod Identity associations.
 5. [cloudnativepg](cloudnativepg/Readme.md): installs the CNPG operator and
    preview StorageClass. Argo CD declares each app's Cluster and Database.
 6. [gateway](gateway/Readme.md): installs Envoy Gateway and a shared public NLB
-   listener for per-preview HTTPRoutes. DNS and TLS are configured separately.
+   listener for per-preview HTTPRoutes, ACM TLS termination, and apex/wildcard DNS aliases.
+7. [dns](dns/Readme.md): owns the public `skjera.capraconsulting.no` hosted
+   zone and DNS-validated ACM certificate, delegated manually from Domeneshop and retained across compute teardowns.
 
 The OpenTofu service identity is an IAM role using temporary credentials. The
 bootstrap role trusts explicitly configured existing IAM principals. No IAM
 users or access keys are created. All projects check the AWS account ID.
+GitHub Actions has a separate OIDC identity limited to publishing app images;
+see [GitHub publishing](common/GitHub.md).
 
 ## Provision common from a new machine
 
@@ -118,7 +123,7 @@ tofu -chdir=infra/bootstrap output -raw common_bootstrap_vars > infra/argocd/boo
 ```
 
 Review and include these generated identifier files in Git so new operators
-can use the existing environment. Only these exact common/Argo CD paths are exempted from the
+can use the existing environment. Only the explicitly listed shared backend/account paths are exempted from the
 ignore rules; state, plans, local inputs and other backend files remain ignored.
 Never add credentials to the shared files. Keep the two files together: they
 must refer to the same account/environment. Do not override their account,
@@ -146,7 +151,7 @@ tofu -chdir=infra/common apply common.tfplan
 
 The common state key is `common/terraform.tfstate` in the environment's bucket.
 Native S3 locking (`use_lockfile = true`) coordinates writers; no DynamoDB table
-is required. The role can read/write common, Argo CD, Crossplane, CloudNativePG and gateway state and manage their locks, but cannot
+is required. The role can read/write common, Argo CD, Crossplane, CloudNativePG, gateway and DNS state and manage their locks, but cannot
 configure or delete the bucket. Backend initialization happens before provider
 configuration, so role assumption is configured for both independently.
 
@@ -160,7 +165,11 @@ the chosen region, plus management of the two common EKS roles and attachment
 of their seven required AWS-managed policies. It can pass those roles to EKS
 and EC2 and create EKS's service-linked role. Treat it as a privileged
 infrastructure operator. Bootstrap also creates Crossplane's bucket-scoped runtime role and lets the
-OpenTofu role pass it to EKS Pod Identity. It cannot change its own trust or
+OpenTofu role pass it to EKS Pod Identity. Bootstrap also creates the EKS
+provider role and a shared, session-tag-scoped preview app role. The separate DNS/certificate policies grant global hosted-zone management,
+A/CNAME record changes limited to the Skjera subdomain, regional ACM management
+and read-only NLB discovery; see [dns/Readme.md](dns/Readme.md) for scope and delegation.
+It cannot change its own trust or
 policies. Additional
 services in later stages will require deliberate updates to the bootstrap policy.
 
@@ -197,6 +206,7 @@ For teardown, let Crossplane/CNPG delete all preview resources and storage,
 then remove gateway, CloudNativePG, Crossplane and Argo CD (see [argocd/Readme.md](argocd/Readme.md)),
 then destroy common infrastructure (see its Readme). Keep the
 bootstrap bucket and state history unless deliberately retiring the environment.
+Retaining DNS also requires retaining the bootstrap bucket and role.
 Deleting bootstrap requires explicitly removing the bucket's lifecycle
 protection and emptying all object versions, so it is a separate operation.
 
@@ -211,9 +221,10 @@ bootstrap/common input files on the operator's machine; neither state nor
 credentials belong in Git. Sign in again with the AWS CLI and verify the account.
 Review common's API access CIDRs if the operator's public IP has changed.
 
-Recreate the projects in order: bootstrap, common, argocd, crossplane,
-cloudnativepg, gateway. First initialize and apply bootstrap using its local
-state. The committed backend/account files remain valid for the same account
+Recreate the compute projects in order: bootstrap, common, argocd, crossplane,
+cloudnativepg, gateway. Apply DNS after bootstrap and before gateway;
+preserve an existing DNS zone and its remote state across compute teardowns.
+First initialize and apply bootstrap using its local state. The committed backend/account files remain valid for the same account
 and environment. For each remaining project, run:
 
 ```bash
@@ -223,7 +234,9 @@ tofu -chdir=infra/<project> apply redeploy.tfplan
 ```
 
 For complete retirement, first remove all preview resources while their
-controllers are running, then destroy the six projects in reverse order.
+controllers are running, then destroy the compute projects in reverse order.
+For DNS retirement,
+follow [dns/Readme.md](dns/Readme.md) before removing bootstrap.
 Wait for the shared gateway's generated LoadBalancer Service and AWS NLB to
 disappear before removing Envoy Gateway. Only after all remote-state projects
 are destroyed may the bootstrap owner retire the backend: preserve any desired

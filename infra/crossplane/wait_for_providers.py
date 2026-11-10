@@ -21,13 +21,13 @@ with tempfile.TemporaryDirectory(prefix="skjera-crossplane-") as directory:
     kubectl = ["mise", "exec", "kubectl@1.35", "--", "kubectl", "--kubeconfig", kubeconfig]
     subprocess.run(
         kubectl + ["wait", "provider.pkg.crossplane.io/provider-family-aws",
-                   "provider.pkg.crossplane.io/provider-aws-s3",
+                   "provider.pkg.crossplane.io/provider-aws-s3", "provider.pkg.crossplane.io/provider-aws-eks",
                    "--for=condition=Healthy", "--timeout=600s"],
         check=True,
     )
     subprocess.run(
         kubectl + ["wait", "crd/clusterproviderconfigs.aws.m.upbound.io",
-                   "crd/buckets.s3.aws.m.upbound.io",
+                   "crd/buckets.s3.aws.m.upbound.io", "crd/podidentityassociations.eks.aws.m.upbound.io",
                    "--for=condition=Established", "--timeout=120s"],
         check=True,
     )

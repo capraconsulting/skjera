@@ -185,6 +185,9 @@ catalogs:
     '@aws-sdk/client-sesv2':
       specifier: 3.1146.0
       version: 3.1146.0
+    '@aws-sdk/credential-provider-node':
+      specifier: 3.972.84
+      version: 3.972.84
     '@effect/platform-node':
       specifier: 4.0.0
       version: 4.0.0
@@ -440,6 +443,9 @@ importers:
       '@automerge/prosemirror':
         specifier: 'catalog:'
         version: 0.2.0
+      '@aws-sdk/credential-provider-node':
+        specifier: 'catalog:'
+        version: 3.972.84
       '@effect/sql-pg':
         specifier: 'catalog:'
         version: 4.0.0(effect@4.0.0)

@@ -14,6 +14,7 @@
   "dependencies": {
     "@automerge/automerge": "catalog:",
     "@automerge/prosemirror": "catalog:",
+    "@aws-sdk/credential-provider-node": "catalog:",
     "@effect/sql-pg": "catalog:",
     "@skjera/email": "workspace:*",
     "@skjera/hubspot": "workspace:*",

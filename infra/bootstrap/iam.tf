@@ -40,7 +40,8 @@ resource "aws_iam_role_policy" "state" {
 
 # This is a privileged infrastructure operator, limited to the services used by
 # common in the selected region. IAM changes are limited to common's EKS roles
-# and its seven AWS-managed policies. It cannot edit itself or the state bucket.
+# and its seven AWS-managed policies, plus the ECR publishing role.
+# It cannot edit itself or the state bucket.
 resource "aws_iam_role_policy" "provision" {
   name = "common-infrastructure"
   role = aws_iam_role.opentofu.id
@@ -66,6 +67,17 @@ resource "aws_iam_role_policy" "provision" {
           "iam:ListInstanceProfilesForRole",
         ]
         Resource = local.eks_role_arns
+      },
+      {
+        Sid    = "ManageGitHubEcrRole"
+        Effect = "Allow"
+        Action = [
+          "iam:CreateRole", "iam:DeleteRole", "iam:GetRole", "iam:UpdateRole",
+          "iam:UpdateAssumeRolePolicy", "iam:TagRole", "iam:UntagRole",
+          "iam:ListRolePolicies", "iam:GetRolePolicy", "iam:ListAttachedRolePolicies",
+          "iam:ListInstanceProfilesForRole", "iam:PutRolePolicy", "iam:DeleteRolePolicy",
+        ]
+        Resource = "${local.iam_prefix}:role/${local.name}-github-ecr"
       },
       {
         Sid      = "AttachEksManagedPolicies"

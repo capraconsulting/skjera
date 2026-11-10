@@ -1,3 +1,4 @@
+import { defaultProvider } from "@aws-sdk/credential-provider-node";
 import { AwsClient } from "aws4fetch";
 import { Config, Context, Data, Effect, Layer, Option, Redacted } from "effect";
 import { InvalidImage } from "../../api/errors.ts";
@@ -126,36 +127,80 @@ export class Images extends Context.Service<
     >;
   }
 >()("@skjera/documents/Images") {
-  /** On the bucket `S3_BUCKET` at `S3_ENDPOINT`, created if missing. */
+  /** Uses an existing private bucket; local development may opt into creation. */
   static readonly layer = Layer.effect(
     Images,
     Effect.gen(function* () {
-      const endpoint = yield* Config.URL("S3_ENDPOINT");
+      const awsRegion = yield* Config.String("AWS_REGION").pipe(
+        Config.withDefault("us-east-1"),
+      );
+      const region = yield* Config.String("S3_REGION").pipe(
+        Config.withDefault(awsRegion),
+      );
+      const endpoint = yield* Config.URL("S3_ENDPOINT").pipe(
+        Config.withDefault(new URL(`https://s3.${region}.amazonaws.com`)),
+      );
       const bucket = yield* Config.String("S3_BUCKET");
-      const client = new AwsClient({
-        accessKeyId: yield* Config.String("S3_ACCESS_KEY_ID"),
-        secretAccessKey: Redacted.value(
-          yield* Config.Redacted("S3_SECRET_ACCESS_KEY"),
-        ),
-        region: yield* Config.String("S3_REGION").pipe(
-          Config.withDefault("us-east-1"),
-        ),
-        service: "s3",
-      });
-      // Path-style addressing, which S3-compatible stores all take.
-      const url = (key = "") =>
-        new URL(`${bucket}/${key}`, endpoint.href.replace(/\/?$/, "/")).href;
-      const request = (target: string, init?: RequestInit) =>
-        Effect.tryPromise(() => client.fetch(target, init)).pipe(Effect.orDie);
-
-      const created = yield* request(url(), { method: "PUT" });
-      // 409: it exists already.
-      if (!created.ok && created.status !== 409) {
+      const accessKeyId = yield* Config.option(
+        Config.String("S3_ACCESS_KEY_ID"),
+      );
+      const secretAccessKey = yield* Config.option(
+        Config.Redacted("S3_SECRET_ACCESS_KEY"),
+      );
+      const sessionToken = yield* Config.option(
+        Config.Redacted("S3_SESSION_TOKEN"),
+      );
+      if (
+        Option.isSome(accessKeyId) !== Option.isSome(secretAccessKey) ||
+        (Option.isSome(sessionToken) && Option.isNone(accessKeyId))
+      ) {
         return yield* Effect.die(
           new Error(
-            `Creating bucket ${bucket} failed: ${created.status} ${yield* Effect.promise(() => created.text())}`,
+            "Set both S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY, or neither to use AWS credentials. S3_SESSION_TOKEN requires both keys.",
           ),
         );
+      }
+      // The SDK caches and refreshes temporary credentials, including EKS Pod
+      // Identity. Resolve for each request; never freeze its initial result.
+      const credentials =
+        Option.isSome(accessKeyId) && Option.isSome(secretAccessKey)
+          ? async () => ({
+              accessKeyId: accessKeyId.value,
+              secretAccessKey: Redacted.value(secretAccessKey.value),
+              ...(Option.isSome(sessionToken)
+                ? { sessionToken: Redacted.value(sessionToken.value) }
+                : {}),
+            })
+          : defaultProvider();
+      const cache = new Map<string, ArrayBuffer>();
+      // Path-style addressing also supports local S3-compatible stores.
+      const url = (key = "") =>
+        new URL(`${bucket}/${key}`, endpoint.href.replace(/\/?$/, "/")).href;
+      const fetch = async (target: string, init?: RequestInit) => {
+          const client = new AwsClient({
+            ...(await credentials()),
+            region,
+            service: "s3",
+            cache,
+          });
+          return client.fetch(target, init);
+        };
+      const request = (target: string, init?: RequestInit) =>
+        Effect.tryPromise((signal) => fetch(target, { ...init, signal })).pipe(Effect.orDie);
+
+      // Crossplane owns cloud buckets. This opt-in is only for local RustFS.
+      const createBucket = yield* Config.Boolean("S3_CREATE_BUCKET").pipe(
+        Config.withDefault(false),
+      );
+      if (createBucket) {
+        const created = yield* request(url(), { method: "PUT" });
+        if (!created.ok && created.status !== 409) {
+          return yield* Effect.die(
+            new Error(
+              `Creating bucket ${bucket} failed: ${created.status} ${yield* Effect.promise(() => created.text())}`,
+            ),
+          );
+        }
       }
 
       // The bucket's whole listing, kept briefly: every page of the list is
@@ -248,7 +293,7 @@ export class Images extends Context.Service<
           if (token !== null) query.set("continuation-token", token);
           const xml: string = yield* Effect.tryPromise({
             try: async () => {
-              const response = await client.fetch(`${url()}?${query}`);
+              const response = await fetch(`${url()}?${query}`);
               if (!response.ok) throw new Error(String(response.status));
               return await response.text();
             },

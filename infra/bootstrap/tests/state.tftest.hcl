@@ -103,3 +103,47 @@ run "reject_session_arn" {
   }
   expect_failures = [var.trusted_principal_arns]
 }
+
+run "gateway_tls_permissions" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      for statement in jsondecode(aws_iam_role_policy.dns.policy).Statement : (
+        statement.Condition["ForAllValues:StringEquals"]["route53:ChangeResourceRecordSetsRecordTypes"] == ["A", "CNAME"] &&
+        contains(statement.Condition["ForAllValues:StringLike"]["route53:ChangeResourceRecordSetsNormalizedRecordNames"], "skjera.capraconsulting.no") &&
+        !contains(statement.Condition["ForAllValues:StringLike"]["route53:ChangeResourceRecordSetsNormalizedRecordNames"], "capraconsulting.no")
+      ) if statement.Sid == "ManageSkjeraRecords"
+    ])
+    error_message = "DNS writes must cover only app aliases and validation CNAMEs under Skjera, never parent records or NS delegation."
+  }
+
+  assert {
+    condition = alltrue([
+      for statement in jsondecode(aws_iam_role_policy.certificates.policy).Statement :
+      !contains(statement.Action, "acm:ExportCertificate") && !contains(statement.Action, "acm:*")
+    ])
+    error_message = "The gateway certificate role must not export private keys or have unrestricted ACM permissions."
+  }
+}
+
+run "preview_workload_isolation" {
+  command = plan
+  assert {
+    condition = (
+      jsondecode(aws_iam_role.preview_app.assume_role_policy).Statement[0].Principal.Service == "pods.eks.amazonaws.com" &&
+      jsondecode(aws_iam_role.preview_app.assume_role_policy).Statement[0].Condition.StringEquals["aws:RequestTag/kubernetes-namespace"] == "skjera-$${aws:RequestTag/kubernetes-service-account}" &&
+      jsondecode(aws_iam_role.preview_app.assume_role_policy).Statement[0].Condition.StringLike["aws:RequestTag/kubernetes-service-account"] == "pr-*" &&
+      jsondecode(aws_iam_role.preview_app.assume_role_policy).Statement[0].Condition.StringEquals["aws:RequestTag/eks-cluster-name"] == "skjera-dev"
+    )
+    error_message = "The app identity must bind service account pr-N to namespace skjera-pr-N in this cluster."
+  }
+  assert {
+    condition = (
+      jsondecode(aws_iam_role_policy.preview_app.policy).Statement[0].Resource == "arn:aws:s3:::skjera-dev-app-123456789012-$${aws:PrincipalTag/kubernetes-service-account}-images" &&
+      jsondecode(aws_iam_role_policy.preview_app.policy).Statement[1].Resource == "arn:aws:s3:::skjera-dev-app-123456789012-$${aws:PrincipalTag/kubernetes-service-account}-images/*" &&
+      jsondecode(aws_iam_role_policy.preview_app.policy).Statement[1].Action == ["s3:GetObject", "s3:PutObject"]
+    )
+    error_message = "App access must be scoped by session tag to its own bucket and must not manage bucket/object deletion."
+  }
+}

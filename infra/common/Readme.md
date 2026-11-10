@@ -75,7 +75,9 @@ tofu -chdir=infra/common output -raw ecr_repository_url
 tofu -chdir=infra/common output -raw configure_kubectl
 ```
 
-Image publishing permissions and CI federation can be added later. Use unique
+[GitHub OIDC and ECR publishing](GitHub.md) are configured through bootstrap
+and common. The CI workflow publishes successful main and same-repository PR
+builds once those workflow changes are pushed. Use unique
 release tags (e.g. commit SHAs), because ECR tags cannot be overwritten.
 
 ## Teardown

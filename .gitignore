@@ -38,6 +38,8 @@ terraform.plan.*
 !/infra/cloudnativepg/bootstrap.auto.tfvars.json
 !/infra/gateway/backend.s3.tfbackend
 !/infra/gateway/bootstrap.auto.tfvars.json
+!/infra/dns/backend.s3.tfbackend
+!/infra/dns/bootstrap.auto.tfvars.json
 crash.log
 crash.*.log
 
@@ -78,3 +80,6 @@ id_ed25519.*
 # Python verification scripts
 __pycache__/
 *.py[cod]
+
+# Disposable preview journals and generated secrets
+/deploy/preview/.local/

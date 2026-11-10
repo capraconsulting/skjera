@@ -94,8 +94,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      # Built, not pushed: publishing is for when there is somewhere to.
       # Loaded into the runner's Docker, to be started below.
+      # Check builds without AWS access, including for fork pull requests.
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -156,3 +156,50 @@ jobs:
       - name: The container's log, when a check failed
         if: failure() && steps.start.outcome == 'success'
         run: docker logs skjera
+
+  publish:
+    name: Publish image to ECR
+    needs: [checks, e2e, image]
+    # Fork and Dependabot PRs remain build-only. Never use pull_request_target
+    # to run PR code with publishing credentials.
+    if: >-
+      github.actor != 'dependabot[bot]' &&
+      (github.event_name == 'push' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ECR_REPOSITORY: skjera-dev
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Authenticate to AWS using GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::440027025698:role/skjera-dev-github-ecr
+          aws-region: eu-north-1
+          allowed-account-ids: '440027025698'
+          role-session-name: github-ecr-${{ github.run_id }}
+          role-duration-seconds: 1800
+      - name: Authenticate Docker to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
+      - name: Build and publish the checked revision
+        id: publish
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          push: true
+          # Include the run/attempt so reruns work with immutable ECR tags.
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:sha-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Record immutable image reference
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          IMAGE_DIGEST: ${{ steps.publish.outputs.digest }}
+        run: |
+          printf 'Published image: `%s/%s@%s`\n' "$REGISTRY" "$ECR_REPOSITORY" "$IMAGE_DIGEST" >> "$GITHUB_STEP_SUMMARY"

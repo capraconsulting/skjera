@@ -57,6 +57,35 @@ class PreviewRendering(unittest.TestCase):
         for kind in ["Database", "BucketPublicAccessBlock", "BucketServerSideEncryptionConfiguration"]:
             self.assertEqual(items[kind]["metadata"]["annotations"]["argocd.argoproj.io/sync-wave"], "-10")
 
+    def test_app_identity_database_secrets_and_https(self):
+        image = "440027025698.dkr.ecr.eu-north-1.amazonaws.com/skjera-dev@sha256:" + "a" * 64
+        result = render(prNumber="123", image=image)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        items = json.loads(result.stdout)
+        keyed = {(item["kind"], item["metadata"]["name"]): item for item in items}
+        self.assertEqual(len(items), 14)
+        namespace = keyed[("Namespace", "skjera-pr-123")]
+        self.assertEqual(namespace["metadata"]["labels"]["skjera.capraconsulting.no/preview"], "true")
+        pod = keyed[("Deployment", "app")]["spec"]["template"]["spec"]
+        self.assertEqual(pod["serviceAccountName"], "pr-123")
+        environment = {value["name"]: value for value in pod["containers"][0]["env"]}
+        self.assertEqual(environment["DATABASE_URL"]["valueFrom"]["secretKeyRef"], {"name": "postgres-app", "key": "uri"})
+        self.assertEqual(environment["SIGNING_SECRET"]["valueFrom"]["secretKeyRef"]["name"], "preview-app")
+        self.assertEqual(environment["S3_CREATE_BUCKET"]["value"], "false")
+        self.assertNotIn("S3_ACCESS_KEY_ID", environment)
+        self.assertEqual(environment["OAUTH_ISSUER"]["value"], "https://pr-123.skjera.capraconsulting.no/dex")
+        association = keyed[("PodIdentityAssociation", "app")]["spec"]["forProvider"]
+        self.assertEqual(association["namespace"], "skjera-pr-123")
+        self.assertEqual(association["serviceAccount"], "pr-123")
+        self.assertFalse(association["disableSessionTags"])
+        self.assertEqual(keyed[("HTTPRoute", "app")]["spec"]["parentRefs"][0]["sectionName"], "https")
+        self.assertEqual(keyed[("HTTPRoute", "app")]["spec"]["hostnames"], ["pr-123.skjera.capraconsulting.no"])
+        self.assertFalse(any(item["kind"] == "Secret" for item in items), "Secret values must not be rendered into Git/OCI")
+        external = json.loads(render(prNumber="123", image=image, oidcIssuer="https://login.example.com", oidcAllowedDomains="capraconsulting.no").stdout)
+        self.assertFalse(any(item["metadata"]["name"] == "dex" for item in external))
+        for overrides in [{"namespace": "other"}, {"image": "image:latest"}, {"image": "image@sha256:" + "g" * 64}]:
+            self.assertNotEqual(render(**({"prNumber": "123", "image": image} | overrides)).returncode, 0)
+
     def test_invalid_inputs_are_rejected(self):
         cases = [{"prNumber": value} for value in ["", "0", "01", "-1", "1/2", "abc", "1234567890"]]
         cases += [{"prNumber": "1", "namespace": value} for value in ["", "Upper", "bad/name", "-bad", "bad-", "a" * 64]]

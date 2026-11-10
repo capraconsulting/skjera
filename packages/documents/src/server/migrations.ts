@@ -129,7 +129,21 @@ export const migrations = Migrator.fromRecord({
       event_date = (draft::jsonb->>'date')::date,
       draft_heads = automerge_heads(draft)`,
   ),
-  "0008_pg_automerge_0_2": statements(`ALTER EXTENSION pg_automerge UPDATE`),
+  "0008_pg_automerge_0_2": statements(`
+    DO $$ BEGIN
+      -- A managed database may install the current extension as an admin.
+      -- Avoid an ownership check when there is nothing to upgrade. If an
+      -- upgrade is needed, its owner must still perform/authorize it.
+      IF EXISTS (
+        SELECT 1 FROM pg_extension installed
+        JOIN pg_available_extensions available ON available.name = installed.extname
+        WHERE installed.extname = 'pg_automerge'
+          AND installed.extversion IS DISTINCT FROM available.default_version
+      ) THEN
+        ALTER EXTENSION pg_automerge UPDATE;
+      END IF;
+    END $$
+  `),
   "0009_rich_body": statements(
     // The published body keeps its rich text structure: automerge_spans,
     // runs of text with their marks, and blocks (paragraphs, headings, list

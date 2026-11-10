@@ -39,3 +39,37 @@ spec:
   revisionHistoryLimit: 1
   runtimeConfigRef:
     name: aws-s3-pod-identity
+
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: aws-eks-pod-identity
+spec:
+  serviceAccountTemplate:
+    metadata:
+      name: provider-aws-eks
+  deploymentTemplate:
+    spec:
+      selector: {}
+      template:
+        spec:
+          containers:
+            - name: package-runtime
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  memory: 1Gi
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-aws-eks
+spec:
+  package: xpkg.crossplane.io/crossplane-contrib/provider-aws-eks:{{ .Values.providerVersion }}
+  skipDependencyResolution: true
+  revisionHistoryLimit: 1
+  runtimeConfigRef:
+    name: aws-eks-pod-identity

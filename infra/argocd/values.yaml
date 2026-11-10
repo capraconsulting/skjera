@@ -47,7 +47,7 @@ notifications:
 configs:
   cm:
     resource.customizations: |
-      "s3.aws.m.upbound.io/*":
+      "*.aws.m.upbound.io/*":
         health.lua: |
           local health = { status = "Progressing", message = "Waiting for Crossplane" }
           local ready = false
