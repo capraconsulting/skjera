@@ -1,6 +1,6 @@
 # OPS-05: Checks and CI
 
-Skjera's code is checked by commands any developer runs, by a git hook before each commit, and by GitHub Actions on each push. The [Readme](../../Readme.md#checks-and-tests) lists the commands.
+Skjera's code is checked by commands any developer runs, by a git hook before each commit, and by GitHub Actions on each pull request and each push to `main`. The [Readme](../../Readme.md#checks-and-tests) lists the commands.
 
 **Set-up:** a checkout set up as the Readme says, with `mise run setup`, and the development services running.
 
@@ -41,14 +41,16 @@ WHEN a developer commits, the pre-commit hook SHALL run Biome on the staged file
 
 **Automated:** none
 
-## AC-4: GitHub checks every push
+## AC-4: GitHub checks every pull request, and every push to main
 
-WHEN code is pushed to `main` or to a pull request, GitHub Actions SHALL run the lint, the type check, the tests, the browser tests, and a build of the image.
+WHEN code is pushed to a pull request, GitHub Actions SHALL run the lint, the type check, the tests, the browser tests, and a build of the image. WHEN code is pushed to `main`, it SHALL run the lint, the type check and the tests. Neither SHALL run when only Markdown files the tests do not read changed.
 
 **Test**
 
 - **Given** the repository on GitHub
-- **When** you open **Actions** and the latest run of **CI** on `main`
+- **When** you open **Actions**, then **CI**, and the latest run of a pull request
 - **Then** it has the jobs «Lint, types and tests», «End-to-end tests (1/4)» to «End-to-end tests (4/4)», and «Image builds»
+- **When** you open the latest run on `main` started by a push
+- **Then** «Lint, types and tests» ran, and the end-to-end tests and «Image builds» were skipped
 
 **Automated:** none

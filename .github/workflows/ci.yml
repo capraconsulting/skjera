@@ -1,13 +1,32 @@
-# Checks every push to main and every pull request: lint, types and tests
-# against the local services, the end-to-end tests, and that the image
-# builds, starts and serves. As locally: tools from mise (mise.toml),
-# services from compose.yml, both pinned; actions pinned by commit.
+# Every pull request gets every check: lint, types and tests, the
+# end-to-end tests, the image build, and the preview infrastructure, before
+# its image is published for a preview. A push to main comes from a pull
+# request already checked, so it gets lint, types and tests and the preview
+# infrastructure before its image is published. Neither runs when only
+# Markdown the tests do not read changed. Started by hand, every check
+# runs. As locally: tools from mise (mise.toml), services from
+# compose.yml, both pinned; actions pinned by commit.
 name: CI
 
 on:
   push:
     branches: [main]
+    paths:
+      - "**"
+      - "!**.md"
+      # Markdown the tests read.
+      - "docs/acceptance/**"
+      - "AGENTS.md"
+      - "CLAUDE.md"
   pull_request:
+    paths:
+      - "**"
+      - "!**.md"
+      # Markdown the tests read.
+      - "docs/acceptance/**"
+      - "AGENTS.md"
+      - "CLAUDE.md"
+  workflow_dispatch:
 
 # A newer push to the same branch or pull request supersedes a run.
 concurrency:
@@ -44,6 +63,8 @@ jobs:
   # once: on one, a test at a time, they took about 20 minutes.
   e2e:
     name: End-to-end tests (${{ matrix.shard }}/4)
+    # Run on the pull request a push to main comes from.
+    if: github.event_name != 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
@@ -89,6 +110,8 @@ jobs:
 
   image:
     name: Image builds
+    # Run on the pull request a push to main comes from.
+    if: github.event_name != 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -189,8 +212,14 @@ jobs:
     name: Publish image to ECR
     needs: [checks, e2e, image, preview-infra]
     # Fork and Dependabot PRs remain build-only. Never use pull_request_target
-    # to run PR code with publishing credentials.
+    # to run PR code with publishing credentials. A push to main skips the
+    # end-to-end tests and the image build, so skipped counts as passed.
     if: >-
+      !cancelled() &&
+      needs.checks.result == 'success' &&
+      needs.preview-infra.result == 'success' &&
+      contains(fromJSON('["success", "skipped"]'), needs.e2e.result) &&
+      contains(fromJSON('["success", "skipped"]'), needs.image.result) &&
       github.actor != 'dependabot[bot]' &&
       (github.event_name == 'push' ||
        github.event.pull_request.head.repo.full_name == github.repository)

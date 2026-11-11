@@ -61,7 +61,7 @@ The browser tests' test server runs with `SIGNUP_LIMITS=off`, since they sign up
 
 [docs/acceptance](docs/acceptance/README.md) has each feature's acceptance criteria, how a person tests each one by hand, and the tests that check it.
 
-The pre-commit hook (`.hooks/`, set by `mise run setup`) runs Biome on staged files, typechecks and the tests: Docker must be running, and mise active. GitHub (`.github/workflows/ci.yml`) runs the same checks, the browser tests (split by file across four jobs that run at once, `--shard=n/4`) and an image build on every push to main and every pull request.
+The pre-commit hook (`.hooks/`, set by `mise run setup`) runs Biome on staged files, typechecks and the tests: Docker must be running, and mise active. Changes reach main through pull requests. GitHub (`.github/workflows/ci.yml`) runs the same checks, the browser tests (split by file across four jobs that run at once, `--shard=n/4`) and an image build on every pull request. A push to main comes from a pull request already checked, so it gets only the same checks before its image is published. Neither runs when only Markdown the tests do not read changed. Started by hand under **Actions** › **CI** › **Run workflow**, every check runs.
 
 ## Test servers
 

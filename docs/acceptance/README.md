@@ -154,6 +154,6 @@ Each criterion has the same parts:
 
 - **The criterion** as it was agreed.
 - **Test**: the test by hand, as *Given* (what must be in place), *When* (what you do, and in which window) and *Then* (what you should see).
-- **Automated**: the tests that check it on every push.
+- **Automated**: the tests that check it, run by the commands, the pre-commit hook and GitHub Actions.
 
 Some criteria can't reasonably be tested by hand, such as two people taking the last place at the same moment. They say **Automated only**, with the tests that cover them.

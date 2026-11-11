@@ -14,7 +14,7 @@ Skjera SHALL build into one Docker image, from the `Dockerfile` at the top of th
 - **When** you run `docker build -t skjera .`
 - **Then** it builds an image `skjera`
 
-**Automated:** the «Image builds» job in `.github/workflows/ci.yml`, on every push to main and every pull request.
+**Automated:** the «Image builds» job in `.github/workflows/ci.yml`, on every pull request.
 
 ## AC-2: The server and the app on port 3000
 
