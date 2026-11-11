@@ -14,15 +14,26 @@ export async function status(
   state: string,
   description: string,
 ): Promise<void> {
+  const url = `https://${deployment.environment}.skjera.capraconsulting.no`;
+  const latest = await api<{ state: string; environment_url?: string }[]>(
+    `${ROOT}/${deployment.id}/statuses?per_page=1`,
+  );
+  if (latest[0]?.state === state && latest[0].environment_url === url) return;
   await api(`${ROOT}/${deployment.id}/statuses`, {
     state,
     description,
-    environment_url: `https://${deployment.environment}.skjera.capraconsulting.no`,
+    environment_url: url,
     log_url: `https://github.com/${REPOSITORY}/actions/runs/${required("GITHUB_RUN_ID")}`,
     auto_inactive: false,
   });
 }
 export async function create(pr: string, head: string): Promise<Deployment> {
+  // Readiness jobs are serialized per PR. Reuse the record on hourly recovery
+  // runs and retries, including retries after a failed readiness check.
+  const existing = await api<Deployment[]>(
+    `${ROOT}?task=${TASK}&environment=pr-${pr}&sha=${head}&per_page=1`,
+  );
+  if (existing[0]) return existing[0];
   const deployment = await api<Deployment>(ROOT, {
     ref: head,
     task: TASK,
