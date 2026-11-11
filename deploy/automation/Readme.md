@@ -119,7 +119,9 @@ and the privileged workflow skips its jobs. Existing image publishing remains.
    `https://pr-N.skjera.capraconsulting.no/health/ready` to return the exact image
    digest in `X-Skjera-Image`. GitHub deployment status adds a **View deployment** link to the PR once ready;
    the workflow summary also links to it. Closed or superseded deployments are
-   marked inactive on close events and reconciliation runs. Readiness
+   marked inactive on close events and reconciliation runs. Hourly recovery runs
+   reuse the existing deployment for the same PR head and only publish a status
+   when it changes; readiness is still checked against the desired image. Readiness
    confirms the new image and database; browser login/upload need the acceptance
    verification below. Automation does not seed test data or send real emails.
 
